@@ -15,9 +15,9 @@ const (
 )
 
 type Game struct {
-	roomLayout   [][]int
+	roomLayout   [][]string
 	player       player.Player
-	tilesetFloor map[int]*ebiten.Image
+	tilesetFloor map[string]*ebiten.Image
 }
 
 func (g *Game) Update() error {
@@ -32,7 +32,7 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 
 	// tile to use if tile fails to be found for some reason
-	defaultTile, _ := g.tilesetFloor[0]
+	defaultTile, _ := g.tilesetFloor["grass"]
 
 	for y, row := range g.roomLayout {
 		for x, tileKey := range row {
@@ -48,10 +48,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	playerFrame := g.player.CurrentFrame
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(float64(g.player.X*tileSize), float64(g.player.Y*tileSize))
-	screen.DrawImage(playerFrame, op)
+	g.player.Draw(screen, tileSize)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -62,12 +59,12 @@ func main() {
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Ancient Rome!")
 
-	roomLayout := [][]int{
-		{0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0},
-		{0, 0, 9, 0, 0},
-		{0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0},
+	roomLayout := [][]string{
+		{"grass", "grass", "grass", "grass", "grass"},
+		{"grass", "grass", "grass", "grass", "grass"},
+		{"grass", "grass", "road-dirt", "grass", "grass"},
+		{"grass", "grass", "grass", "grass", "grass"},
+		{"grass", "grass", "grass", "grass", "grass"},
 	}
 
 	floorTileset, err := tileset.LoadTileset(tileset.Txt_Outdoor_Grass_01)

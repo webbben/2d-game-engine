@@ -18,22 +18,39 @@ type Position struct {
 type Player struct {
 	Position
 	CurrentFrame *ebiten.Image
-	Frames       map[int]*ebiten.Image
+	Frames       map[string]*ebiten.Image
 }
 
 const (
-	movementSpeed = 0.2
+	movementSpeed = 0.1
 )
 
-func CreatePlayer(posX int, posY int, frames map[int]*ebiten.Image) Player {
+const (
+	walk_anim_frames = 2
+)
+
+var (
+	direc_down  = []string{"down-1", "down-2", "down-3", "down-4", "down-5", "down-6", "down-7"}
+	direc_up    = []string{"up-1", "up-2", "up-3", "up-4", "up-5", "up-6", "up-7"}
+	direc_left  = []string{"left-1", "left-2", "left-3", "left-4", "left-5", "left-6", "left-7"}
+	direc_right = []string{"right-1", "right-2", "right-3", "right-4", "right-5", "right-6", "right-7"}
+)
+
+func CreatePlayer(posX int, posY int, frames map[string]*ebiten.Image) Player {
 	return Player{
 		Position: Position{
 			X: float64(posX),
 			Y: float64(posY),
 		},
 		Frames:       frames,
-		CurrentFrame: frames[0],
+		CurrentFrame: frames[direc_down[0]],
 	}
+}
+
+func (p *Player) Draw(screen *ebiten.Image, tileSize int) {
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(p.X*float64(tileSize), p.Y*float64(tileSize))
+	screen.DrawImage(p.CurrentFrame, op)
 }
 
 func (p *Player) Update() {
@@ -53,24 +70,28 @@ func (p *Player) checkMovementInput() {
 	if ebiten.IsKeyPressed(ebiten.KeyW) {
 		p.TargetY = p.getY() - 1
 		p.Direction = 1
+		p.CurrentFrame = p.Frames[direc_up[0]]
 		p.IsMoving = true
 	}
 	// DOWN
 	if ebiten.IsKeyPressed(ebiten.KeyS) {
 		p.TargetY = p.getY() + 1
 		p.Direction = 2
+		p.CurrentFrame = p.Frames[direc_down[0]]
 		p.IsMoving = true
 	}
 	// LEFT
 	if ebiten.IsKeyPressed(ebiten.KeyA) {
 		p.TargetX = p.getX() - 1
 		p.Direction = 3
+		p.CurrentFrame = p.Frames[direc_left[0]]
 		p.IsMoving = true
 	}
 	// RIGHT
 	if ebiten.IsKeyPressed(ebiten.KeyD) {
 		p.TargetX = p.getX() + 1
 		p.Direction = 4
+		p.CurrentFrame = p.Frames[direc_right[0]]
 		p.IsMoving = true
 	}
 }
@@ -107,6 +128,7 @@ func (p *Player) move() {
 	}
 }
 
+// detects if the player has arrived at their target tile (or passed it)
 func (p *Player) playerAtTarget() bool {
 	if p.X == float64(p.TargetX) && p.Y == float64(p.TargetY) {
 		return true

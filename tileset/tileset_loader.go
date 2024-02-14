@@ -30,8 +30,8 @@ var (
 )
 
 // loads a tileset for the given tileset key
-func LoadTileset(key string) (map[int]*ebiten.Image, error) {
-	tileset := make(map[int]*ebiten.Image)
+func LoadTileset(key string) (map[string]*ebiten.Image, error) {
+	tileset := make(map[string]*ebiten.Image)
 
 	// attempt to get the path for the given key
 	folderPath, ok := pathDict[key]
@@ -44,12 +44,14 @@ func LoadTileset(key string) (map[int]*ebiten.Image, error) {
 		return nil, err
 	}
 
-	for i, path := range tilePaths {
+	for _, path := range tilePaths {
 		tileImage, _, err := ebitenutil.NewImageFromFile(path)
 		if err != nil {
 			panic(err)
 		}
-		tileset[i] = tileImage
+		fileNameWithExt := filepath.Base(path)
+		withoutExt := strings.TrimSuffix(fileNameWithExt, filepath.Ext(fileNameWithExt))
+		tileset[withoutExt] = tileImage
 	}
 
 	return tileset, nil
