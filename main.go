@@ -10,8 +10,8 @@ import (
 const (
 	screenWidth  = 640
 	screenHeight = 480
-	tileSize     = 16
-	playerSpeed  = 0.25
+	tileSize     = 32
+	imageScale   = 2
 )
 
 type Game struct {
@@ -36,7 +36,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	for y, row := range g.roomLayout {
 		for x, tileKey := range row {
-			op := &ebiten.DrawImageOptions{}
+			op := getDefaultDrawOptions()
 			op.GeoM.Translate(float64(x*tileSize), float64(y*tileSize))
 
 			tileImage, ok := g.tilesetFloor[tileKey]
@@ -48,7 +48,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	g.player.Draw(screen, tileSize)
+	g.player.Draw(screen, tileSize, getDefaultDrawOptions())
+}
+
+func getDefaultDrawOptions() *ebiten.DrawImageOptions {
+	defaultOptions := &ebiten.DrawImageOptions{}
+	defaultOptions.GeoM.Scale(imageScale, imageScale)
+	return defaultOptions
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -61,9 +67,9 @@ func main() {
 
 	roomLayout := [][]string{
 		{"grass", "grass", "grass", "grass", "grass"},
-		{"grass", "grass", "grass", "grass", "grass"},
-		{"grass", "grass", "road-dirt", "grass", "grass"},
-		{"grass", "grass", "grass", "grass", "grass"},
+		{"road-dirt-T-edge", "road-dirt-T-edge", "road-dirt-T-edge", "road-dirt-T-edge", "road-dirt-T-edge"},
+		{"road-dirt", "road-dirt", "road-dirt", "road-dirt", "road-dirt"},
+		{"road-dirt-B-edge", "road-dirt-B-edge", "road-dirt-B-edge", "road-dirt-B-edge", "road-dirt-B-edge"},
 		{"grass", "grass", "grass", "grass", "grass"},
 	}
 
