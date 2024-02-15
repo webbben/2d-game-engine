@@ -81,7 +81,6 @@ func (r *Room) buildTileLayout() {
 			if ok {
 				key = tileGroup[rand.Intn(len(tileGroup))]
 			}
-			fmt.Println("key:", key)
 			img, ok := tilesetMaster[key]
 			if !ok {
 				panic("image file not found?")
