@@ -173,7 +173,7 @@ func (p *Player) easeToPosX(destX float64) {
 
 func (p *Player) walkAnimation() {
 	curTime := time.Now()
-	if p.IsMoving && (curTime.Sub(p.lastAnimStep) < 200*time.Millisecond) {
+	if p.IsMoving && (curTime.Sub(p.lastAnimStep) < 150*time.Millisecond) {
 		return
 	}
 	p.lastAnimStep = curTime
