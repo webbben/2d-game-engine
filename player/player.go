@@ -1,6 +1,7 @@
 package player
 
 import (
+	"ancient-rome/config"
 	"fmt"
 	"math"
 
@@ -11,7 +12,9 @@ type Position struct {
 	X                    float64 // X position
 	Y                    float64 // Y position
 	IsMoving             bool    // whether the player is actively moving
-	Direction            int     // the direction the player is facing
+	Direction_Horiz      string  // "L"/"R" - the direction the player is moving on the horizontal axis
+	Direction_Vert       string  // "U"/"D" - the direction the player is moving on the vertical axis
+	Facing               string  // "U"/"D"/"L"/"R" - the direction the player is facing (visually)
 	TargetX              int     // the target X position if the player is moving
 	TargetY              int     // the target Y position if the player is moving
 	animStep             int     // the step of the animation we are on
@@ -51,8 +54,12 @@ func CreatePlayer(posX int, posY int, frames map[string]*ebiten.Image) Player {
 	}
 }
 
-func (p *Player) Draw(screen *ebiten.Image, tileSize int, op *ebiten.DrawImageOptions) {
-	op.GeoM.Translate(p.X*float64(tileSize), p.Y*float64(tileSize))
+func (p *Player) Draw(screen *ebiten.Image, op *ebiten.DrawImageOptions, offsetX float64, offsetY float64) {
+	tileSize := config.TileSize
+	drawX := (p.X * float64(tileSize)) - offsetX
+	drawY := (p.Y * float64(tileSize)) - offsetY
+	op.GeoM.Translate(drawX, drawY)
+	op.GeoM.Scale(config.GameScale, config.GameScale)
 	screen.DrawImage(p.CurrentFrame, op)
 }
 
@@ -66,71 +73,59 @@ func (p *Player) Update() {
 }
 
 func (p *Player) checkMovementInput() {
-	if p.IsMoving {
-		return
-	}
 	// UP
 	if ebiten.IsKeyPressed(ebiten.KeyW) {
 		p.TargetY = p.getY() - 1
-		// first press should just turn the character
-		if p.Direction == 1 {
-			p.sameDirectionCounter++
-		} else {
-			p.sameDirectionCounter = 0
-			p.Direction = 1
+		p.Direction_Vert = "U"
+		p.IsMoving = true
+		// only face or down up if we aren't moving horizontally, since that gets precedence
+		if !p.isMovingHorizontally() {
+			p.setFrame(direc_up[0])
+			p.Facing = "U"
+			p.animStep = 0
 		}
-		if p.sameDirectionCounter >= walk_frame_delay {
-			p.IsMoving = true
-		}
-		p.setFrame(direc_up[0])
-		p.animStep = 0
 	}
 	// DOWN
 	if ebiten.IsKeyPressed(ebiten.KeyS) {
 		p.TargetY = p.getY() + 1
-		if p.Direction == 2 {
-			p.sameDirectionCounter++
-
-		} else {
-			p.sameDirectionCounter = 0
-			p.Direction = 2
+		p.Direction_Vert = "D"
+		p.IsMoving = true
+		// only face or down up if we aren't moving horizontally, since that gets precedence
+		if !p.isMovingHorizontally() {
+			p.setFrame(direc_down[0])
+			p.Facing = "D"
+			p.animStep = 0
 		}
-		if p.sameDirectionCounter >= walk_frame_delay {
-			p.IsMoving = true
-		}
-		p.setFrame(direc_down[0])
-		p.animStep = 0
 	}
 	// LEFT
 	if ebiten.IsKeyPressed(ebiten.KeyA) {
-		p.TargetX = p.getX() - 1
-		if p.Direction == 3 {
-			p.sameDirectionCounter++
-		} else {
-			p.sameDirectionCounter = 0
-			p.Direction = 3
-		}
-		if p.sameDirectionCounter >= walk_frame_delay {
+		if !ebiten.IsKeyPressed(ebiten.KeyD) {
+			p.TargetX = p.getX() - 1
+			p.Direction_Horiz = "L"
 			p.IsMoving = true
+			p.setFrame(direc_left[0])
+			p.Facing = "L"
+			p.animStep = 0
 		}
-		p.setFrame(direc_left[0])
-		p.animStep = 0
 	}
 	// RIGHT
 	if ebiten.IsKeyPressed(ebiten.KeyD) {
-		p.TargetX = p.getX() + 1
-		if p.Direction == 4 {
-			p.sameDirectionCounter++
-		} else {
-			p.sameDirectionCounter = 0
-			p.Direction = 4
-		}
-		if p.sameDirectionCounter >= walk_frame_delay {
+		if !ebiten.IsKeyPressed(ebiten.KeyA) {
+			p.TargetX = p.getX() + 1
+			p.Direction_Horiz = "R"
 			p.IsMoving = true
+			p.setFrame(direc_right[0])
+			p.Facing = "R"
+			p.animStep = 0
 		}
-		p.setFrame(direc_right[0])
-		p.animStep = 0
 	}
+}
+
+func (p *Player) isMovingHorizontally() bool {
+	return ebiten.IsKeyPressed(ebiten.KeyA) || ebiten.IsKeyPressed(ebiten.KeyD)
+}
+func (p *Player) isMovingVertically() bool {
+	return ebiten.IsKeyPressed(ebiten.KeyW) || ebiten.IsKeyPressed(ebiten.KeyS)
 }
 
 func (p *Player) walkAnimation() {
@@ -141,18 +136,18 @@ func (p *Player) walkAnimation() {
 	if p.animStep >= 7 {
 		p.animStep = 0
 	}
-	switch p.Direction {
+	switch p.Facing {
 	// UP
-	case 1:
+	case "U":
 		p.setFrame(direc_up[p.animStep])
 	// DOWN
-	case 2:
+	case "D":
 		p.setFrame(direc_down[p.animStep])
 	// LEFT
-	case 3:
+	case "L":
 		p.setFrame(direc_left[p.animStep])
 	// RIGHT
-	case 4:
+	case "R":
 		p.setFrame(direc_right[p.animStep])
 	}
 }
@@ -180,18 +175,14 @@ func (p *Player) snapToGrid() {
 
 func (p *Player) move() {
 	// handle change to p.x and p.y
-	switch p.Direction {
-	// UP
-	case 1:
+	if p.Direction_Vert == "U" {
 		p.Y -= movementSpeed
-	// DOWN
-	case 2:
+	} else if p.Direction_Vert == "D" {
 		p.Y += movementSpeed
-	// LEFT
-	case 3:
+	}
+	if p.Direction_Horiz == "L" {
 		p.X -= movementSpeed
-	// RIGHT
-	case 4:
+	} else if p.Direction_Horiz == "R" {
 		p.X += movementSpeed
 	}
 
@@ -200,7 +191,9 @@ func (p *Player) move() {
 	// check if movement is done
 	if p.playerAtTarget() {
 		p.IsMoving = false
-		p.snapToGrid()
+		p.Direction_Horiz = "X"
+		p.Direction_Vert = "X"
+		//p.snapToGrid()
 	}
 }
 
@@ -209,19 +202,22 @@ func (p *Player) playerAtTarget() bool {
 	if p.X == float64(p.TargetX) && p.Y == float64(p.TargetY) {
 		return true
 	}
-	switch p.Direction {
-	// UP
-	case 1:
-		return p.Y <= float64(p.TargetY)
-	// DOWN
-	case 2:
-		return p.Y >= float64(p.TargetY)
-	// LEFT
-	case 3:
+	return p.playerAtHorizTarget() && p.playerAtVertTarget()
+}
+
+func (p *Player) playerAtHorizTarget() bool {
+	if p.Direction_Horiz == "L" {
 		return p.X <= float64(p.TargetX)
-	// RIGHT
-	case 4:
+	} else if p.Direction_Horiz == "R" {
 		return p.X >= float64(p.TargetX)
 	}
-	return false
+	return true
+}
+func (p *Player) playerAtVertTarget() bool {
+	if p.Direction_Vert == "U" {
+		return p.Y <= float64(p.TargetY)
+	} else if p.Direction_Vert == "D" {
+		return p.Y >= float64(p.TargetY)
+	}
+	return true
 }

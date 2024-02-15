@@ -1,23 +1,20 @@
 package main
 
 import (
+	"ancient-rome/camera"
+	"ancient-rome/config"
 	"ancient-rome/player"
+	"ancient-rome/room"
 	"ancient-rome/tileset"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-const (
-	screenWidth  = 640
-	screenHeight = 480
-	tileSize     = 32
-	imageScale   = 2
-)
-
+// game state
 type Game struct {
-	roomLayout   [][]string
-	player       player.Player
-	tilesetFloor map[string]*ebiten.Image
+	room   room.Room
+	player player.Player
+	camera camera.Camera
 }
 
 func (g *Game) Update() error {
@@ -26,57 +23,30 @@ func (g *Game) Update() error {
 	// handle player updates
 	g.player.Update()
 
+	// move camera as needed
+	g.camera.MoveCamera(g.player.X, g.player.Y)
+
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-
-	// tile to use if tile fails to be found for some reason
-	defaultTile, _ := g.tilesetFloor["grass"]
-
-	for y, row := range g.roomLayout {
-		for x, tileKey := range row {
-			op := getDefaultDrawOptions()
-			op.GeoM.Translate(float64(x*tileSize), float64(y*tileSize))
-
-			tileImage, ok := g.tilesetFloor[tileKey]
-			if !ok {
-				tileImage = defaultTile
-			}
-
-			screen.DrawImage(tileImage, op)
-		}
-	}
-
-	g.player.Draw(screen, tileSize, getDefaultDrawOptions())
+	offsetX, offsetY := g.camera.GetAbsPos()
+	g.room.Draw(screen, getDefaultDrawOptions(), offsetX, offsetY)
+	g.player.Draw(screen, getDefaultDrawOptions(), offsetX, offsetY)
 }
 
 func getDefaultDrawOptions() *ebiten.DrawImageOptions {
 	defaultOptions := &ebiten.DrawImageOptions{}
-	defaultOptions.GeoM.Scale(imageScale, imageScale)
 	return defaultOptions
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 640, 480
+	return config.ScreenWidth, config.ScreenHeight
 }
 
 func main() {
-	ebiten.SetWindowSize(screenWidth, screenHeight)
-	ebiten.SetWindowTitle("Ancient Rome!")
-
-	roomLayout := [][]string{
-		{"grass", "grass", "grass", "grass", "grass"},
-		{"road-dirt-T-edge", "road-dirt-T-edge", "road-dirt-T-edge", "road-dirt-T-edge", "road-dirt-T-edge"},
-		{"road-dirt", "road-dirt", "road-dirt", "road-dirt", "road-dirt"},
-		{"road-dirt-B-edge", "road-dirt-B-edge", "road-dirt-B-edge", "road-dirt-B-edge", "road-dirt-B-edge"},
-		{"grass", "grass", "grass", "grass", "grass"},
-	}
-
-	floorTileset, err := tileset.LoadTileset(tileset.Txt_Outdoor_Grass_01)
-	if err != nil {
-		panic(err)
-	}
+	ebiten.SetWindowSize(config.ScreenWidth, config.ScreenHeight)
+	ebiten.SetWindowTitle(config.WindowTitle)
 
 	playerSprites, err := tileset.LoadTileset(tileset.Ent_Player)
 	if err != nil {
@@ -84,11 +54,11 @@ func main() {
 	}
 
 	player := player.CreatePlayer(1, 1, playerSprites)
+	room := room.CreateRoom("hello_world")
 
 	game := &Game{
-		roomLayout:   roomLayout,
-		tilesetFloor: floorTileset,
-		player:       player,
+		room:   room,
+		player: player,
 	}
 
 	if err := ebiten.RunGame(game); err != nil {

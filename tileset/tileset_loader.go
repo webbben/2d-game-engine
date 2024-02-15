@@ -14,7 +14,7 @@ import (
 // texture tilesets
 const (
 	// a basic grass tileset
-	Txt_Outdoor_Grass_01 string = "outdoor_grass_01"
+	Tx_Grass_01 string = "grass_01"
 )
 
 const (
@@ -24,8 +24,8 @@ const (
 var (
 	// maps a tileset key to its path
 	pathDict = map[string]string{
-		Txt_Outdoor_Grass_01: "./tileset/textures/floors/grass_tiles",
-		Ent_Player:           "./tileset/entities/player",
+		Tx_Grass_01: "./tileset/textures/floors/grass_01",
+		Ent_Player:  "./tileset/entities/player",
 	}
 )
 
