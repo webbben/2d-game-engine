@@ -159,6 +159,14 @@ func (r *Room) buildObjectLayout(roomData RoomData) {
 
 func (r *Room) DrawFloor(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	for y, row := range r.TileLayout {
+		// skip this row if it's above the camera
+		if rendering.RowAboveCameraView(float64(y), offsetY) {
+			continue
+		}
+		// skip all remaining rows if it's below the camera
+		if rendering.RowBelowCameraView(float64(y), offsetY) {
+			break
+		}
 		drawY := float64(y*config.TileSize) - offsetY
 
 		for x, tileImg := range row {
@@ -178,6 +186,9 @@ func (r *Room) DrawObjects(screen *ebiten.Image, offsetX float64, offsetY float6
 	for _, coords := range r.ObjectCoords {
 		x := coords.X
 		y := coords.Y
+		if rendering.RowAboveCameraView(float64(y), offsetY) {
+			continue
+		}
 		objectImg := r.ObjectLayout[y][x]
 		drawX, drawY := rendering.GetImageDrawPos(objectImg, float64(x), float64(y), offsetX, offsetY)
 		//drawX := float64(x*config.TileSize) - offsetX

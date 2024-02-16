@@ -34,7 +34,9 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 	offsetX, offsetY := g.camera.GetAbsPos()
 	g.room.DrawFloor(screen, offsetX, offsetY)
-	g.drawGridLines(screen, offsetX, offsetY)
+	if config.DrawGridLines {
+		g.drawGridLines(screen, offsetX, offsetY)
+	}
 	g.player.Draw(screen, getDefaultDrawOptions(), offsetX, offsetY)
 	g.room.DrawObjects(screen, offsetX, offsetY)
 }

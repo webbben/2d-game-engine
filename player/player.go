@@ -29,7 +29,7 @@ type Player struct {
 
 const (
 	movementSpeed = 0.025
-	delay         = time.Millisecond * 8
+	delay         = time.Millisecond * 6
 )
 
 var (
