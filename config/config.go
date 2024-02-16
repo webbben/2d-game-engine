@@ -3,8 +3,8 @@ package config
 const (
 	ScreenWidth  = 800
 	ScreenHeight = 640
-	TileSize     = 32
+	TileSize     = 16
 	WindowTitle  = "Ancient Rome!"
 
-	GameScale = 2 // how much the game view is scaled up
+	GameScale = 3 // how much the game view is scaled up
 )

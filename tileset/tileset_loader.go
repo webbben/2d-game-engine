@@ -1,7 +1,6 @@
 package tileset
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,12 +12,17 @@ import (
 
 // texture tilesets
 const (
-	// a basic grass tileset
 	Tx_Grass_01 string = "grass_01"
 )
 
+// entity tilesets
 const (
 	Ent_Player string = "ent_player"
+)
+
+// object tilesets
+const (
+	Ob_Trees_01 string = "trees_01"
 )
 
 var (
@@ -26,6 +30,7 @@ var (
 	pathDict = map[string]string{
 		Tx_Grass_01: "./tileset/textures/floors/grass_01",
 		Ent_Player:  "./tileset/entities/player",
+		Ob_Trees_01: "./tileset/objects/nature/trees_01",
 	}
 )
 
@@ -36,7 +41,7 @@ func LoadTileset(key string) (map[string]*ebiten.Image, error) {
 	// attempt to get the path for the given key
 	folderPath, ok := pathDict[key]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("No path found for the tileset key %s", key))
+		return nil, fmt.Errorf("no path found for the tileset key %s", key)
 	}
 
 	tilePaths, err := getTilePaths(folderPath)
@@ -60,7 +65,7 @@ func LoadTileset(key string) (map[string]*ebiten.Image, error) {
 func getTilePaths(folderPath string) ([]string, error) {
 	folderContents, err := os.ReadDir(folderPath)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Failed to open the tileset at %s", folderPath))
+		return nil, fmt.Errorf("failed to open the tileset at %s", folderPath)
 	}
 
 	var tilePaths []string

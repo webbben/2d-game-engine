@@ -2,6 +2,7 @@ package player
 
 import (
 	"ancient-rome/config"
+	"ancient-rome/rendering"
 	"fmt"
 	"math"
 	"time"
@@ -28,7 +29,7 @@ type Player struct {
 
 const (
 	movementSpeed = 0.025
-	delay         = time.Millisecond * 10
+	delay         = time.Millisecond * 8
 )
 
 var (
@@ -52,9 +53,7 @@ func CreatePlayer(posX int, posY int, frames map[string]*ebiten.Image) Player {
 }
 
 func (p *Player) Draw(screen *ebiten.Image, op *ebiten.DrawImageOptions, offsetX float64, offsetY float64) {
-	tileSize := config.TileSize
-	drawX := (p.X * float64(tileSize)) - offsetX
-	drawY := (p.Y * float64(tileSize)) - offsetY
+	drawX, drawY := rendering.GetImageDrawPos(p.CurrentFrame, p.X, p.Y, offsetX, offsetY)
 	op.GeoM.Translate(drawX, drawY)
 	op.GeoM.Scale(config.GameScale, config.GameScale)
 	screen.DrawImage(p.CurrentFrame, op)

@@ -3,6 +3,7 @@ package room
 
 import (
 	"ancient-rome/config"
+	"ancient-rome/rendering"
 	"ancient-rome/tileset"
 	"encoding/json"
 	"errors"
@@ -13,22 +14,34 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+type Coords struct {
+	X int
+	Y int
+}
+
 type Room struct {
-	JsonData      RoomData
-	MasterTileset map[string]*ebiten.Image
-	TileLayout    [][]*ebiten.Image
+	MasterTileset   map[string]*ebiten.Image
+	MasterObjectSet map[string]*ebiten.Image
+	TileLayout      [][]*ebiten.Image
+	BarrierLayout   [][]bool
+	ObjectLayout    [][]*ebiten.Image
+	ObjectCoords    []Coords
 }
 
 // data as loaded from the room_layout json
 type RoomData struct {
-	RoomName      string              `json:"room_name"`     // Display name of the room
-	Width         int                 `json:"width"`         // width of the room
-	Height        int                 `json:"height"`        // height of the room
-	Tilesets      []string            `json:"tilesets"`      // names of the tilesets used in this room
-	TileGroupKeys []string            `json:"tileGroupKeys"` // keys of the custom groups of tiles for this room
-	TileGroups    map[string][]string `json:"tileGroups"`    // custom groups of tiles that can be used interchangeably, to "randomize" the layout a bit
-	TileLayout    [][]string          `json:"tileLayout"`    // the keys for tiles at each position of the room. a key may point to a tile group, or be the key of an individual tile
-	BarrierLayout [][]int             `json:"barrierLayout"` // a map of which tiles are accessible (0) and which are barriers/inaccessible (1)
+	RoomName        string              `json:"room_name"`       // Display name of the room
+	Width           int                 `json:"width"`           // width of the room
+	Height          int                 `json:"height"`          // height of the room
+	Tilesets        []string            `json:"tilesets"`        // names of the tilesets used in this room
+	TileGroupKeys   []string            `json:"tileGroupKeys"`   // keys of the custom groups of tiles for this room
+	TileGroups      map[string][]string `json:"tileGroups"`      // custom groups of tiles that can be used interchangeably, to "randomize" the layout a bit
+	TileLayout      [][]string          `json:"tileLayout"`      // the keys for tiles at each position of the room. a key may point to a tile group, or be the key of an individual tile
+	BarrierLayout   [][]int             `json:"barrierLayout"`   // a map of which tiles are accessible (0) and which are barriers/inaccessible (1)
+	ObjectSets      []string            `json:"objectSets"`      // names of the tilesets used for objects in this room
+	ObjectGroupKeys []string            `json:"objectGroupKeys"` // keys of the object groups for this room
+	ObjectGroups    map[string][]string `json:"objectGroups"`    // custom groups of objects that can be used interchangeably, to "randomize" the objects a bit
+	ObjectLayout    [][]string          `json:"objectLayout"`    // the keys for objects at each position of the room. a key may point to a object group, or be the key of an individual object. '-' indicates no object in the given position.
 }
 
 func CreateRoom(roomID string) Room {
@@ -36,20 +49,19 @@ func CreateRoom(roomID string) Room {
 	room := Room{}
 	fmt.Println("loading json...")
 	jsonData, err := loadRoomDataJson(roomID)
-	fmt.Println("loading json complete!")
 	if err != nil {
 		panic(err)
 	}
-	room.JsonData = *jsonData
-	fmt.Println("building the layout...")
-	room.buildTileLayout()
-	fmt.Println("build complete!")
+	fmt.Println("building the tile layout...")
+	room.buildTileLayout(*jsonData)
+	fmt.Println("building the object layout...")
+	room.buildObjectLayout(*jsonData)
+	fmt.Println("room creation complete!")
 	return room
 }
 
 // build the layout of tile images for this room
-func (r *Room) buildTileLayout() {
-	roomData := r.JsonData
+func (r *Room) buildTileLayout(roomData RoomData) {
 	tileGroups := roomData.TileGroups
 	tileLayout := roomData.TileLayout
 	tilesets := roomData.Tilesets
@@ -93,15 +105,67 @@ func (r *Room) buildTileLayout() {
 	r.TileLayout = layout
 }
 
-func (r *Room) Draw(screen *ebiten.Image, op *ebiten.DrawImageOptions, offsetX float64, offsetY float64) {
-	tileSize := config.TileSize
+func (r *Room) buildObjectLayout(roomData RoomData) {
+	objectGroups := roomData.ObjectGroups
+	objectLayout := roomData.ObjectLayout
+	objectSets := roomData.ObjectSets
+
+	// first, get the map of tile images from all tilesets used
+	objectSetMaster := make(map[string]*ebiten.Image)
+
+	fmt.Println("loading object sets and their images")
+	for _, setKey := range objectSets {
+		imageMap, err := tileset.LoadTileset(setKey)
+		if err != nil {
+			panic(err)
+		}
+		// if there are duplicate keys, the previous image at that key will be overwritten
+		for key, image := range imageMap {
+			objectSetMaster[key] = image
+		}
+	}
+
+	var layout [][]*ebiten.Image
+	var objectCoords []Coords
+
+	fmt.Println("building the object layout")
+	for y, row := range objectLayout {
+		var imgRow []*ebiten.Image
+		for x, objectKey := range row {
+			if objectKey == "-" {
+				imgRow = append(imgRow, nil)
+				continue
+			}
+			key := objectKey
+			// if this is part of a tileGroup, get a random tile key from it
+			objectGroup, ok := objectGroups[objectKey]
+			if ok {
+				key = objectGroup[rand.Intn(len(objectGroup))]
+			}
+			img, ok := objectSetMaster[key]
+			if !ok {
+				panic("image file not found?")
+			}
+			imgRow = append(imgRow, img)
+			// store the coords so we can be a little quicker at finding objects
+			objectCoords = append(objectCoords, Coords{X: x, Y: y})
+		}
+		layout = append(layout, imgRow)
+	}
+	r.MasterObjectSet = objectSetMaster
+	r.ObjectLayout = layout
+	r.ObjectCoords = objectCoords
+}
+
+func (r *Room) DrawFloor(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	for y, row := range r.TileLayout {
+		drawY := float64(y*config.TileSize) - offsetY
+
 		for x, tileImg := range row {
 			if tileImg == nil {
 				fmt.Println("tileimg is nil!!")
 			}
-			drawX := float64(x*tileSize) - offsetX
-			drawY := float64(y*tileSize) - offsetY
+			drawX := float64(x*config.TileSize) - offsetX
 			op := &ebiten.DrawImageOptions{}
 			op.GeoM.Translate(drawX, drawY)
 			op.GeoM.Scale(config.GameScale, config.GameScale)
@@ -110,12 +174,27 @@ func (r *Room) Draw(screen *ebiten.Image, op *ebiten.DrawImageOptions, offsetX f
 	}
 }
 
+func (r *Room) DrawObjects(screen *ebiten.Image, offsetX float64, offsetY float64) {
+	for _, coords := range r.ObjectCoords {
+		x := coords.X
+		y := coords.Y
+		objectImg := r.ObjectLayout[y][x]
+		drawX, drawY := rendering.GetImageDrawPos(objectImg, float64(x), float64(y), offsetX, offsetY)
+		//drawX := float64(x*config.TileSize) - offsetX
+		//drawY := float64(y*config.TileSize) - offsetY
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(drawX, drawY)
+		op.GeoM.Scale(config.GameScale, config.GameScale)
+		screen.DrawImage(objectImg, op)
+	}
+}
+
 func loadRoomDataJson(roomKey string) (*RoomData, error) {
 	path := fmt.Sprintf("room/room_layouts/%s.json", roomKey)
 
 	jsonData, err := os.ReadFile(path)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to load room data at %s", path))
+		return nil, fmt.Errorf("failed to load room data at %s", path)
 	}
 	var roomData RoomData
 	if err = json.Unmarshal(jsonData, &roomData); err != nil {
