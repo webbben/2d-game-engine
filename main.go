@@ -23,7 +23,7 @@ func (g *Game) Update() error {
 	// Your game logic goes here
 
 	// handle player updates
-	g.player.Update()
+	g.player.Update(g.room.BarrierLayout)
 
 	// move camera as needed
 	g.camera.MoveCamera(g.player.X, g.player.Y)

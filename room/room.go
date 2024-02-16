@@ -56,6 +56,8 @@ func CreateRoom(roomID string) Room {
 	room.buildTileLayout(*jsonData)
 	fmt.Println("building the object layout...")
 	room.buildObjectLayout(*jsonData)
+	fmt.Println("building the barrier layout...")
+	room.buildBarrierLayout(jsonData.BarrierLayout)
 	fmt.Println("room creation complete!")
 	return room
 }
@@ -155,6 +157,25 @@ func (r *Room) buildObjectLayout(roomData RoomData) {
 	r.MasterObjectSet = objectSetMaster
 	r.ObjectLayout = layout
 	r.ObjectCoords = objectCoords
+}
+
+func (r *Room) buildBarrierLayout(rawBarrierLayout [][]int) {
+	// convert to bools since it's less memory than ints
+	// TODO just use bools in the first place?
+	var barrierLayout [][]bool
+
+	for _, row := range rawBarrierLayout {
+		var rowVals []bool
+		for _, val := range row {
+			if val == 1 {
+				rowVals = append(rowVals, true)
+			} else {
+				rowVals = append(rowVals, false)
+			}
+		}
+		barrierLayout = append(barrierLayout, rowVals)
+	}
+	r.BarrierLayout = barrierLayout
 }
 
 func (r *Room) DrawFloor(screen *ebiten.Image, offsetX float64, offsetY float64) {

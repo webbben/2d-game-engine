@@ -59,21 +59,21 @@ func (p *Player) Draw(screen *ebiten.Image, op *ebiten.DrawImageOptions, offsetX
 	screen.DrawImage(p.CurrentFrame, op)
 }
 
-func (p *Player) Update() {
+func (p *Player) Update(barrierLayout [][]bool) {
 	// handle player movement
 	if p.IsMoving {
 		p.move()
 	}
-	p.checkMovementInput()
+	p.checkMovementInput(barrierLayout)
 }
 
-func (p *Player) checkMovementInput() {
+func (p *Player) checkMovementInput(barrierLayout [][]bool) {
 	// UP
 	if ebiten.IsKeyPressed(ebiten.KeyW) && p.Direction_Vert == "X" {
 		if !ebiten.IsKeyPressed(ebiten.KeyS) {
 			p.Direction_Vert = "U"
 			p.IsMoving = true
-			go p.continueWalking("U")
+			go p.continueWalking("U", barrierLayout)
 		}
 	}
 	// DOWN
@@ -81,7 +81,7 @@ func (p *Player) checkMovementInput() {
 		if !ebiten.IsKeyPressed(ebiten.KeyW) {
 			p.Direction_Vert = "D"
 			p.IsMoving = true
-			go p.continueWalking("D")
+			go p.continueWalking("D", barrierLayout)
 		}
 	}
 	// LEFT
@@ -89,7 +89,7 @@ func (p *Player) checkMovementInput() {
 		if !ebiten.IsKeyPressed(ebiten.KeyD) {
 			p.Direction_Horiz = "L"
 			p.IsMoving = true
-			go p.continueWalking("L")
+			go p.continueWalking("L", barrierLayout)
 		}
 	}
 	// RIGHT
@@ -97,16 +97,22 @@ func (p *Player) checkMovementInput() {
 		if !ebiten.IsKeyPressed(ebiten.KeyA) {
 			p.Direction_Horiz = "R"
 			p.IsMoving = true
-			go p.continueWalking("R")
+			go p.continueWalking("R", barrierLayout)
 		}
 	}
 }
 
-func (p *Player) continueWalking(direction string) {
+func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
 	switch direction {
 	case "U":
 		// keep going until that key is released
 		for ebiten.IsKeyPressed(ebiten.KeyW) {
+			// check for barriers before continuing
+			nextY := int(math.Floor(p.Y - 1))
+			nextX := int(math.Round(p.X))
+			if nextY < 0 || barrierLayout[nextY][nextX] {
+				break
+			}
 			p.Y -= movementSpeed
 			time.Sleep(delay)
 		}
@@ -115,6 +121,11 @@ func (p *Player) continueWalking(direction string) {
 		p.Direction_Vert = "X"
 	case "D":
 		for ebiten.IsKeyPressed(ebiten.KeyS) {
+			nextY := int(math.Ceil(p.Y + 1))
+			nextX := int(math.Round(p.X))
+			if nextY >= len(barrierLayout) || barrierLayout[nextY][nextX] {
+				break
+			}
 			p.Y += movementSpeed
 			time.Sleep(delay)
 		}
@@ -122,6 +133,11 @@ func (p *Player) continueWalking(direction string) {
 		p.Direction_Vert = "X"
 	case "L":
 		for ebiten.IsKeyPressed(ebiten.KeyA) {
+			nextY := int(math.Round(p.Y))
+			nextX := int(math.Floor(p.X - 1))
+			if nextX < 0 || barrierLayout[nextY][nextX] {
+				break
+			}
 			p.X -= movementSpeed
 			time.Sleep(delay)
 		}
@@ -129,6 +145,11 @@ func (p *Player) continueWalking(direction string) {
 		p.Direction_Horiz = "X"
 	case "R":
 		for ebiten.IsKeyPressed(ebiten.KeyD) {
+			nextY := int(math.Round(p.Y))
+			nextX := int(math.Ceil(p.X + 1))
+			if nextY >= len(barrierLayout[0]) || barrierLayout[nextY][nextX] {
+				break
+			}
 			p.X += movementSpeed
 			time.Sleep(delay)
 		}
