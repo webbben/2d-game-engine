@@ -3,8 +3,10 @@ package main
 import (
 	"ancient-rome/camera"
 	"ancient-rome/config"
+	"ancient-rome/debug"
 	"ancient-rome/player"
 	"ancient-rome/room"
+	"ancient-rome/room/town"
 	"ancient-rome/tileset"
 	"image/color"
 
@@ -39,6 +41,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	g.player.Draw(screen, getDefaultDrawOptions(), offsetX, offsetY)
 	g.room.DrawObjects(screen, offsetX, offsetY)
+
 }
 
 func (g *Game) drawGridLines(screen *ebiten.Image, offsetX float64, offsetY float64) {
@@ -72,6 +75,11 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func main() {
+	// track memory usage
+	if config.TrackMemoryUsage {
+		go debug.DisplayResourceUsage(60)
+	}
+
 	ebiten.SetWindowSize(config.ScreenWidth, config.ScreenHeight)
 	ebiten.SetWindowTitle(config.WindowTitle)
 
@@ -87,6 +95,9 @@ func main() {
 		room:   room,
 		player: player,
 	}
+
+	t := town.CreateTown(50, 10)
+	t.PrintToConsole()
 
 	if err := ebiten.RunGame(game); err != nil {
 		panic(err)

@@ -1,0 +1,12 @@
+{
+    "id": "old_man_01",
+    "name": "Old Man",
+    "isHuman": true,
+    "frames": {
+        "idle": [],
+        "walk-up": [],
+        "walk-down": [],
+        "walk-left": [],
+        "walk-right": []
+    }
+}
