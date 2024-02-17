@@ -103,59 +103,106 @@ func (p *Player) checkMovementInput(barrierLayout [][]bool) {
 }
 
 func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
+	barrier := false
 	switch direction {
 	case "U":
 		// keep going until that key is released
 		for ebiten.IsKeyPressed(ebiten.KeyW) {
 			// check for barriers before continuing
-			nextY := int(math.Floor(p.Y - 1))
-			nextX := int(math.Round(p.X))
-			if nextY < 0 || barrierLayout[nextY][nextX] {
+			if p.movingTowardsBarrier(barrierLayout) {
+				barrier = true
 				break
 			}
 			p.Y -= movementSpeed
 			time.Sleep(delay)
 		}
 		// round the position out in case they overshot it
-		p.easeToPosY(math.Floor(p.Y))
+		if barrier {
+			p.easeToPosY(math.Ceil(p.Y))
+		} else {
+			p.easeToPosY(math.Floor(p.Y))
+		}
 		p.Direction_Vert = "X"
 	case "D":
 		for ebiten.IsKeyPressed(ebiten.KeyS) {
-			nextY := int(math.Ceil(p.Y + 1))
-			nextX := int(math.Round(p.X))
-			if nextY >= len(barrierLayout) || barrierLayout[nextY][nextX] {
+			if p.movingTowardsBarrier(barrierLayout) {
+				barrier = true
 				break
 			}
 			p.Y += movementSpeed
 			time.Sleep(delay)
 		}
-		p.easeToPosY(math.Ceil(p.Y))
+		if barrier {
+			p.easeToPosY(math.Floor(p.Y))
+		} else {
+			p.easeToPosY(math.Ceil(p.Y))
+		}
 		p.Direction_Vert = "X"
 	case "L":
 		for ebiten.IsKeyPressed(ebiten.KeyA) {
-			nextY := int(math.Round(p.Y))
-			nextX := int(math.Floor(p.X - 1))
-			if nextX < 0 || barrierLayout[nextY][nextX] {
+			if p.movingTowardsBarrier(barrierLayout) {
+				barrier = true
 				break
 			}
 			p.X -= movementSpeed
 			time.Sleep(delay)
 		}
-		p.easeToPosX(math.Floor(p.X))
+		if barrier {
+			p.easeToPosX(math.Ceil(p.X))
+		} else {
+			p.easeToPosX(math.Floor(p.X))
+		}
 		p.Direction_Horiz = "X"
 	case "R":
 		for ebiten.IsKeyPressed(ebiten.KeyD) {
-			nextY := int(math.Round(p.Y))
-			nextX := int(math.Ceil(p.X + 1))
-			if nextY >= len(barrierLayout[0]) || barrierLayout[nextY][nextX] {
+			if p.movingTowardsBarrier(barrierLayout) {
+				barrier = true
 				break
 			}
 			p.X += movementSpeed
 			time.Sleep(delay)
 		}
-		p.easeToPosX(math.Ceil(p.X))
+		if barrier {
+			p.easeToPosX(math.Floor(p.X))
+		} else {
+			p.easeToPosX(math.Ceil(p.X))
+		}
 		p.Direction_Horiz = "X"
 	}
+}
+
+func (p *Player) movingTowardsBarrier(barrierLayout [][]bool) bool {
+	gridX := math.Floor(p.X) // current position
+	gridY := math.Floor(p.Y)
+	nextX := int(gridX)
+	nextY := int(gridY)
+	dist := 1.0
+	// Question: why don't I need to use dist for U and L?
+	// if I do, it makes it finds barriers one cell too early
+
+	if p.Direction_Vert == "U" {
+		nextY = int(gridY)
+		if nextY < 0 {
+			return true
+		}
+	} else if p.Direction_Vert == "D" {
+		nextY = int(math.Floor(gridY + dist))
+		if nextY >= len(barrierLayout) {
+			return true
+		}
+	}
+	if p.Direction_Horiz == "L" {
+		nextX = int(gridX)
+		if nextX < 0 {
+			return true
+		}
+	} else if p.Direction_Horiz == "R" {
+		nextX = int(math.Floor(gridX + dist))
+		if nextX >= len(barrierLayout[0]) {
+			return true
+		}
+	}
+	return barrierLayout[nextY][nextX]
 }
 
 func (p *Player) easeToPosY(destY float64) {
