@@ -5,6 +5,7 @@ import (
 	"ancient-rome/config"
 	"ancient-rome/debug"
 	"ancient-rome/player"
+	"ancient-rome/proc_gen"
 	"ancient-rome/room"
 	"ancient-rome/room/town"
 	"ancient-rome/tileset"
@@ -96,8 +97,11 @@ func main() {
 		player: player,
 	}
 
-	t := town.CreateTown(50, 10)
+	t := town.CreateTown(5, 2)
 	t.PrintToConsole()
+
+	proc_gen.GenerateMountain(100, 100)
+	return
 
 	if err := ebiten.RunGame(game); err != nil {
 		panic(err)

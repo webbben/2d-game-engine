@@ -117,6 +117,7 @@ func (t *Town) PrintToConsole() {
 	fmt.Println("Centurion: ", dist.Centurion)
 }
 
+// creates a distribution of jobs for the town's population based on its wealth
 func (t *Town) generateJobDist() {
 	popLimit := t.Population
 	currentPop := 0
@@ -261,14 +262,14 @@ func (t *Town) generateJobDist() {
 	t.OccupationDistribution = dist
 }
 
-/*
-
-Unemployed int
-Slave      int
-Laborer    int
-Sailor     int
-Farmer     int
-Fisherman  int
-Hunter     int
-
-*/
+// builds a town map for this town. Includes the following things:
+//
+// * the main roads that go through the town.
+//   - the main arteries that go through the whole town
+//   - side streets and passages from the main arteries
+//
+// * houses and buildings for the population
+//   - the houses they will live in (they will be based on the wealth of their occupants)
+//   - the worksites for the population too (also based on jobs of the population)
+func (t *Town) generateTownMap() {
+}

@@ -5,6 +5,7 @@ go 1.21.4
 require github.com/hajimehoshi/ebiten/v2 v2.6.6
 
 require (
+	github.com/aquilax/go-perlin v1.1.0 // indirect
 	github.com/ebitengine/purego v0.6.0 // indirect
 	github.com/jezek/xgb v1.1.0 // indirect
 	golang.org/x/exp/shiny v0.0.0-20230817173708-d852ddb80c63 // indirect
