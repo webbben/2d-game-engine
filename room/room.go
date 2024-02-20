@@ -363,8 +363,12 @@ func (r *Room) DrawFloor(screen *ebiten.Image, offsetX float64, offsetY float64)
 		drawY := float64(y*config.TileSize) - offsetY
 
 		for x, tileImg := range row {
-			if tileImg == nil {
-				fmt.Println("tileimg is nil!!")
+			if rendering.ColBeforeCameraView(float64(x), offsetX) {
+				continue
+			}
+			// skip the rest of the columns if it's past the screen
+			if rendering.ColAfterCameraView(float64(x), offsetX) {
+				break
 			}
 			drawX := float64(x*config.TileSize) - offsetX
 			op := &ebiten.DrawImageOptions{}
@@ -386,6 +390,9 @@ func (r *Room) DrawCliffs(screen *ebiten.Image, offsetX float64, offsetY float64
 		imgKey := fmt.Sprintf("cliff_%s", key)
 		img := r.CliffTileset[imgKey]
 		for _, coords := range coordsList {
+			if !rendering.ObjectInsideCameraView(float64(coords.X), float64(coords.Y), 32, 32, offsetX, offsetY) {
+				continue
+			}
 			drawY := float64(coords.Y*config.TileSize) - offsetY
 			drawX := float64(coords.X*config.TileSize) - offsetX
 			op := &ebiten.DrawImageOptions{}

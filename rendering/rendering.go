@@ -17,14 +17,14 @@ func GetImageDrawPos(image *ebiten.Image, tileX float64, tileY float64, offsetX 
 }
 
 // determines if the given tile-based coordinates are within the camera view
-func PosInsideCameraView(tileX float64, tileY float64, offsetX float64, offsetY float64) bool {
+func ObjectInsideCameraView(tileX float64, tileY float64, widthAdj, heightAdj float64, offsetX float64, offsetY float64) bool {
 	xMin := offsetX
 	yMin := offsetY
 	xMax := offsetX + (config.ScreenWidth / config.GameScale)
 	yMax := offsetY + (config.ScreenHeight / config.GameScale)
 	x := tileX * config.TileSize
 	y := tileY * config.TileSize
-	return x >= xMin && x <= xMax && y >= yMin && y <= yMax
+	return x+widthAdj >= xMin && x-widthAdj <= xMax && y+heightAdj >= yMin && y-heightAdj <= yMax
 }
 
 // determines if the given tile-based y coordinate (i.e. row) is above the camera view
@@ -44,9 +44,13 @@ func RowBelowCameraView(tileY float64, offsetY float64) bool {
 }
 
 // determines if the given tile-based y coordinate (i.e. row) is within the camera view
-func ColInsideCameraView(tileY float64, offsetY float64) bool {
-	yMax := offsetY + (config.ScreenHeight / config.GameScale)
-	y := tileY * config.TileSize
-	// offset by one tile above, so we don't see it disappearing
-	return y+config.TileSize >= offsetY && y <= yMax
+func ColBeforeCameraView(tileX float64, offsetX float64) bool {
+	x := tileX * config.TileSize
+	return x+config.TileSize < offsetX
+}
+
+func ColAfterCameraView(tileX float64, offsetX float64) bool {
+	x := tileX * config.TileSize
+	xMax := offsetX + (config.ScreenWidth / config.GameScale)
+	return x > xMax
 }
