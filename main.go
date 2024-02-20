@@ -5,9 +5,7 @@ import (
 	"ancient-rome/config"
 	"ancient-rome/debug"
 	"ancient-rome/player"
-	"ancient-rome/proc_gen"
 	"ancient-rome/room"
-	"ancient-rome/room/town"
 	"ancient-rome/tileset"
 	"image/color"
 
@@ -37,6 +35,7 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 	offsetX, offsetY := g.camera.GetAbsPos()
 	g.room.DrawFloor(screen, offsetX, offsetY)
+	g.room.DrawCliffs(screen, offsetX, offsetY)
 	if config.DrawGridLines {
 		g.drawGridLines(screen, offsetX, offsetY)
 	}
@@ -88,20 +87,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
+	room.GenerateRandomTerrain("test_room", 100, 100)
 	player := player.CreatePlayer(0, 0, playerSprites)
-	room := room.CreateRoom("hello_world")
+	currentRoom := room.CreateRoom("test_room")
 
 	game := &Game{
-		room:   room,
+		room:   currentRoom,
 		player: player,
 	}
-
-	t := town.CreateTown(5, 2)
-	t.PrintToConsole()
-
-	proc_gen.GenerateMountain(100, 100)
-	return
 
 	if err := ebiten.RunGame(game); err != nil {
 		panic(err)

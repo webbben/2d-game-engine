@@ -45,20 +45,21 @@ const (
 )
 
 var (
-	roadParams          = []float64{1.2, 3, 3, 3}
 	townElevationParams = []float64{2, 2, 1, 2}
 	mountainParams      = []float64{1.7, 1, 4, 4}
+	forestParams        = []float64{1.1, 4, 4, 3}
 )
 
-func GenerateRoad(width int, height int) {
-	noiseMap := generateNoiseWithParams(width, height, roadParams[0], roadParams[1], int32(roadParams[2]), int(roadParams[3]))
-	noiseMap = downSample(noiseMap, 4)
-	NoiseMapToPNG(noiseMap, int(roadParams[3]))
+func GenerateForest(width int, height int) {
+	noiseMap := generateNoiseWithParams(width, height, forestParams[0], forestParams[1], int32(forestParams[2]), int(forestParams[3]))
+	//noiseMap = downSample(noiseMap, 1)
+	NoiseMapToPNG(noiseMap, int(forestParams[3]))
 }
-func GenerateTownElevation(width int, height int) {
+func GenerateTownElevation(width int, height int) [][]int {
 	noiseMap := generateNoiseWithParams(width, height, townElevationParams[0], townElevationParams[1], int32(townElevationParams[2]), int(townElevationParams[3]))
 	noiseMap = downSample(noiseMap, 2)
-	NoiseMapToPNG(noiseMap, int(townElevationParams[3]))
+	//NoiseMapToPNG(noiseMap, int(townElevationParams[3]))
+	return noiseMap
 }
 func GenerateMountain(width int, height int) {
 	noiseMap := generateNoiseWithParams(width, height, mountainParams[0], mountainParams[1], int32(mountainParams[2]), int(mountainParams[3]))
@@ -69,7 +70,7 @@ func GenerateMountain(width int, height int) {
 func generateNoiseWithParams(width int, height int, a float64, b float64, n int32, levels int) [][]int {
 	rand.Seed(time.Now().UnixNano())
 	seed := rand.Int63()
-	//seed = int64(3)
+	//seed := int64(3)
 	p := perlin.NewPerlin(a, b, n, seed)
 
 	noiseMap := make([][]float64, height)
@@ -175,7 +176,7 @@ func NoiseMapToPNG(noiseMap [][]int, levels int) {
 		for x := 0; x < width; x++ {
 			value := noiseMap[y][x]
 			//gray := uint8(value * 255 / (levels - 1)) // map values from [-1,1] to [0,255]
-			gray := scaleValue(float64(value), 0, float64(levels), 0, 255)
+			gray := 255 - scaleValue(float64(value), 0, float64(levels), 0, (255/5)*levels)
 			img.SetGray(x, y, color.Gray{Y: uint8(gray)})
 		}
 	}

@@ -12,7 +12,9 @@ import (
 
 // texture tilesets
 const (
-	Tx_Grass_01 string = "grass_01"
+	Tx_Grass_01      string = "grass_01"
+	Tx_Grass_01_road string = "grass_01_road"
+	Tx_Cliff_01      string = "cliff_01"
 )
 
 // entity tilesets
@@ -28,9 +30,11 @@ const (
 var (
 	// maps a tileset key to its path
 	pathDict = map[string]string{
-		Tx_Grass_01: "./tileset/textures/floors/grass_01",
-		Ent_Player:  "./tileset/entities/player",
-		Ob_Trees_01: "./tileset/objects/nature/trees_01",
+		Tx_Grass_01:      "./tileset/textures/floors/grass_01/grass",
+		Tx_Grass_01_road: "./tileset/textures/floors/grass_01/road",
+		Tx_Cliff_01:      "./tileset/textures/cliff",
+		Ent_Player:       "./tileset/entities/player",
+		Ob_Trees_01:      "./tileset/objects/nature/trees_01",
 	}
 )
 
@@ -62,6 +66,7 @@ func LoadTileset(key string) (map[string]*ebiten.Image, error) {
 	return tileset, nil
 }
 
+// gets the list of filepaths for each tile png in a tileset folder
 func getTilePaths(folderPath string) ([]string, error) {
 	folderContents, err := os.ReadDir(folderPath)
 	if err != nil {
@@ -84,4 +89,33 @@ func getTilePaths(folderPath string) ([]string, error) {
 	}
 
 	return tilePaths, nil
+}
+
+// gets the names of tiles in a tileset. mainly used for generating room layout files.
+func GetTilesetNames(key string) ([]string, error) {
+	folderPath, ok := pathDict[key]
+	if !ok {
+		return nil, fmt.Errorf("no path found for the tileset key %s", key)
+	}
+
+	folderContents, err := os.ReadDir(folderPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open the tileset at %s", folderPath)
+	}
+
+	var tileNames []string
+
+	for _, fileInfo := range folderContents {
+		// skip directories
+		if fileInfo.IsDir() {
+			continue
+		}
+		// skip non-PNGs
+		if !strings.HasSuffix(fileInfo.Name(), ".png") {
+			continue
+		}
+		tileNames = append(tileNames, strings.TrimSuffix(fileInfo.Name(), ".png"))
+	}
+
+	return tileNames, nil
 }
