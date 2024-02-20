@@ -3,7 +3,6 @@ package room
 
 import (
 	"ancient-rome/config"
-	"ancient-rome/proc_gen"
 	"ancient-rome/rendering"
 	"ancient-rome/tileset"
 	"encoding/json"
@@ -51,6 +50,7 @@ type RoomData struct {
 	ElevationMap    [][]int             `json:"elevationMap"`
 }
 
+// creates a room object from the given room ID
 func CreateRoom(roomID string) Room {
 	fmt.Println("Creating room ", roomID)
 	room := Room{}
@@ -118,6 +118,7 @@ func (r *Room) buildTileLayout(roomData RoomData) {
 	r.TileLayout = layout
 }
 
+// searches the elevation map and builds cliffs on the map according to elevation changes
 func (r *Room) buildElevation(roomData RoomData) {
 	elevationMap := roomData.ElevationMap
 	dirs := []string{"U", "D", "L", "R", "UL", "UR", "DL", "DR", "ULC", "URC", "DLC", "DRC"}
@@ -327,13 +328,30 @@ func (r *Room) buildBarrierLayout(rawBarrierLayout [][]int) {
 	}
 
 	// add barriers where there are cliffs
-	for _, coordsList := range r.CliffMap {
+	barriers_L := []Coords{{X: 1, Y: 0}, {X: 1, Y: 1}}
+	barriers_R := []Coords{{X: 0, Y: 0}, {X: 0, Y: 1}}
+
+	for key, coordsList := range r.CliffMap {
 		if len(coordsList) == 0 {
 			continue
 		}
 		for _, coords := range coordsList {
 			// with coords being the top left tile, mark the 2x2 tiles as barriers
 			x, y := coords.X, coords.Y
+
+			// handle L and R specially
+			if key == "L" || key == "UL" {
+				for _, mods := range barriers_L {
+					barrierLayout[y+mods.Y][x+mods.X] = true
+				}
+				continue
+			} else if key == "R" || key == "UR" {
+				for _, mods := range barriers_R {
+					barrierLayout[y+mods.Y][x+mods.X] = true
+				}
+				continue
+			}
+
 			barrierLayout[y][x] = true
 			if y+1 < r.Height {
 				barrierLayout[y+1][x] = true
@@ -384,9 +402,6 @@ func (r *Room) DrawCliffs(screen *ebiten.Image, offsetX float64, offsetY float64
 		if len(coordsList) == 0 {
 			continue
 		}
-		if key == "UL" || key == "UR" || key == "DL" || key == "DR" {
-			key = "D"
-		}
 		imgKey := fmt.Sprintf("cliff_%s", key)
 		img := r.CliffTileset[imgKey]
 		for _, coords := range coordsList {
@@ -416,8 +431,6 @@ func (r *Room) DrawObjects(screen *ebiten.Image, offsetX float64, offsetY float6
 		}
 		objectImg := r.ObjectLayout[y][x]
 		drawX, drawY := rendering.GetImageDrawPos(objectImg, float64(x), float64(y), offsetX, offsetY)
-		//drawX := float64(x*config.TileSize) - offsetX
-		//drawY := float64(y*config.TileSize) - offsetY
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(drawX, drawY)
 		op.GeoM.Scale(config.GameScale, config.GameScale)
@@ -437,60 +450,6 @@ func loadRoomDataJson(roomKey string) (*RoomData, error) {
 		return nil, errors.New("json unmarshalling failed")
 	}
 	return &roomData, nil
-}
-
-// creates a room with randomized grass terrain and some hills
-func GenerateRandomTerrain(roomName string, width, height int) {
-
-	jsonData := RoomData{}
-
-	noiseMap := proc_gen.GenerateTownElevation(width, height)
-	jsonData.RoomName = roomName
-	jsonData.ElevationMap = noiseMap
-	jsonData.Width = width
-	jsonData.Height = height
-	err := jsonData.GenerateRandomTileLayout(tileset.Tx_Grass_01, width, height)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// save json file
-	filename := fmt.Sprintf("room/room_layouts/%s.json", roomName)
-	if err := writeToJson(filename, jsonData); err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Printf("Generated room file at %s\n", filename)
-}
-
-// generates a random tile layout with tiles from the given tileset key
-func (jsonData *RoomData) GenerateRandomTileLayout(tilesetKey string, width, height int) error {
-	tileNames, err := tileset.GetTilesetNames(tilesetKey)
-	if err != nil {
-		return err
-	}
-	// group name will be the capitalized first letter
-	groupName := strings.ToUpper(string(tileNames[0][0]))
-
-	// put this group name into every cell
-	var tileLayout [][]string
-	row := make([]string, width)
-	for i := 0; i < width; i++ {
-		row[i] = groupName
-	}
-	for i := 0; i < height; i++ {
-		tileLayout = append(tileLayout, row)
-	}
-
-	jsonData.Tilesets = append(jsonData.Tilesets, tilesetKey)
-	if jsonData.TileGroups == nil {
-		jsonData.TileGroups = make(map[string][]string)
-	}
-	jsonData.TileGroups[groupName] = tileNames
-	jsonData.TileGroupKeys = append(jsonData.TileGroupKeys, groupName)
-	jsonData.TileLayout = tileLayout
-	return nil
 }
 
 func writeToJson(filepath string, jsonData RoomData) error {
