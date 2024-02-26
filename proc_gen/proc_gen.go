@@ -58,7 +58,7 @@ func GenerateForest(width int, height int) {
 func GenerateTownElevation(width int, height int) [][]int {
 	noiseMap := generateNoiseWithParams(width, height, townElevationParams[0], townElevationParams[1], int32(townElevationParams[2]), int(townElevationParams[3]))
 	noiseMap = downSample(noiseMap, 2)
-	//NoiseMapToPNG(noiseMap, int(townElevationParams[3]))
+	NoiseMapToPNG(noiseMap, int(townElevationParams[3]))
 	return noiseMap
 }
 func GenerateMountain(width int, height int) {

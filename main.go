@@ -87,8 +87,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	room.GenerateRandomTerrain("test_room", 100, 100)
-	player := player.CreatePlayer(0, 0, playerSprites)
+	room.GenerateRandomRoom("test_room", 100, 100)
+	player := player.CreatePlayer(50, 50, playerSprites)
 	currentRoom := room.CreateRoom("test_room")
 
 	game := &Game{
