@@ -109,7 +109,7 @@ func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
 		// keep going until that key is released
 		for ebiten.IsKeyPressed(ebiten.KeyW) {
 			// check for barriers before continuing
-			if p.movingTowardsBarrier(barrierLayout) {
+			if p.movingTowardsBarrier(barrierLayout, direction) {
 				barrier = true
 				break
 			}
@@ -125,7 +125,7 @@ func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
 		p.Direction_Vert = "X"
 	case "D":
 		for ebiten.IsKeyPressed(ebiten.KeyS) {
-			if p.movingTowardsBarrier(barrierLayout) {
+			if p.movingTowardsBarrier(barrierLayout, direction) {
 				barrier = true
 				break
 			}
@@ -140,7 +140,7 @@ func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
 		p.Direction_Vert = "X"
 	case "L":
 		for ebiten.IsKeyPressed(ebiten.KeyA) {
-			if p.movingTowardsBarrier(barrierLayout) {
+			if p.movingTowardsBarrier(barrierLayout, direction) {
 				barrier = true
 				break
 			}
@@ -155,7 +155,7 @@ func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
 		p.Direction_Horiz = "X"
 	case "R":
 		for ebiten.IsKeyPressed(ebiten.KeyD) {
-			if p.movingTowardsBarrier(barrierLayout) {
+			if p.movingTowardsBarrier(barrierLayout, direction) {
 				barrier = true
 				break
 			}
@@ -171,7 +171,7 @@ func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
 	}
 }
 
-func (p *Player) movingTowardsBarrier(barrierLayout [][]bool) bool {
+func (p *Player) movingTowardsBarrier(barrierLayout [][]bool, dir string) bool {
 	gridX := math.Floor(p.X) // current position
 	gridY := math.Floor(p.Y)
 	nextX := int(gridX)
@@ -180,23 +180,23 @@ func (p *Player) movingTowardsBarrier(barrierLayout [][]bool) bool {
 	// Question: why don't I need to use dist for U and L?
 	// if I do, it makes it finds barriers one cell too early
 
-	if p.Direction_Vert == "U" {
+	switch dir {
+	case "U":
 		nextY = int(gridY)
 		if nextY < 0 {
 			return true
 		}
-	} else if p.Direction_Vert == "D" {
+	case "D":
 		nextY = int(math.Floor(gridY + dist))
 		if nextY >= len(barrierLayout) {
 			return true
 		}
-	}
-	if p.Direction_Horiz == "L" {
+	case "L":
 		nextX = int(gridX)
 		if nextX < 0 {
 			return true
 		}
-	} else if p.Direction_Horiz == "R" {
+	case "R":
 		nextX = int(math.Floor(gridX + dist))
 		if nextX >= len(barrierLayout[0]) {
 			return true

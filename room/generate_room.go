@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"time"
 )
 
 type TownCenter struct {
@@ -218,7 +217,6 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 			curElev := jsonData.ElevationMap[curPos.Y][curPos.X]
 			if curElev != startElev {
 				fmt.Printf("elevation changed from %v to %v at %s. need to find way around\n", startElev, curElev, curPos)
-				time.Sleep(time.Second * 3)
 				return true, curPos
 			}
 			// find the best tile to move to

@@ -239,6 +239,21 @@ func (r *Room) buildBarrierLayout(rawBarrierLayout [][]int) {
 					barrierLayout[y+mods.Y][x+mods.X] = true
 				}
 				continue
+			} else if key == "DL" {
+				barrierLayout[y][x+1] = true
+				continue
+			} else if key == "DR" {
+				barrierLayout[y][x] = true
+				continue
+			} else if key == "D" {
+				barrierLayout[y][x] = true
+				barrierLayout[y][x+1] = true
+				continue
+			} else if key == "DRC" {
+				barrierLayout[y+1][x] = true
+				barrierLayout[y][x] = true
+				barrierLayout[y][x+1] = true
+				continue
 			}
 
 			barrierLayout[y][x] = true
