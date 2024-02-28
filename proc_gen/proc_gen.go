@@ -57,7 +57,9 @@ func GenerateForest(width int, height int) {
 }
 func GenerateTownElevation(width int, height int) [][]int {
 	noiseMap := generateNoiseWithParams(width, height, townElevationParams[0], townElevationParams[1], int32(townElevationParams[2]), int(townElevationParams[3]))
-	noiseMap = downSample(noiseMap, 2)
+	noiseMap = downSample(noiseMap, 4)
+	islandSizeThreshold := (width * height) / 10
+	removeIslands(noiseMap, islandSizeThreshold)
 	NoiseMapToPNG(noiseMap, int(townElevationParams[3]))
 	return noiseMap
 }
@@ -69,8 +71,8 @@ func GenerateMountain(width int, height int) {
 
 func generateNoiseWithParams(width int, height int, a float64, b float64, n int32, levels int) [][]int {
 	rand.Seed(time.Now().UnixNano())
-	seed := rand.Int63()
-	//seed := int64(3)
+	//seed := rand.Int63()
+	seed := int64(2)
 	p := perlin.NewPerlin(a, b, n, seed)
 
 	noiseMap := make([][]float64, height)
@@ -171,6 +173,7 @@ func NoiseMapToPNG(noiseMap [][]int, levels int) {
 	width := len(noiseMap[0])
 	height := len(noiseMap)
 	img := image.NewGray(image.Rect(0, 0, width, height))
+	fmt.Println("Printing noise map to PNG file")
 
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
@@ -181,7 +184,7 @@ func NoiseMapToPNG(noiseMap [][]int, levels int) {
 		}
 	}
 
-	file, err := os.Create("noise_map.png")
+	file, err := os.Create("_testing/noise_map.png")
 	if err != nil {
 		fmt.Println("error generating noise map png")
 		return

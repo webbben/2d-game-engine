@@ -144,7 +144,6 @@ func (r *Room) buildElevation(roomData RoomData) {
 			filteredCliffMap[dir] = coords
 		}
 	}
-	//r.CliffMap = roomData.CliffMap
 	r.CliffMap = filteredCliffMap
 	r.SlopeMap = roomData.SlopeMap
 }

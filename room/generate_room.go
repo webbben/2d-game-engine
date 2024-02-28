@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 )
 
 type TownCenter struct {
@@ -64,8 +65,10 @@ func GenerateRandomRoom(roomName string, width, height int) {
 	fmt.Printf("town center: %v, %v (size=%v)\n", jsonData.TownCenter.X, jsonData.TownCenter.Y, jsonData.TownCenter.Size)
 
 	jsonData.generateMajorRoad(Coords{X: 0, Y: height / 2}, Coords{X: width, Y: height / 2})
-	fmt.Printf("Road", jsonData.Roads[0].Path)
-	fmt.Println("Slopes: ", jsonData.SlopeMap)
+	fmt.Println("Road:", jsonData.Roads[0].Path)
+	for _, slope := range jsonData.SlopeMap {
+		fmt.Println("Slopes at:", slope)
+	}
 	// set up the basic tile layout
 	err := jsonData.GenerateRandomTileLayout(tileset.Tx_Grass_01, width, height)
 	if err != nil {
@@ -214,7 +217,8 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 			// check if the tile we are on is blocking the path (i.e. changed elevation)
 			curElev := jsonData.ElevationMap[curPos.Y][curPos.X]
 			if curElev != startElev {
-				fmt.Printf("elevation changed from %v to %v. need to find way around\n", startElev, curElev)
+				fmt.Printf("elevation changed from %v to %v at %s. need to find way around\n", startElev, curElev, curPos)
+				time.Sleep(time.Second * 3)
 				return true, curPos
 			}
 			// find the best tile to move to
@@ -232,8 +236,6 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 				}
 			}
 			curPos = Coords{X: nextPos.X, Y: nextPos.Y}
-			fmt.Println("curPos:", curPos)
-			fmt.Println("curDist:", minDist)
 		}
 
 		return false, Coords{}
@@ -243,8 +245,6 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 		minDist := float64(99999)
 		closestOption := Coords{}
 		direction := ""
-		posX := float64(pos.X)
-		posY := float64(pos.Y)
 
 		for cliffDir, cliffCoords := range jsonData.CliffMap {
 			// only search cliffs of the valid type
@@ -252,9 +252,9 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 				continue
 			}
 			for _, cliffPos := range cliffCoords {
-				dist := general_util.EuclideanDist(posX, posY, float64(cliffPos.X), float64(cliffPos.Y))
+				dist := euclideanDist(pos, cliffPos)
 				if dist < minDist {
-					closestOption = cliffPos
+					closestOption = Coords{X: cliffPos.X, Y: cliffPos.Y}
 					direction = cliffDir
 					minDist = dist
 				}
@@ -264,7 +264,6 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 	}
 
 	// first, aim to get to the town center
-	fmt.Println("finding path to town center")
 	waypoints.Path = append(waypoints.Path, start)
 	curPos := start
 	goal := Coords{X: jsonData.TownCenter.X + jsonData.TownCenter.Size/2, Y: jsonData.TownCenter.Y + jsonData.TownCenter.Size/2}
@@ -274,6 +273,8 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 		slopeMap[dir] = []Coords{}
 	}
 
+	fmt.Println("starting from:", start)
+	fmt.Println("finding path to town center:", goal)
 	for general_util.EuclideanDist(float64(curPos.X), float64(curPos.Y), float64(goal.X), float64(goal.Y)) > 2 {
 		// check if there is an obstruction to the goal
 		blocked, blockedPos := isPathBlocked(curPos, goal)
@@ -284,18 +285,24 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 				fmt.Println("failed to find a slope option!")
 				return
 			}
+			fmt.Println("New slope at:", newSlopePos, " - dir:", newSlopeDir)
 			slopeMap[newSlopeDir] = append(slopeMap[newSlopeDir], newSlopePos)
 			waypoints.Path = append(waypoints.Path, newSlopePos)
 			curPos = Coords{X: newSlopePos.X, Y: newSlopePos.Y}
+			if newSlopeDir == "U" {
+				curPos.Y -= 2
+			} else if newSlopeDir == "D" {
+				curPos.Y += 2
+			}
+			fmt.Println("starting from pos:", curPos)
 		} else {
 			curPos = Coords{X: goal.X, Y: goal.Y}
 		}
-		fmt.Println("current pos:", curPos)
 	}
 	waypoints.Path = append(waypoints.Path, goal)
 
 	// next, aim to get to the end
-	fmt.Println("finding path to end")
+	fmt.Println("finding path to end:", end)
 	goal = end
 	for general_util.EuclideanDist(float64(curPos.X), float64(curPos.Y), float64(goal.X), float64(goal.Y)) > 2 {
 		// check if there is an obstruction to the goal
@@ -307,6 +314,7 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 				fmt.Println("failed to find a slope option!")
 				return
 			}
+			fmt.Println("New slope at:", newSlopePos, " - dir:", newSlopeDir)
 			slopeMap[newSlopeDir] = append(slopeMap[newSlopeDir], newSlopePos)
 			waypoints.Path = append(waypoints.Path, newSlopePos)
 			curPos = Coords{X: newSlopePos.X, Y: newSlopePos.Y}
@@ -317,6 +325,7 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 	}
 	waypoints.Path = append(waypoints.Path, end)
 	jsonData.Roads = append(jsonData.Roads, waypoints)
+	jsonData.SlopeMap = slopeMap
 }
 
 // searches the elevation map and builds cliffs on the map according to elevation changes
