@@ -117,11 +117,7 @@ func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
 			time.Sleep(delay)
 		}
 		// round the position out in case they overshot it
-		if barrier {
-			p.easeToPosY(math.Ceil(p.Y))
-		} else {
-			p.easeToPosY(math.Floor(p.Y))
-		}
+		p.easeToPosY(math.Floor(p.Y))
 		p.Direction_Vert = "X"
 	case "D":
 		for ebiten.IsKeyPressed(ebiten.KeyS) {
@@ -147,11 +143,7 @@ func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
 			p.X -= movementSpeed
 			time.Sleep(delay)
 		}
-		if barrier {
-			p.easeToPosX(math.Ceil(p.X))
-		} else {
-			p.easeToPosX(math.Floor(p.X))
-		}
+		p.easeToPosX(math.Floor(p.X))
 		p.Direction_Horiz = "X"
 	case "R":
 		for ebiten.IsKeyPressed(ebiten.KeyD) {
@@ -174,6 +166,8 @@ func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
 func (p *Player) movingTowardsBarrier(barrierLayout [][]bool, dir string) bool {
 	gridX := math.Floor(p.X) // current position
 	gridY := math.Floor(p.Y)
+	realX := p.X + 0.5 // player actually appears in the middle of the tile, not the top left corner
+	realY := p.Y + 0.5
 	nextX := int(gridX)
 	nextY := int(gridY)
 	dist := 1.0
@@ -182,7 +176,7 @@ func (p *Player) movingTowardsBarrier(barrierLayout [][]bool, dir string) bool {
 
 	switch dir {
 	case "U":
-		nextY = int(gridY)
+		nextY = int(realY - dist)
 		if nextY < 0 {
 			return true
 		}
@@ -192,7 +186,7 @@ func (p *Player) movingTowardsBarrier(barrierLayout [][]bool, dir string) bool {
 			return true
 		}
 	case "L":
-		nextX = int(gridX)
+		nextX = int(realX - dist)
 		if nextX < 0 {
 			return true
 		}
