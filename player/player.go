@@ -171,8 +171,8 @@ func (p *Player) movingTowardsBarrier(barrierLayout [][]bool, dir string) bool {
 	nextX := int(gridX)
 	nextY := int(gridY)
 	dist := 1.0
-	// Question: why don't I need to use dist for U and L?
-	// if I do, it makes it finds barriers one cell too early
+	// For some reason I have to have special handling for U and L.
+	// not sure why yet, but since it seems to work smoothly I won't question it!
 
 	switch dir {
 	case "U":
