@@ -1,17 +1,18 @@
-package entity
+package path_finding
 
 import (
+	m "ancient-rome/model"
 	"fmt"
 	"math/rand"
 	"testing"
 )
 
 type FindPathTestCase struct {
-	Start, Goal  Pos
-	ExpectedPath []Point
+	Start, Goal  m.Coords
+	ExpectedPath []m.Coords
 }
 
-func pathIsSame(pathA []Point, pathB []Point) bool {
+func pathIsSame(pathA []m.Coords, pathB []m.Coords) bool {
 	if len(pathA) != len(pathB) {
 		return false
 	}
@@ -34,9 +35,9 @@ func TestFindPath(t *testing.T) {
 
 	testCases := []FindPathTestCase{
 		{
-			Start: Pos{X: 0, Y: 0},
-			Goal:  Pos{X: 4, Y: 0},
-			ExpectedPath: []Point{
+			Start: m.Coords{X: 0, Y: 0},
+			Goal:  m.Coords{X: 4, Y: 0},
+			ExpectedPath: []m.Coords{
 				{X: 1, Y: 0},
 				{X: 2, Y: 0},
 				{X: 3, Y: 0},
@@ -44,9 +45,9 @@ func TestFindPath(t *testing.T) {
 			},
 		},
 		{
-			Start: Pos{X: 0, Y: 0},
-			Goal:  Pos{X: 0, Y: 4},
-			ExpectedPath: []Point{
+			Start: m.Coords{X: 0, Y: 0},
+			Goal:  m.Coords{X: 0, Y: 4},
+			ExpectedPath: []m.Coords{
 				{X: 0, Y: 1},
 				{X: 0, Y: 2},
 				{X: 0, Y: 3},
@@ -54,9 +55,9 @@ func TestFindPath(t *testing.T) {
 			},
 		},
 		{
-			Start: Pos{X: 0, Y: 4},
-			Goal:  Pos{X: 4, Y: 4},
-			ExpectedPath: []Point{
+			Start: m.Coords{X: 0, Y: 4},
+			Goal:  m.Coords{X: 4, Y: 4},
+			ExpectedPath: []m.Coords{
 				{X: 0, Y: 3},
 				{X: 1, Y: 3},
 				{X: 2, Y: 3},
@@ -66,9 +67,9 @@ func TestFindPath(t *testing.T) {
 			},
 		},
 		{
-			Start: Pos{X: 4, Y: 0},
-			Goal:  Pos{X: 4, Y: 4},
-			ExpectedPath: []Point{
+			Start: m.Coords{X: 4, Y: 0},
+			Goal:  m.Coords{X: 4, Y: 4},
+			ExpectedPath: []m.Coords{
 				{X: 4, Y: 1},
 				{X: 3, Y: 1},
 				{X: 2, Y: 1},
@@ -108,8 +109,8 @@ func BenchmarkFindPathSM(b *testing.B) {
 	height := len(barrierMap)
 
 	for i := 0; i < b.N; i++ {
-		start := Pos{X: float64(rand.Intn(width)), Y: float64(rand.Intn(height))}
-		goal := Pos{X: float64(rand.Intn(width)), Y: float64(rand.Intn(height))}
+		start := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
+		goal := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
 		result := FindPath(start, goal, barrierMap)
 		_ = result
 	}
@@ -142,8 +143,8 @@ func BenchmarkFindPathMD(b *testing.B) {
 	height := len(barrierMap)
 
 	for i := 0; i < b.N; i++ {
-		start := Pos{X: float64(rand.Intn(width)), Y: float64(rand.Intn(height))}
-		goal := Pos{X: float64(rand.Intn(width)), Y: float64(rand.Intn(height))}
+		start := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
+		goal := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
 		result := FindPath(start, goal, barrierMap)
 		_ = result
 	}

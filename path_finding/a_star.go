@@ -1,27 +1,13 @@
-package entity
+package path_finding
 
 import (
+	m "ancient-rome/model"
 	"container/heap"
 	"math"
 )
 
-type Pos struct {
-	X float64
-	Y float64
-}
-
-func FindPath(start, goal Pos, barrierMap [][]bool) []Point {
-	startPoint := Point{X: int(start.X), Y: int(start.Y)}
-	goalPoint := Point{X: int(goal.X), Y: int(goal.Y)}
-	return aStar(barrierMap, startPoint, goalPoint)
-}
-
-type Point struct {
-	X, Y int
-}
-
 type Node struct {
-	Point
+	m.Coords
 	// known cost of reaching a node
 	//
 	// sum of the edge costs from the start node to this node (i.e. cost of the path traveled so far)
@@ -54,33 +40,33 @@ func (pq *PriorityQueue) Pop() interface{} {
 	return *node
 }
 
-func (pq PriorityQueue) contains(p Point) bool {
+func (pq PriorityQueue) contains(p m.Coords) bool {
 	for _, node := range pq {
-		if node.Point == p {
+		if node.Coords == p {
 			return true
 		}
 	}
 	return false
 }
 
-func aStar(barrierMap [][]bool, start, goal Point) []Point {
+func aStar(barrierMap [][]bool, start, goal m.Coords) []m.Coords {
 	open := make(PriorityQueue, 0)
-	closed := make(map[Point]bool)
+	closed := make(map[m.Coords]bool)
 
 	heap.Init(&open)
-	heap.Push(&open, &Node{Point: start})
+	heap.Push(&open, &Node{Coords: start})
 
-	// map which point leads to the next for reconstructing the path
-	parent := make(map[Point]Point)
+	// map which m.Coords leads to the next for reconstructing the path
+	parent := make(map[m.Coords]m.Coords)
 
-	gValues := make(map[Point]int)
-	hValues := make(map[Point]int)
+	gValues := make(map[m.Coords]int)
+	hValues := make(map[m.Coords]int)
 	gValues[start] = 0
 	hValues[start] = heuristic(start, goal)
 
 	for open.Len() > 0 {
 		// get the current best option to explore
-		current := heap.Pop(&open).(Node).Point
+		current := heap.Pop(&open).(Node).Coords
 
 		if current == goal {
 			return reconstructPath(parent, start, goal)
@@ -102,7 +88,7 @@ func aStar(barrierMap [][]bool, start, goal Point) []Point {
 				parent[neighbor] = current
 
 				if !open.contains(neighbor) {
-					heap.Push(&open, &Node{Point: neighbor, G: tentativeG})
+					heap.Push(&open, &Node{Coords: neighbor, G: tentativeG})
 				}
 			}
 		}
@@ -110,12 +96,12 @@ func aStar(barrierMap [][]bool, start, goal Point) []Point {
 	return nil
 }
 
-func heuristic(start, goal Point) int {
+func heuristic(start, goal m.Coords) int {
 	return int(math.Abs(float64(start.X)-float64(goal.X)) + math.Abs(float64(start.Y)-float64(goal.Y)))
 }
 
-func reconstructPath(parent map[Point]Point, start, goal Point) []Point {
-	path := make([]Point, 0)
+func reconstructPath(parent map[m.Coords]m.Coords, start, goal m.Coords) []m.Coords {
+	path := make([]m.Coords, 0)
 	current := goal
 
 	for current != start {
@@ -131,23 +117,23 @@ func reconstructPath(parent map[Point]Point, start, goal Point) []Point {
 	return path
 }
 
-func getNeighbors(current Point, barrierMap [][]bool) []Point {
-	neighbors := []Point{
+func getNeighbors(current m.Coords, barrierMap [][]bool) []m.Coords {
+	neighbors := []m.Coords{
 		{X: current.X, Y: current.Y - 1}, // UP
 		{X: current.X, Y: current.Y + 1}, // DOWN
 		{X: current.X - 1, Y: current.Y}, // LEFT
 		{X: current.X + 1, Y: current.Y}, // RIGHT
 	}
-	validNeighbors := make([]Point, 0)
+	validNeighbors := make([]m.Coords, 0)
 	for _, neighbor := range neighbors {
-		if isValidPoint(neighbor, barrierMap) {
+		if isValidCoords(neighbor, barrierMap) {
 			validNeighbors = append(validNeighbors, neighbor)
 		}
 	}
 	return validNeighbors
 }
 
-func isValidPoint(p Point, barrierMap [][]bool) bool {
+func isValidCoords(p m.Coords, barrierMap [][]bool) bool {
 	if p.X < 0 || p.X >= len(barrierMap[0]) {
 		return false
 	}

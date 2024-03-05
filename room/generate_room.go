@@ -2,6 +2,8 @@ package room
 
 import (
 	"ancient-rome/general_util"
+	m "ancient-rome/model"
+	"ancient-rome/path_finding"
 	"ancient-rome/proc_gen"
 	"ancient-rome/tileset"
 	"fmt"
@@ -16,28 +18,28 @@ type TownCenter struct {
 }
 
 type Road struct {
-	Path []Coords `json:"path"`
+	Path []m.Coords `json:"path"`
 }
 
 // data as loaded from the room_layout json
 type RoomData struct {
-	RoomName        string              `json:"roomName"`        // Display name of the room
-	Width           int                 `json:"width"`           // width of the room
-	Height          int                 `json:"height"`          // height of the room
-	Tilesets        []string            `json:"tilesets"`        // names of the tilesets used in this room
-	TileGroupKeys   []string            `json:"tileGroupKeys"`   // keys of the custom groups of tiles for this room
-	TileGroups      map[string][]string `json:"tileGroups"`      // custom groups of tiles that can be used interchangeably, to "randomize" the layout a bit
-	TileLayout      [][]string          `json:"tileLayout"`      // the keys for tiles at each position of the room. a key may point to a tile group, or be the key of an individual tile
-	BarrierLayout   [][]int             `json:"barrierLayout"`   // a map of which tiles are accessible (0) and which are barriers/inaccessible (1)
-	ObjectSets      []string            `json:"objectSets"`      // names of the tilesets used for objects in this room
-	ObjectGroupKeys []string            `json:"objectGroupKeys"` // keys of the object groups for this room
-	ObjectGroups    map[string][]string `json:"objectGroups"`    // custom groups of objects that can be used interchangeably, to "randomize" the objects a bit
-	ObjectLayout    [][]string          `json:"objectLayout"`    // the keys for objects at each position of the room. a key may point to a object group, or be the key of an individual object. '-' indicates no object in the given position.
-	ElevationMap    [][]int             `json:"elevationMap"`
-	CliffMap        map[string][]Coords `json:"cliffMap"`
-	SlopeMap        map[string][]Coords `json:"slopeMap"`
-	TownCenter      TownCenter          `json:"townCenter"`
-	Roads           []Road              `json:"roads"`
+	RoomName        string                `json:"roomName"`        // Display name of the room
+	Width           int                   `json:"width"`           // width of the room
+	Height          int                   `json:"height"`          // height of the room
+	Tilesets        []string              `json:"tilesets"`        // names of the tilesets used in this room
+	TileGroupKeys   []string              `json:"tileGroupKeys"`   // keys of the custom groups of tiles for this room
+	TileGroups      map[string][]string   `json:"tileGroups"`      // custom groups of tiles that can be used interchangeably, to "randomize" the layout a bit
+	TileLayout      [][]string            `json:"tileLayout"`      // the keys for tiles at each position of the room. a key may point to a tile group, or be the key of an individual tile
+	BarrierLayout   [][]int               `json:"barrierLayout"`   // a map of which tiles are accessible (0) and which are barriers/inaccessible (1)
+	ObjectSets      []string              `json:"objectSets"`      // names of the tilesets used for objects in this room
+	ObjectGroupKeys []string              `json:"objectGroupKeys"` // keys of the object groups for this room
+	ObjectGroups    map[string][]string   `json:"objectGroups"`    // custom groups of objects that can be used interchangeably, to "randomize" the objects a bit
+	ObjectLayout    [][]string            `json:"objectLayout"`    // the keys for objects at each position of the room. a key may point to a object group, or be the key of an individual object. '-' indicates no object in the given position.
+	ElevationMap    [][]int               `json:"elevationMap"`
+	CliffMap        map[string][]m.Coords `json:"cliffMap"`
+	SlopeMap        map[string][]m.Coords `json:"slopeMap"`
+	TownCenter      TownCenter            `json:"townCenter"`
+	Roads           []Road                `json:"roads"`
 }
 
 // creates a room with randomized grass terrain and some hills
@@ -63,13 +65,19 @@ func GenerateRandomRoom(roomName string, width, height int) {
 	}
 	fmt.Printf("town center: %v, %v (size=%v)\n", jsonData.TownCenter.X, jsonData.TownCenter.Y, jsonData.TownCenter.Size)
 
-	jsonData.generateMajorRoad(Coords{X: 0, Y: height / 2}, Coords{X: width, Y: height / 2})
+	jsonData.generateMajorRoad(m.Coords{X: 0, Y: height / 2}, m.Coords{X: width, Y: height / 2})
 	fmt.Println("Road:", jsonData.Roads[0].Path)
 	for _, slope := range jsonData.SlopeMap {
 		fmt.Println("Slopes at:", slope)
 	}
 	// set up the basic tile layout
 	err := jsonData.GenerateRandomTileLayout(tileset.Tx_Grass_01, width, height)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	// paint roads
+	err = jsonData.setRoadLayout(tileset.Tx_Grass_01_road)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -103,6 +111,8 @@ func (jsonData *RoomData) GenerateRandomTileLayout(tilesetKey string, width, hei
 		tileLayout = append(tileLayout, row)
 	}
 
+	fmt.Printf("adding tileset %s (group %s)\n", tilesetKey, groupName)
+
 	jsonData.Tilesets = append(jsonData.Tilesets, tilesetKey)
 	if jsonData.TileGroups == nil {
 		jsonData.TileGroups = make(map[string][]string)
@@ -111,6 +121,80 @@ func (jsonData *RoomData) GenerateRandomTileLayout(tilesetKey string, width, hei
 	jsonData.TileGroupKeys = append(jsonData.TileGroupKeys, groupName)
 	jsonData.TileLayout = tileLayout
 	return nil
+}
+
+func (jsonData *RoomData) setRoadLayout(tilesetKey string) error {
+	// get the tileset for the road tiles
+	tileNames, err := tileset.GetTilesetNames(tilesetKey)
+	if err != nil {
+		return err
+	}
+	// group name will be the capitalized first letter
+	groupName := strings.ToUpper(string(tileNames[0][0]))
+
+	// generate an empty barrier layout to use in aStar search - we don't need to know barrier locations in this use case
+	emptyBarrierLayout := make([][]bool, jsonData.Height)
+	emptyBarrierRow := make([]bool, jsonData.Width)
+	for i := range emptyBarrierLayout {
+		emptyBarrierLayout[i] = emptyBarrierRow
+	}
+
+	for _, road := range jsonData.Roads {
+		fullPath := []m.Coords{}
+		from, to := m.Coords{}, m.Coords{}
+		for _, coord := range road.Path {
+			if from == (m.Coords{}) {
+				from = m.Coords{X: coord.X, Y: coord.Y}
+				continue
+			}
+			if to == (m.Coords{}) {
+				to = m.Coords{X: coord.X, Y: coord.Y}
+			}
+			curPath := path_finding.FindPath(from, to, emptyBarrierLayout)
+			fullPath = append(fullPath, curPath...)
+			from = m.Coords{X: to.X, Y: to.Y}
+			to = m.Coords{}
+		}
+
+		// paint all the tiles in this path
+		for _, coords := range fullPath {
+			jsonData.paintTiles(groupName, 1, coords)
+		}
+	}
+	fmt.Printf("adding tileset %s (group %s)\n", tilesetKey, groupName)
+
+	jsonData.Tilesets = append(jsonData.Tilesets, tilesetKey)
+	if jsonData.TileGroups == nil {
+		jsonData.TileGroups = make(map[string][]string)
+	}
+	jsonData.TileGroups[groupName] = tileNames
+	jsonData.TileGroupKeys = append(jsonData.TileGroupKeys, groupName)
+	return nil
+}
+
+// paints the given tile at a position with the given brush size
+//
+// tileName can either be the name of a tile, or the group name that a tile belongs to.
+//
+// brush size is an extra radius of tiles outside the center (coords) to paint too.
+// 0 means the given coords alone are painted (1x1), 1 means a 3x3 area is painted, etc.
+func (jsonData *RoomData) paintTiles(tileName string, brushSize int, coords m.Coords) {
+	if brushSize == 0 {
+		if posInRoomBounds(coords, jsonData.Width, jsonData.Height) {
+			jsonData.TileLayout[coords.Y][coords.X] = tileName
+		}
+		return
+	}
+
+	// fill out all the tiles within the brushSize radius
+	for y := 0 - brushSize; y <= brushSize; y++ {
+		for x := 0 - brushSize; x <= brushSize; x++ {
+			curPos := m.Coords{X: coords.X + x, Y: coords.Y + y}
+			if posInRoomBounds(curPos, jsonData.Width, jsonData.Height) {
+				jsonData.TileLayout[curPos.Y][curPos.X] = tileName
+			}
+		}
+	}
 }
 
 // The 'town center' is basically a central location in the map.
@@ -197,15 +281,15 @@ func (jsonData *RoomData) SetTownCenter() bool {
 //  3. once we reach the town center, then we aim to go towards end
 //
 //  4. repeat the same strategy from 2 to get from the town center to the end point
-func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
+func (jsonData *RoomData) generateMajorRoad(start, end m.Coords) {
 	// points along the path from start and end to draw the road via
 	var waypoints Road
 
 	// checks if there is any obstruction in the path going directly from start to end. also returns coordinates of the obstruction
-	isPathBlocked := func(start, end Coords) (bool, Coords) {
-		curPos := Coords{X: start.X, Y: start.Y}
+	isPathBlocked := func(start, end m.Coords) (bool, m.Coords) {
+		curPos := m.Coords{X: start.X, Y: start.Y}
 		startElev := jsonData.ElevationMap[start.Y][start.X]
-		dirs := []Coords{
+		dirs := []m.Coords{
 			{X: -1, Y: 0}, // Left
 			{X: 1, Y: 0},  // Right
 			{X: 0, Y: -1}, // Up
@@ -221,9 +305,9 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 			}
 			// find the best tile to move to
 			minDist := float64(jsonData.Width + jsonData.Height)
-			nextPos := Coords{}
+			nextPos := m.Coords{}
 			for _, dir := range dirs {
-				movePos := Coords{X: curPos.X + dir.X, Y: curPos.Y + dir.Y}
+				movePos := m.Coords{X: curPos.X + dir.X, Y: curPos.Y + dir.Y}
 				if !posInRoomBounds(movePos, jsonData.Width, jsonData.Height) {
 					continue
 				}
@@ -233,15 +317,15 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 					nextPos = movePos
 				}
 			}
-			curPos = Coords{X: nextPos.X, Y: nextPos.Y}
+			curPos = m.Coords{X: nextPos.X, Y: nextPos.Y}
 		}
 
-		return false, Coords{}
+		return false, m.Coords{}
 	}
 
-	findNearestSlopeOption := func(pos Coords) (Coords, string) {
+	findNearestSlopeOption := func(pos m.Coords) (m.Coords, string) {
 		minDist := float64(99999)
-		closestOption := Coords{}
+		closestOption := m.Coords{}
 		direction := ""
 
 		for cliffDir, cliffCoords := range jsonData.CliffMap {
@@ -252,7 +336,7 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 			for _, cliffPos := range cliffCoords {
 				dist := euclideanDist(pos, cliffPos)
 				if dist < minDist {
-					closestOption = Coords{X: cliffPos.X, Y: cliffPos.Y}
+					closestOption = m.Coords{X: cliffPos.X, Y: cliffPos.Y}
 					direction = cliffDir
 					minDist = dist
 				}
@@ -264,11 +348,11 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 	// first, aim to get to the town center
 	waypoints.Path = append(waypoints.Path, start)
 	curPos := start
-	goal := Coords{X: jsonData.TownCenter.X + jsonData.TownCenter.Size/2, Y: jsonData.TownCenter.Y + jsonData.TownCenter.Size/2}
+	goal := m.Coords{X: jsonData.TownCenter.X + jsonData.TownCenter.Size/2, Y: jsonData.TownCenter.Y + jsonData.TownCenter.Size/2}
 	dirs := []string{"U", "D"}
-	slopeMap := make(map[string][]Coords)
+	slopeMap := make(map[string][]m.Coords)
 	for _, dir := range dirs {
-		slopeMap[dir] = []Coords{}
+		slopeMap[dir] = []m.Coords{}
 	}
 
 	fmt.Println("starting from:", start)
@@ -279,14 +363,14 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 		if blocked {
 			// find a way around the obstacle - in this case, we need to make a slope down/up a cliff
 			newSlopePos, newSlopeDir := findNearestSlopeOption(blockedPos)
-			if newSlopePos == (Coords{}) {
+			if newSlopePos == (m.Coords{}) {
 				fmt.Println("failed to find a slope option!")
 				return
 			}
 			fmt.Println("New slope at:", newSlopePos, " - dir:", newSlopeDir)
 			slopeMap[newSlopeDir] = append(slopeMap[newSlopeDir], newSlopePos)
 			waypoints.Path = append(waypoints.Path, newSlopePos)
-			curPos = Coords{X: newSlopePos.X, Y: newSlopePos.Y}
+			curPos = m.Coords{X: newSlopePos.X, Y: newSlopePos.Y}
 			if newSlopeDir == "U" {
 				curPos.Y -= 2
 			} else if newSlopeDir == "D" {
@@ -294,7 +378,7 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 			}
 			fmt.Println("starting from pos:", curPos)
 		} else {
-			curPos = Coords{X: goal.X, Y: goal.Y}
+			curPos = m.Coords{X: goal.X, Y: goal.Y}
 		}
 	}
 	waypoints.Path = append(waypoints.Path, goal)
@@ -308,16 +392,16 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 		if blocked {
 			// find a way around the obstacle - in this case, we need to make a slope down/up a cliff
 			newSlopePos, newSlopeDir := findNearestSlopeOption(blockedPos)
-			if newSlopePos == (Coords{}) {
+			if newSlopePos == (m.Coords{}) {
 				fmt.Println("failed to find a slope option!")
 				return
 			}
 			fmt.Println("New slope at:", newSlopePos, " - dir:", newSlopeDir)
 			slopeMap[newSlopeDir] = append(slopeMap[newSlopeDir], newSlopePos)
 			waypoints.Path = append(waypoints.Path, newSlopePos)
-			curPos = Coords{X: newSlopePos.X, Y: newSlopePos.Y}
+			curPos = m.Coords{X: newSlopePos.X, Y: newSlopePos.Y}
 		} else {
-			curPos = Coords{X: goal.X, Y: goal.Y}
+			curPos = m.Coords{X: goal.X, Y: goal.Y}
 		}
 
 	}
@@ -330,9 +414,9 @@ func (jsonData *RoomData) generateMajorRoad(start, end Coords) {
 func (jsonData *RoomData) generateCliffs() {
 	elevationMap := jsonData.ElevationMap
 	dirs := []string{"U", "D", "L", "R", "UL", "UR", "DL", "DR", "ULC", "URC", "DLC", "DRC"}
-	cliffMap := make(map[string][]Coords)
+	cliffMap := make(map[string][]m.Coords)
 	for _, dir := range dirs {
-		cliffMap[dir] = []Coords{}
+		cliffMap[dir] = []m.Coords{}
 	}
 
 	// for every 2x2 square of tiles, detect if there are is raised elevation anywhere surrounding it
@@ -348,7 +432,7 @@ func (jsonData *RoomData) generateCliffs() {
 			if x >= width {
 				break
 			}
-			coords := Coords{X: x, Y: y}
+			coords := m.Coords{X: x, Y: y}
 			// check sides first
 			up := isCliff(x, y, "U", elevationMap, width, height)
 			down := isCliff(x, y, "D", elevationMap, width, height)

@@ -3,6 +3,7 @@ package room
 
 import (
 	"ancient-rome/config"
+	"ancient-rome/model"
 	"ancient-rome/rendering"
 	"ancient-rome/tileset"
 	"encoding/json"
@@ -15,19 +16,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-type Coords struct {
-	X int `json:"x"`
-	Y int `json:"y"`
-}
-
-func (c Coords) String() string {
-	return fmt.Sprintf("[X: %v, Y: %v]", c.X, c.Y)
-}
-
-func (c Coords) Equals(other Coords) bool {
-	return c.X == other.X && c.Y == other.Y
-}
-
 type Room struct {
 	RoomName        string
 	Width           int
@@ -38,9 +26,9 @@ type Room struct {
 	TileLayout      [][]*ebiten.Image
 	BarrierLayout   [][]bool
 	ObjectLayout    [][]*ebiten.Image
-	ObjectCoords    []Coords
-	CliffMap        map[string][]Coords
-	SlopeMap        map[string][]Coords
+	ObjectCoords    []model.Coords
+	CliffMap        map[string][]model.Coords
+	SlopeMap        map[string][]model.Coords
 }
 
 // creates a room object from the given room ID
@@ -122,9 +110,9 @@ func (r *Room) buildElevation(roomData RoomData) {
 	r.CliffTileset = cliffTiles
 
 	// remove cliff tiles if they are supposed to be slopes
-	filteredCliffMap := make(map[string][]Coords)
+	filteredCliffMap := make(map[string][]model.Coords)
 	for dir, coords := range roomData.CliffMap {
-		filteredCliffMap[dir] = []Coords{}
+		filteredCliffMap[dir] = []model.Coords{}
 		// if there are slopes for this direction, replace regular cliffs with any corresponding slopes
 		if slopeCoords, ok := roomData.SlopeMap[dir]; ok {
 			for _, coord := range coords {
@@ -173,7 +161,7 @@ func (r *Room) buildObjectLayout(roomData RoomData) {
 	}
 
 	var layout [][]*ebiten.Image
-	var objectCoords []Coords
+	var objectCoords []model.Coords
 
 	fmt.Println("building the object layout")
 	for y, row := range objectLayout {
@@ -195,7 +183,7 @@ func (r *Room) buildObjectLayout(roomData RoomData) {
 			}
 			imgRow = append(imgRow, img)
 			// store the coords so we can be a little quicker at finding objects
-			objectCoords = append(objectCoords, Coords{X: x, Y: y})
+			objectCoords = append(objectCoords, model.Coords{X: x, Y: y})
 		}
 		layout = append(layout, imgRow)
 	}
@@ -217,8 +205,8 @@ func (r *Room) buildBarrierLayout(rawBarrierLayout [][]int) {
 	}
 
 	// add barriers where there are cliffs
-	barriers_L := []Coords{{X: 1, Y: 0}, {X: 1, Y: 1}}
-	barriers_R := []Coords{{X: 0, Y: 0}, {X: 0, Y: 1}}
+	barriers_L := []model.Coords{{X: 1, Y: 0}, {X: 1, Y: 1}}
+	barriers_R := []model.Coords{{X: 0, Y: 0}, {X: 0, Y: 1}}
 
 	for key, coordsList := range r.CliffMap {
 		if len(coordsList) == 0 {
