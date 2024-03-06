@@ -196,6 +196,12 @@ func (p *Player) movingTowardsBarrier(barrierLayout [][]bool, dir string) bool {
 			return true
 		}
 	}
+	if nextX < 0 || nextX >= len(barrierLayout[0]) {
+		return true
+	}
+	if nextY < 0 || nextY >= len(barrierLayout) {
+		return true
+	}
 	return barrierLayout[nextY][nextX]
 }
 

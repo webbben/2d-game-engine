@@ -315,18 +315,31 @@ func (jsonData *RoomData) SetTownCenter() bool {
 
 	getTownCenter := func(centerSize int) (bool, TownCenter) {
 		// try the exact center first
-		x := mapWidth/2 - (centerSize / 2)
-		y := mapHeight/2 - (centerSize / 2)
-		if isAreaSuitable(x, y, centerSize) {
-			return true, TownCenter{Size: centerSize, X: x, Y: y}
+		idealX := mapWidth/2 - (centerSize / 2)
+		idealY := mapHeight/2 - (centerSize / 2)
+		if isAreaSuitable(idealX, idealY, centerSize) {
+			return true, TownCenter{Size: centerSize, X: idealX, Y: idealY}
 		}
 		// if there are hills in the way, then try to find a nearby suitable location
+		// keep track of the best location (closest to the ideal position)
+		idealSpot := m.Coords{X: idealX, Y: idealY}
+		bestSpot := m.Coords{}
+		bestDist := mapWidth * mapHeight // just an arbitrary value guaranteed to be replaced
 		for y := mapHeight/2 - centerSize; y < mapHeight/2+centerSize; y++ {
 			for x := mapWidth/2 - centerSize; x < mapWidth/2+centerSize; x++ {
+				// if it's a suitable area, consider if it's better than the current winner
 				if isAreaSuitable(x, y, centerSize) {
-					return true, TownCenter{Size: centerSize, X: x, Y: y}
+					newSpot := m.Coords{X: x, Y: y}
+					newDist := int(euclideanDist(newSpot, idealSpot))
+					if newDist < bestDist {
+						bestSpot = newSpot.Copy()
+						bestDist = newDist
+					}
 				}
 			}
+		}
+		if bestSpot != (m.Coords{}) {
+			return true, TownCenter{Size: centerSize, X: bestSpot.X, Y: bestSpot.Y}
 		}
 		return false, TownCenter{}
 	}

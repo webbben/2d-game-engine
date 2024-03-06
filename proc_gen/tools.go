@@ -41,9 +41,7 @@ func removeIslands(noiseMap [][]int, threshold int) {
 					value:        noiseMap[y][x],
 					surroundedBy: -1,
 				}
-				fmt.Println("exploring new island")
 				islandDFS(x, y, visited, noiseMap, &island)
-				fmt.Printf("found island of value %v of size %v\n", island.value, len(island.cells))
 				islands = append(islands, island)
 			}
 		}
@@ -52,7 +50,6 @@ func removeIslands(noiseMap [][]int, threshold int) {
 	// fill in all the islands that are smaller than the threshold
 	for _, island := range islands {
 		if len(island.cells) <= threshold {
-			fmt.Println("removing island")
 			for _, cell := range island.cells {
 				noiseMap[cell.Y][cell.X] = island.surroundedBy
 			}

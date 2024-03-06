@@ -21,3 +21,8 @@ func (c Coords) String() string {
 func (c Coords) Equals(other Coords) bool {
 	return c.X == other.X && c.Y == other.Y
 }
+
+// returns a copy of the coords struct, to avoid reference ties
+func (c Coords) Copy() Coords {
+	return Coords{X: c.X, Y: c.Y}
+}
