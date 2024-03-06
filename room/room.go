@@ -120,7 +120,6 @@ func (r *Room) buildElevation(roomData RoomData) {
 				for _, slopeCoord := range slopeCoords {
 					if coord.Equals(slopeCoord) {
 						skip = true
-						fmt.Println("skipping cliff tile!")
 						break
 					}
 				}
@@ -192,69 +191,12 @@ func (r *Room) buildObjectLayout(roomData RoomData) {
 	r.ObjectCoords = objectCoords
 }
 
-func (r *Room) buildBarrierLayout(rawBarrierLayout [][]int) {
-	// we start with a free movement room, and apply barriers as needed (for structures, objects, cliffs, etc)
-	barrierLayout := make([][]bool, r.Height)
-	for i := range barrierLayout {
-		barrierLayout[i] = make([]bool, r.Width)
-	}
+func (r *Room) buildBarrierLayout(rawBarrierLayout [][]bool) {
+	barrierLayout := rawBarrierLayout
 
 	// add barriers where there are objects
 	for _, coords := range r.ObjectCoords {
 		barrierLayout[coords.Y][coords.X] = true
-	}
-
-	// add barriers where there are cliffs
-	barriers_L := []model.Coords{{X: 1, Y: 0}, {X: 1, Y: 1}}
-	barriers_R := []model.Coords{{X: 0, Y: 0}, {X: 0, Y: 1}}
-
-	for key, coordsList := range r.CliffMap {
-		if len(coordsList) == 0 {
-			continue
-		}
-		for _, coords := range coordsList {
-			// with coords being the top left tile, mark the 2x2 tiles as barriers
-			x, y := coords.X, coords.Y
-
-			// handle L and R specially
-			if key == "L" || key == "UL" {
-				for _, mods := range barriers_L {
-					barrierLayout[y+mods.Y][x+mods.X] = true
-				}
-				continue
-			} else if key == "R" || key == "UR" {
-				for _, mods := range barriers_R {
-					barrierLayout[y+mods.Y][x+mods.X] = true
-				}
-				continue
-			} else if key == "DL" {
-				barrierLayout[y][x+1] = true
-				continue
-			} else if key == "DR" {
-				barrierLayout[y][x] = true
-				continue
-			} else if key == "D" {
-				barrierLayout[y][x] = true
-				barrierLayout[y][x+1] = true
-				continue
-			} else if key == "DRC" {
-				barrierLayout[y+1][x] = true
-				barrierLayout[y][x] = true
-				barrierLayout[y][x+1] = true
-				continue
-			}
-
-			barrierLayout[y][x] = true
-			if y+1 < r.Height {
-				barrierLayout[y+1][x] = true
-				if x+1 < r.Width {
-					barrierLayout[y+1][x+1] = true
-				}
-			}
-			if x+1 < r.Width {
-				barrierLayout[y][x+1] = true
-			}
-		}
 	}
 
 	r.BarrierLayout = barrierLayout

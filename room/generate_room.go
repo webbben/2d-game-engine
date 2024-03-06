@@ -30,7 +30,7 @@ type RoomData struct {
 	TileGroupKeys   []string              `json:"tileGroupKeys"`   // keys of the custom groups of tiles for this room
 	TileGroups      map[string][]string   `json:"tileGroups"`      // custom groups of tiles that can be used interchangeably, to "randomize" the layout a bit
 	TileLayout      [][]string            `json:"tileLayout"`      // the keys for tiles at each position of the room. a key may point to a tile group, or be the key of an individual tile
-	BarrierLayout   [][]int               `json:"barrierLayout"`   // a map of which tiles are accessible (0) and which are barriers/inaccessible (1)
+	BarrierLayout   [][]bool              `json:"barrierLayout"`   // a map of which tiles are accessible (0) and which are barriers/inaccessible (1)
 	ObjectSets      []string              `json:"objectSets"`      // names of the tilesets used for objects in this room
 	ObjectGroupKeys []string              `json:"objectGroupKeys"` // keys of the object groups for this room
 	ObjectGroups    map[string][]string   `json:"objectGroups"`    // custom groups of objects that can be used interchangeably, to "randomize" the objects a bit
@@ -65,11 +65,16 @@ func GenerateRandomRoom(roomName string, width, height int) {
 	}
 	fmt.Printf("town center: %v, %v (size=%v)\n", jsonData.TownCenter.X, jsonData.TownCenter.Y, jsonData.TownCenter.Size)
 
-	jsonData.generateMajorRoad(m.Coords{X: 0, Y: height / 2}, m.Coords{X: width, Y: height / 2})
+	// generate a major road through the map. may add slopes to cliffs if needed
+	jsonData.generateMajorRoad(m.Coords{X: 0, Y: height / 2}, m.Coords{X: width - 1, Y: height / 2})
 	fmt.Println("Road:", jsonData.Roads[0].Path)
 	for _, slope := range jsonData.SlopeMap {
 		fmt.Println("Slopes at:", slope)
 	}
+
+	// build the basic barrier layout based on cliffs and slopes
+	jsonData.buildBarrierLayout()
+
 	// set up the basic tile layout
 	err := jsonData.GenerateRandomTileLayout(tileset.Tx_Grass_01, width, height)
 	if err != nil {
@@ -102,13 +107,14 @@ func (jsonData *RoomData) GenerateRandomTileLayout(tilesetKey string, width, hei
 	groupName := strings.ToUpper(string(tileNames[0][0]))
 
 	// put this group name into every cell
-	var tileLayout [][]string
-	row := make([]string, width)
-	for i := 0; i < width; i++ {
-		row[i] = groupName
+	tileLayout := make([][]string, height)
+	for i := range tileLayout {
+		tileLayout[i] = make([]string, width)
 	}
-	for i := 0; i < height; i++ {
-		tileLayout = append(tileLayout, row)
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			tileLayout[y][x] = groupName
+		}
 	}
 
 	fmt.Printf("adding tileset %s (group %s)\n", tilesetKey, groupName)
@@ -132,13 +138,6 @@ func (jsonData *RoomData) setRoadLayout(tilesetKey string) error {
 	// group name will be the capitalized first letter
 	groupName := strings.ToUpper(string(tileNames[0][0]))
 
-	// generate an empty barrier layout to use in aStar search - we don't need to know barrier locations in this use case
-	emptyBarrierLayout := make([][]bool, jsonData.Height)
-	emptyBarrierRow := make([]bool, jsonData.Width)
-	for i := range emptyBarrierLayout {
-		emptyBarrierLayout[i] = emptyBarrierRow
-	}
-
 	for _, road := range jsonData.Roads {
 		fullPath := []m.Coords{}
 		from, to := m.Coords{}, m.Coords{}
@@ -150,15 +149,18 @@ func (jsonData *RoomData) setRoadLayout(tilesetKey string) error {
 			if to == (m.Coords{}) {
 				to = m.Coords{X: coord.X, Y: coord.Y}
 			}
-			curPath := path_finding.FindPath(from, to, emptyBarrierLayout)
+			fmt.Printf("getting path from %s to %s\n", from, to)
+			curPath := path_finding.FindPath(from, to, jsonData.BarrierLayout)
+			if len(curPath) == 0 {
+				fmt.Println("path is empty!")
+			}
 			fullPath = append(fullPath, curPath...)
 			from = m.Coords{X: to.X, Y: to.Y}
 			to = m.Coords{}
 		}
-
 		// paint all the tiles in this path
 		for _, coords := range fullPath {
-			jsonData.paintTiles(groupName, 1, coords)
+			jsonData.paintTiles(groupName, 0, coords)
 		}
 	}
 	fmt.Printf("adding tileset %s (group %s)\n", tilesetKey, groupName)
@@ -195,6 +197,91 @@ func (jsonData *RoomData) paintTiles(tileName string, brushSize int, coords m.Co
 			}
 		}
 	}
+}
+
+func (jsonData *RoomData) buildBarrierLayout() {
+	// make barriers for all the cliffs, minus any slopes
+	// remove cliff tiles if they are supposed to be slopes
+	filteredCliffMap := make(map[string][]m.Coords)
+	for dir, coords := range jsonData.CliffMap {
+		filteredCliffMap[dir] = []m.Coords{}
+		// if there are slopes for this direction, replace regular cliffs with any corresponding slopes
+		if slopeCoords, ok := jsonData.SlopeMap[dir]; ok {
+			for _, coord := range coords {
+				skip := false
+				for _, slopeCoord := range slopeCoords {
+					if coord.Equals(slopeCoord) {
+						skip = true
+						break
+					}
+				}
+				if !skip {
+					filteredCliffMap[dir] = append(filteredCliffMap[dir], coord)
+				}
+			}
+		} else {
+			filteredCliffMap[dir] = coords
+		}
+	}
+	jsonData.CliffMap = filteredCliffMap
+
+	// add barriers where there are cliffs
+	barrierLayout := make([][]bool, jsonData.Height)
+	for i := range barrierLayout {
+		barrierLayout[i] = make([]bool, jsonData.Width)
+	}
+	barriers_L := []m.Coords{{X: 1, Y: 0}, {X: 1, Y: 1}}
+	barriers_R := []m.Coords{{X: 0, Y: 0}, {X: 0, Y: 1}}
+
+	for key, coordsList := range jsonData.CliffMap {
+		if len(coordsList) == 0 {
+			continue
+		}
+		for _, coords := range coordsList {
+			// with coords being the top left tile, mark the 2x2 tiles as barriers
+			x, y := coords.X, coords.Y
+
+			// handle L and R specially
+			if key == "L" || key == "UL" {
+				for _, mods := range barriers_L {
+					barrierLayout[y+mods.Y][x+mods.X] = true
+				}
+				continue
+			} else if key == "R" || key == "UR" {
+				for _, mods := range barriers_R {
+					barrierLayout[y+mods.Y][x+mods.X] = true
+				}
+				continue
+			} else if key == "DL" {
+				barrierLayout[y][x+1] = true
+				continue
+			} else if key == "DR" {
+				barrierLayout[y][x] = true
+				continue
+			} else if key == "D" {
+				barrierLayout[y][x] = true
+				barrierLayout[y][x+1] = true
+				continue
+			} else if key == "DRC" {
+				barrierLayout[y+1][x] = true
+				barrierLayout[y][x] = true
+				barrierLayout[y][x+1] = true
+				continue
+			}
+
+			barrierLayout[y][x] = true
+			if y+1 < jsonData.Height {
+				barrierLayout[y+1][x] = true
+				if x+1 < jsonData.Width {
+					barrierLayout[y+1][x+1] = true
+				}
+			}
+			if x+1 < jsonData.Width {
+				barrierLayout[y][x+1] = true
+			}
+		}
+	}
+	jsonData.BarrierLayout = barrierLayout
 }
 
 // The 'town center' is basically a central location in the map.

@@ -7,9 +7,11 @@ import (
 	"ancient-rome/player"
 	"ancient-rome/room"
 	"ancient-rome/tileset"
+	"fmt"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -42,6 +44,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.player.Draw(screen, getDefaultDrawOptions(), offsetX, offsetY)
 	g.room.DrawObjects(screen, offsetX, offsetY)
 
+	if config.ShowPlayerCoords {
+		ebitenutil.DebugPrint(screen, fmt.Sprintf("Player pos: [%v, %v]", g.player.X, g.player.Y))
+	}
 }
 
 func (g *Game) drawGridLines(screen *ebiten.Image, offsetX float64, offsetY float64) {

@@ -1,9 +1,9 @@
 package path_finding
 
 import (
+	"ancient-rome/general_util"
 	m "ancient-rome/model"
 	"container/heap"
-	"math"
 )
 
 type Node struct {
@@ -96,8 +96,10 @@ func aStar(barrierMap [][]bool, start, goal m.Coords) []m.Coords {
 	return nil
 }
 
+// use euclidean distance or manhattan distance?
 func heuristic(start, goal m.Coords) int {
-	return int(math.Abs(float64(start.X)-float64(goal.X)) + math.Abs(float64(start.Y)-float64(goal.Y)))
+	// return int(math.Abs(float64(start.X)-float64(goal.X)) + math.Abs(float64(start.Y)-float64(goal.Y)))
+	return int(general_util.EuclideanDist(float64(start.X), float64(start.Y), float64(goal.X), float64(goal.Y)))
 }
 
 func reconstructPath(parent map[m.Coords]m.Coords, start, goal m.Coords) []m.Coords {
