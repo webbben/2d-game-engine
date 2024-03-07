@@ -70,9 +70,9 @@ func GenerateRandomRoom(roomName string, width, height int) {
 	}
 	fmt.Printf("town center: %v, %v (size=%v)\n", jsonData.TownCenter.X, jsonData.TownCenter.Y, jsonData.TownCenter.Size)
 
-	// generate a major road through the map. may add slopes to cliffs if needed
+	// generate major roads through the map
 	jsonData.generateMajorRoad(m.Coords{X: 0, Y: height / 2}, m.Coords{X: width - 1, Y: height / 2})
-	fmt.Println("Road:", jsonData.Roads[0].Path)
+	jsonData.generateMajorRoad(m.Coords{X: width / 2, Y: 0}, m.Coords{X: width / 2, Y: height - 1})
 
 	// set up the basic tile layout
 	err := jsonData.GenerateRandomTileLayout(tileset.Tx_Grass_01, width, height)
@@ -138,27 +138,8 @@ func (jsonData *RoomData) setRoadLayout(tilesetKey string) error {
 	groupName := strings.ToUpper(string(tileNames[0][0]))
 
 	for _, road := range jsonData.Roads {
-		fullPath := []m.Coords{}
-		from, to := m.Coords{}, m.Coords{}
-		for _, coord := range road.Path {
-			if from == (m.Coords{}) {
-				from = m.Coords{X: coord.X, Y: coord.Y}
-				continue
-			}
-			if to == (m.Coords{}) {
-				to = m.Coords{X: coord.X, Y: coord.Y}
-			}
-			fmt.Printf("getting path from %s to %s\n", from, to)
-			curPath := path_finding.FindPath(from, to, jsonData.BarrierLayout)
-			if len(curPath) == 0 {
-				fmt.Println("path is empty!")
-			}
-			fullPath = append(fullPath, curPath...)
-			from = m.Coords{X: to.X, Y: to.Y}
-			to = m.Coords{}
-		}
 		// paint all the tiles in this path
-		for _, coords := range fullPath {
+		for _, coords := range road.Path {
 			jsonData.paintTiles(groupName, 0, coords)
 		}
 	}
