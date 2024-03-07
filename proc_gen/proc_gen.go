@@ -71,8 +71,8 @@ func GenerateMountain(width int, height int) {
 
 func generateNoiseWithParams(width int, height int, a float64, b float64, n int32, levels int) [][]int {
 	rand.Seed(time.Now().UnixNano())
-	//seed := rand.Int63()
-	seed := int64(2)
+	seed := rand.Int63()
+	//seed := int64(2)
 	p := perlin.NewPerlin(a, b, n, seed)
 
 	noiseMap := make([][]float64, height)

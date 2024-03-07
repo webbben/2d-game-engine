@@ -1,7 +1,6 @@
 package room
 
 import (
-	"ancient-rome/general_util"
 	m "ancient-rome/model"
 	"ancient-rome/path_finding"
 	"ancient-rome/proc_gen"
@@ -57,6 +56,12 @@ func GenerateRandomRoom(roomName string, width, height int) {
 	// place cliffs based on elevation
 	jsonData.generateCliffs()
 
+	// add slopes to cliffs
+	jsonData.generateSlopes()
+
+	// build the basic barrier layout based on cliffs and slopes
+	jsonData.buildBarrierLayout()
+
 	// setup a town center
 	success := jsonData.SetTownCenter()
 	if !success {
@@ -68,12 +73,6 @@ func GenerateRandomRoom(roomName string, width, height int) {
 	// generate a major road through the map. may add slopes to cliffs if needed
 	jsonData.generateMajorRoad(m.Coords{X: 0, Y: height / 2}, m.Coords{X: width - 1, Y: height / 2})
 	fmt.Println("Road:", jsonData.Roads[0].Path)
-	for _, slope := range jsonData.SlopeMap {
-		fmt.Println("Slopes at:", slope)
-	}
-
-	// build the basic barrier layout based on cliffs and slopes
-	jsonData.buildBarrierLayout()
 
 	// set up the basic tile layout
 	err := jsonData.GenerateRandomTileLayout(tileset.Tx_Grass_01, width, height)
@@ -366,148 +365,31 @@ func (jsonData *RoomData) SetTownCenter() bool {
 //
 // start and end are expected to be opposite sides of the map, and this algorithm will try to go to these points via the "town center" point
 //
-// Overall idea of this algorithm:
-//
-//  1. from start, begin tracing directly towards the town center
-//
-//  2. if obstructions are hit, start searching for a way around them
-//
-//     - if there's no way around the obstructions (e.g. the search is unable to go further right than a certain point) then we start looking for cliffs to turn into stairs
-//
-//     - once a point is found that can be turned into stairs, this point is marked as part of the road's path
-//
-//     - repeat this obstruction/path finding process as needed
-//
-//  3. once we reach the town center, then we aim to go towards end
-//
-//  4. repeat the same strategy from 2 to get from the town center to the end point
+// it is expected that cliffs and barriers have already been mapped out beforehand, so the road can navigate around these things
 func (jsonData *RoomData) generateMajorRoad(start, end m.Coords) {
-	// points along the path from start and end to draw the road via
-	var waypoints Road
+	var road Road
 
-	// checks if there is any obstruction in the path going directly from start to end. also returns coordinates of the obstruction
-	isPathBlocked := func(start, end m.Coords) (bool, m.Coords) {
-		curPos := m.Coords{X: start.X, Y: start.Y}
-		startElev := jsonData.ElevationMap[start.Y][start.X]
-		dirs := []m.Coords{
-			{X: -1, Y: 0}, // Left
-			{X: 1, Y: 0},  // Right
-			{X: 0, Y: -1}, // Up
-			{X: 0, Y: 1},  // Down
-		}
-		// continuously move to the adjacent tile that is the closest to the goal, until an obstacle (i.e. cliff) is encountered
-		for euclideanDist(curPos, end) > 1 {
-			// check if the tile we are on is blocking the path (i.e. changed elevation)
-			curElev := jsonData.ElevationMap[curPos.Y][curPos.X]
-			if curElev != startElev {
-				fmt.Printf("elevation changed from %v to %v at %s. need to find way around\n", startElev, curElev, curPos)
-				return true, curPos
-			}
-			// find the best tile to move to
-			minDist := float64(jsonData.Width + jsonData.Height)
-			nextPos := m.Coords{}
-			for _, dir := range dirs {
-				movePos := m.Coords{X: curPos.X + dir.X, Y: curPos.Y + dir.Y}
-				if !posInRoomBounds(movePos, jsonData.Width, jsonData.Height) {
-					continue
-				}
-				dist := euclideanDist(movePos, end)
-				if dist < minDist {
-					minDist = dist
-					nextPos = movePos
-				}
-			}
-			curPos = m.Coords{X: nextPos.X, Y: nextPos.Y}
-		}
-
-		return false, m.Coords{}
+	// find path from start to town center
+	tc := jsonData.TownCenter
+	goal := m.Coords{X: tc.X + (tc.Size / 2), Y: tc.Y + (tc.Size / 2)}
+	path := path_finding.FindPath(start, goal, jsonData.BarrierLayout)
+	if len(path) == 0 {
+		fmt.Printf("generateMajorRoad: failed to find path from %s to %s\n", start, goal)
+		fmt.Println("aborting road generation")
+		return
 	}
+	road.Path = append(road.Path, path...)
 
-	findNearestSlopeOption := func(pos m.Coords) (m.Coords, string) {
-		minDist := float64(99999)
-		closestOption := m.Coords{}
-		direction := ""
-
-		for cliffDir, cliffCoords := range jsonData.CliffMap {
-			// only search cliffs of the valid type
-			if !(cliffDir == "U" || cliffDir == "D") {
-				continue
-			}
-			for _, cliffPos := range cliffCoords {
-				dist := euclideanDist(pos, cliffPos)
-				if dist < minDist {
-					closestOption = m.Coords{X: cliffPos.X, Y: cliffPos.Y}
-					direction = cliffDir
-					minDist = dist
-				}
-			}
-		}
-		return closestOption, direction
+	// find path from town center to end
+	path = path_finding.FindPath(goal, end, jsonData.BarrierLayout)
+	if len(path) == 0 {
+		fmt.Printf("generateMajorRoad: failed to find path from %s to %s\n", start, goal)
+		fmt.Println("aborting road generation")
+		return
 	}
+	road.Path = append(road.Path, path...)
 
-	// first, aim to get to the town center
-	waypoints.Path = append(waypoints.Path, start)
-	curPos := start
-	goal := m.Coords{X: jsonData.TownCenter.X + jsonData.TownCenter.Size/2, Y: jsonData.TownCenter.Y + jsonData.TownCenter.Size/2}
-	dirs := []string{"U", "D"}
-	slopeMap := make(map[string][]m.Coords)
-	for _, dir := range dirs {
-		slopeMap[dir] = []m.Coords{}
-	}
-
-	fmt.Println("starting from:", start)
-	fmt.Println("finding path to town center:", goal)
-	for general_util.EuclideanDist(float64(curPos.X), float64(curPos.Y), float64(goal.X), float64(goal.Y)) > 2 {
-		// check if there is an obstruction to the goal
-		blocked, blockedPos := isPathBlocked(curPos, goal)
-		if blocked {
-			// find a way around the obstacle - in this case, we need to make a slope down/up a cliff
-			newSlopePos, newSlopeDir := findNearestSlopeOption(blockedPos)
-			if newSlopePos == (m.Coords{}) {
-				fmt.Println("failed to find a slope option!")
-				return
-			}
-			fmt.Println("New slope at:", newSlopePos, " - dir:", newSlopeDir)
-			slopeMap[newSlopeDir] = append(slopeMap[newSlopeDir], newSlopePos)
-			waypoints.Path = append(waypoints.Path, newSlopePos)
-			curPos = m.Coords{X: newSlopePos.X, Y: newSlopePos.Y}
-			if newSlopeDir == "U" {
-				curPos.Y -= 2
-			} else if newSlopeDir == "D" {
-				curPos.Y += 2
-			}
-			fmt.Println("starting from pos:", curPos)
-		} else {
-			curPos = m.Coords{X: goal.X, Y: goal.Y}
-		}
-	}
-	waypoints.Path = append(waypoints.Path, goal)
-
-	// next, aim to get to the end
-	fmt.Println("finding path to end:", end)
-	goal = end
-	for general_util.EuclideanDist(float64(curPos.X), float64(curPos.Y), float64(goal.X), float64(goal.Y)) > 2 {
-		// check if there is an obstruction to the goal
-		blocked, blockedPos := isPathBlocked(curPos, goal)
-		if blocked {
-			// find a way around the obstacle - in this case, we need to make a slope down/up a cliff
-			newSlopePos, newSlopeDir := findNearestSlopeOption(blockedPos)
-			if newSlopePos == (m.Coords{}) {
-				fmt.Println("failed to find a slope option!")
-				return
-			}
-			fmt.Println("New slope at:", newSlopePos, " - dir:", newSlopeDir)
-			slopeMap[newSlopeDir] = append(slopeMap[newSlopeDir], newSlopePos)
-			waypoints.Path = append(waypoints.Path, newSlopePos)
-			curPos = m.Coords{X: newSlopePos.X, Y: newSlopePos.Y}
-		} else {
-			curPos = m.Coords{X: goal.X, Y: goal.Y}
-		}
-
-	}
-	waypoints.Path = append(waypoints.Path, end)
-	jsonData.Roads = append(jsonData.Roads, waypoints)
-	jsonData.SlopeMap = slopeMap
+	jsonData.Roads = append(jsonData.Roads, road)
 }
 
 // searches the elevation map and builds cliffs on the map according to elevation changes
@@ -638,4 +520,198 @@ func isCliff(x, y int, direction string, elevationMap [][]int, width, height int
 		return elevationMap[y+2][x+2] > curElevation
 	}
 	return false
+}
+
+func (jsonData *RoomData) generateSlopes() {
+	numSlopes := 4 // number of slopes to try to add to each cliff line
+	jsonData.SlopeMap = make(map[string][]m.Coords)
+	// find how many cliff lines there are
+	cliffLines := findAllCliffLines(jsonData.CliffMap)
+	if len(cliffLines) == 0 {
+		fmt.Println("generateSlopes: no cliff lines found")
+		return
+	}
+
+	// try to place some slopes on each cliff line
+	// number of slopes should be based on length of the cliff
+	threshold := jsonData.Width / 8
+	for _, cliffLine := range cliffLines {
+		// check horizontal range and add slopes if possible
+		if cliffLine.xMax-cliffLine.xMin > threshold {
+			for i := 0; i < numSlopes; i++ {
+				success := jsonData.placeSlopeOnCliffLine(cliffLine, float64(threshold), true)
+				if !success {
+					break
+				}
+			}
+		}
+		// check vertical range and add slopes if possible
+		if cliffLine.yMax-cliffLine.yMin > threshold {
+			for i := 0; i < numSlopes; i++ {
+				success := jsonData.placeSlopeOnCliffLine(cliffLine, float64(threshold), false)
+				if !success {
+					break
+				}
+			}
+		}
+	}
+}
+
+// attempts to place a slope along a cliff line. returns true if succeeded, or false if no viable slope position was found.
+//
+// minDistThresh: minimum distance new slope must be from old slopes - meant to help space them out a bit
+//
+// horizAxis: whether we are basing the slope placement on the horizontal axis or the vertical axis
+func (jsonData *RoomData) placeSlopeOnCliffLine(cliffLine CliffLine, minDistThresh float64, horizAxis bool) bool {
+	findNearestSlopeOption := func(coordVal int) (m.Coords, string) {
+		minDist := float64(99999)   // minimum distance from the goal coords we've found so far
+		closestOption := m.Coords{} // the current best option
+		direction := ""             // direction of the current best
+
+		for cliffDir, cliffCoords := range jsonData.CliffMap {
+			// only search cliffs of the valid type
+			if !(cliffDir == "U" || cliffDir == "D") {
+				continue
+			}
+			for _, cliffPos := range cliffCoords {
+				var compVal int
+				if horizAxis {
+					compVal = cliffPos.X
+				} else {
+					compVal = cliffPos.Y
+				}
+				axisDist := math.Abs(float64(coordVal) - float64(compVal))
+				if axisDist < minDist {
+					// make sure it's not too close to another slope
+					tooClose := false
+					for _, slopeList := range jsonData.SlopeMap {
+						for _, slope := range slopeList {
+							if euclideanDist(cliffPos, slope) < minDistThresh {
+								tooClose = true
+								break
+							}
+						}
+						if tooClose {
+							break
+						}
+					}
+					if tooClose {
+						continue
+					}
+					closestOption = m.Coords{X: cliffPos.X, Y: cliffPos.Y}
+					direction = cliffDir
+					minDist = axisDist
+				}
+			}
+		}
+		return closestOption, direction
+	}
+
+	var goalVal int
+	// make the goal the center (average) of the range of x or y values in the cliff line
+	if horizAxis {
+		goalVal = (cliffLine.xMax + cliffLine.xMin) / 2
+	} else {
+		goalVal = (cliffLine.yMax + cliffLine.yMin) / 2
+	}
+	// find a slope candidate as close to centerX as possible, but also minDist from other slopes
+	slopeOption, dir := findNearestSlopeOption(goalVal)
+	if slopeOption == (m.Coords{}) {
+		return false
+	}
+	if _, ok := jsonData.SlopeMap[dir]; !ok {
+		jsonData.SlopeMap[dir] = []m.Coords{}
+	}
+	jsonData.SlopeMap[dir] = append(jsonData.SlopeMap[dir], slopeOption)
+	return true
+}
+
+type CliffLine struct {
+	coords                 []m.Coords
+	xMin, xMax, yMin, yMax int
+}
+
+func (c *CliffLine) AddCliffCoords(coord m.Coords) {
+	c.xMin = int(math.Min(float64(c.xMin), float64(coord.X)))
+	c.xMax = int(math.Max(float64(c.xMax), float64(coord.X)))
+	c.yMin = int(math.Min(float64(c.yMin), float64(coord.Y)))
+	c.yMax = int(math.Max(float64(c.yMax), float64(coord.Y)))
+	c.coords = append(c.coords, coord.Copy())
+}
+
+func findAllCliffLines(cliffMap map[string][]m.Coords) []CliffLine {
+	cliffLines := []CliffLine{}
+	// get a list of all the coords that have cliffs, regardless of direction
+	cliffMasterList := make([]m.Coords, 0)
+	for _, cliffCoords := range cliffMap {
+		cliffMasterList = append(cliffMasterList, cliffCoords...)
+	}
+
+	removeElement := func(slice []m.Coords, index int) []m.Coords {
+		if index < 0 || index >= len(slice) {
+			return slice
+		}
+		return append(slice[:index], slice[index+1:]...)
+	}
+	findNearestCliff := func(cliffCoord m.Coords) (int, float64) {
+		closestDist := 99999.0
+		closestIndex := 0
+		for index, compCliffCoord := range cliffMasterList {
+			dist := euclideanDist(cliffCoord, compCliffCoord)
+			if dist < float64(closestDist) {
+				closestDist = dist
+				closestIndex = index
+			}
+		}
+		return closestIndex, closestDist
+	}
+	// now, group each cliff into a CliffLine
+	for len(cliffMasterList) > 0 {
+		cliffCoord := cliffMasterList[0]
+		cliffMasterList = removeElement(cliffMasterList, 0)
+
+		// a cliff line starting from an arbitrary point will have at most 2 directions.
+		// start one direction, and when that direction ends, go back and try for another
+		startPos := cliffCoord
+		cliffLine := CliffLine{}
+		cliffLine.AddCliffCoords(startPos)
+
+		// search first direction
+		curCoords := startPos.Copy()
+		for {
+			nearestIndex, nearestDist := findNearestCliff(curCoords)
+			// if the nearest distance is too far, then we've exhausted this direction
+			if nearestDist > 3 {
+				break
+			}
+			curCoords = cliffMasterList[nearestIndex]
+			cliffLine.AddCliffCoords(curCoords)
+			cliffMasterList = removeElement(cliffMasterList, nearestIndex)
+			if len(cliffMasterList) == 0 {
+				break
+			}
+		}
+		if len(cliffMasterList) == 0 {
+			cliffLines = append(cliffLines, cliffLine)
+			break
+		}
+
+		// search the other direction
+		curCoords = startPos.Copy()
+		for {
+			nearestIndex, nearestDist := findNearestCliff(curCoords)
+			// if the nearest distance is too far, then we've exhausted this direction
+			if nearestDist > 3 {
+				break
+			}
+			curCoords = cliffMasterList[nearestIndex]
+			cliffLine.AddCliffCoords(curCoords)
+			cliffMasterList = removeElement(cliffMasterList, nearestIndex)
+			if len(cliffMasterList) == 0 {
+				break
+			}
+		}
+		cliffLines = append(cliffLines, cliffLine)
+	}
+	return cliffLines
 }

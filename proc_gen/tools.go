@@ -24,6 +24,21 @@ type Island struct {
 // if an island's area is less than the threshold, it will be replaced by the value surrounding it.
 func removeIslands(noiseMap [][]int, threshold int) {
 	fmt.Printf("removing islands for threshold %v\n", threshold)
+	islands := identifyIslands(noiseMap)
+	// fill in all the islands that are smaller than the threshold
+	for _, island := range islands {
+		if len(island.cells) <= threshold {
+			for _, cell := range island.cells {
+				noiseMap[cell.Y][cell.X] = island.surroundedBy
+			}
+		}
+	}
+}
+
+// identifies "islands" of same values in a noise map
+//
+// A noise map will entirely consist of islands, since all planes of values are then surrounded by other planes of a different (but consistent) value.
+func identifyIslands(noiseMap [][]int) []Island {
 	islands := []Island{}
 	height := len(noiseMap)
 	width := len(noiseMap[0])
@@ -46,15 +61,7 @@ func removeIslands(noiseMap [][]int, threshold int) {
 			}
 		}
 	}
-
-	// fill in all the islands that are smaller than the threshold
-	for _, island := range islands {
-		if len(island.cells) <= threshold {
-			for _, cell := range island.cells {
-				noiseMap[cell.Y][cell.X] = island.surroundedBy
-			}
-		}
-	}
+	return islands
 }
 
 func islandDFS(x, y int, visited [][]bool, noiseMap [][]int, island *Island) {

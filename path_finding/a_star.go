@@ -4,6 +4,7 @@ import (
 	"ancient-rome/general_util"
 	m "ancient-rome/model"
 	"container/heap"
+	"fmt"
 )
 
 type Node struct {
@@ -136,6 +137,10 @@ func getNeighbors(current m.Coords, barrierMap [][]bool) []m.Coords {
 }
 
 func isValidCoords(p m.Coords, barrierMap [][]bool) bool {
+	if len(barrierMap) == 0 || len(barrierMap[0]) == 0 {
+		fmt.Println("isValidCoords: barrier map is empty!")
+		return false
+	}
 	if p.X < 0 || p.X >= len(barrierMap[0]) {
 		return false
 	}
