@@ -25,13 +25,28 @@ func (e *Entity) TravelToPosition(coords m.Coords, barrierMap [][]bool) {
 	}
 	// go along the path
 	// TODO: add collision detection for other entities
+	go e.startWalkingAnimation()
 	for _, pos := range path {
 		e.moveToCoords(pos)
 	}
+	e.IsMoving = false
 }
 
-// moves entity to a specific position
+// moves entity to a specific position.
+//
+// meant to represent a single movement to an adjacent position
 func (e *Entity) moveToCoords(coords m.Coords) {
+	// set facing direction
+	if coords.X > int(e.X) {
+		e.Facing = "R"
+	} else if coords.X < int(e.X) {
+		e.Facing = "L"
+	} else if coords.Y < int(e.Y) {
+		e.Facing = "U"
+	} else {
+		e.Facing = "D"
+	}
+	// move vertically and horizontally to the goal position
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
@@ -76,4 +91,22 @@ func (e *Entity) easeToPosX(destX float64) {
 		}
 	}
 	e.X = destX
+}
+
+func (e *Entity) startWalkingAnimation() {
+	e.IsMoving = true
+	for e.IsMoving {
+		// go to the next animation frame
+		switch e.Facing {
+		case "L":
+			e.setNextAnimationFrame("left")
+		case "R":
+			e.setNextAnimationFrame("right")
+		case "U":
+			e.setNextAnimationFrame("up")
+		case "D":
+			e.setNextAnimationFrame("down")
+		}
+		time.Sleep(150 * time.Millisecond)
+	}
 }

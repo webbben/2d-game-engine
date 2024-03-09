@@ -58,11 +58,43 @@ func BuildAnimationDef(baseName string, tileset map[string]*ebiten.Image) Animat
 			return AnimationDef{}
 		}
 	}
+	fmt.Printf("%s: from %s_%v to %s_%v\n", baseName, baseName, start, baseName, end)
 	return AnimationDef{
 		FrameBase: baseName,
 		Start:     start,
 		End:       end,
 	}
+}
+
+// sets the next animation frame for the given animation
+func (e *Entity) setNextAnimationFrame(animationName string) {
+	animationDef, ok := e.Animations[animationName]
+	if !ok {
+		fmt.Println("failed to get animation def for animation name:", animationName)
+		return
+	}
+	// starting a new animation?
+	if e.CurrentAnimation != animationName {
+		e.CurrentAnimation = animationName
+		e.AnimationStep = animationDef.Start
+	} else {
+		e.AnimationStep++
+	}
+	// past end of animation?
+	if e.AnimationStep > animationDef.End {
+		e.AnimationStep = animationDef.Start
+	} else if e.AnimationStep < animationDef.Start {
+		e.AnimationStep = animationDef.Start
+	}
+	// set the next frame
+	nextFrameKey := fmt.Sprintf("%s_%v", animationDef.FrameBase, e.AnimationStep)
+	nextFrame, ok := e.Frames[nextFrameKey]
+	if !ok {
+		fmt.Println("failed to get image for animation frame:", nextFrameKey)
+		return
+	}
+	fmt.Println("setting animation frame step:", e.AnimationStep)
+	e.CurrentFrame = nextFrame
 }
 
 const (
