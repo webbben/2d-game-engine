@@ -52,7 +52,8 @@ func CreatePlayer(posX int, posY int, frames map[string]*ebiten.Image) Player {
 	}
 }
 
-func (p *Player) Draw(screen *ebiten.Image, op *ebiten.DrawImageOptions, offsetX float64, offsetY float64) {
+func (p *Player) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
+	op := &ebiten.DrawImageOptions{}
 	drawX, drawY := rendering.GetImageDrawPos(p.CurrentFrame, p.X, p.Y, offsetX, offsetY)
 	op.GeoM.Translate(drawX, drawY)
 	op.GeoM.Scale(config.GameScale, config.GameScale)

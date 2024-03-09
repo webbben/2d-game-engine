@@ -19,7 +19,8 @@ const (
 
 // entity tilesets
 const (
-	Ent_Player string = "ent_player"
+	Ent_Player     string = "ent_player"
+	Ent_Old_Man_01 string = "ent_old_man_01"
 )
 
 // object tilesets
@@ -34,6 +35,7 @@ var (
 		Tx_Grass_01_road: "./tileset/textures/floors/grass_01/road",
 		Tx_Cliff_01:      "./tileset/textures/cliff",
 		Ent_Player:       "./tileset/entities/player",
+		Ent_Old_Man_01:   "./tileset/entities/villager/old_man_01",
 		Ob_Trees_01:      "./tileset/objects/nature/trees_01",
 	}
 )

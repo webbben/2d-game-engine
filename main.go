@@ -4,6 +4,8 @@ import (
 	"ancient-rome/camera"
 	"ancient-rome/config"
 	"ancient-rome/debug"
+	"ancient-rome/entity"
+	"ancient-rome/model"
 	"ancient-rome/player"
 	"ancient-rome/room"
 	"ancient-rome/tileset"
@@ -17,9 +19,10 @@ import (
 
 // game state
 type Game struct {
-	room   room.Room
-	player player.Player
-	camera camera.Camera
+	room     room.Room
+	player   player.Player
+	camera   camera.Camera
+	entities []entity.Entity
 }
 
 func (g *Game) Update() error {
@@ -36,12 +39,23 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	offsetX, offsetY := g.camera.GetAbsPos()
+
+	// draw the terrain of the room
 	g.room.DrawFloor(screen, offsetX, offsetY)
 	g.room.DrawCliffs(screen, offsetX, offsetY)
 	if config.DrawGridLines {
 		g.drawGridLines(screen, offsetX, offsetY)
 	}
-	g.player.Draw(screen, getDefaultDrawOptions(), offsetX, offsetY)
+
+	// draw the player
+	g.player.Draw(screen, offsetX, offsetY)
+
+	// draw entities
+	for _, e := range g.entities {
+		e.Draw(screen, offsetX, offsetY)
+	}
+
+	// draw objects
 	g.room.DrawObjects(screen, offsetX, offsetY)
 
 	if config.ShowPlayerCoords {
@@ -70,11 +84,6 @@ func (g *Game) drawGridLines(screen *ebiten.Image, offsetX float64, offsetY floa
 	}
 }
 
-func getDefaultDrawOptions() *ebiten.DrawImageOptions {
-	defaultOptions := &ebiten.DrawImageOptions{}
-	return defaultOptions
-}
-
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return config.ScreenWidth, config.ScreenHeight
 }
@@ -92,14 +101,22 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	room.GenerateRandomRoom("test_room", 100, 100)
 	player := player.CreatePlayer(50, 50, playerSprites)
+	testEnt := entity.CreateEntity(entity.Old_Man_01, "test_npc", "Pepe", "")
+	if testEnt == nil {
+		panic("failed to create entity")
+	}
+
+	room.GenerateRandomRoom("test_room", 100, 100)
 	currentRoom := room.CreateRoom("test_room")
 
 	game := &Game{
-		room:   currentRoom,
-		player: player,
+		room:     currentRoom,
+		player:   player,
+		entities: []entity.Entity{*testEnt},
 	}
+
+	go game.entities[0].TravelToPosition(model.Coords{X: 99, Y: 50}, currentRoom.BarrierLayout)
 
 	if err := ebiten.RunGame(game); err != nil {
 		panic(err)
