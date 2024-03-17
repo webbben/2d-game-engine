@@ -93,7 +93,6 @@ func (e *Entity) setNextAnimationFrame(animationName string) {
 		fmt.Println("failed to get image for animation frame:", nextFrameKey)
 		return
 	}
-	fmt.Println("setting animation frame step:", e.AnimationStep)
 	e.CurrentFrame = nextFrame
 }
 
