@@ -1,10 +1,11 @@
 package path_finding
 
 import (
-	m "ancient-rome/model"
 	"fmt"
 	"math/rand"
 	"testing"
+
+	m "github.com/webbben/2d-game-engine/model"
 )
 
 type FindPathTestCase struct {

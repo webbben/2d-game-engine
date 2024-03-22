@@ -2,7 +2,7 @@
 package rendering
 
 import (
-	"ancient-rome/config"
+	"github.com/webbben/2d-game-engine/config"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )

@@ -1,8 +1,9 @@
 package camera
 
 import (
-	"ancient-rome/config"
 	"math"
+
+	"github.com/webbben/2d-game-engine/config"
 )
 
 // the user's viewport/camera

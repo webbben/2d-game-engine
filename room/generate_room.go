@@ -1,13 +1,14 @@
 package room
 
 import (
-	m "ancient-rome/model"
-	"ancient-rome/path_finding"
-	"ancient-rome/proc_gen"
-	"ancient-rome/tileset"
 	"fmt"
 	"math"
 	"strings"
+
+	m "github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/path_finding"
+	"github.com/webbben/2d-game-engine/proc_gen"
+	"github.com/webbben/2d-game-engine/tileset"
 )
 
 type TownCenter struct {

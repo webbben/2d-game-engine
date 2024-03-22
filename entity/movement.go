@@ -1,11 +1,12 @@
 package entity
 
 import (
-	m "ancient-rome/model"
-	"ancient-rome/path_finding"
 	"fmt"
 	"sync"
 	"time"
+
+	m "github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/path_finding"
 )
 
 const (

@@ -1,11 +1,12 @@
 package player
 
 import (
-	"ancient-rome/config"
-	"ancient-rome/rendering"
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/rendering"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )

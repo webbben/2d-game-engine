@@ -1,6 +1,6 @@
 package path_finding
 
-import "ancient-rome/model"
+import "github.com/webbben/2d-game-engine/model"
 
 type Pos struct {
 	X float64

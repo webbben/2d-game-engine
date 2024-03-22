@@ -1,16 +1,17 @@
 package main
 
 import (
-	"ancient-rome/camera"
-	"ancient-rome/config"
-	"ancient-rome/debug"
-	"ancient-rome/entity"
-	"ancient-rome/model"
-	"ancient-rome/player"
-	"ancient-rome/room"
-	"ancient-rome/tileset"
 	"fmt"
 	"image/color"
+
+	"github.com/webbben/2d-game-engine/camera"
+	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/debug"
+	"github.com/webbben/2d-game-engine/entity"
+	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/player"
+	"github.com/webbben/2d-game-engine/room"
+	"github.com/webbben/2d-game-engine/tileset"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"

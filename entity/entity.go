@@ -1,15 +1,16 @@
 package entity
 
 import (
-	"ancient-rome/config"
-	"ancient-rome/rendering"
-	"ancient-rome/tileset"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/rendering"
+	"github.com/webbben/2d-game-engine/tileset"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )

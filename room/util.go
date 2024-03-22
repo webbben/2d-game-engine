@@ -1,8 +1,8 @@
 package room
 
 import (
-	"ancient-rome/general_util"
-	"ancient-rome/model"
+	"github.com/webbben/2d-game-engine/general_util"
+	"github.com/webbben/2d-game-engine/model"
 )
 
 // euclidean distance function for coords structs, for ease of use

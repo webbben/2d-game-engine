@@ -1,4 +1,4 @@
-module ancient-rome
+module github.com/webbben/2d-game-engine
 
 go 1.21.4
 
