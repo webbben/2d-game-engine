@@ -51,7 +51,7 @@ func (pq PriorityQueue) contains(p m.Coords) bool {
 	return false
 }
 
-func aStar(barrierMap [][]bool, start, goal m.Coords) []m.Coords {
+func aStar(barrierMap [][]bool, start, goal m.Coords, costMap [][]int) []m.Coords {
 	open := make(PriorityQueue, 0)
 	closed := make(map[m.Coords]bool)
 
@@ -81,8 +81,11 @@ func aStar(barrierMap [][]bool, start, goal m.Coords) []m.Coords {
 			if closed[neighbor] {
 				continue
 			}
-
+			// add other costs, such as terrain, which can influence the path
 			tentativeG := gValues[current] + 1
+			if costMap != nil {
+				tentativeG += costMap[neighbor.Y][neighbor.X]
+			}
 			// check if tentative g value is better than current one
 			if !open.contains(neighbor) || tentativeG < gValues[neighbor] {
 				gValues[neighbor] = tentativeG

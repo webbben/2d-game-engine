@@ -68,6 +68,15 @@ func LoadTileset(key string) (map[string]*ebiten.Image, error) {
 	return tileset, nil
 }
 
+// loads an individual image
+func LoadImage(imagePath string) (*ebiten.Image, error) {
+	img, _, err := ebitenutil.NewImageFromFile(imagePath)
+	if err != nil {
+		return nil, err
+	}
+	return img, nil
+}
+
 // gets the list of filepaths for each tile png in a tileset folder
 func getTilePaths(folderPath string) ([]string, error) {
 	folderContents, err := os.ReadDir(folderPath)

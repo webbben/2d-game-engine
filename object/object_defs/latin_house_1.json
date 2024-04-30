@@ -2,5 +2,8 @@
     "name": "latin_house_1",
     "is_building": true,
     "has_door": true,
-    "door_x": 4
+    "door_x": 4,
+    "img_path": ["tileset","objects","buildings","latin","house_1.png"],
+    "width": 9,
+    "height": 6
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/debug"
 	"github.com/webbben/2d-game-engine/entity"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/room"
 	"github.com/webbben/2d-game-engine/tileset"
@@ -24,6 +24,24 @@ type Game struct {
 	player   player.Player
 	camera   camera.Camera
 	entities []entity.Entity
+	objects  []object.Object
+	imageMap map[string]*ebiten.Image
+}
+
+// generates a cost map for the contents of the game state
+//
+// currently includes:
+//
+// * entities in the room
+func (g Game) GenerateCostMap() [][]int {
+	costMap := make([][]int, g.room.Height)
+	for i := 0; i < len(costMap); i++ {
+		costMap[i] = make([]int, g.room.Width)
+	}
+	for i := 0; i < len(g.entities); i++ {
+		costMap[int(g.entities[i].Y)][int(g.entities[i].X)] = 10
+	}
+	return costMap
 }
 
 func (g *Game) Update() error {
@@ -50,6 +68,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// draw the player
 	g.player.Draw(screen, offsetX, offsetY)
+
+	for _, o := range g.objects {
+		o.Draw(screen, offsetX, offsetY, g.imageMap)
+	}
 
 	// draw entities
 	for _, e := range g.entities {
@@ -107,6 +129,9 @@ func main() {
 	if testEnt == nil {
 		panic("failed to create entity")
 	}
+	houseObj, houseImg := object.CreateObject(object.Latin_house_1, 10, 10)
+	imageMap := make(map[string]*ebiten.Image)
+	imageMap[houseObj.Name] = houseImg
 
 	room.GenerateRandomRoom("test_room", 100, 100)
 	currentRoom := room.CreateRoom("test_room")
@@ -115,9 +140,12 @@ func main() {
 		room:     currentRoom,
 		player:   player,
 		entities: []entity.Entity{*testEnt},
+		objects:  []object.Object{*houseObj},
+		imageMap: imageMap,
 	}
 
-	go game.entities[0].TravelToPosition(model.Coords{X: 99, Y: 50}, currentRoom.BarrierLayout)
+	// go game.entities[0].TravelToPosition(model.Coords{X: 99, Y: 50}, currentRoom.BarrierLayout)
+	go game.entities[0].FollowPlayer(&game.player, currentRoom.BarrierLayout)
 
 	if err := ebiten.RunGame(game); err != nil {
 		panic(err)

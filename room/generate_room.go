@@ -354,7 +354,7 @@ func (jsonData *RoomData) generateMajorRoad(start, end m.Coords) {
 	// find path from start to town center
 	tc := jsonData.TownCenter
 	goal := m.Coords{X: tc.X + (tc.Size / 2), Y: tc.Y + (tc.Size / 2)}
-	path := path_finding.FindPath(start, goal, jsonData.BarrierLayout)
+	path := path_finding.FindPath(start, goal, jsonData.BarrierLayout, nil)
 	if len(path) == 0 {
 		fmt.Printf("generateMajorRoad: failed to find path from %s to %s\n", start, goal)
 		fmt.Println("aborting road generation")
@@ -363,7 +363,7 @@ func (jsonData *RoomData) generateMajorRoad(start, end m.Coords) {
 	road.Path = append(road.Path, path...)
 
 	// find path from town center to end
-	path = path_finding.FindPath(goal, end, jsonData.BarrierLayout)
+	path = path_finding.FindPath(goal, end, jsonData.BarrierLayout, nil)
 	if len(path) == 0 {
 		fmt.Printf("generateMajorRoad: failed to find path from %s to %s\n", start, goal)
 		fmt.Println("aborting road generation")

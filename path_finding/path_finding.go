@@ -8,6 +8,6 @@ type Pos struct {
 }
 
 // Finds a path from the start position to the end position, navigating around barriers if possible.
-func FindPath(start, goal model.Coords, barrierMap [][]bool) []model.Coords {
-	return aStar(barrierMap, start, goal)
+func FindPath(start, goal model.Coords, barrierMap [][]bool, costMap [][]int) []model.Coords {
+	return aStar(barrierMap, start, goal, costMap)
 }
