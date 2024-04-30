@@ -3,12 +3,12 @@ package game
 import (
 	"fmt"
 	"image/color"
-	"log"
 	"sort"
 
 	"github.com/webbben/2d-game-engine/camera"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/entity"
+	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/room"
@@ -95,12 +95,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			g.Player.Draw(screen, offsetX, offsetY)
 			playerDrawn = true
 		}
-		if o < len(g.Objects) && (e >= len(g.Entities) || float64(obj.Y) < ent.Y) {
+		if o < len(g.Objects) && float64(obj.Y) < ent.Y {
 			// if there are objects to draw still and this one is higher than the next entity
 			obj.Draw(screen, offsetX, offsetY, g.ImageMap)
 			o++
 			if o < len(g.Objects) {
 				obj = g.Objects[o]
+			} else {
+				obj = object.Object{Y: 99999} // no more objects; set to high Y value so it won't stop other things from being drawn
 			}
 		} else {
 			// else - if there are no objects to draw anymore, or this entity is same or higher than the next object
@@ -108,11 +110,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			e++
 			if e < len(g.Entities) {
 				ent = g.Entities[e]
+			} else {
+				ent = entity.Entity{Position: model.Position{Y: 99999}} // no more entities
 			}
 		}
 	}
 	if !playerDrawn {
-		log.Println("player wasn't drawn - drawing last")
 		g.Player.Draw(screen, offsetX, offsetY)
 	}
 
