@@ -6,24 +6,14 @@ import (
 	"time"
 
 	"github.com/webbben/2d-game-engine/config"
+	m "github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/rendering"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-type Position struct {
-	X               float64   // X position
-	Y               float64   // Y position
-	IsMoving        bool      // whether the player is actively moving
-	Direction_Horiz string    // "L"/"R" - the direction the player is moving on the horizontal axis
-	Direction_Vert  string    // "U"/"D" - the direction the player is moving on the vertical axis
-	Facing          string    // "U"/"D"/"L"/"R" - the direction the player is facing (visually)
-	animStep        int       // the step of the animation we are on
-	lastAnimStep    time.Time // the last time the character changed frames
-}
-
 type Player struct {
-	Position
+	m.Position
 	CurrentFrame *ebiten.Image
 	Frames       map[string]*ebiten.Image
 }
@@ -42,7 +32,7 @@ var (
 
 func CreatePlayer(posX int, posY int, frames map[string]*ebiten.Image) Player {
 	return Player{
-		Position: Position{
+		Position: m.Position{
 			X:               float64(posX),
 			Y:               float64(posY),
 			Direction_Horiz: "X",
@@ -106,6 +96,9 @@ func (p *Player) checkMovementInput(barrierLayout [][]bool) {
 
 func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
 	barrier := false
+	if p.Facing != direction {
+		time.Sleep(80 * time.Millisecond)
+	}
 	switch direction {
 	case "U":
 		// keep going until that key is released
@@ -242,27 +235,27 @@ func (p *Player) easeToPosX(destX float64) {
 
 func (p *Player) walkAnimation() {
 	curTime := time.Now()
-	if p.IsMoving && (curTime.Sub(p.lastAnimStep) < 150*time.Millisecond) {
+	if p.IsMoving && (curTime.Sub(p.LastAnimStep) < 150*time.Millisecond) {
 		return
 	}
-	p.lastAnimStep = curTime
-	p.animStep++
-	if p.animStep >= 7 || !p.IsMoving {
-		p.animStep = 0
+	p.LastAnimStep = curTime
+	p.AnimStep++
+	if p.AnimStep >= 7 || !p.IsMoving {
+		p.AnimStep = 0
 	}
 	switch p.Facing {
 	// UP
 	case "U":
-		p.setFrame(direc_up[p.animStep])
+		p.setFrame(direc_up[p.AnimStep])
 	// DOWN
 	case "D":
-		p.setFrame(direc_down[p.animStep])
+		p.setFrame(direc_down[p.AnimStep])
 	// LEFT
 	case "L":
-		p.setFrame(direc_left[p.animStep])
+		p.setFrame(direc_left[p.AnimStep])
 	// RIGHT
 	case "R":
-		p.setFrame(direc_right[p.animStep])
+		p.setFrame(direc_right[p.AnimStep])
 	}
 }
 
