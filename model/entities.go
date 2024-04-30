@@ -3,15 +3,16 @@ package model
 import "time"
 
 type Position struct {
-	X               float64
-	Y               float64
-	IsMoving        bool
-	MovementSpeed   float64
-	Direction_Horiz string    // "L"/"R" - the direction the player is moving on the horizontal axis
-	Direction_Vert  string    // "U"/"D" - the direction the player is moving on the vertical axis
-	Facing          string    // "U"/"D"/"L"/"R" - the direction the player is facing (visually)
-	AnimStep        int       // the step of the animation we are on
-	LastAnimStep    time.Time // the last time the character changed frames
+	X                float64
+	Y                float64
+	IsMoving         bool
+	MovementSpeed    float64   // the maximum movement speed of this entity
+	MovementSpeedMod float64   // modifier for speed. is multiplied by MovementSpeed to determine the actual speed of the entity
+	Direction_Horiz  string    // "L"/"R" - the direction the player is moving on the horizontal axis
+	Direction_Vert   string    // "U"/"D" - the direction the player is moving on the vertical axis
+	Facing           string    // "U"/"D"/"L"/"R" - the direction the player is facing (visually)
+	AnimStep         int       // the step of the animation we are on
+	LastAnimStep     time.Time // the last time the character changed frames
 }
 
 type AnimationDef struct {
