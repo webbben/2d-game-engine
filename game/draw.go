@@ -8,6 +8,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/debug"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
@@ -62,6 +63,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	if config.ShowPlayerCoords {
 		ebitenutil.DebugPrint(screen, fmt.Sprintf("Player pos: [%v, %v]", g.Player.X, g.Player.Y))
+	}
+	if config.TrackMemoryUsage {
+		ebitenutil.DebugPrint(screen, debug.GetMemoryUsageStats())
 	}
 }
 

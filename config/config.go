@@ -8,6 +8,6 @@ const (
 
 	GameScale        = 3 // how much the game view is scaled up
 	DrawGridLines    = false
-	ShowPlayerCoords = true
-	TrackMemoryUsage = false // show a report in the console of memory usage every few seconds
+	ShowPlayerCoords = false
+	TrackMemoryUsage = true // show a report in the console of memory usage every few seconds
 )

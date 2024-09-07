@@ -19,3 +19,8 @@ func EuclideanDistCoords(pointA, pointB model.Coords) float64 {
 func RandInt(min, max int) int {
 	return rand.Intn(max-min+1) + min
 }
+
+func RoundToDecimal(val float64, decimals int) float64 {
+	factor := math.Pow(10, float64(decimals))
+	return math.Round(val*factor) / factor
+}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/debug"
 	"github.com/webbben/2d-game-engine/entity"
 	g "github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/general_util"
@@ -21,11 +20,6 @@ import (
 // that calls this project's APIs instead
 
 func main() {
-	// track memory usage
-	if config.TrackMemoryUsage {
-		go debug.DisplayResourceUsage(60)
-	}
-
 	ebiten.SetWindowSize(config.ScreenWidth, config.ScreenHeight)
 	ebiten.SetWindowTitle(config.WindowTitle)
 
@@ -35,7 +29,7 @@ func main() {
 	}
 	player := player.CreatePlayer(50, 50, playerSprites)
 	ents := make([]*entity.Entity, 0)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		testEnt := entity.CreateEntity(entity.Old_Man_01, fmt.Sprintf("test_npc_%v", i), "Pepe", "")
 		if testEnt == nil {
 			panic("failed to create entity")
