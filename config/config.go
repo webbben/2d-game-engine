@@ -7,7 +7,7 @@ const (
 	WindowTitle  = "Ancient Rome!"
 
 	GameScale        = 3 // how much the game view is scaled up
-	DrawGridLines    = true
+	DrawGridLines    = false
 	ShowPlayerCoords = true
 	TrackMemoryUsage = false // show a report in the console of memory usage every few seconds
 )

@@ -83,13 +83,34 @@ func (e *Entity) setNextAnimationFrame(animationName string) {
 		e.AnimationStep = animationDef.Start
 	}
 	// set the next frame
-	nextFrameKey := fmt.Sprintf("%s_%v", animationDef.FrameBase, e.AnimationStep)
+	nextFrameKey := getAnimFrameKey(animationDef.FrameBase, e.AnimationStep)
 	nextFrame, ok := e.Frames[nextFrameKey]
 	if !ok {
 		fmt.Println("failed to get image for animation frame:", nextFrameKey)
 		return
 	}
 	e.CurrentFrame = nextFrame
+}
+
+// switches to the "resting" animation frame, for when the entity is not moving
+func (e *Entity) switchToRestFrame() {
+	animationDef, ok := e.Animations[e.CurrentAnimation]
+	if !ok {
+		fmt.Println("failed to get animation def for animation name:", e.CurrentAnimation)
+		return
+	}
+	frameKey := getAnimFrameKey(animationDef.FrameBase, animationDef.Start)
+	frame, ok := e.Frames[frameKey]
+	if !ok {
+		fmt.Println("failed to get image for animation frame:", frameKey)
+		return
+	}
+	e.CurrentFrame = frame
+	e.AnimationStep = animationDef.Start
+}
+
+func getAnimFrameKey(frameBase string, step int) string {
+	return fmt.Sprintf("%s_%v", frameBase, step)
 }
 
 const (
@@ -132,6 +153,7 @@ func CreateEntity(entKey string, globalEntID string, firstName string, lastName 
 	}
 	ent := Entity{
 		EntKey: entKey,
+		EntID:  globalEntID,
 		CharacterInfo: m.CharacterInfo{
 			FirstName: firstName,
 			LastName:  lastName,
