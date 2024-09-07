@@ -12,42 +12,35 @@ import (
 	"github.com/aquilax/go-perlin"
 )
 
-const (
-	/*
-		"Lacunarity"
+/*
+	"Lacunarity" / alpha
 
-		Controls the frequency of the octaves.
+	Controls the frequency of the octaves.
 
-		Higher lacunarity leads to more fine details and smaller features in the generated noise.
+	Higher lacunarity leads to more fine details and smaller features in the generated noise.
 
-		"The weight when the sum is formed. as it approaches 1 the function gets noisier"
-	*/
-	alpha = 3
-	/*
-		"Persistence"
+	"The weight when the sum is formed. as it approaches 1 the function gets noisier"
 
-		Controls the amplitude of the octaves in the perlin noise.
+	"Persistence" / beta
 
-		Higher persistence values lead to more contrast and roughness in the generated noise, while lower values
-		result in smoother patterns.
+	Controls the amplitude of the octaves in the perlin noise.
 
-		"the harmonic scaling/spacing.  typically it is 2."
-	*/
-	beta = 2
-	/*
-		Octaves
+	Higher persistence values lead to more contrast and roughness in the generated noise, while lower values
+	result in smoother patterns.
 
-		Determine the number of layers of noise that are combined to create the final result.
+	"the harmonic scaling/spacing.  typically it is 2."
 
-		Each layer adds more complexity to the generated noise, but also increases computational cost.
-	*/
-	oct = 3
-)
+	Octaves
+
+	Determine the number of layers of noise that are combined to create the final result.
+
+	Each layer adds more complexity to the generated noise, but also increases computational cost.
+*/
 
 var (
 	townElevationParams = []float64{2, 2, 1, 2}
 	mountainParams      = []float64{1.7, 1, 4, 4}
-	forestParams        = []float64{1.1, 4, 4, 3}
+	forestParams        = []float64{1.1, 4, 4, 2}
 )
 
 func GenerateForest(width int, height int) {
@@ -113,6 +106,10 @@ func scaleValue(value float64, minOriginal float64, maxOriginal float64, scaleMi
 	return int(((value-minOriginal)/(maxOriginal-minOriginal))*float64(scaleMax-scaleMin) + float64(scaleMin))
 }
 
+// downsamples the given noise map
+//
+// "downsampling" is sampling the noise map in n x n blocks (n = downSampleBy arg)
+// and averaging the values in those blocks. Effectively reduces the resolution of the noise map.
 func downSample(noiseMap [][]int, downSampleBy int) [][]int {
 	width := len(noiseMap[0])
 	height := len(noiseMap)
@@ -195,4 +192,5 @@ func NoiseMapToPNG(noiseMap [][]int, levels int) {
 	if err != nil {
 		fmt.Println("failed to encode image for noise map")
 	}
+	fmt.Println("file created at _testing/noise_map.png")
 }
