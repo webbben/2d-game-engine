@@ -5,6 +5,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/camera"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/player"
@@ -32,8 +33,9 @@ func (ri *RoomInfo) Preprocess() {
 // game state
 type Game struct {
 	RoomInfo
-	Player player.Player // the player
-	Camera camera.Camera // the camera/viewport
+	Player player.Player  // the player
+	Camera camera.Camera  // the camera/viewport
+	Dialog *dialog.Dialog // if present, the player is currently in a dialog
 }
 
 // generates a cost map for the contents of the game state

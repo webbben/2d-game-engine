@@ -40,12 +40,13 @@ import (
 var (
 	townElevationParams = []float64{2, 2, 1, 2}
 	mountainParams      = []float64{1.7, 1, 4, 4}
-	forestParams        = []float64{1.1, 4, 4, 2}
+	forestParams        = []float64{1.1, 9, 4, 2}
 )
 
 func GenerateForest(width int, height int) {
 	noiseMap := generateNoiseWithParams(width, height, forestParams[0], forestParams[1], int32(forestParams[2]), int(forestParams[3]))
 	//noiseMap = downSample(noiseMap, 1)
+	thinOut(noiseMap, 0.78)
 	NoiseMapToPNG(noiseMap, int(forestParams[3]))
 }
 func GenerateTownElevation(width int, height int) [][]int {

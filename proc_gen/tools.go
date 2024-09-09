@@ -1,6 +1,9 @@
 package proc_gen
 
-import "fmt"
+import (
+	"fmt"
+	"math/rand"
+)
 
 type Cell struct {
 	X int
@@ -89,5 +92,31 @@ func islandDFS(x, y int, visited [][]bool, noiseMap [][]int, island *Island) {
 		dy := dir[0]
 		dx := dir[1]
 		islandDFS(x+dx, y+dy, visited, noiseMap, island)
+	}
+}
+
+// "thins out" the given noise map; randomly removes values from it to make it less dense.
+//
+// p - percentage of the map to remove, between 0 and 1. 1 is 100%, which means everything is removed, and 0 means nothing is removed.
+func thinOut(noiseMap [][]int, p float64) {
+	height := len(noiseMap)
+	width := len(noiseMap[0])
+	zero := noiseMap[0][0]
+
+	// identify the "zero value"; the min value which will be used when thinning out
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			if noiseMap[y][x] < zero {
+				zero = noiseMap[y][x]
+			}
+		}
+	}
+	// replace values in noiseMap with zero value, based on p percentage
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			if rand.Float64() <= p {
+				noiseMap[y][x] = zero
+			}
+		}
 	}
 }

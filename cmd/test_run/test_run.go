@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity"
 	g "github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/general_util"
+	"github.com/webbben/2d-game-engine/image"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/room"
@@ -46,6 +49,19 @@ func main() {
 	room.GenerateRandomRoom("test_room", 100, 100)
 	currentRoom := room.CreateRoom("test_room")
 
+	box, err := image.LoadImage("assets/images/dialog_box3.png")
+	if err != nil {
+		log.Fatal("failed to load dialog box image:", err)
+	}
+	testDialog := dialog.Dialog{
+		Steps: []dialog.DialogStep{
+			{Text: "This is a test dialog", TakeInput: false},
+		},
+		SpeakerName: "Hamu",
+		CurrentStep: 0,
+		Box:         box,
+	}
+
 	game := &g.Game{
 		RoomInfo: g.RoomInfo{
 			Room:     currentRoom,
@@ -54,6 +70,7 @@ func main() {
 			ImageMap: imageMap,
 		},
 		Player: player,
+		Dialog: &testDialog,
 	}
 	game.RoomInfo.Preprocess()
 

@@ -37,5 +37,8 @@ func main() {
 		case "mountain":
 			proc_gen.GenerateMountain(width, height)
 		}
+	default:
+		fmt.Println("command not recognized.")
+		genNoiseMapCmd.Usage()
 	}
 }

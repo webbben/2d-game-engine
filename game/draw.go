@@ -61,6 +61,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// blue := color.RGBA{R: 0, G: 0, B: 50, A: 10}
 	// ebitenutil.DrawRect(screen, 0, 0, config.ScreenWidth, config.ScreenHeight, blue)
 
+	// draw dialog
+	if g.Dialog != nil {
+		g.Dialog.DrawDialog(screen)
+	}
+
 	if config.ShowPlayerCoords {
 		ebitenutil.DebugPrint(screen, fmt.Sprintf("Player pos: [%v, %v]", g.Player.X, g.Player.Y))
 	}
