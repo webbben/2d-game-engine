@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/webbben/2d-game-engine/camera"
@@ -33,9 +34,10 @@ func (ri *RoomInfo) Preprocess() {
 // game state
 type Game struct {
 	RoomInfo
-	Player player.Player  // the player
-	Camera camera.Camera  // the camera/viewport
-	Dialog *dialog.Dialog // if present, the player is currently in a dialog
+	Player            player.Player                // the player
+	Camera            camera.Camera                // the camera/viewport
+	Dialog            *dialog.Dialog               // if present, the player is currently in a dialog
+	GlobalKeyBindings map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
 }
 
 // generates a cost map for the contents of the game state
@@ -54,8 +56,30 @@ func (g Game) GenerateCostMap() [][]int {
 	return costMap
 }
 
+func (g *Game) SetGlobalKeyBinding(key ebiten.Key, f func(g *Game)) {
+	if g.GlobalKeyBindings == nil {
+		g.GlobalKeyBindings = make(map[ebiten.Key]func(g *Game))
+	}
+	if _, exists := g.GlobalKeyBindings[key]; exists {
+		fmt.Println("** Warning! Global key binding overwritten for key", key)
+		fmt.Println("** If you are binding keys for temporary purposes during gameplay, this is probably a misuse of global key bindings.")
+	}
+	g.GlobalKeyBindings[key] = f
+}
+
+func (g *Game) handleGlobalKeyBindings() {
+	for key, callbackFn := range g.GlobalKeyBindings {
+		if ebiten.IsKeyPressed(key) {
+			callbackFn(g)
+		}
+	}
+}
+
 func (g *Game) Update() error {
 	// Your game logic goes here
+	if g.GlobalKeyBindings != nil && len(g.GlobalKeyBindings) > 0 {
+		g.handleGlobalKeyBindings()
+	}
 
 	// handle player updates
 	g.Player.Update(g.Room.BarrierLayout)
@@ -68,6 +92,16 @@ func (g *Game) Update() error {
 		sort.Slice(g.Entities, func(i, j int) bool {
 			return g.Entities[i].Y < g.Entities[j].Y
 		})
+	}
+
+	// update dialog if currently in a dialog session
+	if g.Dialog != nil {
+		if g.Dialog.End {
+			// if dialog has ended, remove it from game state
+			g.Dialog = nil
+		} else {
+			g.Dialog.UpdateDialog()
+		}
 	}
 
 	return nil
