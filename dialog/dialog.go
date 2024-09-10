@@ -38,7 +38,7 @@ func (d *Dialog) DrawDialog(screen *ebiten.Image) {
 		return
 	}
 	if fontFace == nil {
-		fontFace = loadFont("Papyrus")
+		fontFace = loadFont("Planewalker")
 	}
 
 	op := &ebiten.DrawImageOptions{}
