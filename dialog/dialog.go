@@ -1,6 +1,7 @@
 package dialog
 
 import (
+	"fmt"
 	"image/color"
 	"log"
 	"os"
@@ -9,11 +10,11 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/tileset"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 )
 
-var fontFace font.Face = nil
 var dialogBoxHeight = 255
 var dialogX int = 10
 var dialogY int = config.ScreenHeight - dialogBoxHeight
@@ -27,34 +28,119 @@ type DialogStep struct {
 	InputOptions []string
 }
 
+type DialogTiles struct {
+	Top, TopLeft, TopRight, Left, Right, BottomLeft, Bottom, BottomRight, Fill *ebiten.Image
+}
+
 type Dialog struct {
 	Type                int // the type of dialog screen
 	Steps               []DialogStep
 	CurrentStep         int
 	SpeakerName         string // name of the person that the user is interacting with
-	Box                 *ebiten.Image
+	box                 *ebiten.Image
+	boxInit             bool // box image has been created
+	fontFace            font.Face
+	fontInit            bool   // font has been loaded
+	FontName            string // name of the font to use
 	CurrentText         string
 	charIndex           int
 	frameCounter        int
 	lastSpacePressFrame int
 	End                 bool // if this dialog has ended yet. signals to stop rendering dialog and send control back outside of the dialog
+	ShowOptionsWindow   bool // if the options window should show. options window is for choosing dialog options/topics
+	DialogTiles
+}
+
+func (d *Dialog) SetDialogTiles(imagesDirectoryPath string) {
+	tileset, err := tileset.LoadTilesetByPath(imagesDirectoryPath)
+	if err != nil {
+		fmt.Println("failed to set dialog tiles:", err)
+		return
+	}
+	d.Top = tileset["T"]
+	d.TopLeft = tileset["TL"]
+	d.TopRight = tileset["TR"]
+	d.Left = tileset["L"]
+	d.Right = tileset["R"]
+	d.BottomLeft = tileset["BL"]
+	d.Bottom = tileset["B"]
+	d.BottomRight = tileset["BR"]
+	d.Fill = tileset["F"]
+
+	// confirm all tiles loaded correctly
+	if d.Top == nil || d.TopLeft == nil || d.TopRight == nil || d.Left == nil ||
+		d.Right == nil || d.BottomLeft == nil || d.Bottom == nil ||
+		d.BottomRight == nil || d.Fill == nil {
+		fmt.Println("**Warning! Some dialog tiles are not loaded correctly.")
+	}
+}
+
+func (d *Dialog) createDialogBox(numTilesWide, numTilesHigh, tileSize int) {
+	d.box = ebiten.NewImage(numTilesWide*tileSize, numTilesHigh*tileSize)
+	for x := 0; x < numTilesWide; x++ {
+		for y := 0; y < numTilesHigh; y++ {
+			// get the image we will place
+			var img *ebiten.Image
+			op := &ebiten.DrawImageOptions{}
+			if x == 0 {
+				if y == 0 {
+					// top left
+					img = d.TopLeft
+				} else if y == numTilesHigh-1 {
+					// bottom left
+					img = d.BottomLeft
+				} else {
+					// left
+					img = d.Left
+				}
+			} else if x == numTilesWide-1 {
+				if y == 0 {
+					// top right
+					img = d.TopRight
+				} else if y == numTilesHigh-1 {
+					// bottom right
+					img = d.BottomRight
+				} else {
+					// right
+					img = d.Right
+				}
+			} else if y == 0 {
+				img = d.Top
+			} else if y == numTilesHigh-1 {
+				img = d.Bottom
+			} else {
+				img = d.Fill
+				op.ColorScale.ScaleAlpha(0.75)
+			}
+			// draw the tile
+			op.GeoM.Translate(float64(x*tileSize), float64(y*tileSize))
+			d.box.DrawImage(img, op)
+		}
+	}
 }
 
 func (d *Dialog) DrawDialog(screen *ebiten.Image) {
 	if d.End || d.CurrentStep >= len(d.Steps) {
 		return
 	}
-	if fontFace == nil {
-		fontFace = loadFont("Planewalker")
+	if !d.fontInit {
+		d.fontFace = loadFont("Planewalker")
+		d.fontInit = true
+	}
+	if !d.boxInit {
+		boxWidth := (config.ScreenWidth / 17) - 2
+		boxHeight := (config.ScreenHeight / 3) / 17
+		d.createDialogBox(boxWidth, boxHeight, 17)
+		d.boxInit = true
 	}
 
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(dialogX), float64(dialogY))
-	screen.DrawImage(d.Box, op)
+	screen.DrawImage(d.box, op)
 
 	// draw the speaker name and dialog text
 	speakerText := d.SpeakerName + ": " + d.CurrentText
-	text.Draw(screen, speakerText, fontFace, textX, textY, color.White)
+	text.Draw(screen, speakerText, d.fontFace, textX, textY, color.White)
 }
 
 func loadFont(fontName string) font.Face {

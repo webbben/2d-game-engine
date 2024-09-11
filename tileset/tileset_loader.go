@@ -42,15 +42,19 @@ var (
 
 // loads a tileset for the given tileset key
 func LoadTileset(key string) (map[string]*ebiten.Image, error) {
-	tileset := make(map[string]*ebiten.Image)
-
 	// attempt to get the path for the given key
 	folderPath, ok := pathDict[key]
 	if !ok {
 		return nil, fmt.Errorf("no path found for the tileset key %s", key)
 	}
 
-	tilePaths, err := getTilePaths(folderPath)
+	return LoadTilesetByPath(folderPath)
+}
+
+func LoadTilesetByPath(imageDir string) (map[string]*ebiten.Image, error) {
+	tileset := make(map[string]*ebiten.Image)
+
+	tilePaths, err := getTilePaths(imageDir)
 	if err != nil {
 		return nil, err
 	}

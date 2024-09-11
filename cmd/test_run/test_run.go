@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity"
 	g "github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/general_util"
-	"github.com/webbben/2d-game-engine/image"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/room"
@@ -18,11 +17,15 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// for now, this main function is for testing the APIs we are creating
-// once this game engine is closer to being complete, I can make a separate game
-// that calls this project's APIs instead
+// Use this command to simulate using this game engine's APIs in a consuming application
+// The real game will be developed in a different Go application that uses this game engine module.
+
+// Note: only packages that are defined in this module should be used in this file; ebiten or other installed packages won't be
+// available to a Go application that is using this game engine module.
 
 func main() {
+	// TODO move these to an API once we know how screen settings should be managed
+	//ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowSize(config.ScreenWidth, config.ScreenHeight)
 	ebiten.SetWindowTitle(config.WindowTitle)
 
@@ -40,6 +43,8 @@ func main() {
 		fmt.Println("ent:", game.Entities[i].EntID)
 	}
 
+	// this command launches the specified game state
+	// TODO wrap this in an API?
 	if err := ebiten.RunGame(game); err != nil {
 		panic(err)
 	}
@@ -102,19 +107,22 @@ func addCustomKeyBindings(game *g.Game) {
 			g.Dialog = &d
 		}()
 	})
+	game.SetGlobalKeyBinding(ebiten.KeyEscape, func(g *g.Game) {
+		// doing this async since we are loading an image file
+		os.Exit(0)
+	})
 }
 
 func GetDialog() dialog.Dialog {
-	box, err := image.LoadImage("assets/images/dialog_box3.png")
-	if err != nil {
-		log.Fatal("failed to load dialog box image:", err)
-	}
-	return dialog.Dialog{
+	d := dialog.Dialog{
 		Steps: []dialog.DialogStep{
 			{Text: "Greetings, what can I do for you?"},
 		},
 		SpeakerName: "Hamu",
 		CurrentStep: 0,
-		Box:         box,
+		FontName:    "Planewalker",
 	}
+	d.SetDialogTiles("tileset/borders/dialog_1")
+
+	return d
 }

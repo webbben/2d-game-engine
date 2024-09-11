@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"runtime"
 	"time"
-
-	"github.com/webbben/2d-game-engine/general_util"
 )
 
 var peakAlloc uint64 = 0
+var alloCount uint64 = 0
+var allocPerSec uint64 = 0
+var peakAllocPerSec uint64 = 0
 var startTime time.Time = time.Now()
 var peakGoRout int = 0
 
@@ -24,14 +25,23 @@ func GetMemoryUsageStats() string {
 		peakGoRout = numGoRout
 	}
 
-	aveAlloc := general_util.RoundToDecimal(float64(bToMb(m.TotalAlloc))/time.Since(startTime).Seconds(), 1)
+	// measure number of allocations each second
+	alloCount += m.Alloc
+	if time.Since(startTime).Seconds() >= 1 {
+		allocPerSec = alloCount
+		alloCount = 0
+		startTime = time.Now()
+	}
+	if allocPerSec > peakAllocPerSec {
+		peakAllocPerSec = allocPerSec
+	}
 
-	return fmt.Sprintf("Alloc: %v MiB, Ave Alloc/s: %v MiB, Peak Alloc: %v MiB, Total Alloc: %v\nSys: %v MiB, NumGC: %v\nGoRout: %v, Peak GoRout: %v",
-		bToMb(m.Alloc), aveAlloc, bToMb(peakAlloc), bToMb(m.TotalAlloc),
-		bToMb(m.Sys), m.NumGC,
+	return fmt.Sprintf("Alloc: %v KB, Peak Alloc: %v KB, Alloc/s: %v KB, Peak Alloc/s: %v\nSys: %v KB, NumGC: %v\nGoRout: %v, Peak GoRout: %v",
+		bToKb(m.Alloc), bToKb(peakAlloc), bToKb(allocPerSec), bToKb(peakAllocPerSec),
+		bToKb(m.Sys), m.NumGC,
 		numGoRout, peakGoRout)
 }
 
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
+func bToKb(b uint64) uint64 {
+	return b / 1024
 }

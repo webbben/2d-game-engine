@@ -77,7 +77,7 @@ func (g *Game) handleGlobalKeyBindings() {
 
 func (g *Game) Update() error {
 	// Your game logic goes here
-	if g.GlobalKeyBindings != nil && len(g.GlobalKeyBindings) > 0 {
+	if g.GlobalKeyBindings != nil {
 		g.handleGlobalKeyBindings()
 	}
 

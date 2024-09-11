@@ -1,8 +1,8 @@
 package config
 
 const (
-	ScreenWidth  = 800
-	ScreenHeight = 640
+	ScreenWidth  = 1024
+	ScreenHeight = 768
 	TileSize     = 16
 	WindowTitle  = "Ancient Rome!"
 
