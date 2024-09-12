@@ -101,8 +101,7 @@ func addCustomKeyBindings(game *g.Game) {
 	game.SetGlobalKeyBinding(ebiten.KeyEqual, func(g *g.Game) {
 		// doing this async since we are loading an image file
 		go func() {
-			for ebiten.IsKeyPressed(ebiten.KeyEqual) {
-			}
+			fmt.Println("getting dialog")
 			d := GetDialog()
 			g.Dialog = &d
 		}()
