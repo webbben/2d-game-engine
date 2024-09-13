@@ -179,7 +179,7 @@ func (d *Dialog) DrawDialog(screen *ebiten.Image, f Font, tiles DialogTiles) {
 }
 
 func loadFont(fontName string) font.Face {
-	fontFile, err := os.ReadFile("/Users/benwebb/dev/fun/ancient-rome/dialog/fonts/" + fontName + ".ttf")
+	fontFile, err := os.ReadFile("dialog/fonts/" + fontName + ".ttf")
 	if err != nil {
 		log.Fatal(err)
 	}
