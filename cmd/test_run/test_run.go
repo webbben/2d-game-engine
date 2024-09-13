@@ -102,26 +102,33 @@ func addCustomKeyBindings(game *g.Game) {
 		// doing this async since we are loading an image file
 		go func() {
 			fmt.Println("getting dialog")
-			d := GetDialog()
-			g.Dialog = &d
+			c := GetConversation()
+			g.Conversation = &c
 		}()
 	})
 	game.SetGlobalKeyBinding(ebiten.KeyEscape, func(g *g.Game) {
-		// doing this async since we are loading an image file
 		os.Exit(0)
 	})
 }
 
-func GetDialog() dialog.Dialog {
+func GetConversation() dialog.Conversation {
 	d := dialog.Dialog{
 		Steps: []dialog.DialogStep{
 			{Text: "Greetings, what can I do for you?"},
 		},
 		SpeakerName: "Hamu",
 		CurrentStep: 0,
-		FontName:    "Planewalker",
-	}
-	d.SetDialogTiles("tileset/borders/dialog_1")
 
-	return d
+		ShowOptionsWindow: true,
+	}
+
+	c := dialog.Conversation{
+		Greeting: d,
+		Font: dialog.Font{
+			FontName: "Planewalker",
+		},
+	}
+	c.SetDialogTiles("tileset/borders/dialog_1")
+
+	return c
 }

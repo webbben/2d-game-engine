@@ -10,17 +10,38 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/tileset"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 )
 
 var dialogBoxHeight = 255
-var dialogX int = 10
+var dialogX int = 0
 var dialogY int = config.ScreenHeight - dialogBoxHeight
 var textY int = dialogY + 45
 var textX int = dialogX + 25
 var charsPerSecond int = 22
+
+type Conversation struct {
+	Greeting      Dialog
+	greetingDone  bool
+	Bridge        Dialog
+	Topics        map[string]Dialog
+	topicIndex    int
+	currentDialog *Dialog
+	Character     entity.Entity
+	End           bool
+
+	Font
+	DialogTiles // tiles used to make the dialog boxes
+}
+
+type Font struct {
+	fontFace font.Face // font used in the dialog
+	fontInit bool      // font has been loaded
+	FontName string    // name of the font to use
+}
 
 type DialogStep struct {
 	Text         string
@@ -33,50 +54,47 @@ type DialogTiles struct {
 }
 
 type Dialog struct {
-	Type                int // the type of dialog screen
-	Steps               []DialogStep
-	CurrentStep         int
-	SpeakerName         string // name of the person that the user is interacting with
-	box                 *ebiten.Image
-	boxInit             bool // box image has been created
-	fontFace            font.Face
-	fontInit            bool   // font has been loaded
-	FontName            string // name of the font to use
-	CurrentText         string
-	charIndex           int
-	frameCounter        int
-	lastSpacePressFrame int
-	End                 bool // if this dialog has ended yet. signals to stop rendering dialog and send control back outside of the dialog
-	ShowOptionsWindow   bool // if the options window should show. options window is for choosing dialog options/topics
-	DialogTiles
+	Type                int           // the type of dialog screen
+	Steps               []DialogStep  // the different steps in the dialog
+	CurrentStep         int           // current dialog step
+	SpeakerName         string        // name of the person that the user is interacting with
+	box                 *ebiten.Image // box where dialog shows
+	optionBox           *ebiten.Image // box where dialog options/topics show
+	boxInit             bool          // box image has been created
+	CurrentText         string        // current text showing in the dialog
+	charIndex           int           // index of the char that is next to show in the dialog text
+	frameCounter        int           // counts how many frames have passed on the current dialog step
+	lastSpacePressFrame int           // for timing space bar presses during dialog
+	End                 bool          // if this dialog has ended yet. signals to stop rendering dialog and send control back outside of the dialog
+	ShowOptionsWindow   bool          // if the options window should show. options window is for choosing dialog options/topics
 }
 
-func (d *Dialog) SetDialogTiles(imagesDirectoryPath string) {
+func (c *Conversation) SetDialogTiles(imagesDirectoryPath string) {
 	tileset, err := tileset.LoadTilesetByPath(imagesDirectoryPath)
 	if err != nil {
 		fmt.Println("failed to set dialog tiles:", err)
 		return
 	}
-	d.Top = tileset["T"]
-	d.TopLeft = tileset["TL"]
-	d.TopRight = tileset["TR"]
-	d.Left = tileset["L"]
-	d.Right = tileset["R"]
-	d.BottomLeft = tileset["BL"]
-	d.Bottom = tileset["B"]
-	d.BottomRight = tileset["BR"]
-	d.Fill = tileset["F"]
+	c.Top = tileset["T"]
+	c.TopLeft = tileset["TL"]
+	c.TopRight = tileset["TR"]
+	c.Left = tileset["L"]
+	c.Right = tileset["R"]
+	c.BottomLeft = tileset["BL"]
+	c.Bottom = tileset["B"]
+	c.BottomRight = tileset["BR"]
+	c.Fill = tileset["F"]
 
 	// confirm all tiles loaded correctly
-	if d.Top == nil || d.TopLeft == nil || d.TopRight == nil || d.Left == nil ||
-		d.Right == nil || d.BottomLeft == nil || d.Bottom == nil ||
-		d.BottomRight == nil || d.Fill == nil {
+	if c.Top == nil || c.TopLeft == nil || c.TopRight == nil || c.Left == nil ||
+		c.Right == nil || c.BottomLeft == nil || c.Bottom == nil ||
+		c.BottomRight == nil || c.Fill == nil {
 		fmt.Println("**Warning! Some dialog tiles are not loaded correctly.")
 	}
 }
 
-func (d *Dialog) createDialogBox(numTilesWide, numTilesHigh, tileSize int) {
-	d.box = ebiten.NewImage(numTilesWide*tileSize, numTilesHigh*tileSize)
+func createDialogBox(numTilesWide, numTilesHigh, tileSize int, t DialogTiles) *ebiten.Image {
+	box := ebiten.NewImage(numTilesWide*tileSize, numTilesHigh*tileSize)
 	for x := 0; x < numTilesWide; x++ {
 		for y := 0; y < numTilesHigh; y++ {
 			// get the image we will place
@@ -85,62 +103,79 @@ func (d *Dialog) createDialogBox(numTilesWide, numTilesHigh, tileSize int) {
 			if x == 0 {
 				if y == 0 {
 					// top left
-					img = d.TopLeft
+					img = t.TopLeft
 				} else if y == numTilesHigh-1 {
 					// bottom left
-					img = d.BottomLeft
+					img = t.BottomLeft
 				} else {
 					// left
-					img = d.Left
+					img = t.Left
 				}
 			} else if x == numTilesWide-1 {
 				if y == 0 {
 					// top right
-					img = d.TopRight
+					img = t.TopRight
 				} else if y == numTilesHigh-1 {
 					// bottom right
-					img = d.BottomRight
+					img = t.BottomRight
 				} else {
 					// right
-					img = d.Right
+					img = t.Right
 				}
 			} else if y == 0 {
-				img = d.Top
+				img = t.Top
 			} else if y == numTilesHigh-1 {
-				img = d.Bottom
+				img = t.Bottom
 			} else {
-				img = d.Fill
+				img = t.Fill
 				op.ColorScale.ScaleAlpha(0.75)
 			}
 			// draw the tile
 			op.GeoM.Translate(float64(x*tileSize), float64(y*tileSize))
-			d.box.DrawImage(img, op)
+			box.DrawImage(img, op)
 		}
 	}
+	return box
 }
 
-func (d *Dialog) DrawDialog(screen *ebiten.Image) {
-	if d.End || d.CurrentStep >= len(d.Steps) {
+func (c *Conversation) DrawConversation(screen *ebiten.Image) {
+	if c.End {
 		return
 	}
-	if !d.fontInit {
-		d.fontFace = loadFont("Planewalker")
-		d.fontInit = true
+	if c.currentDialog != nil {
+		c.currentDialog.DrawDialog(screen, c.Font, c.DialogTiles)
+		return
+	}
+	// if no current dialog, show topics
+}
+
+func (d *Dialog) DrawDialog(screen *ebiten.Image, f Font, tiles DialogTiles) {
+	if !f.fontInit {
+		f.fontFace = loadFont("Planewalker")
+		f.fontInit = true
 	}
 	if !d.boxInit {
-		boxWidth := (config.ScreenWidth / 17) - 2
-		boxHeight := (config.ScreenHeight / 3) / 17
-		d.createDialogBox(boxWidth, boxHeight, 17)
+		boxWidth := (config.ScreenWidth / 17) / 4 * 3
+		boxHeight := (config.ScreenHeight / 17) / 3
+		d.box = createDialogBox(boxWidth, boxHeight, 17, tiles)
+		optionBoxWidth := (config.ScreenWidth / 17) / 4
+		optionBoxHeight := (config.ScreenHeight / 17) / 3
+		d.optionBox = createDialogBox(optionBoxWidth, optionBoxHeight, 17, tiles)
 		d.boxInit = true
 	}
 
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(dialogX), float64(dialogY))
 	screen.DrawImage(d.box, op)
+	if d.ShowOptionsWindow {
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(d.box.Bounds().Dx()), float64(dialogY))
+		screen.DrawImage(d.box, op)
+	}
 
 	// draw the speaker name and dialog text
 	speakerText := d.SpeakerName + ": " + d.CurrentText
-	text.Draw(screen, speakerText, d.fontFace, textX, textY, color.White)
+	text.Draw(screen, speakerText, f.fontFace, textX, textY, color.White)
 }
 
 func loadFont(fontName string) font.Face {
@@ -192,6 +227,31 @@ func (d *Dialog) DrawInputBox(screen *ebiten.Image) {
 	for i := 0; i < boxHeight; i += 10 {
 		vector.DrawFilledRect(screen, float32(boxX), float32(boxY+i), 2, 8, borderColor, false)            // Left border
 		vector.DrawFilledRect(screen, float32(boxX+boxWidth-2), float32(boxY+i), 2, 8, borderColor, false) // Right border
+	}
+}
+
+func (c *Conversation) UpdateConversation() {
+	if c.End {
+		return
+	}
+	if !c.greetingDone {
+		c.currentDialog = &c.Greeting
+		c.greetingDone = true
+	}
+	if c.currentDialog.End {
+		c.currentDialog = nil
+	}
+	// if there's a dialog, update it
+	if c.currentDialog != nil {
+		c.currentDialog.UpdateDialog()
+		return
+	}
+	// if no dialog, detect topic selection
+	if c.currentDialog == nil {
+		if len(c.Topics) == 0 {
+			c.End = true
+			return
+		}
 	}
 }
 

@@ -36,7 +36,7 @@ type Game struct {
 	RoomInfo
 	Player                player.Player                // the player
 	Camera                camera.Camera                // the camera/viewport
-	Dialog                *dialog.Dialog               // if present, the player is currently in a dialog
+	Conversation          *dialog.Conversation         // if set, the player is in a conversation or being shown general text to read.
 	GlobalKeyBindings     map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
 	activeGlobalKeyBindFn map[ebiten.Key]bool          // maps which keybinding functions are actively executing, to prevent repeated calls from long key presses.
 }
@@ -111,12 +111,12 @@ func (g *Game) Update() error {
 	}
 
 	// update dialog if currently in a dialog session
-	if g.Dialog != nil {
-		if g.Dialog.End {
+	if g.Conversation != nil {
+		if g.Conversation.End {
 			// if dialog has ended, remove it from game state
-			g.Dialog = nil
+			g.Conversation = nil
 		} else {
-			g.Dialog.UpdateDialog()
+			g.Conversation.UpdateConversation()
 		}
 	}
 
