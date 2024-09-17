@@ -127,6 +127,10 @@ func GetConversation() dialog.Conversation {
 		Font: dialog.Font{
 			FontName: "Planewalker",
 		},
+		Topics: map[string]dialog.Dialog{
+			"test":         {},
+			"another test": {},
+		},
 	}
 	c.SetDialogTiles("tileset/borders/dialog_1")
 

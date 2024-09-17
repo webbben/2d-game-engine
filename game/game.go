@@ -97,8 +97,18 @@ func (g *Game) Update() error {
 		g.handleGlobalKeyBindings()
 	}
 
-	// handle player updates
-	g.Player.Update(g.Room.BarrierLayout)
+	// update dialog if currently in a dialog session
+	if g.Conversation != nil {
+		if g.Conversation.End {
+			// if dialog has ended, remove it from game state
+			g.Conversation = nil
+		} else {
+			g.Conversation.UpdateConversation()
+		}
+	} else {
+		// handle player updates if no conversation is active
+		g.Player.Update(g.Room.BarrierLayout)
+	}
 
 	// move camera as needed
 	g.Camera.MoveCamera(g.Player.X, g.Player.Y)
@@ -108,16 +118,6 @@ func (g *Game) Update() error {
 		sort.Slice(g.Entities, func(i, j int) bool {
 			return g.Entities[i].Y < g.Entities[j].Y
 		})
-	}
-
-	// update dialog if currently in a dialog session
-	if g.Conversation != nil {
-		if g.Conversation.End {
-			// if dialog has ended, remove it from game state
-			g.Conversation = nil
-		} else {
-			g.Conversation.UpdateConversation()
-		}
 	}
 
 	return nil

@@ -8,7 +8,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/tileset"
@@ -28,6 +27,7 @@ type Conversation struct {
 	greetingDone  bool
 	Bridge        Dialog
 	Topics        map[string]Dialog
+	topicKeys     []string
 	topicIndex    int
 	currentDialog *Dialog
 	Character     entity.Entity
@@ -70,6 +70,7 @@ type Dialog struct {
 	lastSpacePressFrame int          // for timing space bar presses during dialog
 	End                 bool         // if this dialog has ended yet. signals to stop rendering dialog and send control back outside of the dialog
 	ShowOptionsWindow   bool         // if the options window should show. options window is for choosing dialog options/topics
+	AwaitSpaceKey       bool         // if the dialog should wait for a final space key press before ending
 }
 
 func (c *Conversation) SetDialogTiles(imagesDirectoryPath string) {
@@ -142,20 +143,25 @@ func createDialogBox(numTilesWide, numTilesHigh, tileSize int, t DialogTiles) *e
 }
 
 func (c *Conversation) DrawConversation(screen *ebiten.Image) {
-	if c.End {
+	if c.End || !c.fontInit || !c.boxInit {
 		return
 	}
 	if c.currentDialog != nil {
-		if c.fontInit && c.boxInit {
-			c.currentDialog.DrawDialog(screen, c.Font, c.Boxes, c.DialogTiles)
+		c.currentDialog.DrawDialog(screen, c.Font, c.Boxes, c.DialogTiles)
+		// wait until dialog is finished to show options
+		if !c.currentDialog.End {
+			return
 		}
-		return
 	}
-	// if no current dialog, show topics
+	// show topics
+	if c.Topics != nil {
+		if len(c.Topics) > 0 {
+			DrawOptions(screen, c.Boxes.OptionBox, c.Font.fontFace, c.topicKeys, dialogX+c.Boxes.DialogBox.Bounds().Dx())
+		}
+	}
 }
 
 func (d *Dialog) DrawDialog(screen *ebiten.Image, f Font, b Boxes, tiles DialogTiles) {
-	// TODO f.fontInit is getting reset causing memory leak
 	if !f.fontInit {
 		fmt.Println("**Warning! Font not loaded for dialog")
 		return
@@ -168,11 +174,12 @@ func (d *Dialog) DrawDialog(screen *ebiten.Image, f Font, b Boxes, tiles DialogT
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(dialogX), float64(dialogY))
 	screen.DrawImage(b.DialogBox, op)
-	if d.ShowOptionsWindow {
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(b.DialogBox.Bounds().Dx()), float64(dialogY))
-		screen.DrawImage(b.OptionBox, op)
-	}
+	/*
+		if d.ShowOptionsWindow {
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(float64(b.DialogBox.Bounds().Dx()), float64(dialogY))
+			screen.DrawImage(b.OptionBox, op)
+		}*/
 
 	// draw the speaker name and dialog text
 	speakerText := d.SpeakerName + ": " + d.CurrentText
@@ -204,33 +211,6 @@ func loadFont(fontName string) font.Face {
 	return customFont
 }
 
-func (d *Dialog) DrawInputBox(screen *ebiten.Image) {
-	// Set the dimensions for the input box
-	boxWidth := 200
-	boxHeight := 150
-	boxX := config.ScreenWidth - boxWidth - 20 // Positioned on the right side
-	boxY := config.ScreenHeight - boxHeight - 20
-
-	// Draw the black box background
-	boxColor := color.RGBA{0, 0, 0, 255} // Solid black
-	vector.DrawFilledRect(screen, float32(boxX), float32(boxY), float32(boxWidth), float32(boxHeight), boxColor, false)
-
-	// Draw the border (a simple, interesting border design)
-	borderColor := color.RGBA{255, 255, 255, 255} // White border for contrast
-
-	// Top and bottom borders
-	for i := 0; i < boxWidth; i += 10 {
-		vector.DrawFilledRect(screen, float32(boxX+i), float32(boxY), 8, 2, borderColor, false)             // Top border
-		vector.DrawFilledRect(screen, float32(boxX+i), float32(boxY+boxHeight-2), 8, 2, borderColor, false) // Bottom border
-	}
-
-	// Left and right borders
-	for i := 0; i < boxHeight; i += 10 {
-		vector.DrawFilledRect(screen, float32(boxX), float32(boxY+i), 2, 8, borderColor, false)            // Left border
-		vector.DrawFilledRect(screen, float32(boxX+boxWidth-2), float32(boxY+i), 2, 8, borderColor, false) // Right border
-	}
-}
-
 func (c *Conversation) UpdateConversation() {
 	if c.End {
 		return
@@ -255,17 +235,20 @@ func (c *Conversation) UpdateConversation() {
 		c.currentDialog = &c.Greeting
 		c.greetingDone = true
 	}
-	if c.currentDialog.End {
-		c.currentDialog = nil
-	}
-	// if there's a dialog, update it
-	if c.currentDialog != nil {
-		c.currentDialog.UpdateDialog()
+	if c.currentDialog == nil {
 		return
 	}
-	// if no dialog, detect topic selection
-	if c.currentDialog == nil {
-		if len(c.Topics) == 0 {
+	// if there's a dialog, update it
+	c.currentDialog.UpdateDialog()
+	// once dialog is finished, wait for topic selection, or end if none are available
+	if c.currentDialog.End {
+		if len(c.topicKeys) == 0 {
+			c.topicKeys = make([]string, 0, len(c.Topics))
+			for k := range c.Topics {
+				c.topicKeys = append(c.topicKeys, k)
+			}
+		}
+		if len(c.topicKeys) == 0 {
 			c.End = true
 			return
 		}
@@ -281,10 +264,18 @@ func (d *Dialog) UpdateDialog() {
 
 	// If all characters are revealed, wait for spacebar to advance to the next step
 	if d.charIndex >= len(stepText) && d.frameCounter-d.lastSpacePressFrame > 15 {
-		if ebiten.IsKeyPressed(ebiten.KeySpace) {
-			if d.CurrentStep < len(d.Steps)-1 {
+		if d.CurrentStep < len(d.Steps)-1 {
+			// if there are more steps, wait for space key to advance
+			if ebiten.IsKeyPressed(ebiten.KeySpace) {
 				d.CurrentStep++
 				d.resetTextProgress()
+			}
+		} else {
+			// if this is the last step, wait for a space key if applicable, or end dialog right away
+			if d.AwaitSpaceKey {
+				if ebiten.IsKeyPressed(ebiten.KeySpace) {
+					d.End = true
+				}
 			} else {
 				d.End = true
 			}
@@ -313,4 +304,26 @@ func (d *Dialog) resetTextProgress() {
 	d.charIndex = 0
 	d.frameCounter = 0
 	d.lastSpacePressFrame = 0
+}
+
+func DrawOptions(screen, box *ebiten.Image, f font.Face, options []string, x int) {
+	if len(options) == 0 {
+		return
+	}
+	// calculate height of box based on number of options
+	boxHeight := 20 * len(options)
+	// calculate box y position based on screen height and box height
+	// box is either the same y position as the dialog, or higher up if there are too many options
+	boxY := dialogY
+	if boxHeight > dialogBoxHeight {
+		boxY = dialogY - (boxHeight - dialogBoxHeight)
+	}
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(x), float64(boxY))
+	screen.DrawImage(box, op)
+
+	for i, option := range options {
+		text.Draw(screen, option, f, x+25, boxY+(20*i)+45, color.White)
+	}
 }
