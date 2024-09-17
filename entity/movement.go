@@ -90,7 +90,6 @@ func (e *Entity) FollowPlayer(p *player.Player, barrierMap [][]bool) {
 				// continuously travel to the current target position. if stopTravelChan receives a stop signal,
 				// then TravelToPosition returns early and we recalculate the route
 				if dist := general_util.EuclideanDist(e.X, e.Y, float64(targetPos.X), float64(targetPos.Y)); dist > 1 {
-					fmt.Println(e.EntID, "traveling to:", targetPos)
 					e.TravelToPosition(targetPos, barrierMap, stopTravelChan, true)
 				}
 			}

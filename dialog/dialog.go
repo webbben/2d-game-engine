@@ -33,6 +33,7 @@ type Conversation struct {
 	Character     entity.Entity
 	End           bool
 
+	Boxes
 	Font
 	DialogTiles // tiles used to make the dialog boxes
 }
@@ -41,6 +42,11 @@ type Font struct {
 	fontFace font.Face // font used in the dialog
 	fontInit bool      // font has been loaded
 	FontName string    // name of the font to use
+}
+
+type Boxes struct {
+	DialogBox, OptionBox *ebiten.Image
+	boxInit              bool
 }
 
 type DialogStep struct {
@@ -54,19 +60,16 @@ type DialogTiles struct {
 }
 
 type Dialog struct {
-	Type                int           // the type of dialog screen
-	Steps               []DialogStep  // the different steps in the dialog
-	CurrentStep         int           // current dialog step
-	SpeakerName         string        // name of the person that the user is interacting with
-	box                 *ebiten.Image // box where dialog shows
-	optionBox           *ebiten.Image // box where dialog options/topics show
-	boxInit             bool          // box image has been created
-	CurrentText         string        // current text showing in the dialog
-	charIndex           int           // index of the char that is next to show in the dialog text
-	frameCounter        int           // counts how many frames have passed on the current dialog step
-	lastSpacePressFrame int           // for timing space bar presses during dialog
-	End                 bool          // if this dialog has ended yet. signals to stop rendering dialog and send control back outside of the dialog
-	ShowOptionsWindow   bool          // if the options window should show. options window is for choosing dialog options/topics
+	Type                int          // the type of dialog screen
+	Steps               []DialogStep // the different steps in the dialog
+	CurrentStep         int          // current dialog step
+	SpeakerName         string       // name of the person that the user is interacting with
+	CurrentText         string       // current text showing in the dialog
+	charIndex           int          // index of the char that is next to show in the dialog text
+	frameCounter        int          // counts how many frames have passed on the current dialog step
+	lastSpacePressFrame int          // for timing space bar presses during dialog
+	End                 bool         // if this dialog has ended yet. signals to stop rendering dialog and send control back outside of the dialog
+	ShowOptionsWindow   bool         // if the options window should show. options window is for choosing dialog options/topics
 }
 
 func (c *Conversation) SetDialogTiles(imagesDirectoryPath string) {
@@ -143,34 +146,32 @@ func (c *Conversation) DrawConversation(screen *ebiten.Image) {
 		return
 	}
 	if c.currentDialog != nil {
-		c.currentDialog.DrawDialog(screen, c.Font, c.DialogTiles)
+		if c.fontInit && c.boxInit {
+			c.currentDialog.DrawDialog(screen, c.Font, c.Boxes, c.DialogTiles)
+		}
 		return
 	}
 	// if no current dialog, show topics
 }
 
-func (d *Dialog) DrawDialog(screen *ebiten.Image, f Font, tiles DialogTiles) {
+func (d *Dialog) DrawDialog(screen *ebiten.Image, f Font, b Boxes, tiles DialogTiles) {
+	// TODO f.fontInit is getting reset causing memory leak
 	if !f.fontInit {
-		f.fontFace = loadFont("Planewalker")
-		f.fontInit = true
+		fmt.Println("**Warning! Font not loaded for dialog")
+		return
 	}
-	if !d.boxInit {
-		boxWidth := (config.ScreenWidth / 17) / 4 * 3
-		boxHeight := (config.ScreenHeight / 17) / 3
-		d.box = createDialogBox(boxWidth, boxHeight, 17, tiles)
-		optionBoxWidth := (config.ScreenWidth / 17) / 4
-		optionBoxHeight := (config.ScreenHeight / 17) / 3
-		d.optionBox = createDialogBox(optionBoxWidth, optionBoxHeight, 17, tiles)
-		d.boxInit = true
+	if !b.boxInit {
+		fmt.Println("**Warning! Dialog boxes not created")
+		return
 	}
 
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(dialogX), float64(dialogY))
-	screen.DrawImage(d.box, op)
+	screen.DrawImage(b.DialogBox, op)
 	if d.ShowOptionsWindow {
 		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(d.box.Bounds().Dx()), float64(dialogY))
-		screen.DrawImage(d.box, op)
+		op.GeoM.Translate(float64(b.DialogBox.Bounds().Dx()), float64(dialogY))
+		screen.DrawImage(b.OptionBox, op)
 	}
 
 	// draw the speaker name and dialog text
@@ -234,6 +235,22 @@ func (c *Conversation) UpdateConversation() {
 	if c.End {
 		return
 	}
+	if !c.fontInit {
+		fmt.Println("Loading font")
+		c.fontFace = loadFont("Planewalker")
+		c.fontInit = true
+	}
+	if !c.boxInit {
+		fmt.Println("Creating dialog box")
+		boxWidth := (config.ScreenWidth / 17) / 4 * 3
+		boxHeight := (config.ScreenHeight / 17) / 3
+		c.DialogBox = createDialogBox(boxWidth, boxHeight, 17, c.DialogTiles)
+		optionBoxWidth := (config.ScreenWidth / 17) / 4
+		optionBoxHeight := (config.ScreenHeight / 17) / 3
+		c.OptionBox = createDialogBox(optionBoxWidth, optionBoxHeight, 17, c.DialogTiles)
+		c.boxInit = true
+	}
+
 	if !c.greetingDone {
 		c.currentDialog = &c.Greeting
 		c.greetingDone = true
