@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/rand"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/model"
 )
 
@@ -23,4 +24,18 @@ func RandInt(min, max int) int {
 func RoundToDecimal(val float64, decimals int) float64 {
 	factor := math.Pow(10, float64(decimals))
 	return math.Round(val*factor) / factor
+}
+
+// IsHovering returns true if the mouse cursor is hovering within the given coordinates box
+func IsHovering(x1, y1, x2, y2 int) bool {
+	x, y := ebiten.CursorPosition()
+	return x >= x1 && x <= x2 && y >= y1 && y <= y2
+}
+
+// IsClicked returns true if the left mouse button is clicked within the given coordinates box
+func IsClicked(x1, y1, x2, y2 int) bool {
+	if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		return false
+	}
+	return IsHovering(x1, y1, x2, y2)
 }

@@ -116,10 +116,6 @@ func GetConversation() dialog.Conversation {
 		Steps: []dialog.DialogStep{
 			{Text: "Greetings, what can I do for you?"},
 		},
-		SpeakerName: "Hamu",
-		CurrentStep: 0,
-
-		ShowOptionsWindow: true,
 	}
 
 	c := dialog.Conversation{
@@ -128,8 +124,10 @@ func GetConversation() dialog.Conversation {
 			FontName: "Planewalker",
 		},
 		Topics: map[string]dialog.Dialog{
-			"test":         {},
-			"another test": {},
+			"rumors":        {Steps: []dialog.DialogStep{{Text: "I heard there are goblins in the forest."}}},
+			"little advice": {Steps: []dialog.DialogStep{{Text: "Don't go into the forest alone."}}},
+			"joke":          {Steps: []dialog.DialogStep{{Text: "Why did the chicken cross the road?"}, {Text: "To get to the other side!"}}},
+			"the empire":    {Steps: []dialog.DialogStep{{Text: "The empire is a vast and powerful entity."}}},
 		},
 	}
 	c.SetDialogTiles("tileset/borders/dialog_1")
