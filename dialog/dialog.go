@@ -25,6 +25,7 @@ var textOffsetY int = 45
 var textY int = dialogY + textOffsetY
 var textX int = dialogX + textOffsetX
 var charsPerSecond int = 40
+var textRowHeight int = 23
 
 type Conversation struct {
 	Greeting          Dialog
@@ -257,15 +258,17 @@ func (c *Conversation) UpdateConversation() {
 	if c.currentDialog.End {
 		if len(c.topicKeys) == 0 {
 			// init topics, and if none exist end the conversation
-			c.topicKeys = make([]string, 0, len(c.Topics))
+			c.topicKeys = make([]string, 0)
 			for k := range c.Topics {
 				c.topicKeys = append(c.topicKeys, k)
 			}
-			c.visitedTopics = make([]bool, len(c.topicKeys))
+			c.visitedTopics = make([]bool, len(c.topicKeys)+1) // +1 for the Goodbye topic, just to avoid out of bounds errors
 			if len(c.topicKeys) == 0 {
 				c.End = true
 				return
 			}
+			// add the Goodbye topic
+			c.topicKeys = append(c.topicKeys, "Goodbye")
 		}
 		c.UpdateOptions()
 	}
@@ -279,7 +282,7 @@ func (d *Dialog) UpdateDialog() {
 	stepText := d.Steps[d.CurrentStep].Text
 
 	// If all characters are revealed, wait for spacebar to advance to the next step
-	if d.charIndex >= len(stepText) && d.frameCounter-d.lastSpacePressFrame > 15 {
+	if d.charIndex >= len(stepText) && d.frameCounter-d.lastSpacePressFrame > 10 {
 		if time.Since(d.lastFlash) >= time.Second {
 			d.spaceKeyFlash = !d.spaceKeyFlash
 			d.lastFlash = time.Now()
@@ -305,7 +308,7 @@ func (d *Dialog) UpdateDialog() {
 		return
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeySpace) && d.charIndex < len(stepText) {
+	if ebiten.IsKeyPressed(ebiten.KeySpace) && d.charIndex < len(stepText) && d.frameCounter-d.lastSpacePressFrame > 10 {
 		d.CurrentText = stepText
 		d.charIndex = len(stepText)
 		d.lastSpacePressFrame = d.frameCounter
@@ -338,16 +341,19 @@ func DrawOptions(screen, box *ebiten.Image, f font.Face, options []string, x, y 
 	screen.DrawImage(box, op)
 
 	for i, option := range options {
-		var c color.Color = color.RGBA{200, 200, 150, 0}
-		if visitedOptions[i] {
+		var c color.Color = color.RGBA{200, 200, 150, 0} // default of tan/gold color
+		if i == len(options)-1 {
+			// set text color to teal for Goodbye option
+			c = color.RGBA{0, 150, 150, 0} // teal color
+		} else if visitedOptions[i] {
 			// set text color to light purple if option has been visited
-			c = color.RGBA{180, 50, 180, 0} // light purple color
+			c = color.RGBA{150, 50, 150, 0} // purple color
 		}
 		if i == hoverIndex {
 			c = color.RGBA{255, 255, 255, 255} // white
-			text.Draw(screen, "*", f, x+textOffsetX-5, y+(20*i)+textOffsetY+5, c)
+			text.Draw(screen, "*", f, x+textOffsetX-5, y+(textRowHeight*i)+textOffsetY+5, c)
 		}
-		text.Draw(screen, option, f, x+textOffsetX+10, y+(20*i)+textOffsetY, c)
+		text.Draw(screen, option, f, x+textOffsetX+10, y+(textRowHeight*i)+textOffsetY, c)
 	}
 }
 
@@ -357,7 +363,7 @@ func (c *Conversation) UpdateOptions() {
 	}
 	// initialize option box position
 	if !c.optionBoxInit {
-		boxHeight := 20 * len(c.topicKeys)
+		boxHeight := textRowHeight * len(c.topicKeys)
 		boxY := dialogY
 		if boxHeight > dialogBoxHeight {
 			boxY = dialogY - (boxHeight - dialogBoxHeight)
@@ -376,7 +382,7 @@ func (c *Conversation) UpdateOptions() {
 	dy := -10 // need to adjust y position a bit to get the hover detection to work correctly
 	if general_util.IsHovering(c.OptionBoxCoords.X, c.OptionBoxCoords.Y, c.OptionBoxCoords.X+c.OptionBoxCoords.Width, c.OptionBoxCoords.Y+c.OptionBoxCoords.Height) {
 		for i := range c.topicKeys {
-			if general_util.IsHovering(c.OptionBoxCoords.X+textOffsetX, c.OptionBoxCoords.Y+(20*i)+textOffsetY+dy, c.OptionBoxCoords.X+c.OptionBoxCoords.Width, c.OptionBoxCoords.Y+(20*(i+1))+textOffsetY+dy) {
+			if general_util.IsHovering(c.OptionBoxCoords.X+textOffsetX, c.OptionBoxCoords.Y+(textRowHeight*i)+textOffsetY+dy, c.OptionBoxCoords.X+c.OptionBoxCoords.Width, c.OptionBoxCoords.Y+(textRowHeight*(i+1))+textOffsetY+dy) {
 				c.hoveredTopicIndex = i
 			}
 		}
@@ -384,6 +390,11 @@ func (c *Conversation) UpdateOptions() {
 	// detect if a topic is clicked
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		if c.hoveredTopicIndex >= 0 {
+			if c.hoveredTopicIndex == len(c.topicKeys)-1 {
+				// if the Goodbye topic is selected, end the conversation
+				c.End = true
+				return
+			}
 			topic, exists := c.Topics[c.topicKeys[c.hoveredTopicIndex]]
 			if !exists {
 				fmt.Println("**Warning! Topic not found in conversation")

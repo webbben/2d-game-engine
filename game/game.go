@@ -6,6 +6,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/camera"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/debug"
 	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/object"
@@ -118,6 +119,10 @@ func (g *Game) Update() error {
 		sort.Slice(g.Entities, func(i, j int) bool {
 			return g.Entities[i].Y < g.Entities[j].Y
 		})
+	}
+
+	if config.TrackMemoryUsage {
+		debug.UpdatePerformanceMetrics()
 	}
 
 	return nil

@@ -70,7 +70,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		ebitenutil.DebugPrint(screen, fmt.Sprintf("Player pos: [%v, %v]", g.Player.X, g.Player.Y))
 	}
 	if config.TrackMemoryUsage {
-		ebitenutil.DebugPrint(screen, debug.GetMemoryUsageStats())
+		ebitenutil.DebugPrint(screen, debug.GetLog())
 	}
 }
 
