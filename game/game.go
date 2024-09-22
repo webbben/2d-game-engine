@@ -12,6 +12,7 @@ import (
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/room"
+	"github.com/webbben/2d-game-engine/screen"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -40,6 +41,9 @@ type Game struct {
 	Conversation          *dialog.Conversation         // if set, the player is in a conversation or being shown general text to read.
 	GlobalKeyBindings     map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
 	activeGlobalKeyBindFn map[ebiten.Key]bool          // maps which keybinding functions are actively executing, to prevent repeated calls from long key presses.
+	GamePaused            bool                         // if true, the game is paused
+
+	CurrentScreen *screen.Screen // if set, a screen is being displayed and we are not in the game world
 }
 
 // generates a cost map for the contents of the game state
@@ -98,27 +102,35 @@ func (g *Game) Update() error {
 		g.handleGlobalKeyBindings()
 	}
 
-	// update dialog if currently in a dialog session
-	if g.Conversation != nil {
-		if g.Conversation.End {
-			// if dialog has ended, remove it from game state
-			g.Conversation = nil
-		} else {
-			g.Conversation.UpdateConversation()
-		}
-	} else {
-		// handle player updates if no conversation is active
-		g.Player.Update(g.Room.BarrierLayout)
+	if g.CurrentScreen != nil {
+		g.CurrentScreen.UpdateScreen()
+		return nil
 	}
 
-	// move camera as needed
-	g.Camera.MoveCamera(g.Player.X, g.Player.Y)
+	// all in-game updates contained here
+	if !g.GamePaused {
+		// update dialog if currently in a dialog session
+		if g.Conversation != nil {
+			if g.Conversation.End {
+				// if dialog has ended, remove it from game state
+				g.Conversation = nil
+			} else {
+				g.Conversation.UpdateConversation()
+			}
+		} else {
+			// handle player updates if no conversation is active
+			g.Player.Update(g.Room.BarrierLayout)
+		}
 
-	// sort entities by Y position for rendering
-	if len(g.Entities) > 1 {
-		sort.Slice(g.Entities, func(i, j int) bool {
-			return g.Entities[i].Y < g.Entities[j].Y
-		})
+		// move camera as needed
+		g.Camera.MoveCamera(g.Player.X, g.Player.Y)
+
+		// sort entities by Y position for rendering
+		if len(g.Entities) > 1 {
+			sort.Slice(g.Entities, func(i, j int) bool {
+				return g.Entities[i].Y < g.Entities[j].Y
+			})
+		}
 	}
 
 	if config.TrackMemoryUsage {

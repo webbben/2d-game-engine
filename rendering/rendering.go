@@ -3,6 +3,7 @@ package rendering
 
 import (
 	"github.com/webbben/2d-game-engine/config"
+	"golang.org/x/image/font"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -53,4 +54,38 @@ func ColAfterCameraView(tileX float64, offsetX float64) bool {
 	x := tileX * config.TileSize
 	xMax := offsetX + (config.ScreenWidth / config.GameScale)
 	return x > xMax
+}
+
+// CenterTextOnImage returns the x and y (offset) coordinates to center the given text on the given image
+func CenterTextOnImage(img *ebiten.Image, text string, font font.Face) (int, int) {
+	textWidth, textHeight := TextDimensions(text, font)
+	x := (img.Bounds().Dx() - textWidth) / 2
+	y := (img.Bounds().Dy()-textHeight)/2 + textHeight
+	return x, y
+}
+
+// TextWidth returns the width of the given text when rendered with the given font
+func TextWidth(text string, font font.Face) int {
+	width := 0
+	for _, r := range text {
+		_, advance, _ := font.GlyphBounds(r)
+		width += advance.Ceil()
+	}
+	return width
+}
+
+func TextHeight(text string, font font.Face) int {
+	_, h := font.Metrics().Height.Ceil(), font.Metrics().Descent.Ceil()
+	return h
+}
+
+func TextDimensions(text string, font font.Face) (int, int) {
+	return TextWidth(text, font), TextHeight(text, font)
+}
+
+// CenterImageOnImage returns the x and y (offset) coordinates to center the given image on the given background image
+func CenterImageOnImage(bg *ebiten.Image, img *ebiten.Image) (int, int) {
+	x := (bg.Bounds().Dx() - img.Bounds().Dx()) / 2
+	y := (bg.Bounds().Dy() - img.Bounds().Dy()) / 2
+	return x, y
 }

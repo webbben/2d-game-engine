@@ -3,10 +3,17 @@ package image
 import (
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"log"
+	"math"
+	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/tileset"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
 )
 
 // loads an individual image
@@ -16,6 +23,31 @@ func LoadImage(imagePath string) (*ebiten.Image, error) {
 		return nil, err
 	}
 	return img, nil
+}
+
+func LoadFont(fontName string) font.Face {
+	fontFile, err := os.ReadFile("image/fonts/" + fontName + ".ttf")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// parse font file
+	ttf, err := opentype.Parse(fontFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// create font face
+	const dpi = 72
+	customFont, err := opentype.NewFace(ttf, &opentype.FaceOptions{
+		Size:    20,
+		DPI:     dpi,
+		Hinting: font.HintingFull,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	return customFont
 }
 
 type BoxTiles struct {
@@ -123,6 +155,13 @@ func LoadBoxTileSet(tilesetPath string) (BoxTiles, error) {
 //
 // fillOpacity: the opacity of the fill tiles (alpha scale value)
 func CreateBox(numTilesWide, numTilesHigh int, t BoxTiles, borderOpacity float32, fillOpacity float32) *ebiten.Image {
+	if numTilesWide < 2 {
+		numTilesWide = 2
+	}
+	if numTilesHigh < 2 {
+		numTilesHigh = 2
+	}
+
 	err := t.Verify()
 	if err != nil {
 		panic(err)
@@ -172,4 +211,37 @@ func CreateBox(numTilesWide, numTilesHigh int, t BoxTiles, borderOpacity float32
 		}
 	}
 	return box
+}
+
+func NewRadialGradientImage(size int) *ebiten.Image {
+	falloff := 2.0
+	fadeLimit := 0.8
+
+	img := ebiten.NewImage(size, size)
+	rgba := image.NewRGBA(image.Rect(0, 0, size, size))
+
+	centerX, centerY := float64(size/2), float64(size/2)
+	maxDistance := math.Sqrt(centerX*centerX + centerY*centerY)
+
+	// Reduce max distance by a fadeLimit factor to stop fading before the edge
+	fadeDistance := maxDistance * fadeLimit
+
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			// Calculate the distance from the center
+			dx, dy := float64(x)-centerX, float64(y)-centerY
+			distance := math.Sqrt(dx*dx + dy*dy)
+			normalizedDistance := math.Min(distance/fadeDistance, 1.0)
+
+			// Fine-tune the alpha calculation using the falloff parameter
+			fadeFactor := math.Pow(normalizedDistance, falloff)
+			alpha := uint8(255 * (1 - fadeFactor))
+
+			// Set the color as black with calculated alpha
+			rgba.SetRGBA(x, y, color.RGBA{0, 0, 0, alpha})
+		}
+	}
+
+	img.WritePixels(rgba.Pix)
+	return img
 }

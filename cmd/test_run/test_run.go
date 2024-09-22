@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"os"
 
 	"github.com/webbben/2d-game-engine/config"
@@ -12,6 +13,7 @@ import (
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/room"
+	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/tileset"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -106,6 +108,14 @@ func addCustomKeyBindings(game *g.Game) {
 			g.Conversation = &c
 		}()
 	})
+	game.SetGlobalKeyBinding(ebiten.KeyMinus, func(g *g.Game) {
+		go func() {
+			fmt.Println("getting title screen")
+			s := GetTitleScreen()
+			g.CurrentScreen = &s
+		}()
+	})
+
 	game.SetGlobalKeyBinding(ebiten.KeyEscape, func(g *g.Game) {
 		os.Exit(0)
 	})
@@ -133,4 +143,29 @@ func GetConversation() dialog.Conversation {
 	c.SetDialogTiles("tileset/borders/dialog_1")
 
 	return c
+}
+
+func GetTitleScreen() screen.Screen {
+	s := screen.Screen{
+		Title:               "Ancient Rome!",
+		TitleFontName:       "Herculanum",
+		TitleFontColor:      color.White,
+		BodyFontName:        "Herculanum",
+		BodyFontColor:       color.White,
+		BackgroundImagePath: "image/bg/dark_cistern.png",
+	}
+
+	// add a menu
+	m := screen.Menu{
+		Buttons: []screen.Button{
+			{Text: "New Game", Callback: func() {}},
+			{Text: "Load Game", Callback: func() {}},
+			{Text: "Options", Callback: func() {}},
+			{Text: "Quit", Callback: func() { os.Exit(0) }},
+		},
+		BoxTilesetPath: "tileset/borders/stone_1",
+	}
+	s.Menus = append(s.Menus, m)
+
+	return s
 }

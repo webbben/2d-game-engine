@@ -15,6 +15,17 @@ import (
 )
 
 func (g *Game) Draw(screen *ebiten.Image) {
+
+	// draw a screen, if present
+	if g.CurrentScreen != nil {
+		g.CurrentScreen.DrawScreen(screen)
+		return
+	}
+
+	// ~~~
+	// below is in-game rendering; stop here if we are not in the game world
+	// ~~~
+
 	offsetX, offsetY := g.Camera.GetAbsPos()
 
 	// draw the terrain of the room

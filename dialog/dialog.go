@@ -3,8 +3,6 @@ package dialog
 import (
 	"fmt"
 	"image/color"
-	"log"
-	"os"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -14,7 +12,6 @@ import (
 	"github.com/webbben/2d-game-engine/general_util"
 	"github.com/webbben/2d-game-engine/image"
 	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
 )
 
 var dialogBoxHeight = 255
@@ -136,38 +133,13 @@ func (d *Dialog) DrawDialog(screen *ebiten.Image, f Font, b Boxes) {
 	}
 }
 
-func loadFont(fontName string) font.Face {
-	fontFile, err := os.ReadFile("dialog/fonts/" + fontName + ".ttf")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// parse font file
-	ttf, err := opentype.Parse(fontFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// create font face
-	const dpi = 72
-	customFont, err := opentype.NewFace(ttf, &opentype.FaceOptions{
-		Size:    20,
-		DPI:     dpi,
-		Hinting: font.HintingFull,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	return customFont
-}
-
 func (c *Conversation) UpdateConversation() {
 	if c.End {
 		return
 	}
 	if !c.fontInit {
 		fmt.Println("Loading font")
-		c.fontFace = loadFont("Planewalker")
+		c.fontFace = image.LoadFont("Planewalker")
 		c.fontInit = true
 	}
 	if !c.boxInit {
