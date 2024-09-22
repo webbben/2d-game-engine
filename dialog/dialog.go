@@ -172,11 +172,12 @@ func (c *Conversation) UpdateConversation() {
 	}
 	if !c.boxInit {
 		fmt.Println("Creating dialog box")
-		boxWidth := (config.ScreenWidth / 17) / 4 * 3
-		boxHeight := (config.ScreenHeight / 17) / 3
+		tilesize := c.BoxTiles.Top.Bounds().Dx()
+		boxWidth := (config.ScreenWidth / tilesize) / 4 * 3
+		boxHeight := (config.ScreenHeight / tilesize) / 3
 		c.DialogBox = image.CreateBox(boxWidth, boxHeight, c.BoxTiles, 1, 0.7)
-		optionBoxWidth := (config.ScreenWidth / 17) / 4
-		optionBoxHeight := (config.ScreenHeight / 17) / 3
+		optionBoxWidth := (config.ScreenWidth / tilesize) / 4
+		optionBoxHeight := (config.ScreenHeight / tilesize) / 3
 		c.OptionBox = image.CreateBox(optionBoxWidth, optionBoxHeight, c.BoxTiles, 1, 0.7)
 		c.boxInit = true
 	}
