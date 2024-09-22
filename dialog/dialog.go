@@ -12,7 +12,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/general_util"
-	"github.com/webbben/2d-game-engine/tileset"
+	"github.com/webbben/2d-game-engine/image"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 )
@@ -41,7 +41,7 @@ type Conversation struct {
 
 	Boxes
 	Font
-	DialogTiles // tiles used to make the dialog boxes
+	BoxTiles image.BoxTiles // tiles used to make the dialog boxes
 }
 
 type Font struct {
@@ -67,10 +67,6 @@ type DialogStep struct {
 	InputOptions []string
 }
 
-type DialogTiles struct {
-	Top, TopLeft, TopRight, Left, Right, BottomLeft, Bottom, BottomRight, Fill *ebiten.Image
-}
-
 type Dialog struct {
 	Type                int          // the type of dialog screen
 	Steps               []DialogStep // the different steps in the dialog
@@ -87,72 +83,12 @@ type Dialog struct {
 }
 
 func (c *Conversation) SetDialogTiles(imagesDirectoryPath string) {
-	tileset, err := tileset.LoadTilesetByPath(imagesDirectoryPath)
+	tiles, err := image.LoadBoxTileSet(imagesDirectoryPath)
 	if err != nil {
 		fmt.Println("failed to set dialog tiles:", err)
 		return
 	}
-	c.Top = tileset["T"]
-	c.TopLeft = tileset["TL"]
-	c.TopRight = tileset["TR"]
-	c.Left = tileset["L"]
-	c.Right = tileset["R"]
-	c.BottomLeft = tileset["BL"]
-	c.Bottom = tileset["B"]
-	c.BottomRight = tileset["BR"]
-	c.Fill = tileset["F"]
-
-	// confirm all tiles loaded correctly
-	if c.Top == nil || c.TopLeft == nil || c.TopRight == nil || c.Left == nil ||
-		c.Right == nil || c.BottomLeft == nil || c.Bottom == nil ||
-		c.BottomRight == nil || c.Fill == nil {
-		fmt.Println("**Warning! Some dialog tiles are not loaded correctly.")
-	}
-}
-
-func createDialogBox(numTilesWide, numTilesHigh, tileSize int, t DialogTiles) *ebiten.Image {
-	box := ebiten.NewImage(numTilesWide*tileSize, numTilesHigh*tileSize)
-	for x := 0; x < numTilesWide; x++ {
-		for y := 0; y < numTilesHigh; y++ {
-			// get the image we will place
-			var img *ebiten.Image
-			op := &ebiten.DrawImageOptions{}
-			if x == 0 {
-				if y == 0 {
-					// top left
-					img = t.TopLeft
-				} else if y == numTilesHigh-1 {
-					// bottom left
-					img = t.BottomLeft
-				} else {
-					// left
-					img = t.Left
-				}
-			} else if x == numTilesWide-1 {
-				if y == 0 {
-					// top right
-					img = t.TopRight
-				} else if y == numTilesHigh-1 {
-					// bottom right
-					img = t.BottomRight
-				} else {
-					// right
-					img = t.Right
-				}
-			} else if y == 0 {
-				img = t.Top
-			} else if y == numTilesHigh-1 {
-				img = t.Bottom
-			} else {
-				img = t.Fill
-				op.ColorScale.ScaleAlpha(0.75)
-			}
-			// draw the tile
-			op.GeoM.Translate(float64(x*tileSize), float64(y*tileSize))
-			box.DrawImage(img, op)
-		}
-	}
-	return box
+	c.BoxTiles = tiles
 }
 
 func (c *Conversation) DrawConversation(screen *ebiten.Image) {
@@ -160,7 +96,7 @@ func (c *Conversation) DrawConversation(screen *ebiten.Image) {
 		return
 	}
 	if c.currentDialog != nil {
-		c.currentDialog.DrawDialog(screen, c.Font, c.Boxes, c.DialogTiles)
+		c.currentDialog.DrawDialog(screen, c.Font, c.Boxes)
 		// wait until dialog is finished to show options
 		if !c.currentDialog.End {
 			return
@@ -174,7 +110,7 @@ func (c *Conversation) DrawConversation(screen *ebiten.Image) {
 	}
 }
 
-func (d *Dialog) DrawDialog(screen *ebiten.Image, f Font, b Boxes, tiles DialogTiles) {
+func (d *Dialog) DrawDialog(screen *ebiten.Image, f Font, b Boxes) {
 	if !f.fontInit {
 		fmt.Println("**Warning! Font not loaded for dialog")
 		return
@@ -238,10 +174,10 @@ func (c *Conversation) UpdateConversation() {
 		fmt.Println("Creating dialog box")
 		boxWidth := (config.ScreenWidth / 17) / 4 * 3
 		boxHeight := (config.ScreenHeight / 17) / 3
-		c.DialogBox = createDialogBox(boxWidth, boxHeight, 17, c.DialogTiles)
+		c.DialogBox = image.CreateBox(boxWidth, boxHeight, c.BoxTiles, 1, 0.7)
 		optionBoxWidth := (config.ScreenWidth / 17) / 4
 		optionBoxHeight := (config.ScreenHeight / 17) / 3
-		c.OptionBox = createDialogBox(optionBoxWidth, optionBoxHeight, 17, c.DialogTiles)
+		c.OptionBox = image.CreateBox(optionBoxWidth, optionBoxHeight, c.BoxTiles, 1, 0.7)
 		c.boxInit = true
 	}
 
