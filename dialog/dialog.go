@@ -139,7 +139,7 @@ func (c *Conversation) UpdateConversation() {
 	}
 	if !c.fontInit {
 		fmt.Println("Loading font")
-		c.fontFace = image.LoadFont("Planewalker")
+		c.fontFace = image.LoadFont("Planewalker", nil)
 		c.fontInit = true
 	}
 	if !c.boxInit {

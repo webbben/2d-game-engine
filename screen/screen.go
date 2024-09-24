@@ -5,9 +5,13 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text"
+	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/general_util"
 	"github.com/webbben/2d-game-engine/image"
+	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/rendering"
 	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
 )
 
 // Screen represents a screen in the game
@@ -51,8 +55,11 @@ type Menu struct {
 }
 
 type Button struct {
-	Text     string
-	Callback func()
+	Text      string
+	Callback  func()
+	isHovered bool
+	pos       model.Coords
+	bounds    model.Coords
 }
 
 func (s *Screen) init() {
@@ -69,8 +76,12 @@ func (s *Screen) init() {
 	s.Background.DrawImage(shadow, op)
 
 	// load fonts
-	s.titleFont = image.LoadFont(s.TitleFontName)
-	s.bodyFont = image.LoadFont(s.BodyFontName)
+	s.titleFont = image.LoadFont(s.TitleFontName, &opentype.FaceOptions{
+		Size:    48,
+		DPI:     72,
+		Hinting: font.HintingFull,
+	})
+	s.bodyFont = image.LoadFont(s.BodyFontName, nil)
 
 	// create button images
 	for i := range s.Menus {
@@ -89,6 +100,19 @@ func (s *Screen) init() {
 		}
 		tilesize := boxTileset.Top.Bounds().Dx()
 		s.Menus[i].BoxImage = image.CreateBox(width/tilesize, height/tilesize, boxTileset, 1, 1)
+		imageWidth := s.Menus[i].BoxImage.Bounds().Dx()
+		imageHeight := s.Menus[i].BoxImage.Bounds().Dy()
+
+		// set button positions
+		for j := range s.Menus[i].Buttons {
+			buttonX := (config.ScreenWidth - s.Menus[i].BoxImage.Bounds().Dx()) / 2
+			buttonY := (s.Menus[i].BoxImage.Bounds().Dy()+30)*(j+1) + 150
+			s.Menus[i].Buttons[j].pos = model.Coords{
+				X: buttonX,
+				Y: buttonY,
+			}
+			s.Menus[i].Buttons[j].bounds = model.Coords{X: imageWidth, Y: imageHeight}
+		}
 	}
 
 	s.screenInit = true
@@ -102,23 +126,44 @@ func (s *Screen) DrawScreen(screen *ebiten.Image) {
 
 	// draw the title
 	titleX, _ := rendering.CenterTextOnImage(screen, s.Title, s.titleFont)
-	text.Draw(screen, s.Title, s.titleFont, titleX, 20, s.TitleFontColor)
+	text.Draw(screen, s.Title, s.titleFont, titleX, 80, s.TitleFontColor)
 
 	// draw the first menu only for now
 	menu := s.Menus[0]
-	for i, button := range menu.Buttons {
-		buttonX, _ := rendering.CenterImageOnImage(screen, menu.BoxImage)
-		buttonY := (menu.BoxImage.Bounds().Dy()+30)*(i+1) + 150
+	for _, button := range menu.Buttons {
 		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(buttonX), float64(buttonY))
+		op.GeoM.Translate(float64(button.pos.X), float64(button.pos.Y))
+		if button.isHovered {
+			op.ColorScale.Scale(1.2, 1.2, 1.2, 1)
+		}
 		screen.DrawImage(menu.BoxImage, op)
 		offX, offY := rendering.CenterTextOnImage(menu.BoxImage, button.Text, s.bodyFont)
-		text.Draw(screen, button.Text, s.bodyFont, buttonX+offX, buttonY+offY, s.BodyFontColor)
+		text.Draw(screen, button.Text, s.bodyFont, button.pos.X+offX, button.pos.Y+offY, s.BodyFontColor)
 	}
 }
 
 func (s *Screen) UpdateScreen() {
 	if !s.screenInit {
 		s.init()
+	}
+
+	// update buttons
+	for i := range s.Menus {
+		for j := range s.Menus[i].Buttons {
+			s.Menus[i].Buttons[j].UpdateButton()
+		}
+	}
+}
+
+func (b *Button) UpdateButton() {
+	// check for mouse hover and click
+	hover, click := general_util.DetectMouse(b.pos.X, b.pos.Y, b.pos.X+b.bounds.X, b.pos.Y+b.bounds.Y)
+	if hover {
+		b.isHovered = true
+		if click {
+			b.Callback()
+		}
+	} else {
+		b.isHovered = false
 	}
 }

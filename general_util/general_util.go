@@ -32,10 +32,10 @@ func IsHovering(x1, y1, x2, y2 int) bool {
 	return x >= x1 && x <= x2 && y >= y1 && y <= y2
 }
 
-// IsClicked returns true if the left mouse button is clicked within the given coordinates box
-func IsClicked(x1, y1, x2, y2 int) bool {
-	if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-		return false
+// DetectMouse returns two bools: the first is true if the mouse is hovering over the given coordinates box, the second is true if the left mouse button is clicked within the box
+func DetectMouse(x1, y1, x2, y2 int) (bool, bool) {
+	if !IsHovering(x1, y1, x2, y2) {
+		return false, false
 	}
-	return IsHovering(x1, y1, x2, y2)
+	return true, ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft)
 }

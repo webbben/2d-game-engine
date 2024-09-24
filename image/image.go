@@ -25,7 +25,7 @@ func LoadImage(imagePath string) (*ebiten.Image, error) {
 	return img, nil
 }
 
-func LoadFont(fontName string) font.Face {
+func LoadFont(fontName string, op *opentype.FaceOptions) font.Face {
 	fontFile, err := os.ReadFile("image/fonts/" + fontName + ".ttf")
 	if err != nil {
 		log.Fatal(err)
@@ -37,13 +37,17 @@ func LoadFont(fontName string) font.Face {
 		log.Fatal(err)
 	}
 
+	// default font settings
+	if op == nil {
+		op = &opentype.FaceOptions{
+			Size:    20,
+			DPI:     72,
+			Hinting: font.HintingFull,
+		}
+	}
+
 	// create font face
-	const dpi = 72
-	customFont, err := opentype.NewFace(ttf, &opentype.FaceOptions{
-		Size:    20,
-		DPI:     dpi,
-		Hinting: font.HintingFull,
-	})
+	customFont, err := opentype.NewFace(ttf, op)
 	if err != nil {
 		log.Fatal(err)
 	}
