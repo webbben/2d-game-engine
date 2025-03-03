@@ -31,7 +31,8 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 	if g.sprite != nil {
 		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(100, 100)
+		op.GeoM.Translate(0, 0)
+		op.GeoM.Scale(10, 10)
 		screen.DrawImage(g.sprite, op)
 	} else {
 		log.Println("no sprite...")
@@ -39,17 +40,29 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 320, 240
+	return 500, 500
 }
 
 func main() {
 	baseDir := "/Users/benwebb/Desktop/game_art/character"
 	spriteComponents := tileset.SpriteComponentPaths{
-		Skin:   fmt.Sprintf("%s/skin/skin_01_down.png", baseDir),
-		Head:   fmt.Sprintf("%s/head/head_01_down.png", baseDir),
-		Body:   fmt.Sprintf("%s/body/body_01_down.png", baseDir),
-		Legs:   fmt.Sprintf("%s/legs/legs_01_down.png", baseDir),
-		Shadow: fmt.Sprintf("%s/shadow/shadow_01_down.png", baseDir),
+		Skin: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/skin/skin_01_down.png", baseDir),
+		},
+		Head: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/head/head_01_down.png", baseDir),
+			Dy:        2,
+		},
+		Body: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/body/body_01_down.png", baseDir),
+			Dy:        -1,
+		},
+		Legs: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/legs/legs_01_down.png", baseDir),
+		},
+		Shadow: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/shadow/shadow_01_down.png", baseDir),
+		},
 	}
 	img, err := tileset.BuildSpriteFrameImage(spriteComponents)
 	if err != nil {
@@ -65,7 +78,7 @@ func main() {
 
 	g := Game{sprite: img}
 
-	ebiten.SetWindowSize(320, 240)
+	ebiten.SetWindowSize(500, 500)
 	ebiten.SetWindowTitle("sprite test build")
 	if err := ebiten.RunGame(&g); err != nil {
 		log.Fatal(err)
