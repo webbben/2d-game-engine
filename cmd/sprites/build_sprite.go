@@ -43,9 +43,9 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return 500, 500
 }
 
-func main() {
-	baseDir := "/Users/benwebb/Desktop/game_art/character"
-	spriteComponents := tileset.SpriteComponentPaths{
+var (
+	baseDir     = "/Users/benwebb/Desktop/game_art/character"
+	NPC_01_DOWN = tileset.SpriteComponentPaths{
 		Skin: tileset.SpriteComponent{
 			ImagePath: fmt.Sprintf("%s/skin/skin_01_down.png", baseDir),
 		},
@@ -61,20 +61,74 @@ func main() {
 			ImagePath: fmt.Sprintf("%s/legs/legs_01_down.png", baseDir),
 		},
 		Shadow: tileset.SpriteComponent{
-			ImagePath: fmt.Sprintf("%s/shadow/shadow_01_down.png", baseDir),
+			ImagePath: fmt.Sprintf("%s/shadow/shadow_01.png", baseDir),
 		},
 	}
-	img, err := tileset.BuildSpriteFrameImage(spriteComponents)
+	NPC_01_LEFT = tileset.SpriteComponentPaths{
+		Skin: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/skin/skin_01_left.png", baseDir),
+		},
+		Head: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/head/head_01_left.png", baseDir),
+			Dy:        1,
+		},
+		Body: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/body/body_01_left.png", baseDir),
+			Dy:        -1,
+		},
+		Legs: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/legs/legs_01_left.png", baseDir),
+			Dx:        1,
+		},
+		Shadow: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/shadow/shadow_01.png", baseDir),
+		},
+	}
+	NPC_01_RIGHT = tileset.SpriteComponentPaths{
+		Skin: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/skin/skin_01_right.png", baseDir),
+		},
+		Head: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/head/head_01_right.png", baseDir),
+		},
+		Body: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/body/body_01_right.png", baseDir),
+			Dy:        -1,
+		},
+		Legs: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/legs/legs_01_right.png", baseDir),
+		},
+		Shadow: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/shadow/shadow_01.png", baseDir),
+		},
+	}
+	IRON_ARMOR_DOWN = tileset.SpriteComponentPaths{
+		Skin: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/skin/skin_01_down.png", baseDir),
+		},
+		Head: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/head/iron_helm_01_down.png", baseDir),
+		},
+		Body: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/body/iron_armor_01_down.png", baseDir),
+			Dy:        -1,
+		},
+		Legs: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/legs/leather_pants_01_down.png", baseDir),
+			Dy:        0,
+		},
+		Shadow: tileset.SpriteComponent{
+			ImagePath: fmt.Sprintf("%s/shadow/shadow_01.png", baseDir),
+		},
+	}
+)
+
+func main() {
+	img, err := tileset.BuildSpriteFrameImage(IRON_ARMOR_DOWN)
 	if err != nil {
 		fmt.Println("error building sprite:", err)
 		return
 	}
-
-	// err = SaveImageToFile(img, "build_sprite.png")
-	// if err != nil {
-	// 	fmt.Println("error saving png:", err)
-	// 	return
-	// }
 
 	g := Game{sprite: img}
 

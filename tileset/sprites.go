@@ -91,8 +91,7 @@ func BuildSpriteFrameImage(components SpriteComponentPaths) (*ebiten.Image, erro
 	x = dx + float64(components.Head.Dx) - 1
 	headX, headY := x, y
 
-	// put shadow on last, starting from the bottom again
-	// putting on last since shadow may cover other things, like clothes too
+	// Shadow
 	y = float64(baseHeight-shadowImage.Bounds().Dy()) + 2 // +2: shadow goes a little below the rest of the sprite
 	dx = centerX - float64(shadowImage.Bounds().Dx()/2)
 	x = dx + float64(components.Shadow.Dx) - 1
@@ -103,7 +102,12 @@ func BuildSpriteFrameImage(components SpriteComponentPaths) (*ebiten.Image, erro
 	result := ebiten.NewImage(maxWidth, int(totalHeight)) // +2: adds a little extra space at the bottom for the shadow
 	result.Fill(color.RGBA{0, 255, 0, 255})               // Green background
 
+	// Shadow first, so its under everything else
 	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(shadowX, shadowY-headY)
+	result.DrawImage(shadowImage, op)
+
+	op = &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(skinX, skinY-headY)
 	result.DrawImage(skinImage, op)
 
@@ -118,10 +122,6 @@ func BuildSpriteFrameImage(components SpriteComponentPaths) (*ebiten.Image, erro
 	op = &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(headX, headY-headY)
 	result.DrawImage(headImage, op)
-
-	op = &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(shadowX, shadowY-headY)
-	result.DrawImage(shadowImage, op)
 
 	return result, nil
 }
