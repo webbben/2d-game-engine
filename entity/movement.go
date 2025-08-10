@@ -5,9 +5,9 @@ import (
 	"math"
 	"time"
 
-	"github.com/webbben/2d-game-engine/general_util"
-	m "github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/path_finding"
+	"github.com/webbben/2d-game-engine/internal/general_util"
+	m "github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/player"
 )
 

@@ -5,7 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/internal/model"
 )
 
 func EuclideanDist(x1, y1, x2, y2 float64) float64 {

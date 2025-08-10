@@ -5,9 +5,9 @@ import (
 	"math"
 	"strings"
 
-	m "github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/path_finding"
-	"github.com/webbben/2d-game-engine/proc_gen"
+	m "github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/internal/path_finding"
+	"github.com/webbben/2d-game-engine/internal/proc_gen"
 	"github.com/webbben/2d-game-engine/tileset"
 )
 

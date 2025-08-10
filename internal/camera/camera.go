@@ -3,7 +3,7 @@ package camera
 import (
 	"math"
 
-	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/internal/config"
 )
 
 // the user's viewport/camera

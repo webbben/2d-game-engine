@@ -4,8 +4,8 @@ import (
 	"container/heap"
 	"fmt"
 
-	"github.com/webbben/2d-game-engine/general_util"
-	m "github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/internal/general_util"
+	m "github.com/webbben/2d-game-engine/internal/model"
 )
 
 type Node struct {

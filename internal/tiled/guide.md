@@ -1,0 +1,43 @@
+# Guide to Tiled
+
+Recording useful or important info about how to use the Tiled editor here, since it could get a bit complicated over time.
+
+## Maps and Tilesets
+
+Maps have tile layers, which is the basic type of layer for adding tiles.
+
+a tile layer looks like this in the JSON:
+
+```json
+"layers":[
+        {
+         "data":[659, 659, 659, 288, 452, 452, 452, 452, 288, ...],
+         ...
+        },
+]
+```
+
+Each number in "data" is a `gid` of a tile from a tileset.
+
+### Tilesets
+
+When a tileset is added to a map, you see it in the JSON like this:
+
+```json
+"tilesets":[
+        {
+         "firstgid":1,
+         "source":"..\/tilesets\/sdv_outdoors_spring.tsj"
+        }]
+```
+
+This defines the first `gid` of the first tile in this tileset.
+
+> the range of gids is probably defined by the tile width and height of the tileset? just my guess.
+
+Inside the actual tileset file, it is essentially just a link to a singular image file (the tileset image), and definition of the tile width/height. It also has all the configuration or metadata for things like animations.
+
+> So, when we render a map that uses a certain tileset, we will need to:
+>
+> 1. load the image file of the tileset
+> 2. split it up into all the individual tile images by tile width/height

@@ -5,9 +5,9 @@ import (
 	"math"
 	"time"
 
-	"github.com/webbben/2d-game-engine/config"
-	m "github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/rendering"
+	"github.com/webbben/2d-game-engine/internal/config"
+	m "github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/internal/rendering"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )

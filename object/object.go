@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/image"
-	"github.com/webbben/2d-game-engine/rendering"
+	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/image"
+	"github.com/webbben/2d-game-engine/internal/rendering"
 )
 
 const (

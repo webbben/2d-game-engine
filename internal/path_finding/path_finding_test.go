@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
-	m "github.com/webbben/2d-game-engine/model"
+	m "github.com/webbben/2d-game-engine/internal/model"
 )
 
 type FindPathTestCase struct {

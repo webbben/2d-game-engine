@@ -7,10 +7,10 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text"
-	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/entity"
-	"github.com/webbben/2d-game-engine/general_util"
-	"github.com/webbben/2d-game-engine/image"
+	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/general_util"
+	"github.com/webbben/2d-game-engine/internal/image"
 	"golang.org/x/image/font"
 )
 

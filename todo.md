@@ -6,3 +6,9 @@ Tracking ongoing tasks and their progress
 
 - get format of Tiled maps into a struct
 - refactor code for Rooms to render the Tiled format
+
+# Useful resources
+
+## Tilesets
+
+- https://www.spriters-resource.com/pc_computer/stardewvalley/

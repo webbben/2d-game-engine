@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/webbben/2d-game-engine/proc_gen"
+	"github.com/webbben/2d-game-engine/internal/proc_gen"
 )
 
 func main() {

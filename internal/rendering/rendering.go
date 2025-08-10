@@ -2,7 +2,7 @@
 package rendering
 
 import (
-	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"golang.org/x/image/font"
 
 	"github.com/hajimehoshi/ebiten/v2"

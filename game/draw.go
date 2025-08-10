@@ -7,10 +7,10 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/debug"
 	"github.com/webbben/2d-game-engine/entity"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/debug"
+	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/object"
 )
 
