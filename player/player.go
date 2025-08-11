@@ -159,6 +159,9 @@ func (p *Player) continueWalking(direction string, barrierLayout [][]bool) {
 }
 
 func (p *Player) movingTowardsBarrier(barrierLayout [][]bool, dir string) bool {
+	if len(barrierLayout) == 0 {
+		return false
+	}
 	gridX := math.Floor(p.X) // current position
 	gridY := math.Floor(p.Y)
 	realX := p.X + 0.5 // player actually appears in the middle of the tile, not the top left corner

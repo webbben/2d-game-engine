@@ -92,10 +92,13 @@ func (m Map) DrawLayers(screen *ebiten.Image, offsetX float64, offsetY float64) 
 			log.Fatalf("the layer data array is not the correct size; size=%v, expected=%v", len(layer.Data), layer.Width*layer.Height)
 		}
 
+		// index of the tile in the layer's Data array
+		// it's important that this value is always updated correctly if we skip any rows or columns, or else tiles will render in the wrong places
 		i := 0
 		for y := 0; y < layer.Height; y++ {
 			// skip this row if it's above the camera
 			if rendering.RowAboveCameraView(float64(y), offsetY) {
+				i += layer.Width
 				continue
 			}
 			// skip all remaining rows if it's below the camera
@@ -106,10 +109,12 @@ func (m Map) DrawLayers(screen *ebiten.Image, offsetX float64, offsetY float64) 
 
 			for x := 0; x < layer.Width; x++ {
 				if rendering.ColBeforeCameraView(float64(x), offsetX) {
+					i++
 					continue
 				}
 				// skip the rest of the columns if it's past the screen
 				if rendering.ColAfterCameraView(float64(x), offsetX) {
+					i += layer.Width - x
 					break
 				}
 
@@ -118,6 +123,7 @@ func (m Map) DrawLayers(screen *ebiten.Image, offsetX float64, offsetY float64) 
 				tileGID := layer.Data[i]
 				if tileGID == 0 {
 					// 0 means no tile is placed here
+					i++
 					continue
 				}
 
