@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"log"
 	"os"
 
 	"github.com/webbben/2d-game-engine/entity"
@@ -10,9 +11,8 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/dialog"
 	"github.com/webbben/2d-game-engine/internal/general_util"
-	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/player"
-	"github.com/webbben/2d-game-engine/room"
 	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/tileset"
 
@@ -31,14 +31,16 @@ func main() {
 	ebiten.SetWindowSize(config.ScreenWidth, config.ScreenHeight)
 	ebiten.SetWindowTitle(config.WindowTitle)
 
+	tiled.InitFileStructure()
+
 	// get our testrun game state
 	game := setupGameState()
 	game.RoomInfo.Preprocess()
 
 	// go game.entities[0].TravelToPosition(model.Coords{X: 99, Y: 50}, currentRoom.BarrierLayout)
-	for i := range game.Entities {
-		go game.Entities[i].FollowPlayer(&game.Player, game.Room.BarrierLayout)
-	}
+	// for i := range game.Entities {
+	// 	go game.Entities[i].FollowPlayer(&game.Player, game.Room.BarrierLayout)
+	// }
 	//go game.Entities[0].FollowPlayer(&game.Player, currentRoom.BarrierLayout)
 
 	for i := range game.Entities {
@@ -58,7 +60,7 @@ func setupGameState() *g.Game {
 	if err != nil {
 		panic(err)
 	}
-	player := player.CreatePlayer(50, 50, playerSprites)
+	player := player.CreatePlayer(15, 15, playerSprites)
 
 	// create some entities
 	ents := make([]*entity.Entity, 0)
@@ -72,22 +74,31 @@ func setupGameState() *g.Game {
 		ents = append(ents, testEnt)
 	}
 
-	// create a house object
-	houseObj, houseImg := object.CreateObject(object.Latin_house_1, 10, 10)
-	imageMap := make(map[string]*ebiten.Image)
-	imageMap[houseObj.Name] = houseImg
+	// // create a house object
+	// houseObj, houseImg := object.CreateObject(object.Latin_house_1, 10, 10)
+	// imageMap := make(map[string]*ebiten.Image)
+	// imageMap[houseObj.Name] = houseImg
 
 	// generate a room
-	room.GenerateRandomRoom("test_room", 100, 100)
-	currentRoom := room.CreateRoom("test_room")
+	// TODO - make a generateRandomMap function for Tiled maps
+	// room.GenerateRandomRoom("test_room", 100, 100)
+	// currentRoom := room.CreateRoom("test_room")
+
+	currentMap, err := tiled.OpenMap("assets/tiled/maps/testmap.tmj")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = currentMap.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// setup the game struct
 	game := &g.Game{
 		RoomInfo: g.RoomInfo{
-			Room:     currentRoom,
+			Map:      currentMap,
 			Entities: ents,
-			Objects:  []object.Object{*houseObj},
-			ImageMap: imageMap,
 		},
 		Player: player,
 	}

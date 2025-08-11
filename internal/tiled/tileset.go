@@ -2,12 +2,14 @@ package tiled
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/general_util"
@@ -32,16 +34,50 @@ func InitFileStructure() {
 	}
 }
 
-func LoadTileset(tilesetJsonPath string) error {
-	bytes, err := os.ReadFile(tilesetJsonPath)
-	if err != nil {
-		return fmt.Errorf("failed to read tileset json file: %w", err)
+func TilesetExists(tilesetName string) bool {
+	return general_util.FileExists(filepath.Join(tilePath, tilesetName))
+}
+
+func (t *Tileset) LoadJSONData() error {
+	// initially, when loading from a map file, we only have these two values:
+	// 1. FirstGID
+	// 2. Source
+
+	// start by loading JSON data from source
+
+	// TODO - this is a temporary hack. once we have a decided data directory, change how we get the source path.
+	if strings.HasPrefix(t.Source, "../tilesets/") {
+		t.Source = strings.TrimPrefix(t.Source, "../tilesets/")
+		t.Source = "assets/tiled/tilesets/" + t.Source
 	}
 
-	var tileset Tileset
-	err = json.Unmarshal(bytes, &tileset)
+	var loaded Tileset
+	bytes, err := os.ReadFile(t.Source)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal tileset json: %w", err)
+		return fmt.Errorf("failed to read source JSON file: %w", err)
+	}
+	err = json.Unmarshal(bytes, &loaded)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal source JSON file: %w", err)
+	}
+
+	// TODO - replace this hack with the long term approach for storing tileset images
+	if strings.HasPrefix(loaded.Image, "../../images/tilesets/") {
+		loaded.Image = strings.TrimPrefix(loaded.Image, "../../")
+		loaded.Image = "assets/" + loaded.Image
+	}
+
+	// put the two initial values into this loaded one, and replace the original Tileset data
+	loaded.FirstGID = t.FirstGID
+	loaded.Source = t.Source
+	*t = loaded
+
+	return nil
+}
+
+func (tileset Tileset) GenerateTiles() error {
+	if tileset.Image == "" {
+		return errors.New("tileset JSON data not loaded yet")
 	}
 
 	// open the source image file
@@ -59,6 +95,13 @@ func LoadTileset(tilesetJsonPath string) error {
 	imgWidth := bounds.Dx()
 	imgHeight := bounds.Dy()
 
+	tilesetDir := filepath.Join(tilePath, tileset.Name)
+	err = os.MkdirAll(tilesetDir, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	fmt.Println("made dir")
+
 	tileIndex := 0
 	for y := 0; y < imgHeight; y += tileset.TileHeight {
 		for x := 0; x < imgWidth; x += tileset.TileWidth {
@@ -69,7 +112,7 @@ func LoadTileset(tilesetJsonPath string) error {
 				SubImage(r image.Rectangle) image.Image
 			}).SubImage(rect)
 
-			outPath := filepath.Join(tilePath, tileset.Name, fmt.Sprintf("%v.png", tileIndex))
+			outPath := filepath.Join(tilesetDir, fmt.Sprintf("%v.png", tileIndex))
 			outFile, err := os.Create(outPath)
 			if err != nil {
 				return fmt.Errorf("failed to create tile image: %w", err)

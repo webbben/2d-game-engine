@@ -9,9 +9,9 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/internal/dialog"
+	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/player"
-	"github.com/webbben/2d-game-engine/room"
 	"github.com/webbben/2d-game-engine/screen"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -19,7 +19,7 @@ import (
 
 // information about the current room the player is in
 type RoomInfo struct {
-	Room     room.Room                // the room the player is currently in
+	Map      tiled.Map
 	Entities []*entity.Entity         // the entities in the current room
 	Objects  []object.Object          // the objects in the current room
 	ImageMap map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
@@ -52,9 +52,9 @@ type Game struct {
 //
 // * entities in the room
 func (g Game) GenerateCostMap() [][]int {
-	costMap := make([][]int, g.Room.Height)
+	costMap := make([][]int, g.Map.Height)
 	for i := 0; i < len(costMap); i++ {
-		costMap[i] = make([]int, g.Room.Width)
+		costMap[i] = make([]int, g.Map.Width)
 	}
 	for i := 0; i < len(g.Entities); i++ {
 		costMap[int(g.Entities[i].Y)][int(g.Entities[i].X)] = 10
@@ -119,7 +119,8 @@ func (g *Game) Update() error {
 			}
 		} else {
 			// handle player updates if no conversation is active
-			g.Player.Update(g.Room.BarrierLayout)
+			// TODO re-add barrier layout
+			g.Player.Update([][]bool{})
 		}
 
 		// move camera as needed

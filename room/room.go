@@ -203,6 +203,7 @@ func (r *Room) buildBarrierLayout(rawBarrierLayout [][]bool) {
 	r.BarrierLayout = barrierLayout
 }
 
+// TODO - delete (replaced by map)
 func (r *Room) DrawFloor(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	for y, row := range r.TileLayout {
 		// skip this row if it's above the camera

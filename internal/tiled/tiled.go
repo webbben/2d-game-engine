@@ -1,18 +1,22 @@
 package tiled
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/hajimehoshi/ebiten/v2"
+)
 
 // Map represents the root map structure from Tiled
 type Map struct {
 	Type             string     `json:"type"`
 	Version          string     `json:"version"`
 	TiledVersion     string     `json:"tiledversion"`
-	Orientation      string     `json:"orientation"`           // orthogonal, isometric, staggered, hexagonal
-	RenderOrder      string     `json:"renderorder,omitempty"` // right-down, right-up, left-down, left-up
-	Width            int        `json:"width"`
-	Height           int        `json:"height"`
-	TileWidth        int        `json:"tilewidth"`
-	TileHeight       int        `json:"tileheight"`
+	Orientation      string     `json:"orientation"`               // orthogonal, isometric, staggered, hexagonal
+	RenderOrder      string     `json:"renderorder,omitempty"`     // right-down, right-up, left-down, left-up
+	Width            int        `json:"width"`                     // number of tile columns
+	Height           int        `json:"height"`                    // number of tile rows
+	TileWidth        int        `json:"tilewidth"`                 // map grid width
+	TileHeight       int        `json:"tileheight"`                // map grid height
 	BackgroundColor  string     `json:"backgroundcolor,omitempty"` // Hex color
 	Layers           []Layer    `json:"layers"`
 	Tilesets         []Tileset  `json:"tilesets"`
@@ -26,6 +30,14 @@ type Map struct {
 	StaggerIndex     string     `json:"staggerindex,omitempty"` // odd, even
 	Infinite         bool       `json:"infinite,omitempty"`
 	CompressionLevel int        `json:"compressionlevel,omitempty"`
+
+	// game engine data - not from Tiled
+	TileImageMap map[int]*ebiten.Image // a map of gid to tile image
+	MapMeta
+}
+
+type MapMeta struct {
+	Loaded bool // flag indicating if the map has been successfully loaded yet
 }
 
 // Layer represents a layer in the map
@@ -117,10 +129,12 @@ type Text struct {
 
 // Tileset represents a tileset reference
 type Tileset struct {
+	// Values loaded from a Map JSON file
 	FirstGID int    `json:"firstgid"`
 	Source   string `json:"source,omitempty"` // External tileset file
 
 	// Embedded tileset properties
+	// Values loaded from a Tileset JSON file
 	Name        string      `json:"name,omitempty"`
 	TileWidth   int         `json:"tilewidth,omitempty"`
 	TileHeight  int         `json:"tileheight,omitempty"`
