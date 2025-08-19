@@ -2,6 +2,7 @@ package tiled
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -33,11 +34,21 @@ type Map struct {
 
 	// game engine data - not from Tiled
 	TileImageMap map[int]*ebiten.Image // a map of gid to tile image
+	CostMap      [][]int               // each tile's cost (used for path finding and collisions)
 	MapMeta
 }
 
 type MapMeta struct {
 	Loaded bool // flag indicating if the map has been successfully loaded yet
+}
+
+func (m Map) GetTileByGID(gid int) (Tile, error) {
+	for _, tileset := range m.Tilesets {
+		if gid >= tileset.FirstGID && gid <= tileset.FirstGID+tileset.TileCount {
+			return tileset.Tiles[gid-tileset.FirstGID], nil
+		}
+	}
+	return Tile{}, errors.New("no tile found at the given GID")
 }
 
 // Layer represents a layer in the map

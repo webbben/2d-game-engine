@@ -11,7 +11,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/dialog"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/object"
-	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -36,7 +35,7 @@ func (ri *RoomInfo) Preprocess() {
 // game state
 type Game struct {
 	RoomInfo
-	Player                player.Player                // the player
+	Player                entity.Entity                // the player
 	Camera                camera.Camera                // the camera/viewport
 	Conversation          *dialog.Conversation         // if set, the player is in a conversation or being shown general text to read.
 	GlobalKeyBindings     map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
@@ -120,7 +119,7 @@ func (g *Game) Update() error {
 		} else {
 			// handle player updates if no conversation is active
 			// TODO re-add barrier layout
-			g.Player.Update([][]bool{})
+			g.Player.Update()
 		}
 
 		// move camera as needed

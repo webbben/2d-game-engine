@@ -10,6 +10,15 @@
  "tileheight":16,
  "tiles":[
         {
+         "id":216,
+         "properties":[
+                {
+                 "name":"cost",
+                 "type":"int",
+                 "value":10
+                }]
+        }, 
+        {
          "animation":[
                 {
                  "duration":500,

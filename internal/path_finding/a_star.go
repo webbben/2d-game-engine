@@ -51,7 +51,7 @@ func (pq PriorityQueue) contains(p m.Coords) bool {
 	return false
 }
 
-func aStar(barrierMap [][]bool, start, goal m.Coords, costMap [][]int) []m.Coords {
+func aStar(start, goal m.Coords, costMap [][]int) []m.Coords {
 	open := make(PriorityQueue, 0)
 	closed := make(map[m.Coords]bool)
 
@@ -76,7 +76,7 @@ func aStar(barrierMap [][]bool, start, goal m.Coords, costMap [][]int) []m.Coord
 		closed[current] = true
 
 		// explore neighbors
-		neighbors := getNeighbors(current, barrierMap)
+		neighbors := getNeighbors(current, costMap)
 		for _, neighbor := range neighbors {
 			if closed[neighbor] {
 				continue
@@ -124,7 +124,7 @@ func reconstructPath(parent map[m.Coords]m.Coords, start, goal m.Coords) []m.Coo
 	return path
 }
 
-func getNeighbors(current m.Coords, barrierMap [][]bool) []m.Coords {
+func getNeighbors(current m.Coords, costMap [][]int) []m.Coords {
 	neighbors := []m.Coords{
 		{X: current.X, Y: current.Y - 1}, // UP
 		{X: current.X, Y: current.Y + 1}, // DOWN
@@ -133,23 +133,23 @@ func getNeighbors(current m.Coords, barrierMap [][]bool) []m.Coords {
 	}
 	validNeighbors := make([]m.Coords, 0)
 	for _, neighbor := range neighbors {
-		if isValidCoords(neighbor, barrierMap) {
+		if isValidCoords(neighbor, costMap) {
 			validNeighbors = append(validNeighbors, neighbor)
 		}
 	}
 	return validNeighbors
 }
 
-func isValidCoords(p m.Coords, barrierMap [][]bool) bool {
-	if len(barrierMap) == 0 || len(barrierMap[0]) == 0 {
+func isValidCoords(p m.Coords, costMap [][]int) bool {
+	if len(costMap) == 0 || len(costMap[0]) == 0 {
 		fmt.Println("isValidCoords: barrier map is empty!")
 		return false
 	}
-	if p.X < 0 || p.X >= len(barrierMap[0]) {
+	if p.X < 0 || p.X >= len(costMap[0]) {
 		return false
 	}
-	if p.Y < 0 || p.Y >= len(barrierMap) {
+	if p.Y < 0 || p.Y >= len(costMap) {
 		return false
 	}
-	return !barrierMap[p.Y][p.X]
+	return costMap[p.Y][p.X] < 10
 }

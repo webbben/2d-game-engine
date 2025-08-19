@@ -41,3 +41,15 @@ Inside the actual tileset file, it is essentially just a link to a singular imag
 >
 > 1. load the image file of the tileset
 > 2. split it up into all the individual tile images by tile width/height
+
+# Our Implementation of Tiled Maps
+
+Below I'll record decisions made about how we will use certain features of Tiled maps with this game.
+
+## Collisions and "Cost" for path finding
+
+Tiles will have a property called "cost" which represents how "difficult" it is to move through this tile.
+This is used for things like a-star path finding algorithms, but we will also use it to effectively mark the collisions of a map too.
+
+Let's say that if a tile has a `cost >= 10`, then it is officially a "collision" and cannot be passed through.
+For the path finding algorithm, if a tile has a cost of 10 or higher, we will just bump that tile's cost to some arbitrarily high number like 9999, to ensure the path finding algorithm never tries to go through it.

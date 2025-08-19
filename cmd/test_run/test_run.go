@@ -6,15 +6,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/webbben/2d-game-engine/entity"
 	g "github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/dialog"
-	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/tiled"
-	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
-	"github.com/webbben/2d-game-engine/tileset"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -43,9 +39,9 @@ func main() {
 	// }
 	//go game.Entities[0].FollowPlayer(&game.Player, currentRoom.BarrierLayout)
 
-	for i := range game.Entities {
-		fmt.Println("ent:", game.Entities[i].EntID)
-	}
+	// for i := range game.Entities {
+	// 	fmt.Println("ent:", game.Entities[i].EntID)
+	// }
 
 	// this command launches the specified game state
 	// TODO wrap this in an API?
@@ -56,23 +52,6 @@ func main() {
 
 func setupGameState() *g.Game {
 	// create the player
-	playerSprites, err := tileset.LoadTileset(tileset.Ent_Player)
-	if err != nil {
-		panic(err)
-	}
-	player := player.CreatePlayer(15, 15, playerSprites)
-
-	// create some entities
-	ents := make([]*entity.Entity, 0)
-	for i := 0; i < 1; i++ {
-		testEnt := entity.CreateEntity(entity.Old_Man_01, fmt.Sprintf("test_npc_%v", i), "Pepe", "")
-		if testEnt == nil {
-			panic("failed to create entity")
-		}
-		testEnt.Position.X = float64(general_util.RandInt(0, 20))
-		testEnt.Position.Y = float64(general_util.RandInt(40, 60))
-		ents = append(ents, testEnt)
-	}
 
 	// // create a house object
 	// houseObj, houseImg := object.CreateObject(object.Latin_house_1, 10, 10)
@@ -97,10 +76,8 @@ func setupGameState() *g.Game {
 	// setup the game struct
 	game := &g.Game{
 		RoomInfo: g.RoomInfo{
-			Map:      currentMap,
-			Entities: ents,
+			Map: currentMap,
 		},
-		Player: player,
 	}
 
 	// add my test key bindings

@@ -27,12 +27,12 @@ func pathIsSame(pathA []m.Coords, pathB []m.Coords) bool {
 }
 
 func TestFindPath(t *testing.T) {
-	barrierMap := [][]bool{
-		{false, false, false, false, false},
-		{false, false, false, false, false},
-		{false, false, false, true, true},
-		{false, false, false, false, false},
-		{false, true, false, false, false},
+	costMap := [][]int{
+		{0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0},
+		{0, 0, 0, 10, 10},
+		{0, 0, 0, 0, 0},
+		{0, 10, 0, 0, 0},
 	}
 
 	testCases := []FindPathTestCase{
@@ -45,6 +45,7 @@ func TestFindPath(t *testing.T) {
 				{X: 3, Y: 0},
 				{X: 4, Y: 0},
 			},
+			CostMap: costMap,
 		},
 		{
 			Start: m.Coords{X: 0, Y: 0},
@@ -55,6 +56,7 @@ func TestFindPath(t *testing.T) {
 				{X: 0, Y: 3},
 				{X: 0, Y: 4},
 			},
+			CostMap: costMap,
 		},
 		{
 			Start: m.Coords{X: 0, Y: 4},
@@ -67,6 +69,7 @@ func TestFindPath(t *testing.T) {
 				{X: 3, Y: 4},
 				{X: 4, Y: 4},
 			},
+			CostMap: costMap,
 		},
 		{
 			Start: m.Coords{X: 4, Y: 0},
@@ -81,29 +84,8 @@ func TestFindPath(t *testing.T) {
 				{X: 3, Y: 4},
 				{X: 4, Y: 4},
 			},
+			CostMap: costMap,
 		},
-	}
-	for i, testCase := range testCases {
-		t.Run(fmt.Sprintf("Test FindPath: Case %v", i), func(t *testing.T) {
-			resultPath := FindPath(testCase.Start, testCase.Goal, barrierMap, nil)
-			if !pathIsSame(resultPath, testCase.ExpectedPath) {
-				t.Error("Result path doesn't match expected path. Result:", resultPath, "Expected:", testCase.ExpectedPath)
-			}
-		})
-	}
-
-}
-
-func TestFindPathWithCost(t *testing.T) {
-	barrierMap := [][]bool{
-		{false, false, false, false, false},
-		{false, false, false, false, false},
-		{false, false, false, true, true},
-		{false, false, false, false, false},
-		{false, true, false, false, false},
-	}
-
-	testCases := []FindPathTestCase{
 		{
 			Start: m.Coords{X: 0, Y: 0},
 			Goal:  m.Coords{X: 4, Y: 0},
@@ -145,7 +127,7 @@ func TestFindPathWithCost(t *testing.T) {
 	}
 	for i, testCase := range testCases {
 		t.Run(fmt.Sprintf("Test FindPath: Case %v", i), func(t *testing.T) {
-			resultPath := FindPath(testCase.Start, testCase.Goal, barrierMap, testCase.CostMap)
+			resultPath := FindPath(testCase.Start, testCase.Goal, testCase.CostMap)
 			if !pathIsSame(resultPath, testCase.ExpectedPath) {
 				t.Error("Result path doesn't match expected path. Result:", resultPath, "Expected:", testCase.ExpectedPath)
 			}
@@ -154,51 +136,51 @@ func TestFindPathWithCost(t *testing.T) {
 }
 
 func BenchmarkFindPathSM(b *testing.B) {
-	barrierMap := [][]bool{
-		{false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false},
+	costMap := [][]int{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	}
-	width := len(barrierMap[0])
-	height := len(barrierMap)
+	width := len(costMap[0])
+	height := len(costMap)
 
 	for i := 0; i < b.N; i++ {
 		start := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
 		goal := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
-		result := FindPath(start, goal, barrierMap, nil)
+		result := FindPath(start, goal, costMap)
 		_ = result
 	}
 }
 
 func BenchmarkFindPathMD(b *testing.B) {
-	barrierMap := [][]bool{
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
-		{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
+	barrierMap := [][]int{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	}
 	width := len(barrierMap[0])
 	height := len(barrierMap)
@@ -206,7 +188,7 @@ func BenchmarkFindPathMD(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		start := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
 		goal := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
-		result := FindPath(start, goal, barrierMap, nil)
+		result := FindPath(start, goal, barrierMap)
 		_ = result
 	}
 }

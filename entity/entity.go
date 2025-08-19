@@ -1,203 +1,164 @@
 package entity
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
-	"os"
-	"strconv"
-	"strings"
-
-	"github.com/webbben/2d-game-engine/internal/config"
-	m "github.com/webbben/2d-game-engine/internal/model"
-	"github.com/webbben/2d-game-engine/internal/rendering"
-	"github.com/webbben/2d-game-engine/tileset"
-
 	"github.com/hajimehoshi/ebiten/v2"
-)
-
-// builds an animation def using the image file base name given.
-//
-// for example, if there are images "down_0", "down_1", ... "down_5", you can build the animation def for these by
-// entering a baseName of "down". This will find all files that start with this base name and detect the first number and the last number present.
-//
-// baseName: string that all images in an animation are prefixed with. it should not include the "_", but we expect each numbered image to be of the format baseName_n.
-func BuildAnimationDef(baseName string, tileset map[string]*ebiten.Image) m.AnimationDef {
-	start := -1
-	end := -1
-	for key := range tileset {
-		if strings.HasPrefix(key, baseName) {
-			// we found an image starting with the basename - try to parse out which number it is
-			parts := strings.Split(key, "_")
-			if len(parts) != 2 {
-				fmt.Println("error parsing animation def: image file not of the correct naming format. base name:", baseName, "image name:", key)
-				return m.AnimationDef{}
-			}
-			number, err := strconv.Atoi(parts[1])
-			if err != nil {
-				fmt.Println("error parsing animation def: failed to parse image number. base name:", baseName, "image name:", key)
-				return m.AnimationDef{}
-			}
-			if start == -1 || number < start {
-				start = number
-			}
-			if end == -1 || number > end {
-				end = number
-			}
-		}
-	}
-	// confirm that there are no gaps in the numbers by attempting to iterate through each
-	for i := start; i <= end; i++ {
-		key := fmt.Sprintf("%s_%v", baseName, i)
-		if _, ok := tileset[key]; !ok {
-			fmt.Println("error parsing animation def: animation image frame seems to be missing. base name:", baseName, "missing frame:", key)
-			return m.AnimationDef{}
-		}
-	}
-	fmt.Printf("%s: from %s_%v to %s_%v\n", baseName, baseName, start, baseName, end)
-	return m.AnimationDef{
-		FrameBase: baseName,
-		Start:     start,
-		End:       end,
-	}
-}
-
-// sets the next animation frame for the given animation
-func (e *Entity) setNextAnimationFrame(animationName string) {
-	animationDef, ok := e.Animations[animationName]
-	if !ok {
-		fmt.Println("failed to get animation def for animation name:", animationName)
-		return
-	}
-	// starting a new animation?
-	if e.CurrentAnimation != animationName {
-		e.CurrentAnimation = animationName
-		e.AnimationStep = animationDef.Start
-	} else {
-		e.AnimationStep++
-	}
-	// past end of animation?
-	if e.AnimationStep > animationDef.End {
-		e.AnimationStep = animationDef.Start
-	} else if e.AnimationStep < animationDef.Start {
-		e.AnimationStep = animationDef.Start
-	}
-	// set the next frame
-	nextFrameKey := getAnimFrameKey(animationDef.FrameBase, e.AnimationStep)
-	nextFrame, ok := e.Frames[nextFrameKey]
-	if !ok {
-		fmt.Println("failed to get image for animation frame:", nextFrameKey)
-		return
-	}
-	e.CurrentFrame = nextFrame
-}
-
-// switches to the "resting" animation frame, for when the entity is not moving
-func (e *Entity) switchToRestFrame() {
-	animationDef, ok := e.Animations[e.CurrentAnimation]
-	if !ok {
-		fmt.Println("failed to get animation def for animation name:", e.CurrentAnimation)
-		return
-	}
-	frameKey := getAnimFrameKey(animationDef.FrameBase, animationDef.Start)
-	frame, ok := e.Frames[frameKey]
-	if !ok {
-		fmt.Println("failed to get image for animation frame:", frameKey)
-		return
-	}
-	e.CurrentFrame = frame
-	e.AnimationStep = animationDef.Start
-}
-
-func getAnimFrameKey(frameBase string, step int) string {
-	return fmt.Sprintf("%s_%v", frameBase, step)
-}
-
-const (
-	Old_Man_01 string = "old_man_01"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/webbben/2d-game-engine/internal/model"
 )
 
 type Entity struct {
-	EntKey   string // key of the ent def this entity uses
-	EntID    string // unique ID of entity
-	EntName  string // name of this type of entity (usually a sort of generalization, like "old man", or "town guard")
-	Category string // category this entity falls in; such as soldier, villager, academic, bandit, etc.
-	m.CharacterInfo
-	IsHuman        bool
-	IsInteractable bool
-	m.Position
-	Frames       map[string]*ebiten.Image
-	CurrentFrame *ebiten.Image // the frame that is rendered for this entity when the screen is drawn
-	m.Personality
-	Animations       map[string]m.AnimationDef // possible animations for this entity
-	CurrentAnimation string                    // animation this entity is currently in
-	AnimationStep    int                       // current step in the animation
+	EntityInfo
+	Movement     Movement `json:"movement"`
+	CurrentFrame *ebiten.Image
+	Position
+
+	World WorldContext
 }
 
-// instantiates an entity of the given definition
-func CreateEntity(entKey string, globalEntID string, firstName string, lastName string) *Entity {
-	entityDefJsonData, err := loadEntityDefJson(entKey)
+type WorldContext interface {
+	Collides(c model.Coords) bool
+	FindPath(c model.Coords) []model.Coords
+	EntitiesNearby(x, y float64, radius float64) []*Entity
+}
+
+type EntityInfo struct {
+	DisplayName string
+	UID         string
+	Source      string // JSON source file for this entity
+}
+
+type Position struct {
+	X, Y                 float64      // the exact position the entity is at on the map
+	TilePos              model.Coords // the tile the entity is technically inside of
+	NextTileX, NextTileY int          // the next tile the entity is moving into. if -1, the entity is not moving.
+}
+
+type Movement struct {
+	IdleLeft       *ebiten.Image
+	Left           []*ebiten.Image
+	LeftRun        []*ebiten.Image
+	IdleRight      *ebiten.Image
+	Right          []*ebiten.Image
+	RightRun       []*ebiten.Image
+	IdleUp         *ebiten.Image
+	Up             []*ebiten.Image
+	UpRun          []*ebiten.Image
+	IdleDown       *ebiten.Image
+	Down           []*ebiten.Image
+	DownRun        []*ebiten.Image
+	Direction      byte // L R U D
+	AnimationTimer int  // counts the ticks until next animation frame
+	AnimationFrame int  // the current movement animation frame index
+
+	CanRun         bool           `json:"can_run"`
+	MovementSource MovementSource `json:"movement_source"`
+
+	IsMoving  bool
+	IsRunning bool
+	WalkSpeed float64 // value should be a TileSize / NumFrames calculation
+	RunSpeed  float64 // value should be a TileSize / NumFrames calculation
+	Speed     float64 // actual speed the entity is moving at
+
+	TargetTile model.Coords   // next tile the entity is currently moving
+	TargetPath []model.Coords // path the entity is currently trying to travel on
+}
+
+type MovementSource struct {
+	IdleLeft  string   `json:"left_idle"`
+	Left      []string `json:"left"`
+	LeftRun   []string `json:"left_run"`
+	IdleRight string   `json:"right_idle"`
+	Right     []string `json:"right"`
+	RightRun  []string `json:"right_run"`
+	IdleUp    string   `json:"up_idle"`
+	Up        []string `json:"up"`
+	UpRun     []string `json:"up_run"`
+	IdleDown  string   `json:"down_idle"`
+	Down      []string `json:"down"`
+	DownRun   []string `json:"down_run"`
+}
+
+func (e *Entity) LoadMovementFrames() error {
+	idleLeft, _, err := ebitenutil.NewImageFromFile(e.Movement.MovementSource.IdleLeft)
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		return err
 	}
-	tilesetKey := fmt.Sprintf("ent_%s", entKey)
-	frames, err := tileset.LoadTileset(tilesetKey)
+	idleRight, _, err := ebitenutil.NewImageFromFile(e.Movement.MovementSource.IdleRight)
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		return err
 	}
-	animationMap := make(map[string]m.AnimationDef)
-	for _, anim := range entityDefJsonData.Animations {
-		animationMap[anim] = BuildAnimationDef(anim, frames)
-	}
-	ent := Entity{
-		EntKey: entKey,
-		EntID:  globalEntID,
-		CharacterInfo: m.CharacterInfo{
-			FirstName: firstName,
-			LastName:  lastName,
-		},
-		IsHuman:      entityDefJsonData.IsHuman,
-		Category:     entityDefJsonData.Category,
-		Frames:       frames,
-		CurrentFrame: frames["down_0"],
-		Position: m.Position{
-			X: 0, Y: 50,
-			MovementSpeed: entityDefJsonData.WalkSpeed,
-		},
-		Animations: animationMap,
-	}
-	return &ent
-}
-
-type EntityDefJsonData struct {
-	ID         string   `json:"id"`
-	Name       string   `json:"name"`
-	Category   string   `json:"category"`
-	IsHuman    bool     `json:"is_human"`
-	WalkSpeed  float64  `json:"walk_speed"`
-	Animations []string `json:"animations"`
-}
-
-func loadEntityDefJson(entKey string) (*EntityDefJsonData, error) {
-	path := fmt.Sprintf("entity/entity_defs/%s.json", entKey)
-
-	jsonData, err := os.ReadFile(path)
+	idleUp, _, err := ebitenutil.NewImageFromFile(e.Movement.MovementSource.IdleUp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load entity def at %s", path)
+		return err
 	}
-	var entityData EntityDefJsonData
-	if err = json.Unmarshal(jsonData, &entityData); err != nil {
-		return nil, errors.New("json unmarshalling failed for entity def")
+	idleDown, _, err := ebitenutil.NewImageFromFile(e.Movement.MovementSource.IdleDown)
+	if err != nil {
+		return err
 	}
-	return &entityData, nil
-}
+	e.Movement.IdleLeft = idleLeft
+	e.Movement.IdleRight = idleRight
+	e.Movement.IdleUp = idleUp
+	e.Movement.IdleDown = idleDown
 
-func (e *Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
-	drawX, drawY := rendering.GetImageDrawPos(e.CurrentFrame, e.Position.X, e.Position.Y, offsetX, offsetY)
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(drawX, drawY)
-	op.GeoM.Scale(config.GameScale, config.GameScale)
-	screen.DrawImage(e.CurrentFrame, op)
+	for _, p := range e.Movement.MovementSource.Left {
+		frame, _, err := ebitenutil.NewImageFromFile(p)
+		if err != nil {
+			return err
+		}
+		e.Movement.Left = append(e.Movement.Left, frame)
+	}
+	for _, p := range e.Movement.MovementSource.Right {
+		frame, _, err := ebitenutil.NewImageFromFile(p)
+		if err != nil {
+			return err
+		}
+		e.Movement.Right = append(e.Movement.Right, frame)
+	}
+	for _, p := range e.Movement.MovementSource.Up {
+		frame, _, err := ebitenutil.NewImageFromFile(p)
+		if err != nil {
+			return err
+		}
+		e.Movement.Up = append(e.Movement.Up, frame)
+	}
+	for _, p := range e.Movement.MovementSource.Down {
+		frame, _, err := ebitenutil.NewImageFromFile(p)
+		if err != nil {
+			return err
+		}
+		e.Movement.Down = append(e.Movement.Down, frame)
+	}
+
+	if e.Movement.CanRun {
+		for _, p := range e.Movement.MovementSource.LeftRun {
+			frame, _, err := ebitenutil.NewImageFromFile(p)
+			if err != nil {
+				return err
+			}
+			e.Movement.LeftRun = append(e.Movement.LeftRun, frame)
+		}
+		for _, p := range e.Movement.MovementSource.RightRun {
+			frame, _, err := ebitenutil.NewImageFromFile(p)
+			if err != nil {
+				return err
+			}
+			e.Movement.RightRun = append(e.Movement.RightRun, frame)
+		}
+		for _, p := range e.Movement.MovementSource.UpRun {
+			frame, _, err := ebitenutil.NewImageFromFile(p)
+			if err != nil {
+				return err
+			}
+			e.Movement.UpRun = append(e.Movement.UpRun, frame)
+		}
+		for _, p := range e.Movement.MovementSource.DownRun {
+			frame, _, err := ebitenutil.NewImageFromFile(p)
+			if err != nil {
+				return err
+			}
+			e.Movement.DownRun = append(e.Movement.DownRun, frame)
+		}
+	}
+
+	return nil
 }
