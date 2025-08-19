@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"log"
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -17,6 +18,17 @@ func (e Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
 }
 
 func (e *Entity) Update() {
+	if !e.Movement.IsMoving {
+		if len(e.Movement.TargetPath) > 0 {
+			moveError := e.TryMove(e.Movement.TargetPath[0])
+			if moveError.Success {
+				// shift target path
+				e.Movement.TargetPath = e.Movement.TargetPath[1:]
+			} else {
+				log.Println("TryMove failed:", moveError)
+			}
+		}
+	}
 	if e.Movement.IsMoving {
 		e.updateMovement()
 	}

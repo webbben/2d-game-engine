@@ -4,34 +4,37 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
 
-func (e *Entity) TryMove(direction byte, run bool) {
+type MoveError struct {
+	AlreadyMoving bool
+	Collision     bool
+	Success       bool
+}
+
+// returns MoveError which indicates if any error prevented the move from happening
+func (e *Entity) TryMove(c model.Coords) MoveError {
 	if e.Movement.IsMoving {
-		return
+		return MoveError{
+			AlreadyMoving: true,
+		}
 	}
-
-	c := e.TilePos.Copy()
-	switch direction {
-	case 'L':
-		c.X--
-	case 'R':
-		c.X++
-	case 'U':
-		c.Y--
-	case 'D':
-		c.Y++
-	default:
-		panic("invalid direction given")
+	if general_util.EuclideanDistCoords(e.TilePos, c) > 1 {
+		panic("entity tried to move to a non-adjacent tile")
 	}
-
 	if e.World.Collides(c) {
-		return
+		return MoveError{
+			Collision: true,
+		}
 	}
 
 	e.Movement.TargetTile = c
 	e.Movement.IsMoving = true
+	return MoveError{
+		Success: true,
+	}
 }
 
 func (e *Entity) GoToPos(c model.Coords, run bool) {

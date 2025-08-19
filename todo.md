@@ -2,10 +2,17 @@
 
 Tracking ongoing tasks and their progress
 
+## Rework entity logic
+
+- [x] rewrite logic for moving an entity between tiles
+- [ ] plan how to design an entity and define its movement frames efficiently
+- [ ] test entity movement
+
 ## Refactor maps to use Tiled format
 
-- get format of Tiled maps into a struct
-- refactor code for Rooms to render the Tiled format
+- [x] get format of Tiled maps into a struct
+- [x] refactor code for Rooms to render the Tiled format
+- [ ] add support for animated tiles (like grass tiles that have passive animations)
 
 # Useful resources
 

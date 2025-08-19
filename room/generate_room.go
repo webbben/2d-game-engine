@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	m "github.com/webbben/2d-game-engine/internal/model"
-	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/internal/proc_gen"
 	"github.com/webbben/2d-game-engine/tileset"
 )
@@ -349,29 +348,29 @@ func (jsonData *RoomData) SetTownCenter() bool {
 //
 // it is expected that cliffs and barriers have already been mapped out beforehand, so the road can navigate around these things
 func (jsonData *RoomData) generateMajorRoad(start, end m.Coords) {
-	var road Road
+	// var road Road
 
 	// find path from start to town center
-	tc := jsonData.TownCenter
-	goal := m.Coords{X: tc.X + (tc.Size / 2), Y: tc.Y + (tc.Size / 2)}
-	path := path_finding.FindPath(start, goal, jsonData.BarrierLayout, nil)
-	if len(path) == 0 {
-		fmt.Printf("generateMajorRoad: failed to find path from %s to %s\n", start, goal)
-		fmt.Println("aborting road generation")
-		return
-	}
-	road.Path = append(road.Path, path...)
+	// tc := jsonData.TownCenter
+	// goal := m.Coords{X: tc.X + (tc.Size / 2), Y: tc.Y + (tc.Size / 2)}
+	// path := path_finding.FindPath(start, goal, jsonData.BarrierLayout, nil)
+	// if len(path) == 0 {
+	// 	fmt.Printf("generateMajorRoad: failed to find path from %s to %s\n", start, goal)
+	// 	fmt.Println("aborting road generation")
+	// 	return
+	// }
+	// road.Path = append(road.Path, path...)
 
 	// find path from town center to end
-	path = path_finding.FindPath(goal, end, jsonData.BarrierLayout, nil)
-	if len(path) == 0 {
-		fmt.Printf("generateMajorRoad: failed to find path from %s to %s\n", start, goal)
-		fmt.Println("aborting road generation")
-		return
-	}
-	road.Path = append(road.Path, path...)
+	// path = path_finding.FindPath(goal, end, jsonData.BarrierLayout)
+	// if len(path) == 0 {
+	// 	fmt.Printf("generateMajorRoad: failed to find path from %s to %s\n", start, goal)
+	// 	fmt.Println("aborting road generation")
+	// 	return
+	// }
+	// road.Path = append(road.Path, path...)
 
-	jsonData.Roads = append(jsonData.Roads, road)
+	// jsonData.Roads = append(jsonData.Roads, road)
 }
 
 // searches the elevation map and builds cliffs on the map according to elevation changes
