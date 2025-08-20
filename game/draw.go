@@ -44,7 +44,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	if config.ShowPlayerCoords {
-		ebitenutil.DebugPrint(screen, fmt.Sprintf("Player pos: [%v, %v]", g.Player.Entity.X, g.Player.Entity.Y))
+		ebitenutil.DebugPrint(screen, fmt.Sprintf(
+			"Player pos: [%v, %v] (%v, %v)",
+			g.Player.Entity.TilePos.X,
+			g.Player.Entity.TilePos.Y,
+			g.Player.Entity.X,
+			g.Player.Entity.Y))
 	}
 	if config.TrackMemoryUsage {
 		ebitenutil.DebugPrint(screen, debug.GetLog())

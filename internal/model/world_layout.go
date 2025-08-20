@@ -26,3 +26,20 @@ func (c Coords) Equals(other Coords) bool {
 func (c Coords) Copy() Coords {
 	return Coords{X: c.X, Y: c.Y}
 }
+
+func (c Coords) GetAdj(direction byte) Coords {
+	adj := c.Copy()
+	switch direction {
+	case 'L':
+		adj.X--
+	case 'R':
+		adj.X++
+	case 'U':
+		adj.Y--
+	case 'D':
+		adj.Y++
+	default:
+		panic("GetAdj: invalid direction passed")
+	}
+	return adj
+}

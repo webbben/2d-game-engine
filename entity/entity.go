@@ -2,10 +2,13 @@ package entity
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -16,13 +19,14 @@ import (
 )
 
 var (
-	defaultWalkSpeed float64 = float64(config.TileSize) / 10
+	defaultWalkSpeed float64 = float64(config.TileSize) / 15
 )
 
 func GetDefaultWalkSpeed() float64 {
 	if defaultWalkSpeed == 0 {
 		panic("entity default walk speed is 0?")
 	}
+	log.Println("default walk speed:", defaultWalkSpeed)
 	return defaultWalkSpeed
 }
 
@@ -157,34 +161,42 @@ func (e *Entity) loadAnimationFrames() error {
 
 		// find all the animation frames
 		for _, tile := range t.Tiles {
-			frameType := ""
-			frameNumber := 0
+			frames := ""
 			for _, p := range tile.Properties {
-				if p.Name == "frameType" {
-					frameType = p.GetStringValue()
-				}
-				if p.Name == "frameNumber" {
-					frameNumber = p.GetIntValue()
+				if p.Name == "frames" {
+					frames = p.GetStringValue()
 				}
 			}
-			if frameType != "" {
+			if frames != "" {
 				// found animation frame; load image
 				imagePath := filepath.Join(t.GeneratedImagesPath, fmt.Sprintf("%v.png", tile.ID))
 				img, _, err := ebitenutil.NewImageFromFile(imagePath)
 				if err != nil {
 					return err
 				}
-				e.AnimationFrameMap[fmt.Sprintf("%s_%v", frameType, frameNumber)] = img
+				// the "frame" property expects the following format:
+				// "animationName1:0,animationName2:x"
+				// where "animationName" is the name of a specific animation, and the number is the frame number in that animation
+				frameDefs := strings.Split(frames, ",")
+				for _, frame := range frameDefs {
+					vals := strings.Split(frame, ":")
+					if len(vals) != 2 {
+						return errors.New("frames property in tileset is malformed")
+					}
+					e.AnimationFrameMap[fmt.Sprintf("%s_%s", vals[0], vals[1])] = img
 
-				// update frame count
-				_, exists := e.AnimationFrameCount[frameType]
-				if !exists {
-					e.AnimationFrameCount[frameType] = 0
+					// update frame count
+					_, exists := e.AnimationFrameCount[vals[0]]
+					if !exists {
+						e.AnimationFrameCount[vals[0]] = 0
+					}
+					e.AnimationFrameCount[vals[0]]++
 				}
-				e.AnimationFrameCount[frameType]++
 			}
 		}
 	}
+
+	// TODO add validation of loaded animation frames (e.g. verify there are no missing frames, verify frame counts, etc)
 
 	return nil
 }
@@ -197,6 +209,12 @@ func (e Entity) getAnimationFrame(animationName string, frameNumber int) *ebiten
 	key := fmt.Sprintf("%s_%v", animationName, frameNumber)
 	img, exists := e.AnimationFrameMap[key]
 	if !exists {
+		fmt.Println("tried:", key)
+		keys := make([]string, 0, len(e.AnimationFrameMap))
+		for k := range e.AnimationFrameMap {
+			keys = append(keys, k)
+		}
+		fmt.Println("existing keys:", strings.Join(keys, ", "))
 		panic("accessed animation frame key for entity does not exist")
 	}
 	return img

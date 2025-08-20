@@ -2,7 +2,6 @@ package game
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -26,11 +25,9 @@ func (mi *MapInfo) Preprocess() {
 
 func (mi MapInfo) Collides(c model.Coords) bool {
 	// check map's CostMap
-	log.Println(c)
 	maxY := len(mi.Map.CostMap)
 	maxX := len(mi.Map.CostMap[0])
 	if c.Y == maxY || c.X == maxX || c.X == -1 || c.Y == -1 {
-		slog.Info(fmt.Sprintf("map boundaries: X = [%v, %v], Y = [%v, %v]", 0, maxX, 0, maxY))
 		// attempting to move past the edge of the map
 		return true
 	}
