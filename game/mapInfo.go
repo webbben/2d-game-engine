@@ -9,14 +9,12 @@ import (
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/internal/tiled"
-	"github.com/webbben/2d-game-engine/object"
 )
 
 // information about the current room the player is in
 type MapInfo struct {
 	Map      tiled.Map
 	Entities []*entity.Entity         // the entities in the current room
-	Objects  []object.Object          // the objects in the current room
 	ImageMap map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
 }
 
