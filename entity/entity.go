@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -26,7 +25,6 @@ func GetDefaultWalkSpeed() float64 {
 	if defaultWalkSpeed == 0 {
 		panic("entity default walk speed is 0?")
 	}
-	log.Println("default walk speed:", defaultWalkSpeed)
 	return defaultWalkSpeed
 }
 

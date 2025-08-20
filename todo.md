@@ -5,8 +5,8 @@ Tracking ongoing tasks and their progress
 ## Rework entity logic
 
 - [x] rewrite logic for moving an entity between tiles
-- [ ] plan how to design an entity and define its movement frames efficiently
-- [ ] test entity movement
+- [x] plan how to design an entity and define its movement frames efficiently
+- [x] test entity movement
 
 ## Refactor maps to use Tiled format
 

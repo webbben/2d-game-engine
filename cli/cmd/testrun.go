@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/spf13/cobra"
 	"github.com/webbben/2d-game-engine/entity"
 	g "github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/config"
@@ -14,71 +16,57 @@ import (
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
-
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// Use this command to simulate using this game engine's APIs in a consuming application
-// The real game will be developed in a different Go application that uses this game engine module.
+// testrunCmd represents the testrun command
+var testrunCmd = &cobra.Command{
+	Use:   "testrun",
+	Short: "A brief description of your command",
+	Long: `A longer description that spans multiple lines and likely contains examples
+and usage of using your command. For example:
 
-// Note: only packages that are defined in this module should be used in this file; ebiten or other installed packages won't be
-// available to a Go application that is using this game engine module.
+Cobra is a CLI library for Go that empowers applications.
+This application is a tool to generate the needed files
+to quickly create a Cobra application.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		ebiten.SetWindowSize(config.ScreenWidth, config.ScreenHeight)
+		ebiten.SetWindowTitle(config.WindowTitle)
 
-func main() {
-	// TODO move these to an API once we know how screen settings should be managed
-	//ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-	ebiten.SetWindowSize(config.ScreenWidth, config.ScreenHeight)
-	ebiten.SetWindowTitle(config.WindowTitle)
+		tiled.InitFileStructure()
 
-	tiled.InitFileStructure()
+		// get our testrun game state
+		game := setupGameState()
+		game.MapInfo.Preprocess()
 
-	// get our testrun game state
-	game := setupGameState()
-	game.MapInfo.Preprocess()
+		// set config
+		config.ShowPlayerCoords = true
 
-	// set config
-	config.ShowPlayerCoords = true
+		if err := ebiten.RunGame(game); err != nil {
+			panic(err)
+		}
+	},
+}
 
-	// go game.entities[0].TravelToPosition(model.Coords{X: 99, Y: 50}, currentRoom.BarrierLayout)
-	// for i := range game.Entities {
-	// 	go game.Entities[i].FollowPlayer(&game.Player, game.Room.BarrierLayout)
-	// }
-	//go game.Entities[0].FollowPlayer(&game.Player, currentRoom.BarrierLayout)
-
-	// for i := range game.Entities {
-	// 	fmt.Println("ent:", game.Entities[i].EntID)
-	// }
-
-	// this command launches the specified game state
-	// TODO wrap this in an API?
-	if err := ebiten.RunGame(game); err != nil {
-		panic(err)
-	}
+func init() {
+	rootCmd.AddCommand(testrunCmd)
 }
 
 func setupGameState() *g.Game {
-	// create the player
-
-	// // create a house object
-	// houseObj, houseImg := object.CreateObject(object.Latin_house_1, 10, 10)
-	// imageMap := make(map[string]*ebiten.Image)
-	// imageMap[houseObj.Name] = houseImg
-
-	// generate a room
-	// TODO - make a generateRandomMap function for Tiled maps
-	// room.GenerateRandomRoom("test_room", 100, 100)
-	// currentRoom := room.CreateRoom("test_room")
-
 	currentMap, err := tiled.OpenMap("assets/tiled/maps/testmap.tmj")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// setup the map
 	err = currentMap.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
+	mapInfo := g.MapInfo{
+		Map: currentMap,
+	}
 
+	// make the player
 	playerEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_750fde30-4e5a-41ce-96e3-0105e0064a4d.json"))
 	if err != nil {
 		log.Fatal(err)
@@ -87,10 +75,6 @@ func setupGameState() *g.Game {
 	err = playerEnt.Load()
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	mapInfo := g.MapInfo{
-		Map: currentMap,
 	}
 
 	playerEnt.World = mapInfo
