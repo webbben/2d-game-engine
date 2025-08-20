@@ -75,7 +75,16 @@ func (t *Tileset) LoadJSONData() error {
 	return nil
 }
 
-func (tileset Tileset) GenerateTiles() error {
+func LoadTileset(source string) (Tileset, error) {
+	t := Tileset{
+		FirstGID: 0,
+		Source:   source,
+	}
+	err := t.LoadJSONData()
+	return t, err
+}
+
+func (tileset *Tileset) GenerateTiles() error {
 	if tileset.Image == "" {
 		return errors.New("tileset JSON data not loaded yet")
 	}
@@ -96,11 +105,18 @@ func (tileset Tileset) GenerateTiles() error {
 	imgHeight := bounds.Dy()
 
 	tilesetDir := filepath.Join(tilePath, tileset.Name)
+
+	// delete the directory and its contents if it already exists
+	if general_util.FileExists(tilesetDir) {
+		os.RemoveAll(tilesetDir)
+	}
+
 	err = os.MkdirAll(tilesetDir, os.ModePerm)
 	if err != nil {
 		return err
 	}
-	fmt.Println("made dir")
+
+	tileset.GeneratedImagesPath = tilesetDir
 
 	tileIndex := 0
 	for y := 0; y < imgHeight; y += tileset.TileHeight {

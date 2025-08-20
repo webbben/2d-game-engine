@@ -4,38 +4,20 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/internal/camera"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/internal/dialog"
-	"github.com/webbben/2d-game-engine/internal/tiled"
-	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// information about the current room the player is in
-type RoomInfo struct {
-	Map      tiled.Map
-	Entities []*entity.Entity         // the entities in the current room
-	Objects  []object.Object          // the objects in the current room
-	ImageMap map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
-}
-
-// pre-processes data in the room for various purposes, but mostly to prepare for rendering
-// and performance improvements
-func (ri *RoomInfo) Preprocess() {
-	sort.Slice(ri.Objects, func(i, j int) bool {
-		return ri.Objects[i].Y < ri.Objects[j].Y
-	})
-}
-
 // game state
 type Game struct {
-	RoomInfo
-	Player                entity.Entity                // the player
+	MapInfo
+	Player                player.Player                // the player
 	Camera                camera.Camera                // the camera/viewport
 	Conversation          *dialog.Conversation         // if set, the player is in a conversation or being shown general text to read.
 	GlobalKeyBindings     map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
@@ -123,7 +105,7 @@ func (g *Game) Update() error {
 		}
 
 		// move camera as needed
-		g.Camera.MoveCamera(g.Player.X, g.Player.Y)
+		g.Camera.MoveCamera(g.Player.Entity.X, g.Player.Entity.Y)
 
 		// sort entities by Y position for rendering
 		if len(g.Entities) > 1 {

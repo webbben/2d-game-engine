@@ -2,8 +2,8 @@ package entity
 
 import (
 	"log"
+	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
@@ -21,19 +21,49 @@ func (e *Entity) TryMove(c model.Coords) MoveError {
 			AlreadyMoving: true,
 		}
 	}
+	if e.World == nil {
+		panic("entity does not have world context set")
+	}
 	if general_util.EuclideanDistCoords(e.TilePos, c) > 1 {
 		panic("entity tried to move to a non-adjacent tile")
 	}
 	if e.World.Collides(c) {
+		log.Println("collision")
 		return MoveError{
 			Collision: true,
 		}
 	}
 
 	e.Movement.TargetTile = c
+
+	e.Movement.Speed = e.Movement.WalkSpeed
+	if e.Movement.Speed == 0 {
+		panic("entity movement speed set to 0 in TryMove")
+	}
+
+	e.Movement.Direction = getRelativeDirection(e.TilePos, e.Movement.TargetTile)
+
 	e.Movement.IsMoving = true
 	return MoveError{
 		Success: true,
+	}
+}
+
+func getRelativeDirection(a, b model.Coords) byte {
+	dx := b.X - a.X
+	dy := b.Y - a.Y
+	if math.Abs(float64(dx)) > math.Abs(float64(dy)) {
+		if dx < 0 {
+			return 'L'
+		} else {
+			return 'R'
+		}
+	} else {
+		if dy < 0 {
+			return 'U'
+		} else {
+			return 'D'
+		}
 	}
 }
 
@@ -46,41 +76,46 @@ func (e *Entity) GoToPos(c model.Coords, run bool) {
 		log.Println("GoToPos: entity already has a target path. Target path should be cancelled first.")
 	}
 
-	path := e.World.FindPath(c)
+	path := e.World.FindPath(e.TilePos, c)
 	e.Movement.TargetPath = path
 }
 
-// gets the correct set of animations frames, based on the direction the entity is facing
-func (e Entity) getMovementAnimationFrames() []*ebiten.Image {
-	var animationFrames []*ebiten.Image
+// gets the frameType and frameCount for the correct animation, based on the entity's direction
+func (e Entity) getMovementAnimationInfo() (string, int) {
+	var name string
 	switch e.Movement.Direction {
 	case 'L':
-		if e.Movement.IsRunning {
-			animationFrames = e.Movement.LeftRun
+		if e.Movement.IsMoving {
+			name = "left_walk"
 		} else {
-			animationFrames = e.Movement.Left
+			name = "left_idle"
 		}
 	case 'R':
-		if e.Movement.IsRunning {
-			animationFrames = e.Movement.RightRun
+		if e.Movement.IsMoving {
+			name = "right_walk"
 		} else {
-			animationFrames = e.Movement.Right
+			name = "right_idle"
 		}
 	case 'U':
-		if e.Movement.IsRunning {
-			animationFrames = e.Movement.UpRun
+		if e.Movement.IsMoving {
+			name = "up_walk"
 		} else {
-			animationFrames = e.Movement.Up
+			name = "up_idle"
 		}
 	case 'D':
-		if e.Movement.IsRunning {
-			animationFrames = e.Movement.DownRun
+		if e.Movement.IsMoving {
+			name = "down_walk"
 		} else {
-			animationFrames = e.Movement.Down
+			name = "down_idle"
 		}
 	default:
 		panic("incorrect direction value found during UpdateMovement")
 	}
 
-	return animationFrames
+	count, exists := e.AnimationFrameCount[name]
+	if !exists {
+		panic("animation name has no record in AnimationFrameCount map")
+	}
+
+	return name, count
 }

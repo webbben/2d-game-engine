@@ -5,11 +5,14 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"path/filepath"
 
+	"github.com/webbben/2d-game-engine/entity"
 	g "github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/dialog"
 	"github.com/webbben/2d-game-engine/internal/tiled"
+	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -31,7 +34,10 @@ func main() {
 
 	// get our testrun game state
 	game := setupGameState()
-	game.RoomInfo.Preprocess()
+	game.MapInfo.Preprocess()
+
+	// set config
+	config.ShowPlayerCoords = true
 
 	// go game.entities[0].TravelToPosition(model.Coords{X: 99, Y: 50}, currentRoom.BarrierLayout)
 	// for i := range game.Entities {
@@ -73,11 +79,30 @@ func setupGameState() *g.Game {
 		log.Fatal(err)
 	}
 
+	playerEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_750fde30-4e5a-41ce-96e3-0105e0064a4d.json"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = playerEnt.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	mapInfo := g.MapInfo{
+		Map: currentMap,
+	}
+
+	playerEnt.World = mapInfo
+
+	player := player.Player{
+		Entity: &playerEnt,
+	}
+
 	// setup the game struct
 	game := &g.Game{
-		RoomInfo: g.RoomInfo{
-			Map: currentMap,
-		},
+		MapInfo: mapInfo,
+		Player:  player,
 	}
 
 	// add my test key bindings

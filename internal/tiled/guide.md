@@ -53,3 +53,17 @@ This is used for things like a-star path finding algorithms, but we will also us
 
 Let's say that if a tile has a `cost >= 10`, then it is officially a "collision" and cannot be passed through.
 For the path finding algorithm, if a tile has a cost of 10 or higher, we will just bump that tile's cost to some arbitrarily high number like 9999, to ensure the path finding algorithm never tries to go through it.
+
+## Using Tilesets for Entity Animation Definitions
+
+We will use Tiled tilesets to define all the frames for animations for entities.
+We will add some custom properties to mark the different frames.
+
+Here's a schema:
+
+```json
+{
+  "frameType": "left", // "left", "leftRun", "right", "rightRun", etc
+  "frameNumber": 0 // 0 to n-1
+}
+```

@@ -2,7 +2,6 @@ package tiled
 
 import (
 	"encoding/json"
-	"errors"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -42,13 +41,20 @@ type MapMeta struct {
 	Loaded bool // flag indicating if the map has been successfully loaded yet
 }
 
-func (m Map) GetTileByGID(gid int) (Tile, error) {
+// Gets Tile from Tileset, by GID.
+//
+// This is for Tile properties, animations, etc, NOT for the tile image. Not all tiles will have a Tile.
+// Returns the Tile if found, and a boolean indicating if the tile was successfully found
+func (m Map) GetTileByGID(gid int) (Tile, bool) {
 	for _, tileset := range m.Tilesets {
-		if gid >= tileset.FirstGID && gid <= tileset.FirstGID+tileset.TileCount {
-			return tileset.Tiles[gid-tileset.FirstGID], nil
+		localTileId := gid - tileset.FirstGID
+		for _, tile := range tileset.Tiles {
+			if tile.ID == localTileId {
+				return tile, true
+			}
 		}
 	}
-	return Tile{}, errors.New("no tile found at the given GID")
+	return Tile{}, false
 }
 
 // Layer represents a layer in the map
@@ -157,7 +163,7 @@ type Tileset struct {
 	Margin      int         `json:"margin,omitempty"`
 	Spacing     int         `json:"spacing,omitempty"`
 	Properties  []Property  `json:"properties,omitempty"`
-	Tiles       []Tile      `json:"tiles,omitempty"`
+	Tiles       []Tile      `json:"tiles,omitempty"` // tiles that have animations, properties, etc (not a list of all tile images)
 	TileOffset  *TileOffset `json:"tileoffset,omitempty"`
 	Grid        *Grid       `json:"grid,omitempty"`
 
@@ -167,6 +173,9 @@ type Tileset struct {
 	// Transformation flags
 	TransformationType string `json:"type,omitempty"`
 	Class              string `json:"class,omitempty"`
+
+	// game engine values
+	GeneratedImagesPath string
 }
 
 // Tile represents individual tile properties within a tileset

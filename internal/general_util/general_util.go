@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/rand"
 
+	"github.com/google/uuid"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
@@ -38,4 +39,9 @@ func DetectMouse(x1, y1, x2, y2 int) (bool, bool) {
 		return false, false
 	}
 	return true, ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft)
+}
+
+func GenerateUUID() string {
+	id := uuid.New()
+	return id.String()
 }

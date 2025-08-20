@@ -153,6 +153,13 @@ func (m Map) DrawLayers(screen *ebiten.Image, offsetX float64, offsetY float64) 
 // CalculateCostMap calculates the cost for each position in the map.
 // The CostMap is required for being able to calculate things such as path finding and collisions.
 func (m *Map) CalculateCostMap() {
+	if m.Height == 0 {
+		panic("map cannot have a height (num rows) of 0")
+	}
+	if m.Width == 0 {
+		panic("map cannot have a width (num cols) of 0")
+	}
+
 	m.CostMap = make([][]int, m.Height)
 	for i := 0; i < m.Height; i++ {
 		m.CostMap[i] = make([]int, m.Width)
@@ -163,10 +170,11 @@ func (m *Map) CalculateCostMap() {
 	for _, layer := range m.Layers {
 		for y := 0; y < layer.Height; y++ {
 			for x := 0; x < layer.Width; x++ {
-				tile, err := m.GetTileByGID(layer.Data[i])
-				if err != nil {
-					panic("no tile found for GID value in layer data array")
+				tile, found := m.GetTileByGID(layer.Data[i])
+				if !found {
+					continue
 				}
+
 				for _, prop := range tile.Properties {
 					if prop.Name == "cost" {
 						m.CostMap[y][x] += prop.GetIntValue()
