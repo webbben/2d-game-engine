@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 
@@ -13,6 +14,7 @@ import (
 	g "github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/dialog"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/npc"
@@ -84,17 +86,27 @@ func setupGameState() *g.Game {
 
 	mapInfo.AddPlayerToMap(&p, model.Coords{X: 5, Y: 5})
 
-	// make an NPC
-	npcEnt := playerEnt.Duplicate()
-	err = npcEnt.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-	n := npc.NPC{
-		Entity: &npcEnt,
-	}
+	// make NPCs
 
-	mapInfo.AddNPCToMap(&n, model.Coords{X: 10, Y: 5})
+	for i := 0; i < 10; i++ {
+		npcEnt := playerEnt.Duplicate()
+		npcEnt.DisplayName = fmt.Sprintf("NPC_%v", i)
+		err = npcEnt.Load()
+		if err != nil {
+			log.Fatal(err)
+		}
+		n := npc.NPC{
+			Entity: &npcEnt,
+			NPCInfo: npc.NPCInfo{
+				DisplayName: npcEnt.DisplayName,
+			},
+			TaskMGMT: npc.TaskMGMT{
+				DefaultTask: task1.Copy(),
+			},
+		}
+
+		mapInfo.AddNPCToMap(&n, model.Coords{X: i * 2, Y: 0})
+	}
 
 	// setup the game struct
 	game := &g.Game{
@@ -178,4 +190,26 @@ func GetTitleScreen() screen.Screen {
 	s.Menus = append(s.Menus, m)
 
 	return s
+}
+
+var task1 npc.Task = npc.Task{
+	Description: "wandering aimlessly",
+	Context:     make(map[string]interface{}),
+	StartFn: func(t *npc.Task) {
+		// set a random location to walk to
+		width, height := t.Owner.Entity.World.MapDimensions()
+		c := model.Coords{
+			X: rand.Intn(width),
+			Y: rand.Intn(height),
+		}
+		t.Context["goal"] = c
+		logz.Println(t.Owner.DisplayName, "npc traveling to:", t.Context["goal"])
+		me := t.Owner.Entity.GoToPos(c)
+		if !me.Success {
+			logz.Println(t.Owner.DisplayName, "failed to call GoToPos:", me)
+		}
+	},
+	IsCompleteFn: func(t npc.Task) bool {
+		return t.Owner.Entity.TilePos.Equals(t.Context["goal"].(model.Coords)) && !t.Owner.Entity.Movement.IsMoving
+	},
 }

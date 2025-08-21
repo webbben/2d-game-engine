@@ -2,11 +2,10 @@ package entity
 
 import (
 	"fmt"
-	"log"
-	"log/slog"
 	"math"
 
 	"github.com/webbben/2d-game-engine/internal/general_util"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
 
@@ -40,7 +39,7 @@ func (e *Entity) move(c model.Coords) MoveError {
 		panic("entity does not have world context set")
 	}
 	if e.World.Collides(c) {
-		log.Println("collision")
+		logz.Println(e.DisplayName, "collision")
 		return MoveError{
 			Collision: true,
 		}
@@ -117,15 +116,15 @@ func getRelativeDirection(a, b model.Coords) byte {
 
 func (e *Entity) GoToPos(c model.Coords) MoveError {
 	if e.Movement.IsMoving {
-		log.Println("GoToPos: entity is already moving")
+		logz.Println(e.DisplayName, "GoToPos: entity is already moving")
 		return MoveError{AlreadyMoving: true}
 	}
 	if len(e.Movement.TargetPath) > 0 {
-		log.Println("GoToPos: entity already has a target path. Target path should be cancelled first.")
-		log.Println(e.Movement.TargetPath)
+		logz.Println(e.DisplayName, "GoToPos: entity already has a target path. Target path should be cancelled first.")
+		logz.Println(e.DisplayName, e.Movement.TargetPath)
 	}
 	if e.TilePos.Equals(c) {
-		slog.Error("entity attempted to GoToPos for position it is already in")
+		logz.Errorln(e.DisplayName, "entity attempted to GoToPos for position it is already in")
 		return MoveError{Cancelled: true}
 	}
 

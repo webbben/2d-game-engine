@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/general_util"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
@@ -84,7 +84,7 @@ func OpenEntity(source string) (Entity, error) {
 	}
 
 	if ent.Movement.WalkSpeed == 0 {
-		slog.Warn("loaded entity does not have a walking speed; setting default value.")
+		logz.Warnln(ent.DisplayName, "loaded entity does not have a walking speed; setting default value.")
 		ent.Movement.WalkSpeed = GetDefaultWalkSpeed()
 	}
 

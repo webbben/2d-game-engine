@@ -1,10 +1,10 @@
 package npc
 
 import (
-	"log/slog"
 	"time"
 
 	"github.com/webbben/2d-game-engine/entity"
+	"github.com/webbben/2d-game-engine/internal/logz"
 )
 
 type NPC struct {
@@ -15,18 +15,20 @@ type NPC struct {
 }
 
 type NPCInfo struct {
-	ID string
+	ID          string
+	DisplayName string
 }
 
 type TaskMGMT struct {
 	Active      bool // if the NPC is actively doing a task right now
 	CurrentTask *Task
 	WaitUntil   time.Time
+	DefaultTask Task
 }
 
 func (n *NPC) SetTask(t Task) {
 	if n.Active {
-		slog.Warn("tried to set task on already active NPC")
+		logz.Warnln(n.DisplayName, "tried to set task on already active NPC")
 		return
 	}
 

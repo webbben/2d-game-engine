@@ -1,11 +1,11 @@
 package entity
 
 import (
-	"log"
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 )
 
@@ -32,7 +32,7 @@ func (e *Entity) Update() {
 				// shift target path
 				e.Movement.TargetPath = e.Movement.TargetPath[1:]
 			} else {
-				log.Println("TryMove failed:", moveError)
+				logz.Println(e.DisplayName, "TryMove failed:", moveError)
 			}
 		}
 	}
@@ -74,7 +74,7 @@ func (e *Entity) updateMovement() {
 					// shift target path
 					e.Movement.TargetPath = e.Movement.TargetPath[1:]
 				} else {
-					log.Println("tryQueueNextMove failed:", moveError)
+					logz.Println(e.DisplayName, "tryQueueNextMove failed:", moveError)
 					finishMove = true
 				}
 			} else {
@@ -88,7 +88,7 @@ func (e *Entity) updateMovement() {
 			if moveError.Success {
 				e.TilePos = lastTarget
 			} else {
-				log.Println("tryQueueNextMove failed:", moveError)
+				logz.Println(e.DisplayName, "tryQueueNextMove failed:", moveError)
 				finishMove = true
 			}
 		} else {
