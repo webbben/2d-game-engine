@@ -25,22 +25,6 @@ type Game struct {
 	CurrentScreen *screen.Screen // if set, a screen is being displayed and we are not in the game world
 }
 
-// generates a cost map for the contents of the game state
-//
-// currently includes:
-//
-// * entities in the room
-func (g Game) GenerateCostMap() [][]int {
-	costMap := make([][]int, g.Map.Height)
-	for i := 0; i < len(costMap); i++ {
-		costMap[i] = make([]int, g.Map.Width)
-	}
-	for i := 0; i < len(g.Entities); i++ {
-		costMap[int(g.Entities[i].Y)][int(g.Entities[i].X)] = 10
-	}
-	return costMap
-}
-
 // Binds a key to a given function for global keybindings.
 //
 // Generally should only be used for testing purposes, as normally keybindings will only be applicable to certain screens, contexts, in-game scenarios, etc.

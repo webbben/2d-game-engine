@@ -5,7 +5,6 @@ import (
 	"log/slog"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/internal/tiled"
@@ -16,7 +15,6 @@ import (
 // information about the current room the player is in
 type MapInfo struct {
 	Map      tiled.Map
-	Entities []*entity.Entity         // the entities in the map
 	NPCs     []*npc.NPC               // the NPC entities in the map
 	ImageMap map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
 }
@@ -60,8 +58,12 @@ func (mi MapInfo) Collides(c model.Coords) bool {
 	}
 
 	// check entity positions
-	for _, ent := range mi.Entities {
-		if ent.TilePos.Equals(c) {
+	for _, n := range mi.NPCs {
+		if n.Entity.TilePos.Equals(c) {
+			return true
+		}
+		// include tile entity is moving into
+		if n.Entity.Movement.TargetTile.Equals(c) {
 			return true
 		}
 	}
@@ -70,10 +72,31 @@ func (mi MapInfo) Collides(c model.Coords) bool {
 }
 
 func (mi MapInfo) FindPath(start, goal model.Coords) []model.Coords {
-	// TODO factor in entity positions
-	return path_finding.FindPath(start, goal, mi.Map.CostMap)
+	return path_finding.FindPath(start, goal, mi.CostMap())
 }
 
 func (mi MapInfo) MapDimensions() (width int, height int) {
 	return mi.Map.Width, mi.Map.Height
+}
+
+// Gets a cost map that includes entity positions
+func (mi MapInfo) CostMap() [][]int {
+	if mi.Map.CostMap == nil {
+		panic("tried to get MapInfo cost map before Map costmap was created")
+	}
+	// make deep copy so that original cost map isn't altered
+	costMap := make([][]int, len(mi.Map.CostMap))
+	for i := range mi.Map.CostMap {
+		costMap[i] = append([]int{}, mi.Map.CostMap[i]...)
+	}
+
+	for _, n := range mi.NPCs {
+		costMap[n.Entity.TilePos.Y][n.Entity.TilePos.X] += 10
+		// if the entity is currently moving, mark its destination tile as a collision too
+		if !n.Entity.Movement.TargetTile.Equals(n.Entity.TilePos) {
+			costMap[n.Entity.Movement.TargetTile.Y][n.Entity.Movement.TargetTile.X] += 10
+		}
+	}
+	// TODO add player position?
+	return costMap
 }
