@@ -13,7 +13,9 @@ import (
 	g "github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/dialog"
+	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/tiled"
+	"github.com/webbben/2d-game-engine/npc"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
 )
@@ -71,22 +73,33 @@ func setupGameState() *g.Game {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	playerEnt.IsPlayer = true
 	err = playerEnt.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	playerEnt.World = mapInfo
-
-	player := player.Player{
+	p := player.Player{
 		Entity: &playerEnt,
 	}
+
+	mapInfo.AddPlayerToMap(&p, model.Coords{X: 5, Y: 5})
+
+	// make an NPC
+	npcEnt := playerEnt.Duplicate()
+	err = npcEnt.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+	n := npc.NPC{
+		Entity: &npcEnt,
+	}
+
+	mapInfo.AddNPCToMap(&n, model.Coords{X: 10, Y: 5})
 
 	// setup the game struct
 	game := &g.Game{
 		MapInfo: mapInfo,
-		Player:  player,
+		Player:  p,
 	}
 
 	// add my test key bindings

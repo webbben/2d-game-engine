@@ -3,6 +3,7 @@ package entity
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"math"
 
 	"github.com/webbben/2d-game-engine/internal/general_util"
@@ -12,7 +13,24 @@ import (
 type MoveError struct {
 	AlreadyMoving bool
 	Collision     bool
+	Cancelled     bool
 	Success       bool
+}
+
+func (me MoveError) String() string {
+	if me.Success {
+		return "Success"
+	}
+	if me.Collision {
+		return "Collision"
+	}
+	if me.AlreadyMoving {
+		return "Already Moving"
+	}
+	if me.Cancelled {
+		return "Cancelled"
+	}
+	return "No value set"
 }
 
 // set the next movement target and start the move process.
@@ -49,6 +67,7 @@ func (e *Entity) TryMove(c model.Coords) MoveError {
 		}
 	}
 	if general_util.EuclideanDistCoords(e.TilePos, c) > 1 {
+		fmt.Println("from:", e.TilePos, "to:", c)
 		panic("TryMove: entity tried to move to a non-adjacent tile")
 	}
 
@@ -96,17 +115,27 @@ func getRelativeDirection(a, b model.Coords) byte {
 	}
 }
 
-func (e *Entity) GoToPos(c model.Coords) {
+func (e *Entity) GoToPos(c model.Coords) MoveError {
 	if e.Movement.IsMoving {
 		log.Println("GoToPos: entity is already moving")
-		return
+		return MoveError{AlreadyMoving: true}
 	}
 	if len(e.Movement.TargetPath) > 0 {
 		log.Println("GoToPos: entity already has a target path. Target path should be cancelled first.")
+		log.Println(e.Movement.TargetPath)
+	}
+	if e.TilePos.Equals(c) {
+		slog.Error("entity attempted to GoToPos for position it is already in")
+		return MoveError{Cancelled: true}
 	}
 
 	path := e.World.FindPath(e.TilePos, c)
+	if len(path) == 0 {
+		panic("GoToPos: calculated path is empty")
+	}
+
 	e.Movement.TargetPath = path
+	return MoveError{Success: true}
 }
 
 // gets the frameType and frameCount for the correct animation, based on the entity's direction

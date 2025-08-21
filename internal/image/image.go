@@ -25,8 +25,8 @@ func LoadImage(imagePath string) (*ebiten.Image, error) {
 	return img, nil
 }
 
-func LoadFont(fontName string, op *opentype.FaceOptions) font.Face {
-	fontFile, err := os.ReadFile("image/fonts/" + fontName + ".ttf")
+func LoadFont(path string, op *opentype.FaceOptions) font.Face {
+	fontFile, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}

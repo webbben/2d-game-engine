@@ -34,6 +34,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// draw objects, entities, and the player in order of Y position (higher renders first)
 	g.Player.Entity.Draw(screen, offsetX, offsetY)
 
+	for _, n := range g.MapInfo.NPCs {
+		n.Entity.Draw(screen, offsetX, offsetY)
+	}
+
 	// draw lighting shade (e.g. for night) here
 	// blue := color.RGBA{R: 0, G: 0, B: 50, A: 10}
 	// ebitenutil.DrawRect(screen, 0, 0, config.ScreenWidth, config.ScreenHeight, blue)

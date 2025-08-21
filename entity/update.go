@@ -27,7 +27,6 @@ func (e Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
 func (e *Entity) Update() {
 	if !e.Movement.IsMoving {
 		if len(e.Movement.TargetPath) > 0 {
-			log.Println("moving along path")
 			moveError := e.TryMove(e.Movement.TargetPath[0])
 			if moveError.Success {
 				// shift target path
@@ -48,6 +47,9 @@ func (e *Entity) updateMovement() {
 	if e.Movement.Speed == 0 {
 		panic("updateMovement called when speed is 0; speed was not set wherever entity movement was started")
 	}
+	if e.Movement.TargetTile.Equals(e.TilePos) && len(e.Movement.TargetPath) == 0 {
+		panic("updateMovement called when entity has no target tile or target path")
+	}
 	targetPx := float64(e.Movement.TargetTile.X * config.TileSize)
 	targetPy := float64(e.Movement.TargetTile.Y * config.TileSize)
 	dx := targetPx - e.X
@@ -57,17 +59,18 @@ func (e *Entity) updateMovement() {
 
 	finishMove := false
 
-	if dist < e.Movement.Speed {
+	if dist <= e.Movement.Speed {
 		// check if there is a next move ready that is the same direction as the current move
 		// if so, then keep on trucking. this helps to avoid a little blip and makes walking go smoother
 
 		if len(e.Movement.TargetPath) > 0 {
 			// Case: entity has path it is following
 			if getRelativeDirection(e.Movement.TargetTile, e.Movement.TargetPath[0]) == e.Movement.Direction {
+				lastTarget := e.Movement.TargetTile.Copy()
 				moveError := e.tryQueueNextMove(e.Movement.TargetPath[0])
 				if moveError.Success {
 					// update entity tile coords
-					e.TilePos = e.Movement.TargetTile.Copy()
+					e.TilePos = lastTarget
 					// shift target path
 					e.Movement.TargetPath = e.Movement.TargetPath[1:]
 				} else {
@@ -77,12 +80,13 @@ func (e *Entity) updateMovement() {
 			} else {
 				finishMove = true
 			}
-		} else if playerStillWalking(e.Movement.Direction) {
+		} else if e.IsPlayer && playerStillWalking(e.Movement.Direction) {
 			// Case: player is still moving in the same direction
 			nextTarget := e.Movement.TargetTile.GetAdj(e.Movement.Direction)
+			lastTarget := e.Movement.TargetTile.Copy()
 			moveError := e.tryQueueNextMove(nextTarget)
 			if moveError.Success {
-				e.TilePos = e.Movement.TargetTile.Copy()
+				e.TilePos = lastTarget
 			} else {
 				log.Println("tryQueueNextMove failed:", moveError)
 				finishMove = true

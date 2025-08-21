@@ -42,10 +42,33 @@ type Entity struct {
 	World WorldContext `json:"-"`
 }
 
+// create a duplicate entity from this one.
+// both entities will share the same references to tiles and animations and such, but will be able to have different
+// positions, movement targets, etc.
+// Useful for when you need a bunch of NPC entities of the same kind
+func (e Entity) Duplicate() Entity {
+	copyEnt := Entity{
+		EntityInfo:          e.EntityInfo,
+		AnimationFrameMap:   e.AnimationFrameMap,
+		AnimationFrameCount: e.AnimationFrameCount,
+		FrameTilesetSources: e.FrameTilesetSources,
+		World:               e.World,
+	}
+
+	copyEnt.IsPlayer = false // cannot have duplicate players
+
+	copyEnt.Movement = e.Movement
+	copyEnt.Movement.TargetPath = []model.Coords{}
+	copyEnt.Movement.TargetTile = model.Coords{}
+	copyEnt.Movement.IsMoving = false
+
+	return copyEnt
+}
+
 type WorldContext interface {
 	Collides(c model.Coords) bool
 	FindPath(start, goal model.Coords) []model.Coords
-	// EntitiesNearby(x, y float64, radius float64) []*Entity
+	MapDimensions() (width int, height int)
 }
 
 // Create an entity by opening an entity's definition JSON
@@ -91,6 +114,7 @@ type EntityInfo struct {
 	DisplayName string `json:"display_name"`
 	ID          string `json:"id"`
 	Source      string `json:"-"` // JSON source file for this entity
+	IsPlayer    bool   `json:"-"` // flag indicating if this entity is the player
 }
 
 type Position struct {
@@ -216,4 +240,10 @@ func (e Entity) getAnimationFrame(animationName string, frameNumber int) *ebiten
 		panic("accessed animation frame key for entity does not exist")
 	}
 	return img
+}
+
+func (e *Entity) SetPosition(c model.Coords) {
+	e.TilePos = c
+	e.X = float64(c.X) * float64(config.TileSize)
+	e.Y = float64(c.Y) * float64(config.TileSize)
 }
