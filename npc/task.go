@@ -4,9 +4,26 @@ import (
 	"time"
 )
 
+const (
+	// TODO
+	// NPC travels to a position.
+	TYPE_GOTO = "goto"
+	// TODO
+	// NPC fights another entity.
+	TYPE_FIGHT = "fight"
+	// TODO
+	// NPC runs away from another entity.
+	TYPE_EVADE = "evade"
+	// TODO
+	// NPC does some miscellaneous activity, mostly consisting of an animation.
+	// Can have side-effects too.
+	TYPE_ACTIVITY = "activity"
+)
+
 type Task struct {
 	Owner       *NPC
 	Description string
+	Type        string
 
 	StartFn      func(t *Task)
 	IsCompleteFn func(t Task) bool

@@ -101,7 +101,6 @@ func (e *Entity) Load() error {
 	// ensure first frame is set
 	e.Movement.Direction = 'D'
 	e.Movement.IsMoving = false
-	e.Movement.IsRunning = false
 	e.updateCurrentFrame()
 
 	// set world context functions
@@ -141,11 +140,10 @@ type Movement struct {
 
 	CanRun bool `json:"can_run"`
 
-	IsMoving  bool    `json:"-"`
-	IsRunning bool    `json:"-"`
-	WalkSpeed float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
-	RunSpeed  float64 `json:"run_speed"`  // value should be a TileSize / NumFrames calculation
-	Speed     float64 `json:"-"`          // actual speed the entity is moving at
+	IsMoving    bool    `json:"-"`
+	Interrupted bool    `json:"-"`          // flag for if this entity's movement was stopped unexpectedly (e.g. by a collision)
+	WalkSpeed   float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
+	Speed       float64 `json:"-"`          // actual speed the entity is moving at
 
 	TargetTile model.Coords   `json:"-"` // next tile the entity is currently moving
 	TargetPath []model.Coords `json:"-"` // path the entity is currently trying to travel on

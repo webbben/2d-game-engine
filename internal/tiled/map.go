@@ -10,6 +10,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 )
 
@@ -185,4 +186,35 @@ func (m *Map) CalculateCostMap() {
 			i++
 		}
 	}
+}
+
+func (m Map) GetAdjTiles(c model.Coords) []model.Coords {
+	l := c.GetAdj('L')
+	r := c.GetAdj('R')
+	u := c.GetAdj('U')
+	d := c.GetAdj('D')
+	adjTiles := []model.Coords{}
+	if m.isWithinMapBounds(l) {
+		adjTiles = append(adjTiles, l)
+	}
+	if m.isWithinMapBounds(r) {
+		adjTiles = append(adjTiles, r)
+	}
+	if m.isWithinMapBounds(u) {
+		adjTiles = append(adjTiles, u)
+	}
+	if m.isWithinMapBounds(d) {
+		adjTiles = append(adjTiles, d)
+	}
+	return adjTiles
+}
+
+func (m Map) isWithinMapBounds(c model.Coords) bool {
+	if c.X < 0 || c.X >= m.Width {
+		return false
+	}
+	if c.Y < 0 || c.Y >= m.Height {
+		return false
+	}
+	return true
 }

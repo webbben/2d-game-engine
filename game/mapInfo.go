@@ -15,11 +15,39 @@ import (
 // information about the current room the player is in
 type MapInfo struct {
 	Map      tiled.Map
-	NPCs     []*npc.NPC               // the NPC entities in the map
 	ImageMap map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
+
+	NPCManager
 }
 
-func (mi *MapInfo) Preprocess() {
+// Do all required setup for creating MapInfo
+func InitializeMap(mapInfo MapInfo) MapInfo {
+	mi := mapInfo
+	mi.NPCManager.mapRef = mi.Map
+	return mi
+}
+
+type NPCManager struct {
+	NPCs []*npc.NPC // the NPC entities in the map
+
+	mapRef       tiled.Map // map info so we can get map size, tile adjacency, etc
+	nextPriority int       // the next priority value to assign to an NPC
+
+	StuckNPCs []string // IDs of NPCs who are currently stuck (while trying to execute a task)
+}
+
+func (mi *MapInfo) ResolveNPCJams() {
+	// get all existing NPC jams
+	npcJams := mi.NPCManager.findNPCJams()
+	if len(npcJams) == 0 {
+		// no jams found
+		return
+	}
+
+	// resolve each jam, one at a time
+	for _, npcJam := range npcJams {
+		mi.NPCManager.resolveJam(npcJam)
+	}
 }
 
 // The official way to add the player to a map
@@ -38,6 +66,7 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	}
 	n.Entity.World = mi
 	n.Entity.SetPosition(startPos)
+	n.Priority = mi.NPCManager.getNextNPCPriority()
 	mi.NPCs = append(mi.NPCs, n)
 }
 

@@ -40,7 +40,6 @@ to quickly create a Cobra application.`,
 
 		// get our testrun game state
 		game := setupGameState()
-		game.MapInfo.Preprocess()
 
 		// set config
 		config.ShowPlayerCoords = true
@@ -95,7 +94,7 @@ func setupGameState() *g.Game {
 		if err != nil {
 			log.Fatal(err)
 		}
-		n := npc.NPC{
+		n := npc.New(npc.NPC{
 			Entity: &npcEnt,
 			NPCInfo: npc.NPCInfo{
 				DisplayName: npcEnt.DisplayName,
@@ -103,7 +102,7 @@ func setupGameState() *g.Game {
 			TaskMGMT: npc.TaskMGMT{
 				DefaultTask: task1.Copy(),
 			},
-		}
+		})
 
 		mapInfo.AddNPCToMap(&n, model.Coords{X: i * 2, Y: 0})
 	}
@@ -201,6 +200,10 @@ var task1 npc.Task = npc.Task{
 		c := model.Coords{
 			X: rand.Intn(width),
 			Y: rand.Intn(height),
+		}
+		if c.Equals(t.Owner.Entity.TilePos) {
+			logz.Println("dayum! randomly got the same tile position!")
+			return
 		}
 		t.Context["goal"] = c
 		logz.Println(t.Owner.DisplayName, "npc traveling to:", t.Context["goal"])

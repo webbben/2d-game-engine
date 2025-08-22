@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/webbben/2d-game-engine/entity"
+	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
 )
 
@@ -14,9 +15,18 @@ type NPC struct {
 	TaskMGMT
 }
 
+// Create new NPC from the given NPC struct. Ensures essential data is set.
+func New(n NPC) NPC {
+	if n.ID == "" {
+		n.ID = general_util.GenerateUUID()
+	}
+	return n
+}
+
 type NPCInfo struct {
 	ID          string
 	DisplayName string
+	Priority    int // priority assigned to this NPC by the map it is added to
 }
 
 type TaskMGMT struct {

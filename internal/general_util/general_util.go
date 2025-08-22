@@ -45,3 +45,16 @@ func GenerateUUID() string {
 	id := uuid.New()
 	return id.String()
 }
+
+// Removes the element at index i of slice s, without preserving order.
+// Apparently much faster, but only use this if you don't care about the ordering of the elements
+func RemoveIndexUnordered[T any](s []T, i int) []T {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
+}
+
+// Removes element at index i of slice s, preserving the original order.
+// Apparently somewhat slow since it involves moving all the elements.
+func RemoveIndex[T any](s []T, i int) []T {
+	return append(s[:i], s[i+1:]...)
+}

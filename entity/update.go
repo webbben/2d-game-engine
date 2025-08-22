@@ -24,16 +24,48 @@ func (e Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	screen.DrawImage(e.CurrentFrame, op)
 }
 
+// If the entity is following a target path, this function handles setting the next target tile on the path.
+// Only meant to be called when element is on a target path and is ready to set the next target tile.
+//
+// If already moving, it's required that the next position is the same direction as the current movement.
+// This is to prevent an awkward diagonal movement from occurring.
+func (e *Entity) trySetNextTargetPath() bool {
+	if len(e.Movement.TargetPath) == 0 {
+		panic("tried to set next target along path for entity that has no set target path")
+	}
+	var moveError MoveError
+	lastTilePos := e.TilePos.Copy()
+	if e.Movement.IsMoving {
+		if getRelativeDirection(e.Movement.TargetTile, e.Movement.TargetPath[0]) != e.Movement.Direction {
+			// don't allow a seamless transition to the next tile if entity is moving but next tile isn't the same direction.
+			// this is because the entity would start to go diagonally.
+			return false
+		}
+		// if entity is already moving (i.e. hasn't landed on a tile yet), use its current target tile as the new tile position.
+		// this is because we are then setting the next tile beyond that position as the next target, basically "getting slightly ahead".
+		// not waiting to stop first improves smoothness of walking, since we don't have to stop and wait a tick first (if direction is the same).
+		lastTilePos = e.Movement.TargetTile.Copy()
+		moveError = e.tryQueueNextMove(e.Movement.TargetPath[0])
+	} else {
+		// if the entity is not moving, then use the normal method of initiating a movement towards the next tile in the target path.
+		moveError = e.TryMove(e.Movement.TargetPath[0])
+	}
+	if moveError.Success {
+		e.TilePos = lastTilePos
+		// shift target path
+		e.Movement.TargetPath = e.Movement.TargetPath[1:]
+		return true
+	}
+
+	e.Movement.Interrupted = true // mark move as interrupted, so that NPCs can react as needed
+	logz.Println(e.DisplayName, "trySetNextTargetPath: failed to set next target tile:", moveError)
+	return false
+}
+
 func (e *Entity) Update() {
 	if !e.Movement.IsMoving {
 		if len(e.Movement.TargetPath) > 0 {
-			moveError := e.TryMove(e.Movement.TargetPath[0])
-			if moveError.Success {
-				// shift target path
-				e.Movement.TargetPath = e.Movement.TargetPath[1:]
-			} else {
-				logz.Println(e.DisplayName, "TryMove failed:", moveError)
-			}
+			e.trySetNextTargetPath()
 		}
 	}
 	if e.Movement.IsMoving {
@@ -60,24 +92,14 @@ func (e *Entity) updateMovement() {
 	finishMove := false
 
 	if dist <= e.Movement.Speed {
+		// entity is already within range of the target tile.
 		// check if there is a next move ready that is the same direction as the current move
 		// if so, then keep on trucking. this helps to avoid a little blip and makes walking go smoother
-
 		if len(e.Movement.TargetPath) > 0 {
 			// Case: entity has path it is following
-			if getRelativeDirection(e.Movement.TargetTile, e.Movement.TargetPath[0]) == e.Movement.Direction {
-				lastTarget := e.Movement.TargetTile.Copy()
-				moveError := e.tryQueueNextMove(e.Movement.TargetPath[0])
-				if moveError.Success {
-					// update entity tile coords
-					e.TilePos = lastTarget
-					// shift target path
-					e.Movement.TargetPath = e.Movement.TargetPath[1:]
-				} else {
-					logz.Println(e.DisplayName, "tryQueueNextMove failed:", moveError)
-					finishMove = true
-				}
-			} else {
+			success := e.trySetNextTargetPath()
+			if !success {
+				// failed to go to queue next target in path; finish current movement
 				finishMove = true
 			}
 		} else if e.IsPlayer && playerStillWalking(e.Movement.Direction) {

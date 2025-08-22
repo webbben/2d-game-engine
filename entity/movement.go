@@ -52,6 +52,7 @@ func (e *Entity) move(c model.Coords) MoveError {
 	}
 	e.Movement.Direction = getRelativeDirection(e.TilePos, e.Movement.TargetTile)
 	e.Movement.IsMoving = true
+	e.Movement.Interrupted = false
 
 	return MoveError{
 		Success: true,
