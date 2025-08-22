@@ -48,12 +48,24 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	if config.ShowPlayerCoords {
-		ebitenutil.DebugPrint(screen, fmt.Sprintf(
-			"Player pos: [%v, %v] (%v, %v)",
+		s := ""
+		s += fmt.Sprintf(
+			"Player pos: [%v, %v] (%v, %v)\n",
 			g.Player.Entity.TilePos.X,
 			g.Player.Entity.TilePos.Y,
 			g.Player.Entity.X,
-			g.Player.Entity.Y))
+			g.Player.Entity.Y)
+		for _, n := range g.MapInfo.NPCManager.NPCs {
+			s += fmt.Sprintf(
+				"%s: [%v, %v] (%v, %v)\n",
+				n.DisplayName,
+				n.Entity.TilePos.X,
+				n.Entity.TilePos.Y,
+				n.Entity.X,
+				n.Entity.Y,
+			)
+		}
+		ebitenutil.DebugPrint(screen, s)
 	}
 	if config.TrackMemoryUsage {
 		ebitenutil.DebugPrint(screen, debug.GetLog())

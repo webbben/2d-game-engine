@@ -65,6 +65,7 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 		panic("npc added to map on colliding tile")
 	}
 	n.Entity.World = mi
+	n.World = mi // NPC has its own world context it needs, that isn't relevant to entity
 	n.Entity.SetPosition(startPos)
 	n.Priority = mi.NPCManager.getNextNPCPriority()
 	mi.NPCs = append(mi.NPCs, n)

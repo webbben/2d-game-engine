@@ -88,6 +88,19 @@ func setupGameState() *g.Game {
 	// make NPCs
 
 	for i := 0; i < 10; i++ {
+		task := npc.Task{
+			Type:        npc.TYPE_GOTO,
+			Description: "go somewhere",
+			StartFn: func(t *npc.Task) {
+				newGoal := model.Coords{X: rand.Intn(30), Y: rand.Intn(30)}
+				for newGoal.Equals(t.Owner.Entity.TilePos) {
+					logz.Println(t.Owner.DisplayName, "dayum! randomly got the same goal as where I am now!")
+					newGoal = model.Coords{X: rand.Intn(30), Y: rand.Intn(30)}
+				}
+				t.GotoTask.GoalPos = newGoal
+			},
+		}
+
 		npcEnt := playerEnt.Duplicate()
 		npcEnt.DisplayName = fmt.Sprintf("NPC_%v", i)
 		err = npcEnt.Load()
@@ -100,9 +113,11 @@ func setupGameState() *g.Game {
 				DisplayName: npcEnt.DisplayName,
 			},
 			TaskMGMT: npc.TaskMGMT{
-				DefaultTask: task1.Copy(),
+				DefaultTask: task,
 			},
 		})
+
+		n.SetTask(task)
 
 		mapInfo.AddNPCToMap(&n, model.Coords{X: i * 2, Y: 0})
 	}
@@ -189,30 +204,4 @@ func GetTitleScreen() screen.Screen {
 	s.Menus = append(s.Menus, m)
 
 	return s
-}
-
-var task1 npc.Task = npc.Task{
-	Description: "wandering aimlessly",
-	Context:     make(map[string]interface{}),
-	StartFn: func(t *npc.Task) {
-		// set a random location to walk to
-		width, height := t.Owner.Entity.World.MapDimensions()
-		c := model.Coords{
-			X: rand.Intn(width),
-			Y: rand.Intn(height),
-		}
-		if c.Equals(t.Owner.Entity.TilePos) {
-			logz.Println("dayum! randomly got the same tile position!")
-			return
-		}
-		t.Context["goal"] = c
-		logz.Println(t.Owner.DisplayName, "npc traveling to:", t.Context["goal"])
-		me := t.Owner.Entity.GoToPos(c)
-		if !me.Success {
-			logz.Println(t.Owner.DisplayName, "failed to call GoToPos:", me)
-		}
-	},
-	IsCompleteFn: func(t npc.Task) bool {
-		return t.Owner.Entity.TilePos.Equals(t.Context["goal"].(model.Coords)) && !t.Owner.Entity.Movement.IsMoving
-	},
 }

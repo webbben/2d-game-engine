@@ -19,6 +19,19 @@ func (nm *NPCManager) getNPCByID(id string) *npc.NPC {
 	return nil
 }
 
+// Finds an NPC at a given position, if one is to be found there. Second return value indicates if NPC successfully found.
+func (nm *NPCManager) FindNPCAtPosition(c model.Coords) (npc.NPC, bool) {
+	for _, n := range nm.NPCs {
+		if n.Entity.TilePos.Equals(c) {
+			return *n, true
+		}
+		if n.Entity.Movement.TargetTile.Equals(c) {
+			return *n, true
+		}
+	}
+	return npc.NPC{}, false
+}
+
 func (nm *NPCManager) getNextNPCPriority() int {
 	nextPriority := nm.nextPriority
 	nm.nextPriority++

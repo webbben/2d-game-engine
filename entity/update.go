@@ -58,6 +58,7 @@ func (e *Entity) trySetNextTargetPath() bool {
 	}
 
 	e.Movement.Interrupted = true // mark move as interrupted, so that NPCs can react as needed
+	logz.Println(e.DisplayName, "movement interrupted")
 	logz.Println(e.DisplayName, "trySetNextTargetPath: failed to set next target tile:", moveError)
 	return false
 }

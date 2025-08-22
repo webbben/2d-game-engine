@@ -131,7 +131,9 @@ func (e *Entity) GoToPos(c model.Coords) MoveError {
 
 	path := e.World.FindPath(e.TilePos, c)
 	if len(path) == 0 {
-		panic("GoToPos: calculated path is empty")
+		fmt.Println("tile pos:", e.TilePos, "goal:", c)
+		logz.Warnln(e.DisplayName, "GoToPos: calculated path is empty. Is the entity blocked in? Why is the movement prevented?")
+		return MoveError{Cancelled: true}
 	}
 
 	e.Movement.TargetPath = path

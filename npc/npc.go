@@ -6,6 +6,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/model"
 )
 
 type NPC struct {
@@ -13,6 +14,11 @@ type NPC struct {
 	Entity *entity.Entity
 
 	TaskMGMT
+	World WorldContext
+}
+
+type WorldContext interface {
+	FindNPCAtPosition(c model.Coords) (NPC, bool)
 }
 
 // Create new NPC from the given NPC struct. Ensures essential data is set.
@@ -34,6 +40,7 @@ type TaskMGMT struct {
 	CurrentTask *Task
 	WaitUntil   time.Time
 	DefaultTask Task
+	StuckCount  int // number of ticks this NPC has been stuck (failing to move to its goal)
 }
 
 func (n *NPC) SetTask(t Task) {

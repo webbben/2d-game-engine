@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/webbben/2d-game-engine/internal/general_util"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	m "github.com/webbben/2d-game-engine/internal/model"
 )
 
@@ -52,6 +53,10 @@ func (pq PriorityQueue) contains(p m.Coords) bool {
 }
 
 func aStar(start, goal m.Coords, costMap [][]int) []m.Coords {
+	if start.Equals(goal) {
+		logz.Warnln("aStar", "start and goal are the same position")
+		return []m.Coords{}
+	}
 	open := make(PriorityQueue, 0)
 	closed := make(map[m.Coords]bool)
 
@@ -98,6 +103,7 @@ func aStar(start, goal m.Coords, costMap [][]int) []m.Coords {
 			}
 		}
 	}
+
 	return nil
 }
 

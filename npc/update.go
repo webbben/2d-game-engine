@@ -2,8 +2,6 @@ package npc
 
 import (
 	"time"
-
-	"github.com/webbben/2d-game-engine/internal/logz"
 )
 
 func (n *NPC) Update() {
@@ -14,7 +12,6 @@ func (n *NPC) Update() {
 // Updates related to NPC behavior or tasks
 func (n *NPC) npcUpdates() {
 	if time.Until(n.WaitUntil) > 0 {
-		logz.Println(n.DisplayName, "npc waiting")
 		return
 	}
 	if n.Active {
