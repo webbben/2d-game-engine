@@ -40,7 +40,9 @@ type TaskMGMT struct {
 	CurrentTask *Task
 	WaitUntil   time.Time
 	DefaultTask Task
-	StuckCount  int // number of ticks this NPC has been stuck (failing to move to its goal)
+	// number of ticks this NPC has been stuck (failing to move to its goal).
+	// TODO implement this if needed. so far, haven't needed to report stuck NPCs.
+	StuckCount int
 }
 
 func (n *NPC) SetTask(t Task) {

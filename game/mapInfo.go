@@ -101,7 +101,9 @@ func (mi MapInfo) Collides(c model.Coords) bool {
 	return false
 }
 
-func (mi MapInfo) FindPath(start, goal model.Coords) []model.Coords {
+// Returns a path to the goal, or if it cannot be reached, a path to the closest reachable position.
+// The boolean indicates if the goal was successfully reached.
+func (mi MapInfo) FindPath(start, goal model.Coords) ([]model.Coords, bool) {
 	return path_finding.FindPath(start, goal, mi.CostMap())
 }
 

@@ -52,10 +52,12 @@ func (pq PriorityQueue) contains(p m.Coords) bool {
 	return false
 }
 
-func aStar(start, goal m.Coords, costMap [][]int) []m.Coords {
+// performs A* search and returns a path to the goal, or to the closest reachable node to the goal.
+// returns true if successfully reached the goal, or false if not.
+func aStar(start, goal m.Coords, costMap [][]int) ([]m.Coords, bool) {
 	if start.Equals(goal) {
 		logz.Warnln("aStar", "start and goal are the same position")
-		return []m.Coords{}
+		return []m.Coords{}, false
 	}
 	open := make(PriorityQueue, 0)
 	closed := make(map[m.Coords]bool)
@@ -71,12 +73,22 @@ func aStar(start, goal m.Coords, costMap [][]int) []m.Coords {
 	gValues[start] = 0
 	hValues[start] = heuristic(start, goal)
 
+	// track the closest position found to the goal we've seen so far
+	closest := start.Copy()
+	closestDist := hValues[start]
+
 	for open.Len() > 0 {
 		// get the current best option to explore
 		current := heap.Pop(&open).(Node).Coords
 
+		// update closest found position
+		if hValues[current] < closestDist {
+			closest = current.Copy()
+			closestDist = hValues[current]
+		}
+
 		if current == goal {
-			return reconstructPath(parent, start, goal)
+			return reconstructPath(parent, start, goal), true
 		}
 		closed[current] = true
 
@@ -104,7 +116,12 @@ func aStar(start, goal m.Coords, costMap [][]int) []m.Coords {
 		}
 	}
 
-	return nil
+	// if we didn't reach the goal, return the path to the closest found position
+	if !closest.Equals(start) {
+		return reconstructPath(parent, start, closest), false
+	}
+
+	return nil, false
 }
 
 // use euclidean distance or manhattan distance?

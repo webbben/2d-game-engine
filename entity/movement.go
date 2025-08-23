@@ -9,6 +9,13 @@ import (
 	"github.com/webbben/2d-game-engine/internal/model"
 )
 
+const (
+	DIR_L byte = 'L'
+	DIR_R byte = 'R'
+	DIR_U byte = 'U'
+	DIR_D byte = 'D'
+)
+
 type MoveError struct {
 	AlreadyMoving bool
 	Collision     bool
@@ -39,7 +46,7 @@ func (e *Entity) move(c model.Coords) MoveError {
 		panic("entity does not have world context set")
 	}
 	if e.World.Collides(c) {
-		logz.Println(e.DisplayName, "collision")
+		logz.Println(e.DisplayName, "move: collision")
 		return MoveError{
 			Collision: true,
 		}
@@ -102,67 +109,75 @@ func getRelativeDirection(a, b model.Coords) byte {
 	dy := b.Y - a.Y
 	if math.Abs(float64(dx)) > math.Abs(float64(dy)) {
 		if dx < 0 {
-			return 'L'
+			return DIR_L
 		} else {
-			return 'R'
+			return DIR_R
 		}
 	} else {
 		if dy < 0 {
-			return 'U'
+			return DIR_U
 		} else {
-			return 'D'
+			return DIR_D
 		}
 	}
 }
 
-func (e *Entity) GoToPos(c model.Coords) MoveError {
+// Attempts to put the entity on a path to reach the given target.
+// If the path to the target is blocked, you can conditionally go as close as possible with the "close enough" flag.
+// Returns the actual goal target (in case it was changed due to a conflict and the "close enough" flag).
+func (e *Entity) GoToPos(c model.Coords, closeEnough bool) (model.Coords, MoveError) {
 	if e.Movement.IsMoving {
 		logz.Println(e.DisplayName, "GoToPos: entity is already moving")
-		return MoveError{AlreadyMoving: true}
+		return c, MoveError{AlreadyMoving: true}
 	}
 	if len(e.Movement.TargetPath) > 0 {
-		logz.Println(e.DisplayName, "GoToPos: entity already has a target path. Target path should be cancelled first.")
-		logz.Println(e.DisplayName, e.Movement.TargetPath)
+		logz.Warnln(e.DisplayName, "GoToPos: entity already has a target path. Target path should be cancelled first.")
 	}
 	if e.TilePos.Equals(c) {
 		logz.Errorln(e.DisplayName, "entity attempted to GoToPos for position it is already in")
-		return MoveError{Cancelled: true}
+		return c, MoveError{Cancelled: true}
 	}
 
-	path := e.World.FindPath(e.TilePos, c)
+	path, found := e.World.FindPath(e.TilePos, c)
+	if !found {
+		if !closeEnough {
+			return c, MoveError{Cancelled: true}
+		}
+		logz.Warnln(e.DisplayName, "going a partial path since original path is blocked.", "start:", e.TilePos, "path:", path, "original goal:", c)
+	}
 	if len(path) == 0 {
 		fmt.Println("tile pos:", e.TilePos, "goal:", c)
-		logz.Warnln(e.DisplayName, "GoToPos: calculated path is empty. Is the entity blocked in? Why is the movement prevented?")
-		return MoveError{Cancelled: true}
+		logz.Warnln(e.DisplayName, "GoToPos: calculated path is empty. Is the entity completely blocked in?")
+		return c, MoveError{Cancelled: true}
 	}
 
 	e.Movement.TargetPath = path
-	return MoveError{Success: true}
+	return path[len(path)-1], MoveError{Success: true}
 }
 
 // gets the frameType and frameCount for the correct animation, based on the entity's direction
 func (e Entity) getMovementAnimationInfo() (string, int) {
 	var name string
 	switch e.Movement.Direction {
-	case 'L':
+	case DIR_L:
 		if e.Movement.IsMoving {
 			name = "left_walk"
 		} else {
 			name = "left_idle"
 		}
-	case 'R':
+	case DIR_R:
 		if e.Movement.IsMoving {
 			name = "right_walk"
 		} else {
 			name = "right_idle"
 		}
-	case 'U':
+	case DIR_U:
 		if e.Movement.IsMoving {
 			name = "up_walk"
 		} else {
 			name = "up_idle"
 		}
-	case 'D':
+	case DIR_D:
 		if e.Movement.IsMoving {
 			name = "down_walk"
 		} else {

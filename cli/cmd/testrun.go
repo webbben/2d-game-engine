@@ -87,7 +87,7 @@ func setupGameState() *g.Game {
 
 	// make NPCs
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		task := npc.Task{
 			Type:        npc.TYPE_GOTO,
 			Description: "go somewhere",
@@ -119,7 +119,7 @@ func setupGameState() *g.Game {
 
 		n.SetTask(task)
 
-		mapInfo.AddNPCToMap(&n, model.Coords{X: i * 2, Y: 0})
+		mapInfo.AddNPCToMap(&n, model.Coords{X: i, Y: 0})
 	}
 
 	// setup the game struct

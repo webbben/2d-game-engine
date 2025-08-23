@@ -67,7 +67,7 @@ func (e Entity) Duplicate() Entity {
 
 type WorldContext interface {
 	Collides(c model.Coords) bool
-	FindPath(start, goal model.Coords) []model.Coords
+	FindPath(start, goal model.Coords) ([]model.Coords, bool)
 	MapDimensions() (width int, height int)
 }
 

@@ -33,10 +33,15 @@ func (e *Entity) trySetNextTargetPath() bool {
 	if len(e.Movement.TargetPath) == 0 {
 		panic("tried to set next target along path for entity that has no set target path")
 	}
+	nextTarget := e.Movement.TargetPath[0]
+	if nextTarget.Equals(e.TilePos) {
+		panic("trySetNextTargetPath: next target is the same tile as current position")
+	}
+
 	var moveError MoveError
 	lastTilePos := e.TilePos.Copy()
 	if e.Movement.IsMoving {
-		if getRelativeDirection(e.Movement.TargetTile, e.Movement.TargetPath[0]) != e.Movement.Direction {
+		if getRelativeDirection(e.Movement.TargetTile, nextTarget) != e.Movement.Direction {
 			// don't allow a seamless transition to the next tile if entity is moving but next tile isn't the same direction.
 			// this is because the entity would start to go diagonally.
 			return false
@@ -45,10 +50,10 @@ func (e *Entity) trySetNextTargetPath() bool {
 		// this is because we are then setting the next tile beyond that position as the next target, basically "getting slightly ahead".
 		// not waiting to stop first improves smoothness of walking, since we don't have to stop and wait a tick first (if direction is the same).
 		lastTilePos = e.Movement.TargetTile.Copy()
-		moveError = e.tryQueueNextMove(e.Movement.TargetPath[0])
+		moveError = e.tryQueueNextMove(nextTarget)
 	} else {
 		// if the entity is not moving, then use the normal method of initiating a movement towards the next tile in the target path.
-		moveError = e.TryMove(e.Movement.TargetPath[0])
+		moveError = e.TryMove(nextTarget)
 	}
 	if moveError.Success {
 		e.TilePos = lastTilePos
@@ -58,8 +63,8 @@ func (e *Entity) trySetNextTargetPath() bool {
 	}
 
 	e.Movement.Interrupted = true // mark move as interrupted, so that NPCs can react as needed
-	logz.Println(e.DisplayName, "movement interrupted")
-	logz.Println(e.DisplayName, "trySetNextTargetPath: failed to set next target tile:", moveError)
+	logz.Println(e.DisplayName, "trySetNextTargetPath: movement interrupted")
+	logz.Println(e.DisplayName, "trySetNextTargetPath: failed to set next target tile:", moveError, "target tile:", nextTarget)
 	return false
 }
 

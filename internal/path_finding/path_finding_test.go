@@ -12,6 +12,7 @@ type FindPathTestCase struct {
 	Start, Goal  m.Coords
 	ExpectedPath []m.Coords
 	CostMap      [][]int
+	FoundRoute   bool
 }
 
 func pathIsSame(pathA []m.Coords, pathB []m.Coords) bool {
@@ -45,7 +46,8 @@ func TestFindPath(t *testing.T) {
 				{X: 3, Y: 0},
 				{X: 4, Y: 0},
 			},
-			CostMap: costMap,
+			CostMap:    costMap,
+			FoundRoute: true,
 		},
 		{
 			Start: m.Coords{X: 0, Y: 0},
@@ -56,7 +58,8 @@ func TestFindPath(t *testing.T) {
 				{X: 0, Y: 3},
 				{X: 0, Y: 4},
 			},
-			CostMap: costMap,
+			CostMap:    costMap,
+			FoundRoute: true,
 		},
 		{
 			Start: m.Coords{X: 0, Y: 4},
@@ -69,7 +72,8 @@ func TestFindPath(t *testing.T) {
 				{X: 3, Y: 4},
 				{X: 4, Y: 4},
 			},
-			CostMap: costMap,
+			CostMap:    costMap,
+			FoundRoute: true,
 		},
 		{
 			Start: m.Coords{X: 4, Y: 0},
@@ -84,7 +88,8 @@ func TestFindPath(t *testing.T) {
 				{X: 3, Y: 4},
 				{X: 4, Y: 4},
 			},
-			CostMap: costMap,
+			CostMap:    costMap,
+			FoundRoute: true,
 		},
 		{
 			Start: m.Coords{X: 0, Y: 0},
@@ -104,6 +109,7 @@ func TestFindPath(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 			},
+			FoundRoute: true,
 		},
 		{
 			Start: m.Coords{X: 0, Y: 0},
@@ -123,13 +129,33 @@ func TestFindPath(t *testing.T) {
 				{0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0},
 			},
+			FoundRoute: true,
+		},
+		{
+			Start: m.Coords{X: 0, Y: 0},
+			Goal:  m.Coords{X: 0, Y: 4},
+			ExpectedPath: []m.Coords{
+				{X: 0, Y: 1},
+				{X: 0, Y: 2},
+			},
+			CostMap: [][]int{
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{0, 0, 0, 0, 0},
+				{10, 10, 10, 0, 0},
+				{0, 0, 0, 10, 0},
+			},
+			FoundRoute: false,
 		},
 	}
 	for i, testCase := range testCases {
 		t.Run(fmt.Sprintf("Test FindPath: Case %v", i), func(t *testing.T) {
-			resultPath := FindPath(testCase.Start, testCase.Goal, testCase.CostMap)
+			resultPath, foundPath := FindPath(testCase.Start, testCase.Goal, testCase.CostMap)
 			if !pathIsSame(resultPath, testCase.ExpectedPath) {
 				t.Error("Result path doesn't match expected path. Result:", resultPath, "Expected:", testCase.ExpectedPath)
+			}
+			if foundPath != testCase.FoundRoute {
+				t.Error("found path result doesn't match expected found path result. result:", foundPath, "expected:", testCase.FoundRoute)
 			}
 		})
 	}
@@ -154,7 +180,7 @@ func BenchmarkFindPathSM(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		start := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
 		goal := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
-		result := FindPath(start, goal, costMap)
+		result, _ := FindPath(start, goal, costMap)
 		_ = result
 	}
 }
@@ -188,7 +214,7 @@ func BenchmarkFindPathMD(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		start := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
 		goal := m.Coords{X: rand.Intn(width), Y: rand.Intn(height)}
-		result := FindPath(start, goal, barrierMap)
+		result, _ := FindPath(start, goal, barrierMap)
 		_ = result
 	}
 }

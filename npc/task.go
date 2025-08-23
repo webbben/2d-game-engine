@@ -1,8 +1,11 @@
 package npc
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/webbben/2d-game-engine/entity"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
 
@@ -10,6 +13,9 @@ const (
 	// TODO
 	// NPC travels to a position.
 	TYPE_GOTO = "goto"
+	// TODO
+	// NPC follows another entity.
+	TYPE_FOLLOW = "follow"
 	// TODO
 	// NPC fights another entity.
 	TYPE_FIGHT = "fight"
@@ -40,7 +46,7 @@ type Task struct {
 	EndFn func(t *Task)
 
 	StartTime time.Time
-	Started   bool
+	started   bool // flag that signals this task has started already
 	Timeout   time.Duration
 	Restart   bool // flag to restart the task over again
 
@@ -48,15 +54,19 @@ type Task struct {
 	// Only use this if existing task properties and features don't handle the use case.
 	Context map[string]interface{}
 
-	Done bool
+	done bool // flag that signals this task is done. stops execution of hook functions.
 
 	// specific task types
 	GotoTask
+	FollowTask
 }
 
 type GotoTask struct {
-	GoalPos     model.Coords
-	IsFailureFn func(t Task)
+	GoalPos model.Coords
+}
+
+type FollowTask struct {
+	TargetEntity *entity.Entity
 }
 
 func (t Task) Copy() Task {
@@ -85,17 +95,19 @@ func (t *Task) Start() {
 	if t.StartFn != nil {
 		t.StartFn(t)
 	}
-	t.Started = true
+	t.started = true
+	t.done = false
 
 	switch t.Type {
 	case TYPE_GOTO:
-		// start going to the goal position
 		t.startGoto()
+	case TYPE_FOLLOW:
+		t.startFollow()
 	}
 }
 
 func (t Task) IsComplete() bool {
-	if !t.Started {
+	if !t.started {
 		return false
 	}
 	if t.IsCompleteFn != nil {
@@ -109,7 +121,7 @@ func (t Task) IsComplete() bool {
 }
 
 func (t Task) IsFailure() bool {
-	if !t.Started {
+	if !t.started {
 		return false
 	}
 	if t.Timeout != 0 {
@@ -124,12 +136,16 @@ func (t Task) IsFailure() bool {
 }
 
 func (t *Task) OnUpdate() {
-	if !t.Started {
+	if t.done {
+		return
+	}
+	if !t.started {
 		t.Start()
 		return
 	}
 	if t.Restart {
 		t.Restart = false
+		logz.Println(t.Owner.DisplayName, "restarting task")
 		t.Start()
 		return
 	}
@@ -158,5 +174,51 @@ func (t *Task) EndTask() {
 		t.EndFn(t)
 	}
 	t.Owner.Active = false
-	t.Done = true
+	t.done = true
+}
+
+func (t *Task) handleNPCCollision(continueFunc func()) {
+	if !t.Owner.Entity.Movement.Interrupted {
+		return
+	}
+	logz.Println(t.Owner.DisplayName, "NPC interrupted; handling collision")
+	// path entity was moving on has been interrupted.
+	// if interrupted by NPC, try to negotiate resolution to collision.
+	if !t.Owner.Entity.Movement.TargetTile.Equals(t.Owner.Entity.TilePos) {
+		panic("Goto task: since NPC movement was interrupted, we expect its target position to be the same as its current position")
+	}
+	if len(t.Owner.Entity.Movement.TargetPath) == 0 {
+		panic("Goto task: npc movement was interrupted, but there is no next step in target path")
+	}
+
+	// get NPCs that are at the next target tile - i.e. the next position in the target path
+	nextTarget := t.Owner.Entity.Movement.TargetPath[0]
+	collisionNpc, found := t.Owner.World.FindNPCAtPosition(nextTarget)
+	if collisionNpc.ID == t.Owner.ID {
+		panic("Goto task: npc collided with itself?! that shouldn't be happening")
+	}
+	if !found {
+		// TODO check if NPC collided with player. NPC doesn't collide with player yet.
+
+		// if NPC didn't collide with player, and no collision NPC found, then it seems the blocking NPC is now gone, so proceed
+		logz.Println(t.Owner.DisplayName, "colliding NPC not found; proceeding from interruption")
+		continueFunc()
+		return
+	} else {
+		logz.Println(t.Owner.DisplayName, "collided with NPC", collisionNpc.DisplayName)
+	}
+	if collisionNpc.Priority > t.Owner.Priority {
+		// other NPC is higher priority; let him go first.
+		logz.Println(t.Owner.DisplayName, "waiting for other NPC to go first")
+		t.Owner.Wait(time.Second) // wait a second before we check logic again for this NPC
+		return
+	} else {
+		if collisionNpc.Priority == t.Owner.Priority {
+			fmt.Println(collisionNpc.DisplayName, collisionNpc.Priority, " / ", t.Owner.DisplayName, t.Owner.Priority)
+			panic("updateGoto: other NPC has same priority as this one! that's not suppposed to happen.")
+		}
+		// this NPC has higher priority, so it can re-route first
+		continueFunc()
+		return
+	}
 }
