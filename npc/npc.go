@@ -38,7 +38,7 @@ type NPCInfo struct {
 type TaskMGMT struct {
 	Active      bool // if the NPC is actively doing a task right now
 	CurrentTask *Task
-	WaitUntil   time.Time
+	waitUntil   time.Time
 	DefaultTask Task
 	// number of ticks this NPC has been stuck (failing to move to its goal).
 	// TODO implement this if needed. so far, haven't needed to report stuck NPCs.
@@ -58,5 +58,5 @@ func (n *NPC) SetTask(t Task) {
 
 // Interrupt regular NPC updates for a certain duration
 func (n *NPC) Wait(d time.Duration) {
-	n.WaitUntil = time.Now().Add(d)
+	n.waitUntil = time.Now().Add(d)
 }

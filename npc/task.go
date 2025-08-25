@@ -67,6 +67,7 @@ type GotoTask struct {
 
 type FollowTask struct {
 	TargetEntity *entity.Entity
+	Distance     int // number of tiles behind the target entity to stand. default, 0, means the tile directly behind.
 }
 
 func (t Task) Copy() Task {
@@ -163,6 +164,8 @@ func (t *Task) OnUpdate() {
 	switch t.Type {
 	case TYPE_GOTO:
 		t.updateGoto()
+	case TYPE_FOLLOW:
+		t.updateFollow()
 	}
 }
 
@@ -201,7 +204,6 @@ func (t *Task) handleNPCCollision(continueFunc func()) {
 		// TODO check if NPC collided with player. NPC doesn't collide with player yet.
 
 		// if NPC didn't collide with player, and no collision NPC found, then it seems the blocking NPC is now gone, so proceed
-		logz.Println(t.Owner.DisplayName, "colliding NPC not found; proceeding from interruption")
 		continueFunc()
 		return
 	} else {

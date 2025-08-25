@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"log"
-	"math/rand"
 	"os"
 	"path/filepath"
 
@@ -14,7 +13,6 @@ import (
 	g "github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/dialog"
-	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/npc"
@@ -87,17 +85,25 @@ func setupGameState() *g.Game {
 
 	// make NPCs
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 1; i++ {
+		// task := npc.Task{
+		// 	Type:        npc.TYPE_GOTO,
+		// 	Description: "go somewhere",
+		// 	StartFn: func(t *npc.Task) {
+		// 		newGoal := model.Coords{X: rand.Intn(30), Y: rand.Intn(30)}
+		// 		for newGoal.Equals(t.Owner.Entity.TilePos) {
+		// 			logz.Println(t.Owner.DisplayName, "dayum! randomly got the same goal as where I am now!")
+		// 			newGoal = model.Coords{X: rand.Intn(30), Y: rand.Intn(30)}
+		// 		}
+		// 		t.GotoTask.GoalPos = newGoal
+		// 	},
+		// }
 		task := npc.Task{
-			Type:        npc.TYPE_GOTO,
-			Description: "go somewhere",
-			StartFn: func(t *npc.Task) {
-				newGoal := model.Coords{X: rand.Intn(30), Y: rand.Intn(30)}
-				for newGoal.Equals(t.Owner.Entity.TilePos) {
-					logz.Println(t.Owner.DisplayName, "dayum! randomly got the same goal as where I am now!")
-					newGoal = model.Coords{X: rand.Intn(30), Y: rand.Intn(30)}
-				}
-				t.GotoTask.GoalPos = newGoal
+			Type:        npc.TYPE_FOLLOW,
+			Description: "follow the player",
+			FollowTask: npc.FollowTask{
+				TargetEntity: &playerEnt,
+				Distance:     1,
 			},
 		}
 

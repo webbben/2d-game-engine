@@ -11,7 +11,7 @@ func (n *NPC) Update() {
 
 // Updates related to NPC behavior or tasks
 func (n *NPC) npcUpdates() {
-	if time.Until(n.WaitUntil) > 0 {
+	if time.Until(n.waitUntil) > 0 {
 		return
 	}
 	if n.Active {

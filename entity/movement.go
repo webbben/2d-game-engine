@@ -122,6 +122,21 @@ func getRelativeDirection(a, b model.Coords) byte {
 	}
 }
 
+func GetOppositeDirection(dir byte) byte {
+	switch dir {
+	case DIR_L:
+		return DIR_R
+	case DIR_R:
+		return DIR_L
+	case DIR_U:
+		return DIR_D
+	case DIR_D:
+		return DIR_U
+	default:
+		panic("invalid direction given!")
+	}
+}
+
 // Attempts to put the entity on a path to reach the given target.
 // If the path to the target is blocked, you can conditionally go as close as possible with the "close enough" flag.
 // Returns the actual goal target (in case it was changed due to a conflict and the "close enough" flag).
@@ -193,4 +208,14 @@ func (e Entity) getMovementAnimationInfo() (string, int) {
 	}
 
 	return name, count
+}
+
+// Tells the entity to stop moving once it has finished its current tile movement.
+// Meant for stopping entities that are currently following a path.
+func (e *Entity) CancelCurrentPath() {
+	if len(e.Movement.TargetPath) == 0 {
+		logz.Warnln("tried to cancel path for an entity that has no path")
+		return
+	}
+	e.Movement.TargetPath = []model.Coords{}
 }
