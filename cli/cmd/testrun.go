@@ -86,27 +86,6 @@ func setupGameState() *g.Game {
 	// make NPCs
 
 	for i := 0; i < 1; i++ {
-		// task := npc.Task{
-		// 	Type:        npc.TYPE_GOTO,
-		// 	Description: "go somewhere",
-		// 	StartFn: func(t *npc.Task) {
-		// 		newGoal := model.Coords{X: rand.Intn(30), Y: rand.Intn(30)}
-		// 		for newGoal.Equals(t.Owner.Entity.TilePos) {
-		// 			logz.Println(t.Owner.DisplayName, "dayum! randomly got the same goal as where I am now!")
-		// 			newGoal = model.Coords{X: rand.Intn(30), Y: rand.Intn(30)}
-		// 		}
-		// 		t.GotoTask.GoalPos = newGoal
-		// 	},
-		// }
-		task := npc.Task{
-			Type:        npc.TYPE_FOLLOW,
-			Description: "follow the player",
-			FollowTask: npc.FollowTask{
-				TargetEntity: &playerEnt,
-				Distance:     1,
-			},
-		}
-
 		npcEnt := playerEnt.Duplicate()
 		npcEnt.DisplayName = fmt.Sprintf("NPC_%v", i)
 		err = npcEnt.Load()
@@ -118,12 +97,9 @@ func setupGameState() *g.Game {
 			NPCInfo: npc.NPCInfo{
 				DisplayName: npcEnt.DisplayName,
 			},
-			TaskMGMT: npc.TaskMGMT{
-				DefaultTask: task,
-			},
 		})
 
-		n.SetTask(task)
+		n.SetFollowTask(&playerEnt, 0)
 
 		mapInfo.AddNPCToMap(&n, model.Coords{X: i, Y: 0})
 	}
