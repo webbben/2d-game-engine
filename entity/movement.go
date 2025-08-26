@@ -2,18 +2,10 @@ package entity
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
-)
-
-const (
-	DIR_L byte = 'L'
-	DIR_R byte = 'R'
-	DIR_U byte = 'U'
-	DIR_D byte = 'D'
 )
 
 type MoveError struct {
@@ -57,7 +49,7 @@ func (e *Entity) move(c model.Coords) MoveError {
 	if e.Movement.Speed == 0 {
 		panic("entity movement speed set to 0 in TryMove")
 	}
-	e.Movement.Direction = getRelativeDirection(e.TilePos, e.Movement.TargetTile)
+	e.Movement.Direction = model.GetRelativeDirection(e.TilePos, e.Movement.TargetTile)
 	e.Movement.IsMoving = true
 	e.Movement.Interrupted = false
 
@@ -104,39 +96,6 @@ func (e *Entity) tryQueueNextMove(c model.Coords) MoveError {
 	return e.move(c)
 }
 
-func getRelativeDirection(a, b model.Coords) byte {
-	dx := b.X - a.X
-	dy := b.Y - a.Y
-	if math.Abs(float64(dx)) > math.Abs(float64(dy)) {
-		if dx < 0 {
-			return DIR_L
-		} else {
-			return DIR_R
-		}
-	} else {
-		if dy < 0 {
-			return DIR_U
-		} else {
-			return DIR_D
-		}
-	}
-}
-
-func GetOppositeDirection(dir byte) byte {
-	switch dir {
-	case DIR_L:
-		return DIR_R
-	case DIR_R:
-		return DIR_L
-	case DIR_U:
-		return DIR_D
-	case DIR_D:
-		return DIR_U
-	default:
-		panic("invalid direction given!")
-	}
-}
-
 // Attempts to put the entity on a path to reach the given target.
 // If the path to the target is blocked, you can conditionally go as close as possible with the "close enough" flag.
 // Returns the actual goal target (in case it was changed due to a conflict and the "close enough" flag).
@@ -174,25 +133,25 @@ func (e *Entity) GoToPos(c model.Coords, closeEnough bool) (model.Coords, MoveEr
 func (e Entity) getMovementAnimationInfo() (string, int) {
 	var name string
 	switch e.Movement.Direction {
-	case DIR_L:
+	case model.Directions.Left:
 		if e.Movement.IsMoving {
 			name = "left_walk"
 		} else {
 			name = "left_idle"
 		}
-	case DIR_R:
+	case model.Directions.Right:
 		if e.Movement.IsMoving {
 			name = "right_walk"
 		} else {
 			name = "right_idle"
 		}
-	case DIR_U:
+	case model.Directions.Up:
 		if e.Movement.IsMoving {
 			name = "up_walk"
 		} else {
 			name = "up_idle"
 		}
-	case DIR_D:
+	case model.Directions.Down:
 		if e.Movement.IsMoving {
 			name = "down_walk"
 		} else {
@@ -218,4 +177,10 @@ func (e *Entity) CancelCurrentPath() {
 		return
 	}
 	e.Movement.TargetPath = []model.Coords{}
+}
+
+// determines if another entity is moving towards this one.
+func (e Entity) EntityIsApproaching(otherEnt Entity) bool {
+	relativeDirection := model.GetRelativeDirection(e.TilePos, otherEnt.TilePos)
+	return otherEnt.Movement.Direction == model.GetOppositeDirection(relativeDirection)
 }

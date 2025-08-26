@@ -2,9 +2,9 @@ package game
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/internal/tiled"
@@ -14,17 +14,40 @@ import (
 
 // information about the current room the player is in
 type MapInfo struct {
-	Map      tiled.Map
-	ImageMap map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
+	MapIsActive bool // flag indicating if the map is actively being used (e.g. for rendering, updates, etc)
+	Map         tiled.Map
+	ImageMap    map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
 
 	NPCManager
 }
 
-// Do all required setup for creating MapInfo
-func InitializeMap(mapInfo MapInfo) MapInfo {
-	mi := mapInfo
+// Do all required setup for creating MapInfo and preparing it for use.
+// Note: if the runBackgroundJobs flag is set to true, this is where the background jobs loop is started.
+func SetupMap(mi MapInfo, mapSource string) (*MapInfo, error) {
+	// load and setup the map
+	m, err := tiled.OpenMap(mapSource)
+	if err != nil {
+		return nil, fmt.Errorf("error while opening Tiled map: %w", err)
+	}
+	err = m.Load()
+	if err != nil {
+		return nil, fmt.Errorf("error while loading map: %w", err)
+	}
+	mi.Map = m
 	mi.NPCManager.mapRef = mi.Map
-	return mi
+
+	// start up background jobs loop
+	if mi.NPCManager.backgroundJobsRunning {
+		panic("backgroundJobsRunning flag is already true while initializing map")
+	}
+	if mi.NPCManager.RunBackgroundJobs {
+		mi.NPCManager.startBackgroundNPCManager()
+	}
+	return &mi, nil
+}
+
+func (mi *MapInfo) CloseMap() {
+	mi.NPCManager.RunBackgroundJobs = false
 }
 
 type NPCManager struct {
@@ -34,6 +57,11 @@ type NPCManager struct {
 	nextPriority int       // the next priority value to assign to an NPC
 
 	StuckNPCs []string // IDs of NPCs who are currently stuck (while trying to execute a task)
+
+	// if true, the background jobs goroutine will run.
+	// if false, the background jobs goroutine will stop.
+	RunBackgroundJobs     bool
+	backgroundJobsRunning bool // flag that indicates if background jobs loop already running.
 }
 
 func (mi *MapInfo) ResolveNPCJams() {
@@ -80,7 +108,7 @@ func (mi MapInfo) Collides(c model.Coords) bool {
 		return true
 	}
 	if c.Y > maxY || c.X > maxX || c.X < -1 || c.Y < -1 {
-		slog.Error(fmt.Sprintf("map boundaries: X = [%v, %v], Y = [%v, %v]", 0, maxX, 0, maxY))
+		logz.Errorf("MapInfo", "map boundaries: X = [%v, %v], Y = [%v, %v]\n", 0, maxX, 0, maxY)
 		panic("mapInfo.Collides given a value that is far beyond map boundaries; if an entity is trying to move here, something must have gone wrong")
 	}
 	if mi.Map.CostMap[c.Y][c.X] >= 10 {

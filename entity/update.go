@@ -6,6 +6,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 )
 
@@ -41,7 +42,7 @@ func (e *Entity) trySetNextTargetPath() bool {
 	var moveError MoveError
 	lastTilePos := e.TilePos.Copy()
 	if e.Movement.IsMoving {
-		if getRelativeDirection(e.Movement.TargetTile, nextTarget) != e.Movement.Direction {
+		if model.GetRelativeDirection(e.Movement.TargetTile, nextTarget) != e.Movement.Direction {
 			// don't allow a seamless transition to the next tile if entity is moving but next tile isn't the same direction.
 			// this is because the entity would start to go diagonally.
 			return false
@@ -88,6 +89,13 @@ func (e *Entity) updateMovement() {
 	if e.Movement.TargetTile.Equals(e.TilePos) && len(e.Movement.TargetPath) == 0 {
 		panic("updateMovement called when entity has no target tile or target path")
 	}
+
+	// check for suggested paths (if entity is currently following a path)
+	if len(e.Movement.TargetPath) > 0 && len(e.Movement.SuggestedTargetPath) > 0 {
+		e.tryMergeSuggestedPath(e.Movement.SuggestedTargetPath)
+		e.Movement.SuggestedTargetPath = []model.Coords{}
+	}
+
 	targetPx := float64(e.Movement.TargetTile.X * config.TileSize)
 	targetPy := float64(e.Movement.TargetTile.Y * config.TileSize)
 	dx := targetPx - e.X
@@ -171,4 +179,26 @@ func (e *Entity) updateCurrentFrame() {
 	// idle
 	animationName, _ := e.getMovementAnimationInfo()
 	e.CurrentFrame = e.getAnimationFrame(animationName, 0)
+}
+
+func (e *Entity) tryMergeSuggestedPath(newPath []model.Coords) bool {
+	if len(e.Movement.TargetPath) == 0 {
+		panic("a path was suggested to an entity with no existing target path to merge it into")
+	}
+	if len(e.Movement.TargetPath) <= 3 {
+		return false
+	}
+
+	mergePoint := e.Movement.TargetPath[2]
+	for i, c := range newPath {
+		if c.Equals(mergePoint) {
+			// we've found a merge point; replace the rest of the current target path with the new path
+			e.Movement.TargetPath = append(e.Movement.TargetPath[:2], newPath[i:]...)
+			logz.Println("tryMergeSuggestedPath", "merged suggested path into current target path")
+			return true
+		}
+	}
+
+	// no merge point found
+	return false
 }

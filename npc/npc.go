@@ -38,10 +38,11 @@ type NPCInfo struct {
 }
 
 type TaskMGMT struct {
-	Active      bool // if the NPC is actively doing a task right now
-	CurrentTask *Task
-	TaskQueue   []*Task // TODO queue of tasks to run one after the other. not implemented yet.
-	waitUntil   time.Time
+	Active              bool // if the NPC is actively doing a task right now
+	CurrentTask         *Task
+	TaskQueue           []*Task // TODO queue of tasks to run one after the other. not implemented yet.
+	waitUntil           time.Time
+	waitUntilDoneMoving bool // if set, will wait until entity has stopped moving before processing next update
 	// A default task that will run whenever no other task is active.
 	// Useful for if this NPC should always just continuously do one task.
 	DefaultTask Task
@@ -114,4 +115,12 @@ func (n *NPC) EndCurrentTask() {
 // Interrupt regular NPC updates for a certain duration
 func (n *NPC) Wait(d time.Duration) {
 	n.waitUntil = time.Now().Add(d)
+}
+
+func (n *NPC) WaitUntilNotMoving() {
+	// remove any existing wait
+	if n.waitUntil.After(time.Now()) {
+		n.waitUntil = time.Now()
+	}
+	n.waitUntilDoneMoving = true
 }

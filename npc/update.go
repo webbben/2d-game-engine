@@ -14,6 +14,12 @@ func (n *NPC) npcUpdates() {
 	if time.Until(n.waitUntil) > 0 {
 		return
 	}
+	if n.waitUntilDoneMoving {
+		if n.Entity.Movement.IsMoving {
+			return
+		}
+		n.waitUntilDoneMoving = false
+	}
 	if n.OnUpdateFn != nil {
 		n.OnUpdateFn(n)
 	}

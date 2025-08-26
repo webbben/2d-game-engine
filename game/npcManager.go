@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
@@ -140,4 +141,54 @@ func (nm *NPCManager) findNPCJams() [][]StuckNPC {
 		jams = append(jams, stuckNPCs)
 	}
 	return jams
+}
+
+func (nm *NPCManager) startBackgroundNPCManager() {
+	if !nm.RunBackgroundJobs {
+		panic("NPC Manager: tried to start background jobs loop even though flag is set to false.")
+	}
+	if nm.backgroundJobsRunning {
+		panic("NPC Manager: tried to start more than one background jobs loop!")
+	}
+	nm.backgroundJobsRunning = true
+	go nm._asyncJobs()
+}
+
+// async jobs that the NPC Manager runs in a separate go-routine.
+//
+// DO NOT call this directly! Call StartBackgroundNPCManager instead!
+func (nm *NPCManager) _asyncJobs() {
+	defer func() {
+		nm.backgroundJobsRunning = false
+		logz.Println("NPC Manager", "stopping background jobs loop")
+	}()
+
+	logz.Println("NPC Manager", "starting background jobs loop")
+
+	// ensure the loop doesn't repeat faster than this length of time
+	maxLoopSpeed := time.Millisecond * 100
+
+	for {
+		start := time.Now()
+		if !nm.RunBackgroundJobs {
+			return
+		}
+
+		for _, n := range nm.NPCs {
+			if !n.Active {
+				continue
+			}
+
+			// check if NPC's current task can use background assistance
+			if n.CurrentTask != nil {
+				n.CurrentTask.BackgroundAssist()
+			} else {
+				logz.Println(n.DisplayName, "NPC Manager: NPC has no current task")
+			}
+		}
+
+		if time.Since(start) < maxLoopSpeed {
+			time.Sleep(maxLoopSpeed - time.Since(start))
+		}
+	}
 }

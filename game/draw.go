@@ -23,10 +23,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// below is in-game rendering; stop here if we are not in the game world
 	// ~~~
 
+	if g.MapInfo == nil {
+		return
+	}
+
 	offsetX, offsetY := g.Camera.GetAbsPos()
 
 	// draw the terrain of the room
-	g.Map.DrawLayers(screen, offsetX, offsetY)
+	g.MapInfo.Map.DrawLayers(screen, offsetX, offsetY)
 	if config.DrawGridLines {
 		g.drawGridLines(screen, offsetX, offsetY)
 	}
@@ -73,20 +77,23 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) drawGridLines(screen *ebiten.Image, offsetX float64, offsetY float64) {
+	if g.MapInfo == nil {
+		panic("GAME: tried to draw grid lines on a nil map!")
+	}
 	offsetX = offsetX * config.GameScale
 	offsetY = offsetY * config.GameScale
 	lineColor := color.RGBA{255, 0, 0, 255}
-	maxWidth := float64(g.Map.Width*g.Map.TileWidth) * config.GameScale
-	maxHeight := float64(g.Map.Height*g.Map.TileHeight) * config.GameScale
+	maxWidth := float64(g.MapInfo.Map.Width*g.MapInfo.Map.TileWidth) * config.GameScale
+	maxHeight := float64(g.MapInfo.Map.Height*g.MapInfo.Map.TileHeight) * config.GameScale
 
 	// vertical lines
-	for x := 0; x < g.Map.Width; x++ {
+	for x := 0; x < g.MapInfo.Map.Width; x++ {
 		drawX := (float64(x*config.TileSize) * config.GameScale) - offsetX
 		drawY := -offsetY
 		vector.StrokeLine(screen, float32(drawX), float32(drawY), float32(drawX), float32(maxHeight-offsetY), 1, lineColor, true)
 	}
 	// horizontal lines
-	for y := 0; y < g.Map.Height; y++ {
+	for y := 0; y < g.MapInfo.Map.Height; y++ {
 		drawX := -offsetX
 		drawY := (float64(y*config.TileSize) * config.GameScale) - offsetY
 		vector.StrokeLine(screen, float32(drawX), float32(drawY), float32(maxWidth-offsetX), float32(drawY), 1, lineColor, true)

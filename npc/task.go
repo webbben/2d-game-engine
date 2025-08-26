@@ -55,6 +55,9 @@ type Task struct {
 	// fundamental built-in task logic
 	GotoTask
 	FollowTask
+
+	// background task assistance
+	lastBackgroundAssist time.Time // last time a the bg task loop assisted this task
 }
 
 // Returns the current programmatic status of the task.
@@ -91,9 +94,11 @@ type GotoTask struct {
 }
 
 type FollowTask struct {
-	targetEntity *entity.Entity
-	distance     int // number of tiles behind the target entity to stand. default, 0, means the tile directly behind.
-	isFollowing  bool
+	targetEntity    *entity.Entity
+	targetPosition  model.Coords // the last calculated target position
+	distance        int          // number of tiles behind the target entity to stand. default, 0, means the tile directly behind.
+	isFollowing     bool
+	recalculatePath bool // if set, indicates NPC should recalculate the path to the target
 }
 
 func (t Task) Copy() Task {
@@ -293,5 +298,15 @@ func (t *Task) handleNPCCollision(continueFunc func()) {
 		// this NPC has higher priority, so it can re-route first
 		continueFunc()
 		return
+	}
+}
+
+func (t *Task) BackgroundAssist() {
+	if time.Since(t.lastBackgroundAssist) < time.Millisecond*500 {
+		// last assist was too recent
+		return
+	}
+	if t.FollowTask.isFollowing {
+		t.followBackgroundAssist()
 	}
 }

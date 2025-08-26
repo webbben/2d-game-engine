@@ -145,8 +145,9 @@ type Movement struct {
 	WalkSpeed   float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
 	Speed       float64 `json:"-"`          // actual speed the entity is moving at
 
-	TargetTile model.Coords   `json:"-"` // next tile the entity is currently moving
-	TargetPath []model.Coords `json:"-"` // path the entity is currently trying to travel on
+	TargetTile          model.Coords   `json:"-"` // next tile the entity is currently moving
+	TargetPath          []model.Coords `json:"-"` // path the entity is currently trying to travel on
+	SuggestedTargetPath []model.Coords `json:"-"` // a suggested path for this entity to consider merging into the target path
 }
 
 func (e Entity) SaveJSON() error {

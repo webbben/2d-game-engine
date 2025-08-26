@@ -14,7 +14,7 @@ import (
 
 // game state
 type Game struct {
-	MapInfo
+	MapInfo               *MapInfo
 	Player                player.Player                // the player
 	Camera                camera.Camera                // the camera/viewport
 	Conversation          *dialog.Conversation         // if set, the player is in a conversation or being shown general text to read.

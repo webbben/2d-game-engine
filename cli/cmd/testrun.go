@@ -53,18 +53,9 @@ func init() {
 }
 
 func setupGameState() *g.Game {
-	currentMap, err := tiled.OpenMap("assets/tiled/maps/testmap.tmj")
+	mapInfo, err := g.SetupMap(g.MapInfo{NPCManager: g.NPCManager{RunBackgroundJobs: true}}, "assets/tiled/maps/testmap.tmj")
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	// setup the map
-	err = currentMap.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-	mapInfo := g.MapInfo{
-		Map: currentMap,
 	}
 
 	// make the player
@@ -99,7 +90,7 @@ func setupGameState() *g.Game {
 			},
 		})
 
-		n.SetFollowTask(&playerEnt, 0)
+		n.SetFollowTask(&playerEnt, 1)
 
 		mapInfo.AddNPCToMap(&n, model.Coords{X: i, Y: 0})
 	}
