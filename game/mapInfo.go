@@ -163,6 +163,9 @@ func (mi MapInfo) CostMap() [][]int {
 			costMap[n.Entity.Movement.TargetTile.Y][n.Entity.Movement.TargetTile.X] += 10
 		}
 	}
-	// TODO add player position?
+
+	playerPos := mi.PlayerRef.Entity.TilePos
+	costMap[playerPos.Y][playerPos.X] += 10
+
 	return costMap
 }

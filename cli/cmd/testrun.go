@@ -90,7 +90,7 @@ func setupGameState() *g.Game {
 			},
 		})
 
-		n.SetFollowTask(&playerEnt, 1)
+		n.SetFollowTask(&playerEnt, 0)
 
 		mapInfo.AddNPCToMap(&n, model.Coords{X: i, Y: 0})
 	}

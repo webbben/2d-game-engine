@@ -15,8 +15,6 @@ Tracking ongoing tasks and their progress
 
 ## Rendering
 
-- [ ] add support for animated tiles (like grass tiles that have passive animations)
-
 # Useful resources
 
 ## Tilesets
@@ -35,3 +33,7 @@ Tracking ongoing tasks and their progress
 
 - [x] get format of Tiled maps into a struct
 - [x] refactor code for Rooms to render the Tiled format
+
+## Rendering
+
+- [x] add support for animated tiles (like grass tiles that have passive animations)

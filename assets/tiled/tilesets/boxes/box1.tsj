@@ -1,0 +1,14 @@
+{ "columns":3,
+ "image":"..\/..\/..\/images\/boxes\/box1.png",
+ "imageheight":57,
+ "imagewidth":57,
+ "margin":0,
+ "name":"box1",
+ "spacing":0,
+ "tilecount":9,
+ "tiledversion":"1.11.0",
+ "tileheight":19,
+ "tilewidth":19,
+ "type":"tileset",
+ "version":"1.10"
+}

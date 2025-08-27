@@ -102,6 +102,9 @@ func (t *Task) followBackgroundAssist() {
 	entDir := t.Owner.Entity.Movement.Direction
 	start := t.Owner.Entity.TilePos.GetAdj(entDir).GetAdj(entDir)
 	goal := _followGetTargetPosition(*t.targetEntity, t.FollowTask.distance)
+	if start.Equals(goal) {
+		return
+	}
 	newPath, _ := t.Owner.Entity.World.FindPath(start, goal)
 	if len(newPath) < 2 {
 		return
@@ -115,17 +118,18 @@ func (t *Task) followBackgroundAssist() {
 		return
 	}
 
-	// check if the new path looks mergeable to the current one
-	newPathRelDir := model.GetRelativeDirection(newPath[0], newPath[1])
-	curPathRelDir := model.GetRelativeDirection(t.Owner.Entity.Movement.TargetPath[0], t.Owner.Entity.Movement.TargetPath[1])
+	// // check if the new path looks mergeable to the current one
+	// newPathRelDir := model.GetRelativeDirection(newPath[0], newPath[1])
+	// curPathRelDir := model.GetRelativeDirection(t.Owner.Entity.Movement.TargetPath[0], t.Owner.Entity.Movement.TargetPath[1])
 	//logz.Println(t.Owner.DisplayName, "follow BG assist: new path dir: "+string(newPathRelDir)+" cur path dir: "+string(curPathRelDir))
-	if newPathRelDir == curPathRelDir {
-		// if the new path is moving in the same relative direction, we consider it as "looks mergeable"
-		// the entity logic will actual determine if it can be merged though, and handle the merging process
-		t.Owner.Entity.Movement.SuggestedTargetPath = newPath
-	} else {
-		// if not, then tell the NPC to fully recalculate its path
-		// t.FollowTask.recalculatePath = true
-	}
+	t.Owner.Entity.Movement.SuggestedTargetPath = newPath
+	// if newPathRelDir == curPathRelDir {
+	// 	// if the new path is moving in the same relative direction, we consider it as "looks mergeable"
+	// 	// the entity logic will actual determine if it can be merged though, and handle the merging process
+	// 	t.Owner.Entity.Movement.SuggestedTargetPath = newPath
+	// } else {
+	// 	// if not, then tell the NPC to fully recalculate its path
+	// 	//t.FollowTask.recalculatePath = true
+	// }
 	t.lastBackgroundAssist = time.Now()
 }
