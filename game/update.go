@@ -1,8 +1,11 @@
 package game
 
 import (
+	"slices"
+
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
+	"github.com/webbben/2d-game-engine/npc"
 )
 
 func (g *Game) Update() error {
@@ -47,6 +50,13 @@ func (g *Game) worldUpdates() {
 }
 
 func (mi *MapInfo) updateMap() {
+	mi.Map.Update()
+
+	// sort NPCs by Y position so that they render in the right order
+	slices.SortFunc(mi.NPCs, func(a *npc.NPC, b *npc.NPC) int {
+		return a.Entity.TilePos.Y - b.Entity.TilePos.Y
+	})
+
 	for _, n := range mi.NPCs {
 		n.Update()
 	}

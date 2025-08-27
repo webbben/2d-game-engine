@@ -36,10 +36,17 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	// draw objects, entities, and the player in order of Y position (higher renders first)
-	g.Player.Entity.Draw(screen, offsetX, offsetY)
-
+	// should be sorted in the update loop
+	playerDrawn := false
 	for _, n := range g.MapInfo.NPCs {
+		if !playerDrawn && g.Player.Entity.Position.TilePos.Y <= n.Entity.Position.TilePos.Y {
+			g.Player.Entity.Draw(screen, offsetX, offsetY)
+			playerDrawn = true
+		}
 		n.Entity.Draw(screen, offsetX, offsetY)
+	}
+	if !playerDrawn {
+		g.Player.Entity.Draw(screen, offsetX, offsetY)
 	}
 
 	// draw lighting shade (e.g. for night) here

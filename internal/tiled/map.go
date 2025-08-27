@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
@@ -29,8 +27,6 @@ func OpenMap(mapSource string) (Map, error) {
 
 // Load a map and all its tilesets or other pre-processable data
 func (m *Map) Load() error {
-	m.TileImageMap = make(map[int]*ebiten.Image)
-
 	// ensure all tilesets have been loaded and created
 	for i, tileset := range m.Tilesets {
 		err := tileset.LoadJSONData()
@@ -59,7 +55,7 @@ func (m *Map) Load() error {
 }
 
 func (m *Map) LoadTileImageMap() error {
-	m.TileImageMap = make(map[int]*ebiten.Image)
+	m.TileImageMap = make(map[int]TileData)
 
 	for _, tileset := range m.Tilesets {
 		if !TilesetExists(tileset.Name) {
@@ -67,15 +63,48 @@ func (m *Map) LoadTileImageMap() error {
 		}
 
 		for i := 0; i < tileset.TileCount; i++ {
-			tileImg, _, err := ebitenutil.NewImageFromFile(filepath.Join(tilePath, tileset.Name, fmt.Sprintf("%v.png", i)))
+			tileData := TileData{}
+			tileData.ID = i
+			tileImg, err := tileset.GetTileImage(i)
 			if err != nil {
-				return fmt.Errorf("failed to load tile image: %w", err)
+				return err
 			}
-			m.TileImageMap[i+tileset.FirstGID] = tileImg
+			tileData.CurrentFrame = tileImg
+
+			// check if this tile has an animation
+			for _, tile := range tileset.Tiles {
+				if tile.ID != i {
+					continue
+				}
+				if len(tile.Animation) > 0 {
+					tileData.Frames = []tileAnimation{}
+					// found some animation frames
+					for _, animationFrame := range tile.Animation {
+						frameImg, err := tileset.GetTileImage(animationFrame.TileID)
+						if err != nil {
+							return err
+						}
+						tileData.Frames = append(tileData.Frames, tileAnimation{
+							DurationMs: animationFrame.Duration,
+							Image:      frameImg,
+						})
+					}
+				}
+
+			}
+
+			m.TileImageMap[i+tileset.FirstGID] = tileData
 		}
 	}
 
 	return nil
+}
+
+func (m *Map) Update() {
+	for key, tileData := range m.TileImageMap {
+		tileData.UpdateFrame()
+		m.TileImageMap[key] = tileData
+	}
 }
 
 func (m Map) DrawLayers(screen *ebiten.Image, offsetX float64, offsetY float64) {
@@ -130,7 +159,7 @@ func (m Map) DrawLayers(screen *ebiten.Image, offsetX float64, offsetY float64) 
 					continue
 				}
 
-				tileImg, exists := m.TileImageMap[tileGID]
+				tileData, exists := m.TileImageMap[tileGID]
 				if !exists {
 					keys := make([]int, 0, len(m.TileImageMap))
 					for k := range m.TileImageMap {
@@ -143,7 +172,7 @@ func (m Map) DrawLayers(screen *ebiten.Image, offsetX float64, offsetY float64) 
 				op := &ebiten.DrawImageOptions{}
 				op.GeoM.Translate(drawX, drawY)
 				op.GeoM.Scale(config.GameScale, config.GameScale)
-				screen.DrawImage(tileImg, op)
+				screen.DrawImage(tileData.CurrentFrame, op)
 
 				i++
 			}

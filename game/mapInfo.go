@@ -17,6 +17,7 @@ type MapInfo struct {
 	MapIsActive bool // flag indicating if the map is actively being used (e.g. for rendering, updates, etc)
 	Map         tiled.Map
 	ImageMap    map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
+	PlayerRef   *player.Player
 
 	NPCManager
 }
@@ -43,6 +44,7 @@ func SetupMap(mi MapInfo, mapSource string) (*MapInfo, error) {
 	if mi.NPCManager.RunBackgroundJobs {
 		mi.NPCManager.startBackgroundNPCManager()
 	}
+
 	return &mi, nil
 }
 
@@ -84,6 +86,7 @@ func (mi *MapInfo) AddPlayerToMap(p *player.Player, startPos model.Coords) {
 		// this also handles placement outside of map bounds
 		panic("player added to map on colliding tile")
 	}
+	mi.PlayerRef = p
 	p.Entity.World = mi
 	p.Entity.SetPosition(startPos)
 }
@@ -116,6 +119,9 @@ func (mi MapInfo) Collides(c model.Coords) bool {
 	}
 
 	// check entity positions
+	if mi.PlayerRef != nil && c.Equals(mi.PlayerRef.Entity.TilePos) {
+		return true
+	}
 	for _, n := range mi.NPCs {
 		if n.Entity.TilePos.Equals(c) {
 			return true

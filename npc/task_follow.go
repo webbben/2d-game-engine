@@ -98,16 +98,20 @@ func (t *Task) followBackgroundAssist() {
 		return // previous flag set hasn't been acted upon yet
 	}
 
-	if len(t.Owner.Entity.Movement.TargetPath) < 2 {
-		return
-	}
-
 	// calculate a new path
 	entDir := t.Owner.Entity.Movement.Direction
 	start := t.Owner.Entity.TilePos.GetAdj(entDir).GetAdj(entDir)
 	goal := _followGetTargetPosition(*t.targetEntity, t.FollowTask.distance)
 	newPath, _ := t.Owner.Entity.World.FindPath(start, goal)
 	if len(newPath) < 2 {
+		return
+	}
+
+	// current target path must be long enough to determine the actual direction its heading
+	// NOTE: this was put before the FindPath call above, but an index out of range error happened.
+	// since this is happening in a separate goroutine from the main update loop, it's possible for the target path to be changing
+	// during the execution of this function. If the problem keeps happening, we may need to create a synchronized access system for this.
+	if len(t.Owner.Entity.Movement.TargetPath) < 2 {
 		return
 	}
 

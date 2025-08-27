@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/general_util"
 )
@@ -145,4 +147,28 @@ func (tileset *Tileset) GenerateTiles() error {
 
 	fmt.Printf("Created tile images for tileset %s (%v tiles created)\n", tileset.Name, tileIndex)
 	return nil
+}
+
+// Gets Tile from Tileset, by GID.
+//
+// This is for Tile properties, animations, etc, NOT for the tile image. Not all tiles will have a Tile.
+// Returns the Tile if found, and a boolean indicating if the tile was successfully found
+func (m Map) GetTileByGID(gid int) (Tile, bool) {
+	for _, tileset := range m.Tilesets {
+		localTileId := gid - tileset.FirstGID
+		for _, tile := range tileset.Tiles {
+			if tile.ID == localTileId {
+				return tile, true
+			}
+		}
+	}
+	return Tile{}, false
+}
+
+func (t Tileset) GetTileImage(id int) (*ebiten.Image, error) {
+	tileImg, _, err := ebitenutil.NewImageFromFile(filepath.Join(tilePath, t.Name, fmt.Sprintf("%v.png", id)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to load tile image: %w", err)
+	}
+	return tileImg, nil
 }

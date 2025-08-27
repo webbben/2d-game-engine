@@ -2,6 +2,7 @@ package tiled
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -32,29 +33,46 @@ type Map struct {
 	CompressionLevel int        `json:"compressionlevel,omitempty"`
 
 	// game engine data - not from Tiled
-	TileImageMap map[int]*ebiten.Image // a map of gid to tile image
-	CostMap      [][]int               // each tile's cost (used for path finding and collisions)
+	TileImageMap map[int]TileData // a map of gid to tile image data
+	CostMap      [][]int          // each tile's cost (used for path finding and collisions)
 	MapMeta
+}
+
+type tileAnimation struct {
+	Image      *ebiten.Image
+	DurationMs int
+}
+
+type TileData struct {
+	lastFrameChange time.Time
+	CurrentFrame    *ebiten.Image
+	Frames          []tileAnimation
+	frameIndex      int
+	ID              int // the (non-global) ID of this tile - just the index starting from the top
+}
+
+// handles getting the frame to use when rendering (handles animations, etc)
+func (td *TileData) UpdateFrame() {
+	// if there is an animation, check if we need to change the frame
+	if len(td.Frames) == 0 {
+		return
+	}
+
+	currentAnimationFrame := td.Frames[td.frameIndex]
+	if time.Since(td.lastFrameChange) < time.Duration(currentAnimationFrame.DurationMs)*time.Millisecond {
+		return
+	}
+	td.lastFrameChange = time.Now()
+	td.frameIndex = (td.frameIndex + 1) % len(td.Frames)
+	td.CurrentFrame = td.Frames[td.frameIndex].Image
+
+	if td.CurrentFrame == nil {
+		panic("failed to get tile image")
+	}
 }
 
 type MapMeta struct {
 	Loaded bool // flag indicating if the map has been successfully loaded yet
-}
-
-// Gets Tile from Tileset, by GID.
-//
-// This is for Tile properties, animations, etc, NOT for the tile image. Not all tiles will have a Tile.
-// Returns the Tile if found, and a boolean indicating if the tile was successfully found
-func (m Map) GetTileByGID(gid int) (Tile, bool) {
-	for _, tileset := range m.Tilesets {
-		localTileId := gid - tileset.FirstGID
-		for _, tile := range tileset.Tiles {
-			if tile.ID == localTileId {
-				return tile, true
-			}
-		}
-	}
-	return Tile{}, false
 }
 
 // Layer represents a layer in the map
