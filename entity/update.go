@@ -185,20 +185,30 @@ func (e *Entity) tryMergeSuggestedPath(newPath []model.Coords) bool {
 	if len(e.Movement.TargetPath) == 0 {
 		panic("a path was suggested to an entity with no existing target path to merge it into")
 	}
+	if len(newPath) == 0 {
+		panic("an empty path was suggested to an entity")
+	}
 	if len(e.Movement.TargetPath) <= 3 {
 		return false
 	}
+	if newPath[0].Equals(e.TilePos) {
+		logz.Println("tryMergeSuggestedPath", "error: new path starts at entity's current position. it should start at a position in the target path ahead of the current position.")
+		return false
+	}
 
-	mergePoint := e.Movement.TargetPath[2]
-	for i, c := range newPath {
-		if c.Equals(mergePoint) {
-			// we've found a merge point; replace the rest of the current target path with the new path
-			e.Movement.TargetPath = append(e.Movement.TargetPath[:2], newPath[i:]...)
-			logz.Println("tryMergeSuggestedPath", "merged suggested path into current target path")
+	for i, c := range e.Movement.TargetPath {
+		if c.Equals(newPath[0]) {
+			// new path starts from this target path position; merge it in by replacing this position
+			e.Movement.TargetPath = append(e.Movement.TargetPath[:i], newPath...)
+			//logz.Println("tryMergeSuggestedPath", "merged suggested path into current target path")
+			return true
+		}
+		if c.IsAdjacent(newPath[0]) {
+			// new path is adjacent to a target path position; merge it in by adding it next to this position
+			e.Movement.TargetPath = append(e.Movement.TargetPath[:i+1], newPath...)
 			return true
 		}
 	}
-
-	// no merge point found
+	logz.Println("tryMergeSuggestedPath", "failed to merge suggested path", "suggested path:", newPath, "current path:", e.Movement.TargetPath)
 	return false
 }

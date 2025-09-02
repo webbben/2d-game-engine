@@ -75,9 +75,13 @@ func setupGameState() *g.Game {
 	mapInfo.AddPlayerToMap(&p, model.Coords{X: 5, Y: 5})
 
 	// make NPCs
+	legionaryEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_6ef9b0ec-8e34-4ebf-a9da-e04ef154e80b.json"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	for i := 0; i < 1; i++ {
-		npcEnt := playerEnt.Duplicate()
+		npcEnt := legionaryEnt.Duplicate()
 		npcEnt.DisplayName = fmt.Sprintf("NPC_%v", i)
 		err = npcEnt.Load()
 		if err != nil {

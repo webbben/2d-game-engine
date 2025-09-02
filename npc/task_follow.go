@@ -97,10 +97,12 @@ func (t *Task) followBackgroundAssist() {
 	if t.FollowTask.recalculatePath {
 		return // previous flag set hasn't been acted upon yet
 	}
+	if len(t.Owner.Entity.Movement.TargetPath) < 3 {
+		return
+	}
 
 	// calculate a new path
-	entDir := t.Owner.Entity.Movement.Direction
-	start := t.Owner.Entity.TilePos.GetAdj(entDir).GetAdj(entDir)
+	start := t.Owner.Entity.Movement.TargetPath[2]
 	goal := _followGetTargetPosition(*t.targetEntity, t.FollowTask.distance)
 	if start.Equals(goal) {
 		return
@@ -110,26 +112,6 @@ func (t *Task) followBackgroundAssist() {
 		return
 	}
 
-	// current target path must be long enough to determine the actual direction its heading
-	// NOTE: this was put before the FindPath call above, but an index out of range error happened.
-	// since this is happening in a separate goroutine from the main update loop, it's possible for the target path to be changing
-	// during the execution of this function. If the problem keeps happening, we may need to create a synchronized access system for this.
-	if len(t.Owner.Entity.Movement.TargetPath) < 2 {
-		return
-	}
-
-	// // check if the new path looks mergeable to the current one
-	// newPathRelDir := model.GetRelativeDirection(newPath[0], newPath[1])
-	// curPathRelDir := model.GetRelativeDirection(t.Owner.Entity.Movement.TargetPath[0], t.Owner.Entity.Movement.TargetPath[1])
-	//logz.Println(t.Owner.DisplayName, "follow BG assist: new path dir: "+string(newPathRelDir)+" cur path dir: "+string(curPathRelDir))
 	t.Owner.Entity.Movement.SuggestedTargetPath = newPath
-	// if newPathRelDir == curPathRelDir {
-	// 	// if the new path is moving in the same relative direction, we consider it as "looks mergeable"
-	// 	// the entity logic will actual determine if it can be merged though, and handle the merging process
-	// 	t.Owner.Entity.Movement.SuggestedTargetPath = newPath
-	// } else {
-	// 	// if not, then tell the NPC to fully recalculate its path
-	// 	//t.FollowTask.recalculatePath = true
-	// }
 	t.lastBackgroundAssist = time.Now()
 }

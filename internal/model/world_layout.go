@@ -94,3 +94,9 @@ func (c Coords) GetAdj(direction byte) Coords {
 	}
 	return adj
 }
+
+func (c Coords) IsAdjacent(otherPos Coords) bool {
+	dx := math.Abs(float64(c.X) - float64(otherPos.X))
+	dy := math.Abs(float64(c.Y) - float64(otherPos.Y))
+	return dx+dy == 1
+}

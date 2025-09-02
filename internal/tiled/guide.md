@@ -56,14 +56,11 @@ For the path finding algorithm, if a tile has a cost of 10 or higher, we will ju
 
 ## Using Tilesets for Entity Animation Definitions
 
-We will use Tiled tilesets to define all the frames for animations for entities.
-We will add some custom properties to mark the different frames.
+We use Tiled tilesets to define all the frames for animations for entities.
+We use the `frames` property to do this.
 
-Here's a schema:
+the `frames` property expects the following format:
+`animationName1:0,animationName2:x`
+where `animationName` is the name of a specific animation, and the number is the frame number in that animation
 
-```json
-{
-  "frameType": "left", // "left", "leftRun", "right", "rightRun", etc
-  "frameNumber": 0 // 0 to n-1
-}
-```
+This way, you can reuse the same tile for more than one animation definition if you want.

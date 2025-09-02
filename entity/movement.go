@@ -163,7 +163,7 @@ func (e Entity) getMovementAnimationInfo() (string, int) {
 
 	count, exists := e.AnimationFrameCount[name]
 	if !exists {
-		panic("animation name has no record in AnimationFrameCount map")
+		panic("animation name has no record in AnimationFrameCount map: " + name)
 	}
 
 	return name, count
