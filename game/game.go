@@ -23,6 +23,12 @@ type Game struct {
 	GamePaused            bool                         // if true, the game is paused
 
 	CurrentScreen *screen.Screen // if set, a screen is being displayed and we are not in the game world
+
+	outsideWidth, outsideHeight int
+}
+
+func NewGame() *Game {
+	return &Game{}
 }
 
 // Binds a key to a given function for global keybindings.
@@ -60,6 +66,11 @@ func (g *Game) handleGlobalKeyBindings() {
 	}
 }
 
+// this is called whenever the screen/window resizes.
+// we keep an internal fixed screen size, and then scale up or down to meet the real size of the window.
+// but, we record the real screen size here in case its useful
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return display.GetScreenSize()
+	g.outsideWidth = outsideWidth
+	g.outsideHeight = outsideHeight
+	return display.SCREEN_WIDTH, display.SCREEN_HEIGHT
 }

@@ -39,9 +39,9 @@ func LoadFont(path string, size float64, dpi float64) font.Face {
 
 	// default font settings
 	op := &opentype.FaceOptions{
-		Size: 20,
-		DPI:  72,
-		//Hinting: font.HintingFull, // defaults to none, which apparently makes it smoother
+		Size:    20,
+		DPI:     72,
+		Hinting: font.HintingFull, // defaults to none, which apparently makes it smoother
 	}
 	if size > 0 {
 		op.Size = size

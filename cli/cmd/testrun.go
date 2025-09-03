@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity"
-	g "github.com/webbben/2d-game-engine/game"
+	"github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/model"
@@ -32,7 +32,7 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		display.SetupGameDisplay("Ancient Rome!", true)
+		display.SetupGameDisplay("Ancient Rome!", false)
 
 		tiled.InitFileStructure()
 
@@ -40,7 +40,8 @@ to quickly create a Cobra application.`,
 		game := setupGameState()
 
 		// set config
-		config.ShowPlayerCoords = true
+		config.ShowPlayerCoords = false
+		config.ShowGameDebugInfo = true
 
 		if err := ebiten.RunGame(game); err != nil {
 			panic(err)
@@ -52,8 +53,8 @@ func init() {
 	rootCmd.AddCommand(testrunCmd)
 }
 
-func setupGameState() *g.Game {
-	mapInfo, err := g.SetupMap(g.MapInfo{NPCManager: g.NPCManager{RunBackgroundJobs: true}}, "assets/tiled/maps/testmap.tmj")
+func setupGameState() *game.Game {
+	mapInfo, err := game.SetupMap(game.MapInfo{NPCManager: game.NPCManager{RunBackgroundJobs: true}}, "assets/tiled/maps/testmap.tmj")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -100,36 +101,35 @@ func setupGameState() *g.Game {
 	}
 
 	// setup the game struct
-	game := &g.Game{
-		MapInfo: mapInfo,
-		Player:  p,
-	}
+	g := game.NewGame()
+	g.MapInfo = mapInfo
+	g.Player = p
 
 	// add my test key bindings
-	addCustomKeyBindings(game)
+	addCustomKeyBindings(g)
 
-	return game
+	return g
 }
 
-func addCustomKeyBindings(game *g.Game) {
+func addCustomKeyBindings(g *game.Game) {
 	// open a test dialog
-	game.SetGlobalKeyBinding(ebiten.KeyEqual, func(g *g.Game) {
+	g.SetGlobalKeyBinding(ebiten.KeyEqual, func(gg *game.Game) {
 		// doing this async since we are loading an image file
 		go func() {
 			fmt.Println("getting dialog")
 			d := GetDialog()
-			g.Dialog = &d
+			gg.Dialog = &d
 		}()
 	})
-	game.SetGlobalKeyBinding(ebiten.KeyMinus, func(g *g.Game) {
+	g.SetGlobalKeyBinding(ebiten.KeyMinus, func(gg *game.Game) {
 		go func() {
 			fmt.Println("getting title screen")
 			s := GetTitleScreen()
-			g.CurrentScreen = &s
+			gg.CurrentScreen = &s
 		}()
 	})
 
-	game.SetGlobalKeyBinding(ebiten.KeyEscape, func(g *g.Game) {
+	g.SetGlobalKeyBinding(ebiten.KeyEscape, func(gg *game.Game) {
 		os.Exit(0)
 	})
 }

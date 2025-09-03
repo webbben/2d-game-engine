@@ -2,51 +2,25 @@ package display
 
 import "github.com/hajimehoshi/ebiten/v2"
 
-const (
-	default_window_width  = 1280
-	default_window_height = 720
-)
+/*
+Ebiten manages resizing and scaling on its own.
+So, all we have to do is set an internal fixed screen width/height, and let ebiten do the rest.
+*/
 
-var (
-	isFullscreen bool = false
-	screenWidth  int
-	screenHeight int
+const (
+	SCREEN_WIDTH  int = 1512 // Macbook pro's "effective" resolution
+	SCREEN_HEIGHT int = 945
+
+	// this looks really bad when scaled down even just a bit. so, lets shoot for a smaller size and scaling up for now.
+	// SCREEN_WIDTH  int = 1920 // full HD "1080p"
+	// SCREEN_HEIGHT int = 1080
 )
 
 // does all screen and window setup when starting the game
 func SetupGameDisplay(windowTitle string, fullscreen bool) {
 	ebiten.SetWindowTitle(windowTitle)
-	SetFullscreen(fullscreen)
-}
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
-func GetScreenSize() (int, int) {
-	return screenWidth, screenHeight
-}
-
-func ScreenWidth() int {
-	return screenWidth
-}
-
-func ScreenHeight() int {
-	return screenHeight
-}
-
-func IsFullscreen() bool {
-	return isFullscreen
-}
-
-func SetFullscreen(isFullscreen bool) {
-	if isFullscreen {
-		w, h := ebiten.ScreenSizeInFullscreen()
-		screenWidth = w
-		screenHeight = h
-		ebiten.SetFullscreen(true)
-		isFullscreen = true
-	} else {
-		screenWidth = default_window_width
-		screenHeight = default_window_height
-		ebiten.SetWindowSize(default_window_width, default_window_height)
-		ebiten.SetFullscreen(false)
-		isFullscreen = false
-	}
+	ebiten.SetWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT)
+	ebiten.SetFullscreen(fullscreen)
 }

@@ -7,10 +7,11 @@ import (
 )
 
 var (
-	GameScale        float64 = 2 // how much the game view is scaled up
-	DrawGridLines            = false
-	ShowPlayerCoords         = false
-	TrackMemoryUsage         = false // show a report in the console of memory usage every few seconds
+	GameScale         float64 = 2.5 // how much the game view is scaled up
+	DrawGridLines             = false
+	ShowPlayerCoords          = false
+	TrackMemoryUsage          = false // show a report in the console of memory usage every few seconds
+	ShowGameDebugInfo         = false // show a report of various debugging info (like F12 in minecraft)
 )
 
 const (

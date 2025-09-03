@@ -117,9 +117,9 @@ func (d *Dialog) initialize() {
 
 	// set box position
 	d.x = 0
-	d.y = float64(display.ScreenHeight() - d.boxImage.Bounds().Dy())
+	d.y = float64(display.SCREEN_HEIGHT - d.boxImage.Bounds().Dy())
 	if d.TopicsEnabled {
-		d.topicBoxY = float64(display.ScreenHeight() - d.topicBoxImage.Bounds().Dy())
+		d.topicBoxY = float64(display.SCREEN_HEIGHT - d.topicBoxImage.Bounds().Dy())
 		d.topicBoxX = d.x + float64(d.boxImage.Bounds().Dx())
 	}
 	// there might be a gap at the end; let's try to center these boxes a little
@@ -127,7 +127,7 @@ func (d *Dialog) initialize() {
 	if d.TopicsEnabled {
 		endX += float64(d.topicBoxImage.Bounds().Dx())
 	}
-	pushX := (float64(display.ScreenWidth()) - endX) / 2
+	pushX := (float64(display.SCREEN_WIDTH) - endX) / 2
 	d.x += pushX
 	if d.TopicsEnabled {
 		d.topicBoxX += pushX
@@ -228,20 +228,20 @@ func (d *Dialog) buildBoxImage() {
 	// verify box tile images
 	d.boxDef.verifyImages()
 	// determine box size
-	d.width = display.ScreenWidth()
+	d.width = display.SCREEN_WIDTH
 	d.width -= d.width % d.TileWidth // round it to the size of the box tile
 
 	if d.TopicsEnabled {
 		d.topicBoxWidth = d.TileWidth * 10
 		// fit the topic box into the main box width calculation
-		d.width = display.ScreenWidth() - d.topicBoxWidth
+		d.width = display.SCREEN_WIDTH - d.topicBoxWidth
 		d.width -= d.width % d.TileWidth
 		// set height to allow space for a character portrait
-		d.topicBoxHeight = display.ScreenHeight() / 4 * 3 // 3/4 of the screen height
+		d.topicBoxHeight = display.SCREEN_HEIGHT / 4 * 3 // 3/4 of the screen height
 		d.topicBoxHeight -= d.topicBoxHeight % d.TileHeight
 	}
 
-	d.height = display.ScreenHeight() / 4
+	d.height = display.SCREEN_HEIGHT / 4
 	d.height -= d.height % d.TileHeight
 
 	d.boxImage = createBoxImage(d.boxDef, d.width, d.height)

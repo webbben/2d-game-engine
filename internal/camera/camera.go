@@ -23,7 +23,7 @@ func (c *Camera) MoveCamera(x float64, y float64) {
 }
 
 func (c *Camera) GetAbsPos() (float64, float64) {
-	offsetX := (float64(display.ScreenWidth()) / config.GameScale) / 2
-	offsetY := (float64(display.ScreenHeight()) / config.GameScale) / 2
+	offsetX := (float64(display.SCREEN_WIDTH) / config.GameScale) / 2
+	offsetY := (float64(display.SCREEN_HEIGHT) / config.GameScale) / 2
 	return (c.X * config.TileSize) - float64(offsetX), (c.Y * config.TileSize) - float64(offsetY)
 }

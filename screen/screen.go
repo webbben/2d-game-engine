@@ -100,7 +100,7 @@ func (s *Screen) init() {
 
 		// set button positions
 		for j := range s.Menus[i].Buttons {
-			buttonX := (display.ScreenWidth() - s.Menus[i].BoxImage.Bounds().Dx()) / 2
+			buttonX := (display.SCREEN_WIDTH - s.Menus[i].BoxImage.Bounds().Dx()) / 2
 			buttonY := (s.Menus[i].BoxImage.Bounds().Dy()+30)*(j+1) + 150
 			s.Menus[i].Buttons[j].pos = model.Coords{
 				X: buttonX,
