@@ -2,6 +2,13 @@
 
 Tracking ongoing tasks and their progress
 
+## Dialog
+
+- [ ] Create new dialog framework
+  - [x] display text in dialog boxes
+  - [ ] add support for dialog options, clickable by a mouse
+  - [ ] create a fully fleshed dialog experience, with options, actions, and exiting the dialog
+
 ## Entity
 
 - [ ] design system of combining reusable smaller images into full frames

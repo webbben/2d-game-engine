@@ -20,6 +20,12 @@ func (d Dialog) Draw(screen *ebiten.Image) {
 	for i, line := range d.lineWriter.writtenLines {
 		text.Draw(screen, line, d.TextFont.fontFace, int(d.x+20), int(d.y+35)+(i*d.lineWriter.lineHeight), color.Black)
 	}
+
+	if d.lineWriter.showContinueSymbol {
+		continueX := int(d.x) + d.boxImage.Bounds().Dx() - 25
+		continueY := int(d.y) + d.boxImage.Bounds().Dy() - 8
+		text.Draw(screen, "", d.TextFont.fontFace, continueX, continueY, color.Black)
+	}
 }
 
 func (d *Dialog) Update() {
@@ -49,6 +55,14 @@ func (d *Dialog) Update() {
 			d.lineWriter.currentLineNumber++
 			d.lineWriter.currentLineIndex = 0
 			d.lineWriter.writtenLines = append(d.lineWriter.writtenLines, "") // start next output line
+		}
+	} else {
+		// all text has been displayed. If there are no options to show and we are waiting to continue,
+		// show a flashing icon on the bottom right
+		d.textUpdateTimer++
+		if d.textUpdateTimer > 30 {
+			d.lineWriter.showContinueSymbol = !d.lineWriter.showContinueSymbol
+			d.textUpdateTimer = 0
 		}
 	}
 }

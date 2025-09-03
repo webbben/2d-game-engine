@@ -120,10 +120,11 @@ type lineWriter struct {
 	maxLineWidth    int    // max width (in pixels) of a line. lines will be
 	lineHeight      int    // the (max) height of a single line in this set of lines
 
-	linesToWrite      []string // source text broken down into their lines
-	currentLineNumber int      // the current line (of linesToWrite) that we are writing
-	currentLineIndex  int      // the index of the current line we are writing
-	writtenLines      []string // the "output" that is actually drawn
+	linesToWrite       []string // source text broken down into their lines
+	currentLineNumber  int      // the current line (of linesToWrite) that we are writing
+	currentLineIndex   int      // the index of the current line we are writing
+	writtenLines       []string // the "output" that is actually drawn
+	showContinueSymbol bool     // if true, the "continue" symbol/icon is shown on the bottom right
 }
 
 func (d *Dialog) initialize() {
