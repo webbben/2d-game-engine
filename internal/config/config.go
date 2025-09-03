@@ -14,10 +14,7 @@ var (
 )
 
 const (
-	ScreenWidth  = 1024
-	ScreenHeight = 768
-	TileSize     = 16
-	WindowTitle  = "Ancient Rome!"
+	TileSize = 16
 
 	game_dir = "2d_game_engine"
 )

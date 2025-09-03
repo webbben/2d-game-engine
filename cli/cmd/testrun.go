@@ -13,6 +13,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity"
 	g "github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/npc"
@@ -31,8 +32,7 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		ebiten.SetWindowSize(config.ScreenWidth, config.ScreenHeight)
-		ebiten.SetWindowTitle(config.WindowTitle)
+		display.SetupGameDisplay("Ancient Rome!", true)
 
 		tiled.InitFileStructure()
 
@@ -140,6 +140,7 @@ func GetDialog() dialog.Dialog {
 		TextFont: dialog.Font{
 			Source: "assets/fonts/ashlander-pixel.ttf",
 		},
+		TopicsEnabled: true,
 	}
 	rootTopic := dialog.Topic{
 		MainText: "Hello! Welcome to the Magical Goods Emporium. All of these items were acquired in distant lands such as Aegyptus or Indus. I assure you that you'll find nothing like this anywhere else in Rome.",

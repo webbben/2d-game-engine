@@ -3,6 +3,7 @@ package rendering
 
 import (
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/display"
 	"golang.org/x/image/font"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -22,8 +23,8 @@ func GetImageDrawPos(image *ebiten.Image, x float64, y float64, offsetX float64,
 func ObjectInsideCameraView(tileX float64, tileY float64, widthAdj, heightAdj float64, offsetX float64, offsetY float64) bool {
 	xMin := offsetX
 	yMin := offsetY
-	xMax := offsetX + (config.ScreenWidth / config.GameScale)
-	yMax := offsetY + (config.ScreenHeight / config.GameScale)
+	xMax := offsetX + (float64(display.ScreenWidth()) / config.GameScale)
+	yMax := offsetY + (float64(display.ScreenHeight()) / config.GameScale)
 	x := tileX * config.TileSize
 	y := tileY * config.TileSize
 	return x+widthAdj >= xMin && x-widthAdj <= xMax && y+heightAdj >= yMin && y-heightAdj <= yMax
@@ -40,7 +41,7 @@ func RowAboveCameraView(tileY float64, offsetY float64) bool {
 // determines if the given tile-based y coordinate (i.e. row) is above the camera view
 // if it's below, then this and all remaining rows can skip rendering
 func RowBelowCameraView(tileY float64, offsetY float64) bool {
-	yMax := offsetY + (config.ScreenHeight / config.GameScale)
+	yMax := offsetY + (float64(display.ScreenHeight()) / config.GameScale)
 	y := tileY * config.TileSize
 	return y > yMax
 }
@@ -53,7 +54,7 @@ func ColBeforeCameraView(tileX float64, offsetX float64) bool {
 
 func ColAfterCameraView(tileX float64, offsetX float64) bool {
 	x := tileX * config.TileSize
-	xMax := offsetX + (config.ScreenWidth / config.GameScale)
+	xMax := offsetX + (float64(display.ScreenWidth()) / config.GameScale)
 	return x > xMax
 }
 

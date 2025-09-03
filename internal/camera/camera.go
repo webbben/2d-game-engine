@@ -2,6 +2,7 @@ package camera
 
 import (
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/display"
 )
 
 // the user's viewport/camera
@@ -22,7 +23,7 @@ func (c *Camera) MoveCamera(x float64, y float64) {
 }
 
 func (c *Camera) GetAbsPos() (float64, float64) {
-	offsetX := ((config.ScreenWidth / config.GameScale) / 2)
-	offsetY := ((config.ScreenHeight / config.GameScale) / 2)
+	offsetX := (float64(display.ScreenWidth()) / config.GameScale) / 2
+	offsetY := (float64(display.ScreenHeight()) / config.GameScale) / 2
 	return (c.X * config.TileSize) - float64(offsetX), (c.Y * config.TileSize) - float64(offsetY)
 }

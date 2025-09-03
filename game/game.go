@@ -5,7 +5,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/internal/camera"
-	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
 
@@ -61,5 +61,5 @@ func (g *Game) handleGlobalKeyBindings() {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return config.ScreenWidth, config.ScreenHeight
+	return display.GetScreenSize()
 }

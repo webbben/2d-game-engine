@@ -5,7 +5,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text"
-	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/model"
@@ -100,7 +100,7 @@ func (s *Screen) init() {
 
 		// set button positions
 		for j := range s.Menus[i].Buttons {
-			buttonX := (config.ScreenWidth - s.Menus[i].BoxImage.Bounds().Dx()) / 2
+			buttonX := (display.ScreenWidth() - s.Menus[i].BoxImage.Bounds().Dx()) / 2
 			buttonY := (s.Menus[i].BoxImage.Bounds().Dy()+30)*(j+1) + 150
 			s.Menus[i].Buttons[j].pos = model.Coords{
 				X: buttonX,

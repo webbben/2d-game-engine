@@ -16,6 +16,9 @@ func (d Dialog) Draw(screen *ebiten.Image) {
 		panic("tried to draw dialog before its box image was built")
 	}
 	rendering.DrawImage(screen, d.boxImage, d.x, d.y, 0)
+	if d.TopicsEnabled {
+		rendering.DrawImage(screen, d.topicBoxImage, d.topicBoxX, d.topicBoxY, 0)
+	}
 
 	for i, line := range d.lineWriter.writtenLines {
 		text.Draw(screen, line, d.TextFont.fontFace, int(d.x+20), int(d.y+35)+(i*d.lineWriter.lineHeight), color.Black)

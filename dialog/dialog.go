@@ -1,21 +1,14 @@
 package dialog
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
-	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"golang.org/x/image/font"
-)
-
-const (
-	// box is rendered on the bottom of the screen, starting from the left side.
-	BOX_POS_BOTTOM = "bottom"
 )
 
 type boxDef struct {
@@ -72,41 +65,26 @@ type Font struct {
 	Source   string    // path to font source file
 }
 
-// A Topic represents a node in a dialog/conversation.
-// It can have a main text, and then options to take you to a different node of the conversation.
-type Topic struct {
-	ParentTopic *Topic   // parent topic to revert to when this topic has finished. for the "root", this will be nil.
-	TopicText   string   // text to show for this topic when in a sub-topics list
-	MainText    string   // text to show when this topic is selected. will show before any associated action is triggered.
-	DoneText    string   // text to show when this topic has finished and is about to go back to the parent.
-	ReturnText  string   // text to show when this topic has been returned to from a sub-topic.
-	SubTopics   []*Topic // list of topic options to select and proceed in the dialog
-
-	// topic actions - for when a topic represents an action, rather than just showing text
-
-	IsExitTopic bool   // if true, then activating this topic will exit the dialog.
-	OnActivate  func() // a misc function to trigger some kind of action.
-
-	// misc config
-
-	ShowTextImmediately bool // if true, text will display immediately instead of the via a typing animation
-}
-
 type Dialog struct {
 	boxDef                  // definition of the tiles that build this box
 	BoxTilesetSource string // path to the tileset for the dialog box tiles
+	TextFont         Font
+	init             bool // flag to indicate if this Dialog's data has been loaded and is ready to render
 
-	// Positioning; dialog boxes default to rendering on the bottom of the screen, filling the screen width.
+	// main text box
 
-	Width, Height int           // width and height (in tiles) to make the box. defaults to the screen width, and about 1/4 of the screen height
-	BoxPosition   string        // OPT: the relative position (on the screen) where the box should be rendered. defaults to bottom.
-	TilePosition  model.Coords  // OPT: specify a tile position to place this box at (top left coords). If empty, will refer to BoxPosition instead.
-	x, y          float64       // the actual (absolute) position to place the built image
 	boxImage      *ebiten.Image // the built dialog box image
-	TextFont      Font
-	init          bool // flag to indicate if this Dialog's data has been loaded and is ready to render
+	width, height int           // width and height of the main dialog box
+	x, y          float64       // the actual (absolute) position to place the built image
 
-	// Dialog text
+	// topic box
+
+	TopicsEnabled                 bool          // if true, a topic box will show and topic selection will be enabled
+	topicBoxImage                 *ebiten.Image // the built topic box image
+	topicBoxWidth, topicBoxHeight int
+	topicBoxX, topicBoxY          float64
+
+	// Dialog topic and text
 
 	RootTopic    Topic  // the root topic to start up for this dialog
 	currentTopic *Topic // the currently active topic for this dialog
@@ -139,35 +117,25 @@ func (d *Dialog) initialize() {
 
 	// set box position
 	d.x = 0
-	d.y = float64(config.ScreenHeight - d.boxImage.Bounds().Dy())
-	fmt.Println(d.x, d.y)
+	d.y = float64(display.ScreenHeight() - d.boxImage.Bounds().Dy())
+	if d.TopicsEnabled {
+		d.topicBoxY = float64(display.ScreenHeight() - d.topicBoxImage.Bounds().Dy())
+		d.topicBoxX = d.x + float64(d.boxImage.Bounds().Dx())
+	}
+	// there might be a gap at the end; let's try to center these boxes a little
+	endX := d.x + float64(d.boxImage.Bounds().Dx())
+	if d.TopicsEnabled {
+		endX += float64(d.topicBoxImage.Bounds().Dx())
+	}
+	pushX := (float64(display.ScreenWidth()) - endX) / 2
+	d.x += pushX
+	if d.TopicsEnabled {
+		d.topicBoxX += pushX
+	}
 
 	d.TextFont.fontFace = image.LoadFont(d.TextFont.Source, 24, 72)
 
 	d.setTopic(d.RootTopic)
-}
-
-func (d *Dialog) setTopic(t Topic) {
-	d.currentTopic = &t
-
-	if d.lineWriter.maxLineWidth == 0 {
-		panic("lineWriter maxLineWidth not set")
-	}
-
-	d.lineWriter.sourceText = d.currentTopic.MainText
-	d.lineWriter.linesToWrite = ConvertStringToLines(d.lineWriter.sourceText, d.TextFont.fontFace, d.lineWriter.maxLineWidth)
-	d.lineWriter.currentLineIndex = 0
-	d.lineWriter.currentLineNumber = 0
-	d.lineWriter.writtenLines = []string{""}
-
-	// determine line height
-	for _, line := range d.lineWriter.linesToWrite {
-		_, lineHeight := getStringSize(line, d.TextFont.fontFace)
-		if lineHeight > d.lineWriter.lineHeight {
-			d.lineWriter.lineHeight = lineHeight
-		}
-		fmt.Println(line)
-	}
 }
 
 func getStringSize(s string, f font.Face) (dx int, dy int) {
@@ -260,30 +228,45 @@ func (d *Dialog) buildBoxImage() {
 	// verify box tile images
 	d.boxDef.verifyImages()
 	// determine box size
-	if d.Width == 0 {
-		d.Width = config.ScreenWidth
-		d.Width -= d.Width % d.TileWidth // round it to the size of the box tile
+	d.width = display.ScreenWidth()
+	d.width -= d.width % d.TileWidth // round it to the size of the box tile
+
+	if d.TopicsEnabled {
+		d.topicBoxWidth = d.TileWidth * 10
+		// fit the topic box into the main box width calculation
+		d.width = display.ScreenWidth() - d.topicBoxWidth
+		d.width -= d.width % d.TileWidth
+		// set height to allow space for a character portrait
+		d.topicBoxHeight = display.ScreenHeight() / 4 * 3 // 3/4 of the screen height
+		d.topicBoxHeight -= d.topicBoxHeight % d.TileHeight
 	}
-	if d.Height == 0 {
-		d.Height = config.ScreenHeight / 4
-		d.Height -= d.Height % d.TileHeight
-	}
-	d.boxImage = ebiten.NewImage(d.Width, d.Height)
+
+	d.height = display.ScreenHeight() / 4
+	d.height -= d.height % d.TileHeight
+
+	d.boxImage = createBoxImage(d.boxDef, d.width, d.height)
+	d.topicBoxImage = createBoxImage(d.boxDef, d.topicBoxWidth, d.topicBoxHeight)
+}
+
+// creates a box using the given definition and dimensions.
+// assumes width and height are multiples of the correct tile width/heights.
+func createBoxImage(box boxDef, width, height int) *ebiten.Image {
+	boxImage := ebiten.NewImage(width, height)
 
 	// put together all the box tiles
-	for y := 0; y < d.Height; y += d.TileHeight {
-		for x := 0; x < d.Width; x += d.TileWidth {
+	for y := 0; y < height; y += box.TileHeight {
+		for x := 0; x < width; x += box.TileWidth {
 			pos := ""
 			if x == 0 {
 				pos += "L"
-			} else if x == d.Width-d.TileWidth {
+			} else if x == width-box.TileWidth {
 				pos += "R"
 			} else {
 				pos += "M"
 			}
 			if y == 0 {
 				pos += "T"
-			} else if y == d.Height-d.TileHeight {
+			} else if y == height-box.TileHeight {
 				pos += "B"
 			} else {
 				pos += "M"
@@ -291,26 +274,28 @@ func (d *Dialog) buildBoxImage() {
 
 			switch pos {
 			case "LT": // top left
-				rendering.DrawImage(d.boxImage, d.boxDef.TopLeft, float64(x), float64(y), 0)
+				rendering.DrawImage(boxImage, box.TopLeft, float64(x), float64(y), 0)
 			case "LM": // left
-				rendering.DrawImage(d.boxImage, d.boxDef.Left, float64(x), float64(y), 0)
+				rendering.DrawImage(boxImage, box.Left, float64(x), float64(y), 0)
 			case "LB": // bottom left
-				rendering.DrawImage(d.boxImage, d.boxDef.BottomLeft, float64(x), float64(y), 0)
+				rendering.DrawImage(boxImage, box.BottomLeft, float64(x), float64(y), 0)
 			case "RT": // top right
-				rendering.DrawImage(d.boxImage, d.boxDef.TopRight, float64(x), float64(y), 0)
+				rendering.DrawImage(boxImage, box.TopRight, float64(x), float64(y), 0)
 			case "RM": // right
-				rendering.DrawImage(d.boxImage, d.boxDef.Right, float64(x), float64(y), 0)
+				rendering.DrawImage(boxImage, box.Right, float64(x), float64(y), 0)
 			case "RB": // bottom right
-				rendering.DrawImage(d.boxImage, d.boxDef.BottomRight, float64(x), float64(y), 0)
+				rendering.DrawImage(boxImage, box.BottomRight, float64(x), float64(y), 0)
 			case "MT": // top
-				rendering.DrawImage(d.boxImage, d.boxDef.Top, float64(x), float64(y), 0)
+				rendering.DrawImage(boxImage, box.Top, float64(x), float64(y), 0)
 			case "MM": // middle
-				rendering.DrawImage(d.boxImage, d.boxDef.Middle, float64(x), float64(y), 0)
+				rendering.DrawImage(boxImage, box.Middle, float64(x), float64(y), 0)
 			case "MB": // bottom
-				rendering.DrawImage(d.boxImage, d.boxDef.Bottom, float64(x), float64(y), 0)
+				rendering.DrawImage(boxImage, box.Bottom, float64(x), float64(y), 0)
 			default:
 				panic("buildBoxImage: invalid box tile position!")
 			}
 		}
 	}
+
+	return boxImage
 }
