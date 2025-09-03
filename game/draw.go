@@ -56,8 +56,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// ebitenutil.DrawRect(screen, 0, 0, config.ScreenWidth, config.ScreenHeight, blue)
 
 	// draw dialog
-	if g.Conversation != nil {
-		g.Conversation.DrawConversation(screen)
+	if g.Dialog != nil {
+		g.Dialog.Draw(screen)
 	}
 
 	if config.ShowPlayerCoords {

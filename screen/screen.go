@@ -11,7 +11,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
 )
 
 // Screen represents a screen in the game
@@ -76,12 +75,8 @@ func (s *Screen) init() {
 	s.Background.DrawImage(shadow, op)
 
 	// load fonts
-	s.titleFont = image.LoadFont(s.TitleFontName, &opentype.FaceOptions{
-		Size:    48,
-		DPI:     72,
-		Hinting: font.HintingFull,
-	})
-	s.bodyFont = image.LoadFont(s.BodyFontName, nil)
+	s.titleFont = image.LoadFont(s.TitleFontName, 48, 72)
+	s.bodyFont = image.LoadFont(s.BodyFontName, 0, 0)
 
 	// create button images
 	for i := range s.Menus {

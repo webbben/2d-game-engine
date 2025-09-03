@@ -25,7 +25,7 @@ func LoadImage(imagePath string) (*ebiten.Image, error) {
 	return img, nil
 }
 
-func LoadFont(path string, op *opentype.FaceOptions) font.Face {
+func LoadFont(path string, size float64, dpi float64) font.Face {
 	fontFile, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
@@ -38,12 +38,16 @@ func LoadFont(path string, op *opentype.FaceOptions) font.Face {
 	}
 
 	// default font settings
-	if op == nil {
-		op = &opentype.FaceOptions{
-			Size:    20,
-			DPI:     72,
-			Hinting: font.HintingFull,
-		}
+	op := &opentype.FaceOptions{
+		Size: 20,
+		DPI:  72,
+		//Hinting: font.HintingFull, // defaults to none, which apparently makes it smoother
+	}
+	if size > 0 {
+		op.Size = size
+	}
+	if dpi > 0 {
+		op.DPI = dpi
 	}
 
 	// create font face

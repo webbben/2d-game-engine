@@ -64,9 +64,8 @@ func (t *Tileset) LoadJSONData() error {
 	}
 
 	// TODO - replace this hack with the long term approach for storing tileset images
-	if strings.HasPrefix(loaded.Image, "../../images/tilesets/") {
-		loaded.Image = strings.TrimPrefix(loaded.Image, "../../")
-		loaded.Image = "assets/" + loaded.Image
+	if strings.HasPrefix(loaded.Image, "../") {
+		loaded.Image = "assets/images/" + strings.Split(loaded.Image, "/images/")[1]
 	}
 
 	// put the two initial values into this loaded one, and replace the original Tileset data

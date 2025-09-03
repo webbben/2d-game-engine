@@ -3,9 +3,9 @@ package game
 import (
 	"fmt"
 
+	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/internal/camera"
 	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/dialog"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
 
@@ -17,7 +17,7 @@ type Game struct {
 	MapInfo               *MapInfo
 	Player                player.Player                // the player
 	Camera                camera.Camera                // the camera/viewport
-	Conversation          *dialog.Conversation         // if set, the player is in a conversation or being shown general text to read.
+	Dialog                *dialog.Dialog               // if set, a dialog is shown
 	GlobalKeyBindings     map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
 	activeGlobalKeyBindFn map[ebiten.Key]bool          // maps which keybinding functions are actively executing, to prevent repeated calls from long key presses.
 	GamePaused            bool                         // if true, the game is paused

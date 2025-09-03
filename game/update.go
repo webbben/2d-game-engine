@@ -32,13 +32,8 @@ func (g *Game) Update() error {
 // All "In World" updates happen here - basically anything happening when the player is walking in a room
 func (g *Game) worldUpdates() {
 	// update dialog if currently in a dialog session
-	if g.Conversation != nil {
-		if g.Conversation.End {
-			// if dialog has ended, remove it from game state
-			g.Conversation = nil
-		} else {
-			g.Conversation.UpdateConversation()
-		}
+	if g.Dialog != nil {
+		g.Dialog.Update()
 	} else {
 		// handle player and npc updates
 		g.Player.Update()

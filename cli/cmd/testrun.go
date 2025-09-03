@@ -9,10 +9,10 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/spf13/cobra"
+	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity"
 	g "github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/dialog"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/npc"
@@ -117,8 +117,8 @@ func addCustomKeyBindings(game *g.Game) {
 		// doing this async since we are loading an image file
 		go func() {
 			fmt.Println("getting dialog")
-			c := GetConversation()
-			g.Conversation = &c
+			d := GetDialog()
+			g.Dialog = &d
 		}()
 	})
 	game.SetGlobalKeyBinding(ebiten.KeyMinus, func(g *g.Game) {
@@ -134,28 +134,20 @@ func addCustomKeyBindings(game *g.Game) {
 	})
 }
 
-func GetConversation() dialog.Conversation {
+func GetDialog() dialog.Dialog {
 	d := dialog.Dialog{
-		Steps: []dialog.DialogStep{
-			{Text: "Greetings, what can I do for you?"},
+		BoxTilesetSource: "assets/tiled/tilesets/boxes/box1.tsj",
+		TextFont: dialog.Font{
+			Source: "assets/fonts/ashlander-pixel.ttf",
 		},
 	}
-
-	c := dialog.Conversation{
-		Greeting: d,
-		Font: dialog.Font{
-			FontName: "Planewalker",
-		},
-		Topics: map[string]dialog.Dialog{
-			"rumors":        {Steps: []dialog.DialogStep{{Text: "I heard there are goblins in the forest."}}},
-			"little advice": {Steps: []dialog.DialogStep{{Text: "Don't go into the forest alone."}}},
-			"joke":          {Steps: []dialog.DialogStep{{Text: "Why did the chicken cross the road?"}, {Text: "To get to the other side!"}}},
-			"the empire":    {Steps: []dialog.DialogStep{{Text: "The empire is a vast and powerful entity."}}},
-		},
+	rootTopic := dialog.Topic{
+		MainText: "Hello! Welcome to the Magical Goods Emporium. All of these items were acquired in distant lands such as Aegyptus or Indus. I assure you that you'll find nothing like this anywhere else in Rome.",
 	}
-	c.SetDialogTiles("tileset/borders/dialog_1")
 
-	return c
+	d.RootTopic = rootTopic
+
+	return d
 }
 
 func GetTitleScreen() screen.Screen {
