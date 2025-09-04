@@ -10,6 +10,11 @@ func (d Dialog) Draw(screen *ebiten.Image) {
 	if !d.init {
 		return
 	}
+	if d.Exit {
+		// dialog has ended
+		return
+	}
+
 	if d.boxImage == nil {
 		panic("tried to draw dialog before its box image was built")
 	}
@@ -30,6 +35,11 @@ func (d Dialog) Draw(screen *ebiten.Image) {
 }
 
 func (d *Dialog) Update() {
+	if d.Exit {
+		// dialog has ended
+		return
+	}
+
 	if !d.init {
 		// do initialization
 		d.initialize()
@@ -53,5 +63,44 @@ func (d *Dialog) Update() {
 			d.flashDoneIcon = !d.flashDoneIcon
 			d.iconFlashTimer = 0
 		}
+
+		// handle status transition
+		switch d.currentTopic.status {
+		case topic_status_showingMainText:
+			d.currentTopic.status = topic_status_mainTextDone
+		case topic_status_returned:
+			// topic has been returned to from a subtopic
+			// don't show main text and await the next logical step
+			// return text should have been shown by the previous topic's transition
+			d.currentTopic.status = topic_status_mainTextDone
+		case topic_status_goingBack:
+			// final text has finished; time to go back to parent topic for real
+			d.returnToParentTopic()
+			return
+		}
+
+		if len(d.currentTopic.SubTopics) > 0 {
+			d.currentTopic.status = topic_status_awaitSubtopic
+			// TODO handle subtopic selection
+			return
+		} else {
+			// there are no sub-topics, so wait for user to continue and go back to parent topic
+			d.awaitDone()
+			return
+		}
+	}
+}
+
+func (d *Dialog) awaitDone() {
+	if d.currentTopic.status != topic_status_mainTextDone && d.currentTopic.status != topic_status_goingBack {
+		// we shouldn't be waiting for a user continue unless we are in one of these topic statuses
+		panic("invalid status for dialog.awaitDone: " + d.currentTopic.status)
+	}
+	if d.lineWriter.WritingStatus != text.LW_TEXT_DONE {
+		panic("dialog.awaitDone: lineWriter status is expected to be done. invalid status found: " + d.lineWriter.WritingStatus)
+	}
+	if ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		// user has signaled to continue; end current topic.
+		d.returnToParentTopic()
 	}
 }

@@ -72,6 +72,7 @@ type Dialog struct {
 	BoxTilesetSource string // path to the tileset for the dialog box tiles
 	TextFont         Font
 	init             bool // flag to indicate if this Dialog's data has been loaded and is ready to render
+	Exit             bool // flag to indicate dialog has exited. cuts off dialog updates and draws.
 
 	// main text box
 
@@ -130,7 +131,13 @@ func (d *Dialog) initialize() {
 		d.topicBoxX += pushX
 	}
 
-	d.setTopic(d.RootTopic)
+	d.setTopic(d.RootTopic, false)
+}
+
+// call this to formally end the dialog
+func (d *Dialog) EndDialog() {
+	d.Exit = true
+	// TODO handle any cleanup here?
 }
 
 func getStringSize(s string, f font.Face) (dx int, dy int) {
