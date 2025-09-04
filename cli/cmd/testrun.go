@@ -146,12 +146,17 @@ func GetDialog() dialog.Dialog {
 		TopicsEnabled: true,
 	}
 	rootTopic := dialog.Topic{
+		TopicText:  "Root",
 		MainText:   "Hello! Welcome to the Magical Goods Emporium. All of these items were acquired in distant lands such as Aegyptus or Indus. I assure you that you'll find nothing like this anywhere else in Rome.",
 		ReturnText: "Anything else I can help you with?",
 	}
-	rootTopic.SubTopics = append(rootTopic.SubTopics, &dialog.Topic{
+	rootTopic.SubTopics = append(rootTopic.SubTopics, dialog.Topic{
 		TopicText: "Rumors",
 		MainText:  "They say if you go to the Forum past midnight, you might find a group of shady individuals hanging around in the dark. Not sure what for, but I'd also imagine it's a bad idea to go snooping around for them.",
+	})
+	rootTopic.SubTopics = append(rootTopic.SubTopics, dialog.Topic{
+		TopicText: "The Empire",
+		MainText:  "The Empire spans the world over - they say all the peoples from the foggy isles of Britain to the Nile of Egypt all are under Imperial rule.",
 	})
 
 	d.RootTopic = rootTopic

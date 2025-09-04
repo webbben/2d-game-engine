@@ -1,9 +1,8 @@
 package dialog
 
 import (
-	"fmt"
-
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/ui"
 )
 
@@ -33,7 +32,7 @@ type Topic struct {
 
 	ReturnText string // text to show when this topic has been returned to from a sub-topic. if previous topic had DoneText, this is ignored.
 
-	SubTopics []*Topic // list of topic options to select and proceed in the dialog
+	SubTopics []Topic // list of topic options to select and proceed in the dialog
 	// topic actions - for when a topic represents an action, rather than just showing text
 
 	IsExitTopic bool   // if true, then activating this topic will exit the dialog.
@@ -43,10 +42,14 @@ type Topic struct {
 
 	ShowTextImmediately bool // if true, text will display immediately instead of the via a typing animation
 
-	button ui.Button // a button for this topic, if it's a subtopic
+	button *ui.Button // a button for this topic, if it's a subtopic
 }
 
 func (d *Dialog) setTopic(t Topic, isReturning bool) {
+	if d.currentTopic != nil {
+		logz.Println(d.currentTopic.TopicText, "setting new topic", t.TopicText)
+	}
+
 	if !d.init {
 		panic("dialog must be initialized before setting a topic. otherwise, lineWriter won't exist.")
 	}
@@ -58,25 +61,29 @@ func (d *Dialog) setTopic(t Topic, isReturning bool) {
 	}
 
 	d.currentTopic = &t
+
+	// prepare sub-topic buttons
+	buttonHeight := 35
+	for i := range d.currentTopic.SubTopics {
+		buttonX := int(d.topicBoxX + 10)
+		buttonY := display.SCREEN_HEIGHT - ((i + 1) * buttonHeight) - 15
+		buttonWidth := d.topicBoxWidth - 10
+
+		subtopic := d.currentTopic.SubTopics[i]
+
+		d.currentTopic.SubTopics[i].button = ui.NewButton(subtopic.TopicText, nil, buttonWidth, buttonHeight, buttonX, buttonY, func() {
+			d.setTopic(subtopic, false)
+		})
+	}
+
 	if isReturning {
 		t.status = topic_status_returned
 	} else {
 		// this is a new topic
 		t.status = topic_status_showingMainText
+		d.lineWriter.Clear()
+		d.lineWriter.SetSourceText(d.currentTopic.MainText)
 	}
-
-	// prepare sub-topic buttons
-	buttonHeight := 35
-	for i, subtopic := range d.currentTopic.SubTopics {
-		buttonX := int(d.topicBoxX + 5)
-		buttonY := display.SCREEN_HEIGHT - ((i + 1) * buttonHeight)
-		subtopic.button = ui.NewButton(subtopic.TopicText, nil, 0, buttonHeight, buttonX, buttonY, func() {
-			fmt.Println("topic clicked:", subtopic.TopicText)
-		})
-	}
-
-	d.lineWriter.Clear()
-	d.lineWriter.SetSourceText(d.currentTopic.MainText)
 }
 
 func (d *Dialog) returnToParentTopic() {

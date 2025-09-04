@@ -24,7 +24,7 @@ type Button struct {
 	textImg     *ebiten.Image
 }
 
-func NewButton(buttonText string, fontFace font.Face, width, height int, x, y int, onClick func()) Button {
+func NewButton(buttonText string, fontFace font.Face, width, height int, x, y int, onClick func()) *Button {
 	// set defaults
 	if fontFace == nil {
 		fontFace = config.DefaultFont
@@ -55,15 +55,15 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, x, y in
 	// build images
 	b.hoverBoxImg = ebiten.NewImage(b.Width, b.Height)
 	b.hoverBoxImg.Fill(color.RGBA{30, 30, 30, 5})
-	b.textImg = ebiten.NewImage(dx, dy)
+	b.textImg = ebiten.NewImage(dx, dy+5)
 	text.DrawShadowText(b.textImg, b.ButtonText, b.fontFace, 0, dy, nil, nil, 0, 0)
 
-	return b
+	return &b
 }
 
 func (b *Button) Update() {
 	if !b.init {
-		panic("button not created yet!")
+		panic("button not created yet: " + b.ButtonText)
 	}
 	// check if button is hovering
 	mouseX, mouseY := ebiten.CursorPosition()
@@ -91,7 +91,7 @@ func (b *Button) Update() {
 
 func (b Button) Draw(screen *ebiten.Image) {
 	if !b.init {
-		panic("button not created yet!")
+		panic("tried to draw button before it was created!")
 	}
 	if b.hoverBoxImg == nil {
 		panic("tried to draw button before hover box image was created")

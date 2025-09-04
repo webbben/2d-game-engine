@@ -82,6 +82,10 @@ func (d *Dialog) Update() {
 			}
 			for _, subtopic := range d.currentTopic.SubTopics {
 				subtopic.button.Update()
+				// check if current topic changed - if so, return since we need to restart update loop
+				if d.currentTopic.status != topic_status_awaitSubtopic {
+					return
+				}
 			}
 		}
 
