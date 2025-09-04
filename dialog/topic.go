@@ -1,5 +1,12 @@
 package dialog
 
+import (
+	"fmt"
+
+	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/ui"
+)
+
 type topicStatus string
 
 const (
@@ -18,14 +25,13 @@ const (
 // A Topic represents a node in a dialog/conversation.
 // It can have a main text, and then options to take you to a different node of the conversation.
 type Topic struct {
-	ParentTopic *Topic // parent topic to revert to when this topic has finished. for the "root", this will be nil.
+	parentTopic *Topic // when switching to a sub-topic, this will be populated so that we know which topic to revert back to
 	TopicText   string // text to show for this topic when in a sub-topics list
 	MainText    string // text to show when this topic is selected. will show before any associated action is triggered.
 	DoneText    string // text to show when this topic has finished and is about to go back to the parent.
 	status      topicStatus
 
-	returningFromSubtopic bool   // flag to indicate if we are just returning from a subtopic. implies that main text should not be shown.
-	ReturnText            string // text to show when this topic has been returned to from a sub-topic. if previous topic had DoneText, this is ignored.
+	ReturnText string // text to show when this topic has been returned to from a sub-topic. if previous topic had DoneText, this is ignored.
 
 	SubTopics []*Topic // list of topic options to select and proceed in the dialog
 	// topic actions - for when a topic represents an action, rather than just showing text
@@ -36,6 +42,8 @@ type Topic struct {
 	// misc config
 
 	ShowTextImmediately bool // if true, text will display immediately instead of the via a typing animation
+
+	button ui.Button // a button for this topic, if it's a subtopic
 }
 
 func (d *Dialog) setTopic(t Topic, isReturning bool) {
@@ -43,13 +51,28 @@ func (d *Dialog) setTopic(t Topic, isReturning bool) {
 		panic("dialog must be initialized before setting a topic. otherwise, lineWriter won't exist.")
 	}
 
+	// if we are going from a topic to a sub-topic, set the parent topic relationship is set
+	if !isReturning {
+		t.parentTopic = nil
+		t.parentTopic = d.currentTopic
+	}
+
 	d.currentTopic = &t
-	t.returningFromSubtopic = isReturning
 	if isReturning {
 		t.status = topic_status_returned
 	} else {
 		// this is a new topic
 		t.status = topic_status_showingMainText
+	}
+
+	// prepare sub-topic buttons
+	buttonHeight := 35
+	for i, subtopic := range d.currentTopic.SubTopics {
+		buttonX := int(d.topicBoxX + 5)
+		buttonY := display.SCREEN_HEIGHT - ((i + 1) * buttonHeight)
+		subtopic.button = ui.NewButton(subtopic.TopicText, nil, 0, buttonHeight, buttonX, buttonY, func() {
+			fmt.Println("topic clicked:", subtopic.TopicText)
+		})
 	}
 
 	d.lineWriter.Clear()
@@ -60,7 +83,7 @@ func (d *Dialog) returnToParentTopic() {
 	if d.currentTopic == nil {
 		panic("tried to return to parent topic, but current topic is nil!")
 	}
-	if d.currentTopic.ParentTopic == nil {
+	if d.currentTopic.parentTopic == nil {
 		// this is the root topic; end the conversation
 		d.EndDialog()
 		return
@@ -69,14 +92,14 @@ func (d *Dialog) returnToParentTopic() {
 	textToShow := ""
 	if d.currentTopic.DoneText != "" {
 		textToShow = d.currentTopic.DoneText
-	} else if d.currentTopic.ParentTopic.ReturnText != "" {
-		textToShow = d.currentTopic.ParentTopic.ReturnText
+	} else if d.currentTopic.parentTopic.ReturnText != "" {
+		textToShow = d.currentTopic.parentTopic.ReturnText
 	}
 
 	// we've already displayed the done/return text, so we are ready to change the topic now
 	// or, if no final text is found, just return while leaving the current text on the screen
 	if d.currentTopic.status == topic_status_goingBack || textToShow == "" {
-		d.setTopic(*d.currentTopic.ParentTopic, true)
+		d.setTopic(*d.currentTopic.parentTopic, true)
 		return
 	}
 

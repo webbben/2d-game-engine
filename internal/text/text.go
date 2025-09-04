@@ -28,6 +28,10 @@ func DrawShadowText(screen *ebiten.Image, s string, f font.Face, x, y int, fg co
 }
 
 // the main function to draw text
+//
+// IMPORTANT: the "y" coordinate is actually the position **BELOW** where the text is drawn.
+// NOT the top left corner of the text image.
+// TODO factor this in to the function here?
 func DrawText(screen *ebiten.Image, s string, f font.Face, x, y int, c color.Color) {
 	if c == nil {
 		c = color.Black

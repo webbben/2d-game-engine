@@ -32,6 +32,11 @@ func (d Dialog) Draw(screen *ebiten.Image) {
 		continueY := int(d.y) + d.boxImage.Bounds().Dy() - 8
 		text.DrawShadowText(screen, "", d.TextFont.fontFace, continueX, continueY, nil, nil, 0, 0)
 	}
+
+	// draw subtopic buttons
+	for _, subtopic := range d.currentTopic.SubTopics {
+		subtopic.button.Draw(screen)
+	}
 }
 
 func (d *Dialog) Update() {
@@ -56,13 +61,7 @@ func (d *Dialog) Update() {
 	case text.LW_AWAIT_PAGER:
 		// TODO
 	case text.LW_TEXT_DONE:
-		// all text has been displayed. If there are no options to show and we are waiting to continue,
-		// show a flashing icon on the bottom right
-		d.iconFlashTimer++
-		if d.iconFlashTimer > 30 {
-			d.flashDoneIcon = !d.flashDoneIcon
-			d.iconFlashTimer = 0
-		}
+		// all text has been displayed
 
 		// handle status transition
 		switch d.currentTopic.status {
@@ -77,11 +76,17 @@ func (d *Dialog) Update() {
 			// final text has finished; time to go back to parent topic for real
 			d.returnToParentTopic()
 			return
+		case topic_status_awaitSubtopic:
+			if len(d.currentTopic.SubTopics) == 0 {
+				panic("waiting for subtopic selection even though no subtopics exist!")
+			}
+			for _, subtopic := range d.currentTopic.SubTopics {
+				subtopic.button.Update()
+			}
 		}
 
 		if len(d.currentTopic.SubTopics) > 0 {
 			d.currentTopic.status = topic_status_awaitSubtopic
-			// TODO handle subtopic selection
 			return
 		} else {
 			// there are no sub-topics, so wait for user to continue and go back to parent topic
@@ -99,6 +104,14 @@ func (d *Dialog) awaitDone() {
 	if d.lineWriter.WritingStatus != text.LW_TEXT_DONE {
 		panic("dialog.awaitDone: lineWriter status is expected to be done. invalid status found: " + d.lineWriter.WritingStatus)
 	}
+
+	// flash done icon
+	d.iconFlashTimer++
+	if d.iconFlashTimer > 30 {
+		d.flashDoneIcon = !d.flashDoneIcon
+		d.iconFlashTimer = 0
+	}
+
 	if ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		// user has signaled to continue; end current topic.
 		d.returnToParentTopic()

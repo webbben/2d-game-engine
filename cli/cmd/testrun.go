@@ -14,6 +14,7 @@ import (
 	"github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/npc"
@@ -42,6 +43,8 @@ to quickly create a Cobra application.`,
 		// set config
 		config.ShowPlayerCoords = false
 		config.ShowGameDebugInfo = true
+
+		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 0, 0)
 
 		if err := ebiten.RunGame(game); err != nil {
 			panic(err)
@@ -143,8 +146,13 @@ func GetDialog() dialog.Dialog {
 		TopicsEnabled: true,
 	}
 	rootTopic := dialog.Topic{
-		MainText: "Hello! Welcome to the Magical Goods Emporium. All of these items were acquired in distant lands such as Aegyptus or Indus. I assure you that you'll find nothing like this anywhere else in Rome.",
+		MainText:   "Hello! Welcome to the Magical Goods Emporium. All of these items were acquired in distant lands such as Aegyptus or Indus. I assure you that you'll find nothing like this anywhere else in Rome.",
+		ReturnText: "Anything else I can help you with?",
 	}
+	rootTopic.SubTopics = append(rootTopic.SubTopics, &dialog.Topic{
+		TopicText: "Rumors",
+		MainText:  "They say if you go to the Forum past midnight, you might find a group of shady individuals hanging around in the dark. Not sure what for, but I'd also imagine it's a bad idea to go snooping around for them.",
+	})
 
 	d.RootTopic = rootTopic
 
