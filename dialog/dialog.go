@@ -1,12 +1,14 @@
 package dialog
 
 import (
+	"image/color"
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"golang.org/x/image/font"
 )
@@ -89,20 +91,10 @@ type Dialog struct {
 	RootTopic    Topic  // the root topic to start up for this dialog
 	currentTopic *Topic // the currently active topic for this dialog
 
-	lineWriter
-}
-
-type lineWriter struct {
-	sourceText      string // full text the line writer is currently aiming to write
-	textUpdateTimer int    // number of ticks until the next text character is added
-	maxLineWidth    int    // max width (in pixels) of a line. lines will be
-	lineHeight      int    // the (max) height of a single line in this set of lines
-
-	linesToWrite       []string // source text broken down into their lines
-	currentLineNumber  int      // the current line (of linesToWrite) that we are writing
-	currentLineIndex   int      // the index of the current line we are writing
-	writtenLines       []string // the "output" that is actually drawn
-	showContinueSymbol bool     // if true, the "continue" symbol/icon is shown on the bottom right
+	lineWriter        text.LineWriter
+	flashContinueIcon bool // flash icon to indicate the dialog will continue to the next page of text
+	flashDoneIcon     bool // flash icon to indicate that current dialog text has finished
+	iconFlashTimer    int  // timer for flashing icon, based on update ticks
 }
 
 func (d *Dialog) initialize() {
@@ -113,7 +105,12 @@ func (d *Dialog) initialize() {
 
 	// build box image
 	d.buildBoxImage()
-	d.lineWriter.maxLineWidth = d.boxImage.Bounds().Dx() - 200
+	maxLineWidth := d.boxImage.Bounds().Dx() - 200
+	maxHeight := d.boxImage.Bounds().Dy() - 100
+
+	// setup lineWriter
+	d.TextFont.fontFace = image.LoadFont(d.TextFont.Source, 24, 72)
+	d.lineWriter = text.NewLineWriter(maxLineWidth, maxHeight, d.TextFont.fontFace, color.Black, color.RGBA{20, 20, 20, 75}, true)
 
 	// set box position
 	d.x = 0
@@ -132,8 +129,6 @@ func (d *Dialog) initialize() {
 	if d.TopicsEnabled {
 		d.topicBoxX += pushX
 	}
-
-	d.TextFont.fontFace = image.LoadFont(d.TextFont.Source, 24, 72)
 
 	d.setTopic(d.RootTopic)
 }

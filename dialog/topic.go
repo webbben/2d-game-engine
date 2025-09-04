@@ -1,7 +1,5 @@
 package dialog
 
-import "fmt"
-
 // A Topic represents a node in a dialog/conversation.
 // It can have a main text, and then options to take you to a different node of the conversation.
 type Topic struct {
@@ -25,22 +23,9 @@ type Topic struct {
 func (d *Dialog) setTopic(t Topic) {
 	d.currentTopic = &t
 
-	if d.lineWriter.maxLineWidth == 0 {
-		panic("lineWriter maxLineWidth not set")
+	if !d.init {
+		panic("dialog must be initialized before setting a topic. otherwise, lineWriter won't exist.")
 	}
 
-	d.lineWriter.sourceText = d.currentTopic.MainText
-	d.lineWriter.linesToWrite = ConvertStringToLines(d.lineWriter.sourceText, d.TextFont.fontFace, d.lineWriter.maxLineWidth)
-	d.lineWriter.currentLineIndex = 0
-	d.lineWriter.currentLineNumber = 0
-	d.lineWriter.writtenLines = []string{""}
-
-	// determine line height
-	for _, line := range d.lineWriter.linesToWrite {
-		_, lineHeight := getStringSize(line, d.TextFont.fontFace)
-		if lineHeight > d.lineWriter.lineHeight {
-			d.lineWriter.lineHeight = lineHeight
-		}
-		fmt.Println(line)
-	}
+	d.lineWriter.SetSourceText(d.currentTopic.MainText)
 }

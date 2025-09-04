@@ -1,11 +1,9 @@
 package dialog
 
 import (
-	"image/color"
-
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/internal/text"
 )
 
 func (d Dialog) Draw(screen *ebiten.Image) {
@@ -20,14 +18,14 @@ func (d Dialog) Draw(screen *ebiten.Image) {
 		rendering.DrawImage(screen, d.topicBoxImage, d.topicBoxX, d.topicBoxY, 0)
 	}
 
-	for i, line := range d.lineWriter.writtenLines {
-		text.Draw(screen, line, d.TextFont.fontFace, int(d.x+20), int(d.y+35)+(i*d.lineWriter.lineHeight), color.Black)
-	}
+	d.lineWriter.Draw(screen, int(d.x+20), int(d.y+35))
 
-	if d.lineWriter.showContinueSymbol {
+	if d.flashContinueIcon {
+		// TODO
+	} else if d.flashDoneIcon {
 		continueX := int(d.x) + d.boxImage.Bounds().Dx() - 25
 		continueY := int(d.y) + d.boxImage.Bounds().Dy() - 8
-		text.Draw(screen, "", d.TextFont.fontFace, continueX, continueY, color.Black)
+		text.DrawShadowText(screen, "", d.TextFont.fontFace, continueX, continueY, nil, nil, 0, 0)
 	}
 }
 
@@ -43,29 +41,17 @@ func (d *Dialog) Update() {
 	}
 
 	// handle text display
-	if d.lineWriter.currentLineNumber < len(d.lineWriter.linesToWrite) {
-		if d.lineWriter.currentLineIndex < len(d.lineWriter.linesToWrite[d.lineWriter.currentLineNumber]) {
-			d.textUpdateTimer++
-			if d.textUpdateTimer > 0 {
-				// continue to write the current line
-				nextChar := d.lineWriter.linesToWrite[d.lineWriter.currentLineNumber][d.lineWriter.currentLineIndex]
-				d.lineWriter.writtenLines[d.lineWriter.currentLineNumber] += string(nextChar)
-				d.lineWriter.currentLineIndex++
-				d.textUpdateTimer = 0
-			}
-		} else {
-			// go to the next line
-			d.lineWriter.currentLineNumber++
-			d.lineWriter.currentLineIndex = 0
-			d.lineWriter.writtenLines = append(d.lineWriter.writtenLines, "") // start next output line
-		}
-	} else {
+	d.lineWriter.Update()
+	switch d.lineWriter.WritingStatus {
+	case text.LW_AWAIT_PAGER:
+		// TODO
+	case text.LW_TEXT_DONE:
 		// all text has been displayed. If there are no options to show and we are waiting to continue,
 		// show a flashing icon on the bottom right
-		d.textUpdateTimer++
-		if d.textUpdateTimer > 30 {
-			d.lineWriter.showContinueSymbol = !d.lineWriter.showContinueSymbol
-			d.textUpdateTimer = 0
+		d.iconFlashTimer++
+		if d.iconFlashTimer > 30 {
+			d.flashDoneIcon = !d.flashDoneIcon
+			d.iconFlashTimer = 0
 		}
 	}
 }
