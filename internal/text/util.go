@@ -46,6 +46,7 @@ func ConvertStringToLines(s string, f font.Face, lineWidthPx int) []string {
 
 		if currentLine.Len() > 0 {
 			lines = append(lines, currentLine.String())
+			currentLine.Reset()
 		}
 	}
 

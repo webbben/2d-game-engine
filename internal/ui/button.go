@@ -33,7 +33,12 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, onClick
 			panic("default font not loaded!")
 		}
 	}
-	dx, dy, baseline := text.GetStringSize(buttonText, fontFace)
+	dx, dy, baselineY := text.GetStringSize(buttonText, fontFace)
+	padding := 6
+	dx += padding
+	dy += padding
+	baselineY += padding / 2
+	baselineX := padding / 2
 
 	// if width or height is 0, that means we should set it to be as small as possible (caller doesn't care about size)
 	// if an actual size is specified but it's too small for the text & font, change it and log a warning
@@ -65,7 +70,7 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, onClick
 	b.hoverBoxImg.Fill(color.RGBA{30, 30, 30, 5})
 	b.textImg = ebiten.NewImage(dx, dy)
 	//b.textImg.Fill(color.RGBA{100, 0, 0, 50})
-	text.DrawShadowText(b.textImg, b.ButtonText, b.fontFace, 0, baseline, nil, nil, 0, 0)
+	text.DrawShadowText(b.textImg, b.ButtonText, b.fontFace, baselineX, baselineY, nil, nil, 0, 0)
 
 	return &b
 }
