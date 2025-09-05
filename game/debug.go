@@ -101,9 +101,12 @@ func (g Game) showGameDebugInfo(screen *ebiten.Image) {
 	scale := math.Min(scaleX, scaleY)
 	s.WriteString(
 		fmt.Sprintf(
-			"SCREEN SIZE\nvirtual: %v x %v\nreal: %v x %v\nscale: %v%%",
+			"SCREEN SIZE\nvirtual: %v x %v\nreal: %v x %v\nscale: %v%%\n",
 			display.SCREEN_WIDTH, display.SCREEN_HEIGHT, g.outsideWidth, g.outsideHeight, scale,
 		))
+
+	mouseX, mouseY := ebiten.CursorPosition()
+	s.WriteString(fmt.Sprintf("MOUSE: %v, %v \n", mouseX, mouseY))
 
 	ebitenutil.DebugPrint(screen, s.String())
 }

@@ -2,11 +2,13 @@ package dialog
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
 )
 
-func (d Dialog) Draw(screen *ebiten.Image) {
+// since dialog's draw needs to set some positions (which are used also to detect mouse hovering) making this a pointer function
+func (d *Dialog) Draw(screen *ebiten.Image) {
 	if !d.init {
 		return
 	}
@@ -23,7 +25,17 @@ func (d Dialog) Draw(screen *ebiten.Image) {
 		rendering.DrawImage(screen, d.topicBoxImage, d.topicBoxX, d.topicBoxY, 0)
 	}
 
-	d.lineWriter.Draw(screen, int(d.x+20), int(d.y+35))
+	// draw main dialog box content
+	lineWriterLastY := d.lineWriter.Draw(screen, int(d.x+20), int(d.y+35))
+	// show text branch options if applicable
+	if d.currentTopic.status == topic_status_awaitOption {
+		nextOptionButtonY := lineWriterLastY + 10
+		for i, textBranch := range d.currentTopic.currentTextBranch.Options {
+			optionButtonX := int(d.x + 20)
+			d.currentTopic.currentTextBranch.Options[i].button.Draw(screen, optionButtonX, nextOptionButtonY)
+			nextOptionButtonY += textBranch.button.Height
+		}
+	}
 
 	if d.flashContinueIcon {
 		// TODO
@@ -34,8 +46,10 @@ func (d Dialog) Draw(screen *ebiten.Image) {
 	}
 
 	// draw subtopic buttons
-	for _, subtopic := range d.currentTopic.SubTopics {
-		subtopic.button.Draw(screen)
+	for i, subtopic := range d.currentTopic.SubTopics {
+		buttonX := int(d.topicBoxX) + (d.boxDef.TileWidth / 2)
+		buttonY := display.SCREEN_HEIGHT - ((i + 1) * subtopic.button.Height) - 15
+		subtopic.button.Draw(screen, buttonX, buttonY)
 	}
 }
 
@@ -67,14 +81,48 @@ func (d *Dialog) Update() {
 		// all text has been displayed
 
 		// handle status transition
+		// if status is changed, MUST return so that status logic branch can be reapplied
 		switch d.currentTopic.status {
 		case topic_status_showingMainText:
 			d.currentTopic.status = topic_status_mainTextDone
+			return
 		case topic_status_returned:
 			// topic has been returned to from a subtopic
 			// don't show main text and await the next logical step
 			// return text should have been shown by the previous topic's transition
 			d.currentTopic.status = topic_status_mainTextDone
+			return
+		case topic_status_mainTextDone:
+			// main text is done; now to see if user should select something
+
+			// check for text branch options
+			if len(d.currentTopic.currentTextBranch.Options) > 0 {
+				// show options and wait for user to select one
+				d.currentTopic.status = topic_status_awaitOption
+				return
+			}
+
+			// check for subtopics
+			if len(d.currentTopic.SubTopics) > 0 {
+				d.currentTopic.status = topic_status_awaitSubtopic
+				return
+			}
+		case topic_status_awaitOption:
+			// awaiting topic selection
+			if !d.currentTopic.currentTextBranch.init {
+				panic("topic status says await option, but current text branch hasn't been initialized")
+			}
+			if len(d.currentTopic.currentTextBranch.Options) == 0 {
+				panic("awaiting text branch option choice, but there are no text branch options")
+			}
+			for i := range d.currentTopic.currentTextBranch.Options {
+				d.currentTopic.currentTextBranch.Options[i].button.Update()
+				if d.currentTopic.status == topic_status_showingMainText {
+					// an option must have been chosen, so stop checking this
+					return
+				}
+			}
+			return
 		case topic_status_goingBack:
 			// final text has finished; time to go back to parent topic for real
 			d.returnToParentTopic()
@@ -83,23 +131,20 @@ func (d *Dialog) Update() {
 			if len(d.currentTopic.SubTopics) == 0 {
 				panic("waiting for subtopic selection even though no subtopics exist!")
 			}
-			for _, subtopic := range d.currentTopic.SubTopics {
-				subtopic.button.Update()
+			for i := range d.currentTopic.SubTopics {
+				d.currentTopic.SubTopics[i].button.Update()
 				// check if current topic changed - if so, return since we need to restart update loop
 				if d.currentTopic.status != topic_status_awaitSubtopic {
 					return
 				}
 			}
+			return
 		}
 
-		if len(d.currentTopic.SubTopics) > 0 {
-			d.currentTopic.status = topic_status_awaitSubtopic
-			return
-		} else {
-			// there are no sub-topics, so wait for user to continue and go back to parent topic
-			d.awaitDone()
-			return
-		}
+		// All text has been shown and there are no user selection options waiting
+		// the current topic has nowhere to go, so await user confirmation to end this topic and go back
+		d.awaitDone()
+		return
 	}
 }
 

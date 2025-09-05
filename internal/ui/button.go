@@ -15,7 +15,7 @@ type Button struct {
 	init          bool
 	ButtonText    string
 	Width, Height int
-	X, Y          int
+	x, y          int    // position of this button. this is set during draw, and only needed here for checking mouse hovers/clicks
 	OnClick       func() // callback function for when this button is clicked
 	isClicked     bool   // flag indicates that the button has been clicked and is waiting for mouse release
 	isHovered     bool   // flag indicates that the button is being hovered over
@@ -25,7 +25,7 @@ type Button struct {
 	textImg     *ebiten.Image
 }
 
-func NewButton(buttonText string, fontFace font.Face, width, height int, x, y int, onClick func()) *Button {
+func NewButton(buttonText string, fontFace font.Face, width, height int, onClick func()) *Button {
 	// set defaults
 	if fontFace == nil {
 		fontFace = config.DefaultFont
@@ -56,8 +56,6 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, x, y in
 		ButtonText: buttonText,
 		Width:      width,
 		Height:     height,
-		X:          x,
-		Y:          y,
 		OnClick:    onClick,
 		fontFace:   fontFace,
 	}
@@ -76,9 +74,12 @@ func (b *Button) Update() {
 	if !b.init {
 		panic("button not created yet: " + b.ButtonText)
 	}
-	// check if button is hovering
+	if b.Width == 0 || b.Height == 0 {
+		panic("button dimensions are 0!")
+	}
+
 	mouseX, mouseY := ebiten.CursorPosition()
-	b.isHovered = mouseX > b.X && mouseX < b.X+b.Width && mouseY > b.Y && mouseY < b.Y+b.Height
+	b.isHovered = mouseX > b.x && mouseX < b.x+b.Width && mouseY > b.y && mouseY < b.y+b.Height
 	if b.isHovered {
 		// handle button clicks
 		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
@@ -100,7 +101,7 @@ func (b *Button) Update() {
 	}
 }
 
-func (b Button) Draw(screen *ebiten.Image) {
+func (b *Button) Draw(screen *ebiten.Image, x, y int) {
 	if !b.init {
 		panic("tried to draw button before it was created!")
 	}
@@ -110,12 +111,16 @@ func (b Button) Draw(screen *ebiten.Image) {
 	if b.fontFace == nil {
 		panic("no font face set for button!")
 	}
+
+	// update internal position
+	b.x, b.y = x, y
+
 	// for now we are just doing clear buttons that highlight when hovered
 	dx, dy := rendering.CenterImageOnImage(b.hoverBoxImg, b.textImg)
-	rendering.DrawImage(screen, b.textImg, float64(b.X+dx), float64(b.Y+dy), 0)
+	rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
 
 	if b.isHovered {
 		// show a highlight box
-		rendering.DrawImage(screen, b.hoverBoxImg, float64(b.X), float64(b.Y), 0)
+		rendering.DrawImage(screen, b.hoverBoxImg, float64(x), float64(y), 0)
 	}
 }

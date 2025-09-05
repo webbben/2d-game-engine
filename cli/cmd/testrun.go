@@ -146,18 +146,42 @@ func GetDialog() dialog.Dialog {
 		TopicsEnabled: true,
 	}
 	rootTopic := dialog.Topic{
-		TopicText:  "Root",
-		MainText:   "Hello! Welcome to the Magical Goods Emporium. All of these items were acquired in distant lands such as Aegyptus or Indus. I assure you that you'll find nothing like this anywhere else in Rome.",
+		TopicText: "Root",
+		MainText: dialog.TextBranch{
+			Text: "Hello! Welcome to the Magical Goods Emporium. All of these items were acquired in distant lands such as Aegyptus or Indus. I assure you that you'll find nothing like this anywhere else in Rome.",
+		},
 		ReturnText: "Anything else I can help you with?",
 	}
 	rootTopic.SubTopics = append(rootTopic.SubTopics, dialog.Topic{
 		TopicText: "Rumors",
-		MainText:  "They say if you go to the Forum past midnight, you might find a group of shady individuals hanging around in the dark. Not sure what for, but I'd also imagine it's a bad idea to go snooping around for them.",
+		MainText: dialog.TextBranch{
+			Text: "They say if you go to the Forum past midnight, you might find a group of shady individuals hanging around in the dark. Not sure what for, but I'd also imagine it's a bad idea to go snooping around for them.",
+		},
 	})
 	rootTopic.SubTopics = append(rootTopic.SubTopics, dialog.Topic{
 		TopicText: "The Empire",
-		MainText:  "The Empire spans the world over - they say all the peoples from the foggy isles of Britain to the Nile of Egypt all are under Imperial rule.",
+		MainText: dialog.TextBranch{
+			Text: "The Empire spans the world over - they say all the peoples from the foggy isles of Britain to the Nile of Egypt all are under Imperial rule.",
+		},
 	})
+
+	jokeTopic := dialog.Topic{
+		TopicText: "Tell me a joke",
+		MainText: dialog.TextBranch{
+			Text: "A joke? Alright, how about this one:\nWhy did the chicken cross the road?",
+			Options: []dialog.TextBranch{
+				{
+					OptionText: "To get to the other side?",
+					Text:       "No stupid! He was running away from a Yakitori chef!",
+				},
+				{
+					OptionText: "I don't know, why?",
+					Text:       "Come on, not even a guess?",
+				},
+			},
+		},
+	}
+	rootTopic.SubTopics = append(rootTopic.SubTopics, jokeTopic)
 
 	d.RootTopic = rootTopic
 

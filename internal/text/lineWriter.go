@@ -116,11 +116,15 @@ func (lw *LineWriter) Clear() {
 	lw.WritingStatus = LW_AWAIT_TEXT
 }
 
-func (lw LineWriter) Draw(screen *ebiten.Image, startX, startY int) {
+// returns the last written Y position (for reference by other drawing functions)
+func (lw LineWriter) Draw(screen *ebiten.Image, startX, startY int) int {
+	y := startY
 	for i, line := range lw.writtenLines {
 		gray := color.RGBA{20, 20, 20, 75}
-		DrawShadowText(screen, line, lw.fontFace, startX, startY+(i*lw.lineHeight), color.Black, gray, -2, -2)
+		y = startY + (i * lw.lineHeight)
+		DrawShadowText(screen, line, lw.fontFace, startX, y, color.Black, gray, -2, -2)
 	}
+	return y
 }
 
 func (lw *LineWriter) Update() {

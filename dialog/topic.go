@@ -1,7 +1,6 @@
 package dialog
 
 import (
-	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/ui"
 )
@@ -13,6 +12,8 @@ const (
 	topic_status_showingMainText topicStatus = "showing_main_text"
 	// main text is done showing; waiting for next status
 	topic_status_mainTextDone topicStatus = "main_text_done"
+	// main text has shown, but the text branch has options for the user to choose
+	topic_status_awaitOption topicStatus = "await_option"
 	// awaiting sub-topic selection (only valid if topic has sub-topics)
 	topic_status_awaitSubtopic topicStatus = "await_subtopic"
 	// preparing to go back to parent topic, and waiting for final text to show
@@ -31,11 +32,12 @@ var goodbyeTopic Topic = Topic{
 type Topic struct {
 	isEndDialogTopic bool // flag indicates if this topic should end the conversation
 
-	parentTopic *Topic // when switching to a sub-topic, this will be populated so that we know which topic to revert back to
-	TopicText   string // text to show for this topic when in a sub-topics list
-	MainText    string // text to show when this topic is selected. will show before any associated action is triggered.
-	DoneText    string // text to show when this topic has finished and is about to go back to the parent.
-	status      topicStatus
+	parentTopic       *Topic      // when switching to a sub-topic, this will be populated so that we know which topic to revert back to
+	TopicText         string      // text to show for this topic when in a sub-topics list
+	MainText          TextBranch  // text to show when this topic is selected. will show before any associated action is triggered.
+	currentTextBranch *TextBranch // the current text branch being shown; starts out as the MainText text branch
+	DoneText          string      // text to show when this topic has finished and is about to go back to the parent.
+	status            topicStatus
 
 	ReturnText string // text to show when this topic has been returned to from a sub-topic. if previous topic had DoneText, this is ignored.
 
@@ -50,6 +52,47 @@ type Topic struct {
 	ShowTextImmediately bool // if true, text will display immediately instead of the via a typing animation
 
 	button *ui.Button // a button for this topic, if it's a subtopic
+}
+
+func (d *Dialog) setCurrentTextBranch(textBranch TextBranch) {
+	if d.currentTopic == nil {
+		panic("current topic is nil")
+	}
+
+	d.currentTopic.currentTextBranch = &textBranch
+
+	for i := range d.currentTopic.currentTextBranch.Options {
+		op := d.currentTopic.currentTextBranch.Options[i]
+		d.currentTopic.currentTextBranch.Options[i].button = ui.NewButton(op.OptionText, nil, 0, 0, func() {
+			// when text branch option is clicked, switch to that option
+			d.setCurrentTextBranch(op)
+		})
+	}
+
+	d.currentTopic.status = topic_status_showingMainText
+	d.lineWriter.Clear()
+	d.lineWriter.SetSourceText(d.currentTopic.currentTextBranch.Text)
+
+	d.currentTopic.currentTextBranch.init = true
+}
+
+// a TextBranch represents a "branch" of text in a dialog/topic.
+// a text branch can simply be one body of text, but it can also have "options" which the user selects.
+// These options then lead to new text branches.
+// Useful when you need to have a conversation that progresses based on user answers.
+type TextBranch struct {
+	init       bool
+	OptionText string // if this is an option for another TextBranch, this text shows for the option
+
+	// the actual body of text that renders when this text branch is reached.
+	// The minimum requirement for a text branch.
+	Text string
+
+	// the options to proceed from this text branch.
+	// if there are no options for a text branch, that effectively ends the entire text branch "conversation".
+	Options []TextBranch
+
+	button *ui.Button
 }
 
 func (d *Dialog) setTopic(t Topic, isReturning bool) {
@@ -72,13 +115,10 @@ func (d *Dialog) setTopic(t Topic, isReturning bool) {
 	// prepare sub-topic buttons
 	buttonHeight := 35
 	for i := range d.currentTopic.SubTopics {
-		buttonX := int(d.topicBoxX) + (d.boxDef.TileWidth / 2)
-		buttonY := display.SCREEN_HEIGHT - ((i + 1) * buttonHeight) - 15
 		buttonWidth := d.topicBoxWidth - 15
-
 		subtopic := d.currentTopic.SubTopics[i]
 
-		d.currentTopic.SubTopics[i].button = ui.NewButton(subtopic.TopicText, nil, buttonWidth, buttonHeight, buttonX, buttonY, func() {
+		d.currentTopic.SubTopics[i].button = ui.NewButton(subtopic.TopicText, nil, buttonWidth, buttonHeight, func() {
 			if subtopic.isEndDialogTopic {
 				d.EndDialog()
 			} else {
@@ -91,9 +131,7 @@ func (d *Dialog) setTopic(t Topic, isReturning bool) {
 		t.status = topic_status_returned
 	} else {
 		// this is a new topic
-		t.status = topic_status_showingMainText
-		d.lineWriter.Clear()
-		d.lineWriter.SetSourceText(d.currentTopic.MainText)
+		d.setCurrentTextBranch(d.currentTopic.MainText)
 	}
 }
 
