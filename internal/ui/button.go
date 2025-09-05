@@ -33,12 +33,15 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, onClick
 			panic("default font not loaded!")
 		}
 	}
-	dx, dy, baselineY := text.GetStringSize(buttonText, fontFace)
-	padding := 6
-	dx += padding
-	dy += padding
-	baselineY += padding / 2
-	baselineX := padding / 2
+	dx, _, _ := text.GetStringSize(buttonText, fontFace)
+	dy, dsc := text.GetRealisticFontMetrics(fontFace)
+	dsc += 3
+	paddingX := 10
+	paddingY := dsc * 2
+	dx += paddingX
+	dy += paddingY
+	baselineY := dy - (paddingY / 2)
+	baselineX := paddingX / 2
 
 	// if width or height is 0, that means we should set it to be as small as possible (caller doesn't care about size)
 	// if an actual size is specified but it's too small for the text & font, change it and log a warning

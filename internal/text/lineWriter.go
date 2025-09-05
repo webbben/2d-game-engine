@@ -3,6 +3,7 @@ package text
 import (
 	"fmt"
 	"image/color"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"golang.org/x/image/font"
@@ -25,12 +26,15 @@ type LineWriter struct {
 	maxLineWidth    int         // max width (in pixels) of a line. lines will be
 	maxHeight       int         // max height that the lineWriter's body of text can go. If the limit is met, lineWriter will split text into pages
 	lineHeight      int         // the (max) height of a single line in this set of lines
+	pageLineCount   int         // based on max height and line height, the number of lines that can fit in a single page
 	fontFace        font.Face   // font to use when writing
 	fgColor         color.Color // color of the text (foreground). defaults to black
 	bgColor         color.Color // color of the text shadow. defaults to a semi-transparent gray.
 	shadow          bool        // if set, text is drawn with the shadow (bgColor) effect
 
 	linesToWrite      []string         // source text broken down into their lines
+	pages             [][]string       // pages to write (linesToWrite broken down)
+	currentPage       int              // the current page the lineWriter is writing
 	currentLineNumber int              // the current line (of linesToWrite) that we are writing
 	currentLineIndex  int              // the index of the current line we are writing
 	writtenLines      []string         // the "output" that is actually drawn
@@ -85,6 +89,8 @@ func (lw *LineWriter) SetSourceText(textToWrite string) {
 		panic("tried to set lineWriter text while it was in an invalid status. be sure to properly clear the lineWriter first with lw.Clear().")
 	}
 
+	textToWrite = strings.TrimSpace(textToWrite)
+
 	lw.sourceText = textToWrite
 
 	// prepare lines to write
@@ -101,9 +107,29 @@ func (lw *LineWriter) SetSourceText(textToWrite string) {
 		}
 	}
 
+	lw.pageLineCount = lw.maxHeight / lw.lineHeight
+
+	// split lines into pages
+	lw.pages = make([][]string, 0)
+	page := []string{}
+	lineCount := 0
+	for _, line := range lw.linesToWrite {
+		page = append(page, line)
+		lineCount++
+		if lineCount == lw.pageLineCount {
+			lineCount = 0
+			lw.pages = append(lw.pages, page)
+			page = []string{}
+		}
+	}
+	if len(page) > 0 {
+		lw.pages = append(lw.pages, page)
+	}
+
 	lw.WritingStatus = LW_WRITING
 }
 
+// fully clear source text and all written text
 func (lw *LineWriter) Clear() {
 	// unset all the values that are calculated when setting source text
 	lw.linesToWrite = []string{}
@@ -111,6 +137,9 @@ func (lw *LineWriter) Clear() {
 	lw.currentLineNumber = 0
 	lw.writtenLines = []string{}
 	lw.lineHeight = 0
+	lw.currentPage = 0
+	lw.pages = make([][]string, 0)
+	lw.pageLineCount = 0
 
 	// set status flag to indicate waiting for new text
 	lw.WritingStatus = LW_AWAIT_TEXT
@@ -135,7 +164,6 @@ func (lw *LineWriter) Update() {
 		return
 	}
 	if lw.WritingStatus == LW_AWAIT_PAGER {
-		// TODO need logic here?
 		return
 	}
 
@@ -143,12 +171,19 @@ func (lw *LineWriter) Update() {
 		if lw.sourceText == "" {
 			panic("lineWriter is writing but there is no source text set!")
 		}
-		if lw.currentLineNumber < len(lw.linesToWrite) {
-			if lw.currentLineIndex < len(lw.linesToWrite[lw.currentLineNumber]) {
+		if len(lw.pages) == 0 {
+			panic("no pages for lineWriter")
+		}
+		if lw.currentPage > len(lw.pages)-1 {
+			panic("current page index is too big!")
+		}
+		currentPage := lw.pages[lw.currentPage]
+		if lw.currentLineNumber < len(currentPage) {
+			if lw.currentLineIndex < len(currentPage[lw.currentLineNumber]) {
 				lw.textUpdateTimer++
 				if lw.textUpdateTimer > 0 {
 					// continue to write the current line
-					nextChar := lw.linesToWrite[lw.currentLineNumber][lw.currentLineIndex]
+					nextChar := currentPage[lw.currentLineNumber][lw.currentLineIndex]
 					lw.writtenLines[lw.currentLineNumber] += string(nextChar)
 					lw.currentLineIndex++
 					lw.textUpdateTimer = 0
@@ -160,8 +195,31 @@ func (lw *LineWriter) Update() {
 				lw.writtenLines = append(lw.writtenLines, "") // start next output line
 			}
 		} else {
-			// everything has been written
+			// everything has been written for the current page
+			if lw.currentPage < len(lw.pages)-1 {
+				// there are more pages; wait for pager signal
+				lw.WritingStatus = LW_AWAIT_PAGER
+				return
+			}
+			// no more pages; we're all done
 			lw.WritingStatus = LW_TEXT_DONE
 		}
 	}
+}
+
+func (lw *LineWriter) NextPage() {
+	if lw.WritingStatus != LW_AWAIT_PAGER {
+		panic("tried to page lineWriter that isn't waiting for pager")
+	}
+	if lw.currentPage >= len(lw.pages)-1 {
+		panic("tried to page lineWriter past max page number")
+	}
+
+	// clear written text (without deleting source text data)
+	lw.currentLineIndex = 0
+	lw.currentLineNumber = 0
+	lw.writtenLines = []string{""}
+
+	lw.currentPage++
+	lw.WritingStatus = LW_WRITING
 }

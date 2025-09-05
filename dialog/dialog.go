@@ -107,8 +107,8 @@ func (d *Dialog) initialize() {
 
 	// build box image
 	d.buildBoxImage()
-	maxLineWidth := d.boxImage.Bounds().Dx() - 200
-	maxHeight := d.boxImage.Bounds().Dy() - 100
+	maxLineWidth := d.boxImage.Bounds().Dx() - 50
+	maxHeight := d.boxImage.Bounds().Dy() - 50
 
 	// setup lineWriter
 	d.TextFont.fontFace = image.LoadFont(d.TextFont.Source, 24, 72)

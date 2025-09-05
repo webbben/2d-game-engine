@@ -76,7 +76,10 @@ func (d *Dialog) Update() {
 		d.flashDoneIcon = false
 		d.flashContinueIcon = false
 	case text.LW_AWAIT_PAGER:
-		// TODO
+		// LineWriter has finished a page, but has more to show.
+		// wait for user input before continuing
+		d.awaitContinue()
+		return
 	case text.LW_TEXT_DONE:
 		// all text has been displayed
 
@@ -167,5 +170,16 @@ func (d *Dialog) awaitDone() {
 	if ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		// user has signaled to continue; end current topic.
 		d.returnToParentTopic()
+	}
+}
+
+func (d *Dialog) awaitContinue() {
+	if d.currentTopic.status != topic_status_showingMainText {
+		panic("awaiting user continue, but topic status isn't showingMainText")
+	}
+
+	if ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		// user has signaled to continue; page lineWriter
+		d.lineWriter.NextPage()
 	}
 }
