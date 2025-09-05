@@ -21,9 +21,16 @@ const (
 	topic_status_returned topicStatus = "returned"
 )
 
+var goodbyeTopic Topic = Topic{
+	TopicText:        "Goodbye",
+	isEndDialogTopic: true,
+}
+
 // A Topic represents a node in a dialog/conversation.
 // It can have a main text, and then options to take you to a different node of the conversation.
 type Topic struct {
+	isEndDialogTopic bool // flag indicates if this topic should end the conversation
+
 	parentTopic *Topic // when switching to a sub-topic, this will be populated so that we know which topic to revert back to
 	TopicText   string // text to show for this topic when in a sub-topics list
 	MainText    string // text to show when this topic is selected. will show before any associated action is triggered.
@@ -65,14 +72,18 @@ func (d *Dialog) setTopic(t Topic, isReturning bool) {
 	// prepare sub-topic buttons
 	buttonHeight := 35
 	for i := range d.currentTopic.SubTopics {
-		buttonX := int(d.topicBoxX + 10)
+		buttonX := int(d.topicBoxX) + (d.boxDef.TileWidth / 2)
 		buttonY := display.SCREEN_HEIGHT - ((i + 1) * buttonHeight) - 15
-		buttonWidth := d.topicBoxWidth - 10
+		buttonWidth := d.topicBoxWidth - 15
 
 		subtopic := d.currentTopic.SubTopics[i]
 
 		d.currentTopic.SubTopics[i].button = ui.NewButton(subtopic.TopicText, nil, buttonWidth, buttonHeight, buttonX, buttonY, func() {
-			d.setTopic(subtopic, false)
+			if subtopic.isEndDialogTopic {
+				d.EndDialog()
+			} else {
+				d.setTopic(subtopic, false)
+			}
 		})
 	}
 

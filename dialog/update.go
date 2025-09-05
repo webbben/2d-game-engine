@@ -58,6 +58,9 @@ func (d *Dialog) Update() {
 	// handle text display
 	d.lineWriter.Update()
 	switch d.lineWriter.WritingStatus {
+	case text.LW_WRITING:
+		d.flashDoneIcon = false
+		d.flashContinueIcon = false
 	case text.LW_AWAIT_PAGER:
 		// TODO
 	case text.LW_TEXT_DONE:

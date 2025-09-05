@@ -20,7 +20,7 @@ func ConvertStringToLines(s string, f font.Face, lineWidthPx int) []string {
 		if i < len(words)-1 {
 			w += " " // each word has a space
 		}
-		wordDx, _ := GetStringSize(w, f)
+		wordDx, _, _ := GetStringSize(w, f)
 		if currentLineWidth+wordDx > lineWidthPx {
 			lines = append(lines, currentLine.String())
 			currentLine.Reset()
@@ -35,7 +35,7 @@ func ConvertStringToLines(s string, f font.Face, lineWidthPx int) []string {
 	return lines
 }
 
-func GetStringSize(s string, f font.Face) (dx int, dy int) {
-	bounds, _ := font.BoundString(f, s)
-	return bounds.Max.X.Ceil() - bounds.Min.X.Floor(), bounds.Max.Y.Ceil() - bounds.Min.Y.Floor()
+func GetStringSize(s string, f font.Face) (dx int, dy int, baseline int) {
+	bounds, advance := font.BoundString(f, s)
+	return advance.Round(), (bounds.Max.Y - bounds.Min.Y).Round(), -bounds.Min.Y.Round()
 }

@@ -41,7 +41,7 @@ type LineWriter struct {
 // fg and bg colors can be left nil, in which case they assume the normal defaults (fg = black, bg = gray).
 // set useShadow to true if you want the shadow effect to be used when drawing text.
 func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color, useShadow bool) LineWriter {
-	minWidth, minHeight := GetStringSize("ABC!/|", f)
+	minWidth, minHeight, _ := GetStringSize("ABC!/|", f)
 	if lineWidthPx < minWidth {
 		panic(fmt.Sprintf("lineWriter lineWidthPx must not be too small to draw text. minWidth determined by font: %v px", minWidth))
 	}
@@ -68,7 +68,7 @@ func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color
 
 	// determine line height
 	for _, line := range lw.linesToWrite {
-		_, lineHeight := GetStringSize(line, lw.fontFace)
+		_, lineHeight, _ := GetStringSize(line, lw.fontFace)
 		if lineHeight > lw.lineHeight {
 			lw.lineHeight = lineHeight
 		}
@@ -95,7 +95,7 @@ func (lw *LineWriter) SetSourceText(textToWrite string) {
 
 	// determine line height
 	for _, line := range lw.linesToWrite {
-		_, lineHeight := GetStringSize(line, lw.fontFace)
+		_, lineHeight, _ := GetStringSize(line, lw.fontFace)
 		if lineHeight > lw.lineHeight {
 			lw.lineHeight = lineHeight
 		}

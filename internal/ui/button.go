@@ -5,6 +5,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
 	"golang.org/x/image/font"
@@ -32,13 +33,22 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, x, y in
 			panic("default font not loaded!")
 		}
 	}
-	dx, dy := text.GetStringSize(buttonText, fontFace)
+	dx, dy, baseline := text.GetStringSize(buttonText, fontFace)
+
+	// if width or height is 0, that means we should set it to be as small as possible (caller doesn't care about size)
+	// if an actual size is specified but it's too small for the text & font, change it and log a warning
 	if width == 0 {
 		// base on width of button text
-		width = dx + 10
+		width = dx
+	} else if width < dx {
+		logz.Println("Button "+buttonText, "given width was too small for button text. resizing...")
+		width = dx
 	}
 	if height == 0 {
-		height = dy + 10
+		height = dy
+	} else if height < dy {
+		logz.Println("Button "+buttonText, "given height was too small for button text. resizing...")
+		height = dy
 	}
 
 	b := Button{
@@ -55,8 +65,9 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, x, y in
 	// build images
 	b.hoverBoxImg = ebiten.NewImage(b.Width, b.Height)
 	b.hoverBoxImg.Fill(color.RGBA{30, 30, 30, 5})
-	b.textImg = ebiten.NewImage(dx, dy+5)
-	text.DrawShadowText(b.textImg, b.ButtonText, b.fontFace, 0, dy, nil, nil, 0, 0)
+	b.textImg = ebiten.NewImage(dx, dy)
+	//b.textImg.Fill(color.RGBA{100, 0, 0, 50})
+	text.DrawShadowText(b.textImg, b.ButtonText, b.fontFace, 0, baseline, nil, nil, 0, 0)
 
 	return &b
 }

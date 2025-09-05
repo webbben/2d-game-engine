@@ -68,11 +68,12 @@ type Font struct {
 }
 
 type Dialog struct {
-	boxDef                  // definition of the tiles that build this box
-	BoxTilesetSource string // path to the tileset for the dialog box tiles
-	TextFont         Font
-	init             bool // flag to indicate if this Dialog's data has been loaded and is ready to render
-	Exit             bool // flag to indicate dialog has exited. cuts off dialog updates and draws.
+	boxDef                      // definition of the tiles that build this box
+	BoxTilesetSource     string // path to the tileset for the dialog box tiles
+	TextFont             Font
+	init                 bool // flag to indicate if this Dialog's data has been loaded and is ready to render
+	Exit                 bool // flag to indicate dialog has exited. cuts off dialog updates and draws.
+	SuppressGoodbyeTopic bool // if set, the "Goodbye" exit sub-topic won't be shown for the root topic
 
 	// main text box
 
@@ -129,6 +130,10 @@ func (d *Dialog) initialize() {
 	d.x += pushX
 	if d.TopicsEnabled {
 		d.topicBoxX += pushX
+	}
+
+	if !d.SuppressGoodbyeTopic {
+		d.RootTopic.SubTopics = append([]Topic{goodbyeTopic}, d.RootTopic.SubTopics...)
 	}
 
 	d.setTopic(d.RootTopic, false)
