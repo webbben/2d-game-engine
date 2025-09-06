@@ -37,11 +37,11 @@ func (d *Dialog) Draw(screen *ebiten.Image) {
 		}
 	}
 
+	continueX := int(d.x) + d.boxImage.Bounds().Dx() - 25
+	continueY := int(d.y) + d.boxImage.Bounds().Dy() - 10
 	if d.flashContinueIcon {
-		// TODO
+		text.DrawShadowText(screen, "…", d.TextFont.fontFace, continueX, continueY, nil, nil, 0, 0)
 	} else if d.flashDoneIcon {
-		continueX := int(d.x) + d.boxImage.Bounds().Dx() - 25
-		continueY := int(d.y) + d.boxImage.Bounds().Dy() - 8
 		text.DrawShadowText(screen, "", d.TextFont.fontFace, continueX, continueY, nil, nil, 0, 0)
 	}
 
@@ -75,6 +75,8 @@ func (d *Dialog) Update() {
 	case text.LW_WRITING:
 		d.flashDoneIcon = false
 		d.flashContinueIcon = false
+		// check if user is clicking to skip forward
+		d.skipForward()
 	case text.LW_AWAIT_PAGER:
 		// LineWriter has finished a page, but has more to show.
 		// wait for user input before continuing
@@ -167,7 +169,7 @@ func (d *Dialog) awaitDone() {
 		d.iconFlashTimer = 0
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+	if d.handleUserClick() {
 		// user has signaled to continue; end current topic.
 		d.returnToParentTopic()
 	}
@@ -178,8 +180,35 @@ func (d *Dialog) awaitContinue() {
 		panic("awaiting user continue, but topic status isn't showingMainText")
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+	// flash done icon
+	d.iconFlashTimer++
+	if d.iconFlashTimer > 30 {
+		d.flashContinueIcon = !d.flashContinueIcon
+		d.iconFlashTimer = 0
+	}
+
+	if d.handleUserClick() {
 		// user has signaled to continue; page lineWriter
 		d.lineWriter.NextPage()
 	}
+}
+
+func (d *Dialog) skipForward() {
+	if d.handleUserClick() {
+		// user has signaled to continue; page lineWriter
+		d.lineWriter.FastForward()
+	}
+}
+
+func (d *Dialog) handleUserClick() bool {
+	d.ticksSinceLastClick++
+	if d.ticksSinceLastClick < 30 {
+		return false
+	}
+
+	if ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		d.ticksSinceLastClick = 0
+		return true
+	}
+	return false
 }

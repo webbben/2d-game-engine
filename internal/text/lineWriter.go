@@ -181,7 +181,7 @@ func (lw *LineWriter) Update() {
 		if lw.currentLineNumber < len(currentPage) {
 			if lw.currentLineIndex < len(currentPage[lw.currentLineNumber]) {
 				lw.textUpdateTimer++
-				if lw.textUpdateTimer > 0 {
+				if lw.textUpdateTimer >= 0 {
 					// continue to write the current line
 					nextChar := currentPage[lw.currentLineNumber][lw.currentLineIndex]
 					lw.writtenLines[lw.currentLineNumber] += string(nextChar)
@@ -222,4 +222,14 @@ func (lw *LineWriter) NextPage() {
 
 	lw.currentPage++
 	lw.WritingStatus = LW_WRITING
+}
+
+// instantly finish the current page
+func (lw *LineWriter) FastForward() {
+	currentPage := lw.pages[lw.currentPage]
+	lw.writtenLines = []string{}
+	lw.writtenLines = append(lw.writtenLines, currentPage...)
+
+	lw.currentLineNumber = len(currentPage)
+	lw.currentLineIndex = 0
 }

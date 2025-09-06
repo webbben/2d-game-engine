@@ -97,6 +97,8 @@ type Dialog struct {
 	flashContinueIcon bool // flash icon to indicate the dialog will continue to the next page of text
 	flashDoneIcon     bool // flash icon to indicate that current dialog text has finished
 	iconFlashTimer    int  // timer for flashing icon, based on update ticks
+
+	ticksSinceLastClick int
 }
 
 func (d *Dialog) initialize() {
