@@ -25,10 +25,14 @@ type Game struct {
 	CurrentScreen *screen.Screen // if set, a screen is being displayed and we are not in the game world
 
 	outsideWidth, outsideHeight int
+
+	worldScene *ebiten.Image
 }
 
 func NewGame() *Game {
-	return &Game{}
+	return &Game{
+		worldScene: ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
+	}
 }
 
 // Binds a key to a given function for global keybindings.

@@ -1,0 +1,43 @@
+//kage:unit pixels
+package main
+
+var LightPositions [16]vec2
+var LightRadii     [16]float
+var LightColors    [16]vec3
+var NightTint vec3
+
+func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
+    col := imageSrc0At(srcPos)
+    if col.a == 0 {
+        return vec4(0)
+    }
+    pix := dstPos.xy
+    // Accumulate light contributions in one pass
+    total := vec3(0, 0, 0)
+    for i := 0; i < 16; i++ {
+        if LightRadii[i] <= 0.0 {
+            break // once a zero is hit, we are at the end of the lights
+        }
+
+        outerRadius := LightRadii[i]
+        innerRadius := LightRadii[i] * 0.5
+        dist := distance(LightPositions[i], pix)
+        att := 0.0
+
+        if dist < innerRadius {
+            att = 1.0
+        } else if dist < outerRadius {
+            // between inner and outer radius, fall off linearly
+            att = 1.0 - (dist - innerRadius) / (outerRadius - innerRadius)
+        } else {
+            att = 0.0
+        }
+
+        total += att * LightColors[i]
+    }
+
+    // blend between night tint and normal color based on total light
+    total = clamp(total, 0.0, 1.0)
+    col.rgb = mix(col.rgb * NightTint, col.rgb, total)
+    return col
+}

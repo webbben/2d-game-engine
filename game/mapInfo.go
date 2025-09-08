@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
@@ -18,6 +19,8 @@ type MapInfo struct {
 	Map         tiled.Map
 	ImageMap    map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
 	PlayerRef   *player.Player
+
+	Lights []*lights.Light
 
 	NPCManager
 }
@@ -168,4 +171,8 @@ func (mi MapInfo) CostMap() [][]int {
 	costMap[playerPos.Y][playerPos.X] += 10
 
 	return costMap
+}
+
+func (mi *MapInfo) GetLights() []*lights.Light {
+	return mi.Lights
 }

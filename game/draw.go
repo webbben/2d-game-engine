@@ -5,11 +5,10 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
+	"github.com/webbben/2d-game-engine/internal/lights"
 )
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	//screen.Clear()
-
 	// draw a screen, if present
 	if g.CurrentScreen != nil {
 		g.CurrentScreen.DrawScreen(screen)
@@ -24,6 +23,39 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		return
 	}
 
+	g.drawWorld(screen)
+
+	// ~~~
+	// Below is all config; any real world stuff should be rendered above
+	// ~~~
+
+	if config.ShowPlayerCoords {
+		g.drawEntityCoords(screen)
+	}
+	if config.TrackMemoryUsage {
+		ebitenutil.DebugPrint(screen, debug.GetLog())
+	}
+
+	// show game debug info, including this scale info
+	if config.ShowGameDebugInfo {
+		g.showGameDebugInfo(screen)
+	}
+}
+
+func (g *Game) drawWorld(screen *ebiten.Image) {
+	g.worldScene.Clear()
+	g.drawWorldScene(g.worldScene)
+
+	// draw lighting with shader
+	lights.DrawMapLighting(screen, g.worldScene, g.MapInfo.Lights)
+
+	// draw dialog
+	if g.Dialog != nil {
+		g.Dialog.Draw(screen)
+	}
+}
+
+func (g *Game) drawWorldScene(screen *ebiten.Image) {
 	offsetX, offsetY := g.Camera.GetAbsPos()
 
 	// draw the terrain of the room
@@ -45,26 +77,5 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	if !playerDrawn {
 		g.Player.Entity.Draw(screen, offsetX, offsetY)
-	}
-
-	// draw lighting shade (e.g. for night) here
-	// blue := color.RGBA{R: 0, G: 0, B: 50, A: 10}
-	// ebitenutil.DrawRect(screen, 0, 0, config.ScreenWidth, config.ScreenHeight, blue)
-
-	// draw dialog
-	if g.Dialog != nil {
-		g.Dialog.Draw(screen)
-	}
-
-	if config.ShowPlayerCoords {
-		g.drawEntityCoords(screen)
-	}
-	if config.TrackMemoryUsage {
-		ebitenutil.DebugPrint(screen, debug.GetLog())
-	}
-
-	// show game debug info, including this scale info
-	if config.ShowGameDebugInfo {
-		g.showGameDebugInfo(screen)
 	}
 }

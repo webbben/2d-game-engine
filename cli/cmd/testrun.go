@@ -15,6 +15,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
+	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/npc"
@@ -34,6 +35,11 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		display.SetupGameDisplay("Ancient Rome!", false)
+
+		err := lights.LoadShaders()
+		if err != nil {
+			log.Fatal("error loading shaders: ", err)
+		}
 
 		tiled.InitFileStructure()
 
@@ -61,6 +67,15 @@ func setupGameState() *game.Game {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	mapInfo.Lights = append(mapInfo.Lights, &lights.Light{
+		X:                   float32(display.SCREEN_WIDTH) / 2,
+		Y:                   float32(display.SCREEN_HEIGHT) / 2,
+		MaxRadius:           120,
+		MinRadius:           100,
+		FlickerTickInterval: 50,
+		LightColor:          lights.LIGHT_TORCH,
+	})
 
 	// make the player
 	playerEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_750fde30-4e5a-41ce-96e3-0105e0064a4d.json"))
