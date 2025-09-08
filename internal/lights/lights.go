@@ -32,16 +32,20 @@ func LightShader() *ebiten.Shader {
 	return lightShader
 }
 
+// instead of using [0, 255] RGB values, we use [0, 1] values.
+// mainly because that's what's used in the shader, but also easier to conceptualize as percentages.
+type LightColor [3]float32
+
 var (
 	// light colors (for cutting through darkness as a light source)
 
-	LIGHT_TORCH  = color.RGBA{255, 200, 100, 0}
+	LIGHT_TORCH  = LightColor{1.0, 0.8, 0.8}
 	LIGHT_CANDLE = color.RGBA{255, 220, 180, 0}
 	LIGHT_FIRE   = color.RGBA{255, 240, 200, 0}
 
 	// darkness colors (for the general overlay)
 
-	DARK_NIGHTSKY = color.RGBA{20, 30, 80, 200}
+	DARK_NIGHTSKY = LightColor{0.15, 0.25, 1.0}
 	DARK_CAVE     = color.RGBA{30, 30, 30, 0}
 	DARK_MAGICAL  = color.RGBA{20, 0, 40, 0}
 	DARK_DUSK     = color.RGBA{40, 30, 60, 0}
@@ -51,7 +55,7 @@ type Light struct {
 	X, Y                 float32
 	MaxRadius, MinRadius float32
 	FlickerTickInterval  int
-	LightColor           color.Color
+	LightColor           LightColor
 
 	flickerProgress int
 	glowing         bool
@@ -167,7 +171,7 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light) {
 	drawLights(screen, scene, lights, DARK_NIGHTSKY)
 }
 
-func drawLights(screen, scene *ebiten.Image, lights []*Light, darknessTint color.Color) {
+func drawLights(screen, scene *ebiten.Image, lights []*Light, darknessTint LightColor) {
 	maxLights := 16
 	lightPositions := make([]float32, maxLights*2) // X, Y
 	lightRadii := make([]float32, maxLights)       // radius
@@ -185,18 +189,10 @@ func drawLights(screen, scene *ebiten.Image, lights []*Light, darknessTint color
 		lightRadii[i] = l.currentRadius
 
 		// light color
-		//r, g, b, _ := l.LightColor.RGBA()
-		// lightColors[i*3] = 1.0   //float32(r / 255)
-		// lightColors[i*3+1] = 0.7 //float32(g / 255)
-		// lightColors[i*3+2] = 0.3 //float32(b / 255)
-
-		r, g, b, _ := l.LightColor.RGBA()
-		lightColors[i*3] = float32(r) / 0xffff
-		lightColors[i*3+1] = float32(g) / 0xffff
-		lightColors[i*3+2] = float32(b) / 0xffff
+		lightColors[i*3] = l.LightColor[0]
+		lightColors[i*3+1] = l.LightColor[1]
+		lightColors[i*3+2] = l.LightColor[2]
 	}
-
-	//nightR, nightG, nightB, _ := darknessTint.RGBA()
 
 	op := &ebiten.DrawRectShaderOptions{}
 	op.Images[0] = scene
@@ -204,11 +200,12 @@ func drawLights(screen, scene *ebiten.Image, lights []*Light, darknessTint color
 		"LightPositions": lightPositions,
 		"LightRadii":     lightRadii,
 		"LightColors":    lightColors,
-		"NightTint": []float32{
-			0.2,
-			0.3,
-			1.0,
-		},
+		"NightTint":      darknessTint,
 	}
 	screen.DrawRectShader(display.SCREEN_WIDTH, display.SCREEN_HEIGHT, lightShader, op)
+}
+
+func shaderColorScale(c color.Color) LightColor {
+	r, g, b, _ := c.RGBA()
+	return LightColor{float32(r) / 0xffff, float32(g) / 0xffff, float32(b) / 0xffff}
 }

@@ -7,6 +7,8 @@ var LightColors    [16]vec3
 var NightTint vec3
 
 func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
+    maxBrightness := 0.8 // TODO make this a uniform
+
     col := imageSrc0At(srcPos)
     if col.a == 0 {
         return vec4(0)
@@ -20,15 +22,16 @@ func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
         }
 
         outerRadius := LightRadii[i]
-        innerRadius := LightRadii[i] * 0.5
+        innerRadius := LightRadii[i] * 0.4
         dist := distance(LightPositions[i], pix)
         att := 0.0
 
         if dist < innerRadius {
-            att = 1.0
+            att = maxBrightness
         } else if dist < outerRadius {
             // between inner and outer radius, fall off linearly
             att = 1.0 - (dist - innerRadius) / (outerRadius - innerRadius)
+            att = clamp(att, 0.0, maxBrightness)
         } else {
             att = 0.0
         }
@@ -38,6 +41,15 @@ func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
 
     // blend between night tint and normal color based on total light
     total = clamp(total, 0.0, 1.0)
-    col.rgb = mix(col.rgb * NightTint, col.rgb, total)
+    dark := col.rgb * NightTint
+
+    // boost contrast of dark areas a bit
+    dark = pow(dark, vec3(1.6))
+
+    // bias towards keeping bright areas more visible
+    luma := dot(col.rgb, vec3(0.299, 0.587, 0.114))
+    dark = mix(dark, dark * 1.2, luma)
+
+    col.rgb = mix(dark, col.rgb, total)
     return col
 }
