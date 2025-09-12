@@ -2,6 +2,7 @@ package game
 
 import (
 	"sort"
+	"time"
 
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
@@ -42,6 +43,17 @@ func (g *Game) worldUpdates() {
 		g.Player.Update()
 		g.MapInfo.updateMap()
 	}
+
+	// update time
+	if time.Since(g.lastHourChange) > time.Second*10 {
+		newHour := g.Hour + 1
+		if newHour > 23 {
+			newHour = 0
+		}
+		g.lastHourChange = time.Now()
+		g.SetHour(newHour, false)
+	}
+	g.daylightFader.Update()
 
 	// move camera as needed
 	g.Camera.MoveCamera(g.Player.Entity.X, g.Player.Entity.Y)

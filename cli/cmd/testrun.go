@@ -50,7 +50,7 @@ to quickly create a Cobra application.`,
 		// set config
 		config.ShowPlayerCoords = true
 		config.ShowGameDebugInfo = true
-		config.DrawGridLines = true
+		//config.DrawGridLines = true
 		config.TrackMemoryUsage = true
 
 		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 0, 0)

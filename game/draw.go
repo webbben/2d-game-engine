@@ -34,7 +34,11 @@ func (g *Game) drawWorld(screen *ebiten.Image) {
 	g.drawWorldScene(g.worldScene)
 
 	// draw lighting with shader
-	lights.DrawMapLighting(screen, g.worldScene, g.MapInfo.Lights)
+	nightFx := false
+	if g.Hour < 6 || g.Hour > 18 {
+		nightFx = true
+	}
+	lights.DrawMapLighting(screen, g.worldScene, g.MapInfo.Lights, g.daylightFader.GetCurrentColor(), nightFx)
 
 	// draw dialog
 	if g.Dialog != nil {

@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"golang.org/x/image/font"
 )
@@ -15,6 +16,8 @@ var (
 	ShowNPCPaths              = false // highlight the paths that NPCs are following
 	TrackMemoryUsage          = false // show a report in the console of memory usage every few seconds
 	ShowGameDebugInfo         = false // show a report of various debugging info (like F12 in minecraft)
+
+	HourSpeed time.Duration = time.Second * 10 // how long it takes for an hour to pass in game
 
 	DefaultFont font.Face // must be set by game
 )

@@ -2,10 +2,13 @@ package game
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/internal/camera"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
 
@@ -22,6 +25,10 @@ type Game struct {
 	activeGlobalKeyBindFn map[ebiten.Key]bool          // maps which keybinding functions are actively executing, to prevent repeated calls from long key presses.
 	GamePaused            bool                         // if true, the game is paused
 
+	Hour           int
+	lastHourChange time.Time
+	daylightFader  lights.LightFader
+
 	CurrentScreen *screen.Screen // if set, a screen is being displayed and we are not in the game world
 
 	outsideWidth, outsideHeight int
@@ -30,9 +37,31 @@ type Game struct {
 }
 
 func NewGame() *Game {
-	return &Game{
-		worldScene: ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
+	g := Game{
+		worldScene:     ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
+		lastHourChange: time.Now(),
+		daylightFader:  lights.NewLightFader(lights.LightColor{1, 1, 1}, 0.1, config.HourSpeed/10),
 	}
+
+	g.SetHour(8, true)
+
+	return &g
+}
+
+func (g *Game) SetHour(hour int, skipFade bool) {
+	if hour < 0 || hour > 23 {
+		panic("invalid hour")
+	}
+
+	newDaylight := lights.CalculateDaylight(hour)
+	if skipFade {
+		g.daylightFader.SetCurrentColor(newDaylight)
+		g.daylightFader.TargetColor = newDaylight
+	} else {
+		g.daylightFader.TargetColor = newDaylight
+	}
+
+	g.Hour = hour
 }
 
 // Binds a key to a given function for global keybindings.

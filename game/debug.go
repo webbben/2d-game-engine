@@ -120,5 +120,9 @@ func (g Game) showGameDebugInfo(screen *ebiten.Image) {
 		s.WriteString(g.showEntityCoords())
 	}
 
+	s.WriteString(fmt.Sprintf("TIME: %v\n", g.Hour))
+	lightColor := g.daylightFader.GetCurrentColor()
+	s.WriteString(fmt.Sprintf("daylight (RGB scales): [%v %v %v]", lightColor[0], lightColor[1], lightColor[2]))
+
 	ebitenutil.DebugPrint(screen, s.String())
 }

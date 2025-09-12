@@ -5,6 +5,7 @@ var LightPositions [16]vec2
 var LightRadii     [16]float
 var LightColors    [16]vec3
 var NightTint vec3
+var ExtraDarken float
 
 func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
     maxBrightness := 0.8 // TODO make this a uniform
@@ -43,12 +44,14 @@ func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
     total = clamp(total, 0.0, 1.0)
     dark := col.rgb * NightTint
 
-    // boost contrast of dark areas a bit
-    dark = pow(dark, vec3(1.6))
+    if ExtraDarken > 0.0 {
+        // boost contrast of dark areas a bit
+        dark = pow(dark, vec3(1.6))
 
-    // bias towards keeping bright areas more visible
-    luma := dot(col.rgb, vec3(0.299, 0.587, 0.114))
-    dark = mix(dark, dark * 1.2, luma)
+        // bias towards keeping bright areas more visible
+        luma := dot(col.rgb, vec3(0.299, 0.587, 0.114))
+        dark = mix(dark, dark * 1.2, luma)
+    }
 
     col.rgb = mix(dark, col.rgb, total)
     return col

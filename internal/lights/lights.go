@@ -4,7 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"image/color"
-	"math"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/display"
@@ -38,6 +38,60 @@ func LightShader() *ebiten.Shader {
 // instead of using [0, 255] RGB values, we use [0, 1] values.
 // mainly because that's what's used in the shader, but also easier to conceptualize as percentages.
 type LightColor [3]float32
+
+func (l LightColor) Equals(lc LightColor) bool {
+	return l[0] == lc[0] && l[1] == lc[1] && l[2] == lc[2]
+}
+
+type LightFader struct {
+	TargetColor    LightColor
+	currentColor   LightColor
+	changeFactor   float32
+	changeInterval time.Duration
+	lastChange     time.Time
+}
+
+func (l LightFader) GetCurrentColor() LightColor {
+	return l.currentColor
+}
+
+func NewLightFader(initialColor LightColor, changeFactor float32, changeInterval time.Duration) LightFader {
+	if changeFactor <= 0 {
+		changeFactor = 0.1
+	}
+	if changeInterval == 0 {
+		changeInterval = time.Second
+	}
+
+	lf := LightFader{
+		currentColor:   initialColor,
+		TargetColor:    initialColor,
+		changeFactor:   changeFactor,
+		lastChange:     time.Now(),
+		changeInterval: changeInterval,
+	}
+
+	return lf
+}
+
+func (lf *LightFader) SetCurrentColor(light LightColor) {
+	lf.currentColor = light
+	lf.lastChange = time.Now()
+}
+
+func (l *LightFader) Update() {
+	if l.currentColor.Equals(l.TargetColor) {
+		return
+	}
+	if time.Since(l.lastChange) < l.changeInterval {
+		return
+	}
+	l.lastChange = time.Now()
+
+	l.currentColor[0] += (l.TargetColor[0] - l.currentColor[0]) * l.changeFactor
+	l.currentColor[1] += (l.TargetColor[1] - l.currentColor[1]) * l.changeFactor
+	l.currentColor[2] += (l.TargetColor[2] - l.currentColor[2]) * l.changeFactor
+}
 
 var (
 	// light colors (for cutting through darkness as a light source)
@@ -83,98 +137,70 @@ func (l *Light) calculateNextRadius() {
 	l.currentRadius = ((l.MaxRadius - l.MinRadius) * float32(flickerPercent)) + l.MinRadius
 }
 
-func RadialGradient(radius int, lightColor color.Color) *ebiten.Image {
-	// light color defaults to white
-	var r, g, b uint8 = 0, 0, 0
-	if lightColor != nil {
-		r1, g1, b1, _ := lightColor.RGBA()
-		r = uint8(r1)
-		g = uint8(g1)
-		b = uint8(b1)
-	}
-	size := radius * 2
-	img := ebiten.NewImage(size, size)
-
-	center := float64(radius)
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
-			dx := float64(x) - center
-			dy := float64(y) - center
-			dist := math.Sqrt((dx * dx) + (dy * dy))
-			if dist <= float64(radius) {
-				// normalize 0 (center) to 1 (edge)
-				t := dist / float64(radius)
-				alpha := uint8((1 - t) * 255) // fade out
-				img.Set(x, y, color.RGBA{r, g, b, alpha})
-			}
-		}
-	}
-
-	return img
+func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight LightColor, nightFx bool) {
+	drawLights(screen, scene, lights, daylight, nightFx)
 }
 
-func CreateLightTexture(radius int) *ebiten.Image {
-	maxAlpha := 80
-	img := ebiten.NewImage(radius*2, radius*2)
-	for y := 0; y < radius*2; y++ {
-		for x := 0; x < radius*2; x++ {
-			dx := float64(x - radius)
-			dy := float64(y - radius)
-			dist := dx*dx + dy*dy
-			if dist < float64(radius*radius) {
-				alpha := 1 - (dist / float64(radius*radius))
-				a := uint8(alpha * 255)
-				if a > uint8(maxAlpha) {
-					a = uint8(maxAlpha)
-				}
-				col := color.NRGBA{
-					R: 255,
-					G: 255,
-					B: 255,
-					A: a,
-				}
-				img.Set(x, y, col)
-			}
-		}
-	}
-	return img
-}
-
-func InvertedRadialGradient(radius int, lightColor color.Color) *ebiten.Image {
-	// light color defaults to white
-	var r, g, b uint8 = 0, 0, 0
-	if lightColor != nil {
-		r1, g1, b1, _ := lightColor.RGBA()
-		r = uint8(r1)
-		g = uint8(g1)
-		b = uint8(b1)
-	}
-	size := radius * 2
-	img := ebiten.NewImage(size, size)
-
-	center := float64(radius)
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
-			dx := float64(x) - center
-			dy := float64(y) - center
-			dist := math.Sqrt((dx * dx) + (dy * dy))
-			if dist <= float64(radius) {
-				// normalize 0 (center) to 1 (edge)
-				t := dist / float64(radius)
-				alpha := uint8(t * 180) // fade out
-				img.Set(x, y, color.RGBA{r, g, b, alpha})
-			}
-		}
+func CalculateDaylight(hour int) LightColor {
+	if hour < 0 || hour > 23 {
+		panic("invalid hour!")
 	}
 
-	return img
+	switch hour {
+	// midnight: 0 - 4
+	// dark blue to black
+	case 0:
+		return LightColor{0.15, 0.2, 1}
+	case 1:
+		return LightColor{0.15, 0.2, 0.8}
+	case 2:
+		return LightColor{0.15, 0.15, 0.6}
+	case 3:
+		return LightColor{0.15, 0.15, 0.4}
+	case 4:
+		return LightColor{0.25, 0.15, 0.4}
+	// dawn: 5 - 7
+	// black to red
+	case 5:
+		return LightColor{0.35, 0.2, 0.45}
+	case 6:
+		return LightColor{0.55, 0.35, 0.5}
+	case 7:
+		return LightColor{0.7, 0.55, 0.55}
+	// morning: 8 - 11
+	// red to light blue
+	case 8:
+		return LightColor{0.8, 0.7, 0.7}
+	case 9:
+		return LightColor{0.8, 0.8, 0.9}
+	case 10:
+		return LightColor{0.8, 0.85, 1}
+	case 11:
+	// midday: 12 - 15
+	// light blue to yellow
+	case 12:
+	case 13:
+	case 14:
+	case 15:
+	// evening: 16 - 19
+	// yellow to red
+	case 16:
+	case 17:
+	case 18:
+	case 19:
+	// night: 20 - 23
+	// red to dark blue
+	case 20:
+	case 21:
+	case 22:
+	case 23:
+	default:
+		panic("unknown hour")
+	}
+	return DARK_NIGHTSKY
 }
 
-func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light) {
-	drawLights(screen, scene, lights, DARK_NIGHTSKY)
-}
-
-func drawLights(screen, scene *ebiten.Image, lights []*Light, darknessTint LightColor) {
+func drawLights(screen, scene *ebiten.Image, lights []*Light, darknessTint LightColor, nightFx bool) {
 	maxLights := 16
 	lightPositions := make([]float32, maxLights*2) // X, Y
 	lightRadii := make([]float32, maxLights)       // radius
@@ -197,6 +223,11 @@ func drawLights(screen, scene *ebiten.Image, lights []*Light, darknessTint Light
 		lightColors[i*3+2] = l.LightColor[2]
 	}
 
+	var extraDarken float32 = 0.0
+	if nightFx {
+		extraDarken = 1.0
+	}
+
 	op := &ebiten.DrawRectShaderOptions{}
 	op.Images[0] = scene
 	op.Uniforms = map[string]interface{}{
@@ -204,6 +235,7 @@ func drawLights(screen, scene *ebiten.Image, lights []*Light, darknessTint Light
 		"LightRadii":     lightRadii,
 		"LightColors":    lightColors,
 		"NightTint":      darknessTint,
+		"ExtraDarken":    extraDarken,
 	}
 	screen.DrawRectShader(display.SCREEN_WIDTH, display.SCREEN_HEIGHT, lightShader, op)
 }
