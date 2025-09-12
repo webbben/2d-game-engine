@@ -20,7 +20,7 @@ type MapInfo struct {
 	Map         tiled.Map
 	ImageMap    map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
 	PlayerRef   *player.Player
-	Objects     []object.Object
+	Objects     []*object.Object
 
 	sortedRenderables []sortedRenderable
 
@@ -188,7 +188,7 @@ func (mi *MapInfo) GetLights() []*lights.Light {
 
 func (mi *MapInfo) AddObjectToMap(obj *object.Object, x, y int) {
 	obj.WorldContext = mi
-	mi.Objects = append(mi.Objects, *obj)
+	mi.Objects = append(mi.Objects, obj)
 }
 
 // checks if the player is behind the object, but close enough that the object is covering the player

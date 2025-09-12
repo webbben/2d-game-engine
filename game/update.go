@@ -50,13 +50,12 @@ func (g *Game) worldUpdates() {
 func (mi *MapInfo) updateMap() {
 	mi.Map.Update()
 
-	// sort NPCs by Y position so that they render in the right order
-	// slices.SortFunc(mi.NPCs, func(a *npc.NPC, b *npc.NPC) int {
-	// 	return a.Entity.TilePos.Y - b.Entity.TilePos.Y
-	// })
-
 	// sort all sortable renderable things on the map
 	mi.updateSortedRenderables()
+
+	for _, obj := range mi.Objects {
+		obj.Update()
+	}
 
 	for _, n := range mi.NPCs {
 		n.Update()

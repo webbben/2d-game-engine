@@ -18,6 +18,8 @@ type Object struct {
 	img                   *ebiten.Image
 	ImageSource           string
 
+	fade rendering.Fade
+
 	CanSeeBehind bool // if true, this object will become transparent when the player is standing behind it, so the player can see
 
 	Door
@@ -67,6 +69,8 @@ func NewObject(imgSource string, tileWidth, tileHeight int) (Object, error) {
 	obj.CollisionMap = createCollisionMap(tileWidth, tileHeight)
 
 	obj.validate()
+
+	obj.fade = rendering.NewFader(1, 0.05)
 
 	return obj, nil
 }
@@ -121,15 +125,4 @@ func createCollisionMap(width, height int) [][]bool {
 	}
 
 	return out
-}
-
-func (o Object) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
-	op := ebiten.DrawImageOptions{}
-	if o.CanSeeBehind && o.WorldContext.PlayerIsBehindObject(o) {
-		op.ColorScale.ScaleAlpha(0.5)
-	}
-	drawX, drawY := o.DrawPos(offsetX, offsetY)
-	op.GeoM.Translate(drawX, drawY)
-	op.GeoM.Scale(config.GameScale, config.GameScale)
-	screen.DrawImage(o.img, &op)
 }
