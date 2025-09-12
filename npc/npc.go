@@ -19,6 +19,11 @@ type NPC struct {
 	World      WorldContext
 }
 
+// used for renderables sorting
+func (n NPC) Y() float64 {
+	return n.Entity.Y
+}
+
 type WorldContext interface {
 	FindNPCAtPosition(c model.Coords) (NPC, bool)
 }

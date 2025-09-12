@@ -19,6 +19,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/npc"
+	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
 )
@@ -47,8 +48,10 @@ to quickly create a Cobra application.`,
 		game := setupGameState()
 
 		// set config
-		config.ShowPlayerCoords = false
+		config.ShowPlayerCoords = true
 		config.ShowGameDebugInfo = true
+		config.DrawGridLines = true
+		config.TrackMemoryUsage = true
 
 		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 0, 0)
 
@@ -117,6 +120,19 @@ func setupGameState() *game.Game {
 
 		mapInfo.AddNPCToMap(&n, model.Coords{X: i, Y: 0})
 	}
+
+	// add objects
+	objDomus, err := object.NewObject(
+		"/Users/benwebb/dev/personal/ancient-rome/buildings/domus1-vines.png",
+		8,
+		9,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	objDomus.PlaceByDoorCoords(model.Coords{X: 15, Y: 5}, 2, 2)
+	objDomus.OffsetX = -2
+	mapInfo.AddObjectToMap(objDomus, objDomus.PosX, objDomus.PosY)
 
 	// setup the game struct
 	g := game.NewGame()

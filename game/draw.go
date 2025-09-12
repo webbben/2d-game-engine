@@ -2,9 +2,7 @@ package game
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/internal/lights"
 )
 
@@ -24,17 +22,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	g.drawWorld(screen)
-
-	// ~~~
-	// Below is all config; any real world stuff should be rendered above
-	// ~~~
-
-	if config.ShowPlayerCoords {
-		g.drawEntityCoords(screen)
-	}
-	if config.TrackMemoryUsage {
-		ebitenutil.DebugPrint(screen, debug.GetLog())
-	}
 
 	// show game debug info, including this scale info
 	if config.ShowGameDebugInfo {
@@ -60,22 +47,16 @@ func (g *Game) drawWorldScene(screen *ebiten.Image) {
 
 	// draw the terrain of the room
 	g.MapInfo.Map.DrawLayers(screen, offsetX, offsetY)
+
 	if config.DrawGridLines {
 		g.drawGridLines(screen, offsetX, offsetY)
 	}
-	g.drawPaths(screen, offsetX, offsetY)
+	if config.ShowNPCPaths {
+		g.drawPaths(screen, offsetX, offsetY)
+	}
 
 	// draw objects, entities, and the player in order of Y position (higher renders first)
-	// should be sorted in the update loop
-	playerDrawn := false
-	for _, n := range g.MapInfo.NPCs {
-		if !playerDrawn && g.Player.Entity.Position.TilePos.Y <= n.Entity.Position.TilePos.Y {
-			g.Player.Entity.Draw(screen, offsetX, offsetY)
-			playerDrawn = true
-		}
-		n.Entity.Draw(screen, offsetX, offsetY)
-	}
-	if !playerDrawn {
-		g.Player.Entity.Draw(screen, offsetX, offsetY)
+	for _, thing := range g.MapInfo.sortedRenderables {
+		thing.Draw(screen, offsetX, offsetY)
 	}
 }

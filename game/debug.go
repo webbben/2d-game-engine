@@ -10,6 +10,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 )
@@ -71,29 +72,35 @@ func (g Game) drawPaths(screen *ebiten.Image, offsetX, offsetY float64) {
 	}
 }
 
-func (g Game) drawEntityCoords(screen *ebiten.Image) {
-	s := ""
-	s += fmt.Sprintf(
+func (g Game) showEntityCoords() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(
 		"Player pos: [%v, %v] (%v, %v)\n",
 		g.Player.Entity.TilePos.X,
 		g.Player.Entity.TilePos.Y,
 		g.Player.Entity.X,
-		g.Player.Entity.Y)
+		g.Player.Entity.Y))
 	for _, n := range g.MapInfo.NPCManager.NPCs {
-		s += fmt.Sprintf(
+		sb.WriteString(fmt.Sprintf(
 			"%s: [%v, %v] (%v, %v)\n",
 			n.DisplayName,
 			n.Entity.TilePos.X,
 			n.Entity.TilePos.Y,
 			n.Entity.X,
 			n.Entity.Y,
-		)
+		))
 	}
-	ebitenutil.DebugPrint(screen, s)
+	return sb.String()
 }
 
 func (g Game) showGameDebugInfo(screen *ebiten.Image) {
 	var s strings.Builder
+
+	if config.TrackMemoryUsage {
+		perfLogs := debug.GetLog()
+		s.WriteString("PERFORMANCE\n")
+		s.WriteString(perfLogs)
+	}
 
 	// show screen size information
 	scaleX := math.Round(float64(g.outsideWidth) / float64(display.SCREEN_WIDTH) * 100)
@@ -106,7 +113,12 @@ func (g Game) showGameDebugInfo(screen *ebiten.Image) {
 		))
 
 	mouseX, mouseY := ebiten.CursorPosition()
-	s.WriteString(fmt.Sprintf("MOUSE: %v, %v \n", mouseX, mouseY))
+	s.WriteString(fmt.Sprintf("MOUSE\n%v, %v \n", mouseX, mouseY))
+
+	if config.ShowPlayerCoords {
+		s.WriteString("ENTITY POSITIONS\n")
+		s.WriteString(g.showEntityCoords())
+	}
 
 	ebitenutil.DebugPrint(screen, s.String())
 }

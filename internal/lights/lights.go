@@ -2,6 +2,7 @@ package lights
 
 import (
 	_ "embed"
+	"fmt"
 	"image/color"
 	"math"
 
@@ -16,12 +17,14 @@ var lightShader *ebiten.Shader
 var lightShaderInit bool // if this shader has been loaded
 
 func LoadShaders() error {
+	fmt.Println("Loading shaders...")
 	var err error
 	lightShader, err = ebiten.NewShader(lightShaderSrc)
 	if err != nil {
 		return err
 	}
 	lightShaderInit = true
+	fmt.Println("All shaders successfully loaded.")
 	return nil
 }
 

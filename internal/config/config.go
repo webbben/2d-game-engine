@@ -12,6 +12,7 @@ var (
 	GameScale         float64 = 2.5 // how much the game view is scaled up
 	DrawGridLines             = false
 	ShowPlayerCoords          = false
+	ShowNPCPaths              = false // highlight the paths that NPCs are following
 	TrackMemoryUsage          = false // show a report in the console of memory usage every few seconds
 	ShowGameDebugInfo         = false // show a report of various debugging info (like F12 in minecraft)
 

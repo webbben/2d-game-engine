@@ -1,11 +1,10 @@
 package game
 
 import (
-	"slices"
+	"sort"
 
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
-	"github.com/webbben/2d-game-engine/npc"
 )
 
 func (g *Game) Update() error {
@@ -52,11 +51,32 @@ func (mi *MapInfo) updateMap() {
 	mi.Map.Update()
 
 	// sort NPCs by Y position so that they render in the right order
-	slices.SortFunc(mi.NPCs, func(a *npc.NPC, b *npc.NPC) int {
-		return a.Entity.TilePos.Y - b.Entity.TilePos.Y
-	})
+	// slices.SortFunc(mi.NPCs, func(a *npc.NPC, b *npc.NPC) int {
+	// 	return a.Entity.TilePos.Y - b.Entity.TilePos.Y
+	// })
+
+	// sort all sortable renderable things on the map
+	mi.updateSortedRenderables()
 
 	for _, n := range mi.NPCs {
 		n.Update()
 	}
+}
+
+func (mi *MapInfo) updateSortedRenderables() {
+	mi.sortedRenderables = []sortedRenderable{}
+
+	for _, n := range mi.NPCs {
+		mi.sortedRenderables = append(mi.sortedRenderables, n)
+	}
+
+	mi.sortedRenderables = append(mi.sortedRenderables, mi.PlayerRef)
+
+	for _, obj := range mi.Objects {
+		mi.sortedRenderables = append(mi.sortedRenderables, obj)
+	}
+
+	sort.Slice(mi.sortedRenderables, func(i, j int) bool {
+		return mi.sortedRenderables[i].Y() < mi.sortedRenderables[j].Y()
+	})
 }

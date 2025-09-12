@@ -10,6 +10,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/npc"
+	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/player"
 )
 
@@ -19,10 +20,18 @@ type MapInfo struct {
 	Map         tiled.Map
 	ImageMap    map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
 	PlayerRef   *player.Player
+	Objects     []object.Object
+
+	sortedRenderables []sortedRenderable
 
 	Lights []*lights.Light
 
 	NPCManager
+}
+
+type sortedRenderable interface {
+	Y() float64
+	Draw(screen *ebiten.Image, offsetX, offsetY float64)
 }
 
 // Do all required setup for creating MapInfo and preparing it for use.
@@ -175,4 +184,8 @@ func (mi MapInfo) CostMap() [][]int {
 
 func (mi *MapInfo) GetLights() []*lights.Light {
 	return mi.Lights
+}
+
+func (mi *MapInfo) AddObjectToMap(obj object.Object, x, y int) {
+	mi.Objects = append(mi.Objects, obj)
 }
