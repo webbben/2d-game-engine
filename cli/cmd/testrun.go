@@ -132,7 +132,8 @@ func setupGameState() *game.Game {
 	}
 	objDomus.PlaceByDoorCoords(model.Coords{X: 15, Y: 5}, 2, 2)
 	objDomus.OffsetX = -2
-	mapInfo.AddObjectToMap(objDomus, objDomus.PosX, objDomus.PosY)
+	objDomus.CanSeeBehind = true
+	mapInfo.AddObjectToMap(&objDomus, objDomus.PosX, objDomus.PosY)
 
 	// setup the game struct
 	g := game.NewGame()

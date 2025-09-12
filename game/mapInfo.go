@@ -186,6 +186,34 @@ func (mi *MapInfo) GetLights() []*lights.Light {
 	return mi.Lights
 }
 
-func (mi *MapInfo) AddObjectToMap(obj object.Object, x, y int) {
-	mi.Objects = append(mi.Objects, obj)
+func (mi *MapInfo) AddObjectToMap(obj *object.Object, x, y int) {
+	obj.WorldContext = mi
+	mi.Objects = append(mi.Objects, *obj)
+}
+
+// checks if the player is behind the object, but close enough that the object is covering the player
+func (mi MapInfo) PlayerIsBehindObject(obj object.Object) bool {
+	playerExtentX, playerExtentY := mi.PlayerRef.Entity.ExtentPos(0, 0)
+	objExtentX, objExtentY := obj.ExtentPos(0, 0)
+
+	if playerExtentY >= objExtentY {
+		return false
+	}
+
+	playerDrawX, _ := mi.PlayerRef.Entity.DrawPos(0, 0)
+	objDrawX, objDrawY := obj.DrawPos(0, 0)
+
+	if playerExtentY < objDrawY {
+		return false
+	}
+
+	if playerExtentX < objDrawX {
+		return false
+	}
+
+	if playerDrawX > objExtentX {
+		return false
+	}
+
+	return true
 }

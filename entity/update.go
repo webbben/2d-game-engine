@@ -19,10 +19,33 @@ func (e Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	}
 
 	op := &ebiten.DrawImageOptions{}
-	drawX, drawY := rendering.GetImageDrawPos(e.CurrentFrame, e.X, e.Y, offsetX, offsetY)
+	drawX, drawY := e.DrawPos(offsetX, offsetY)
 	op.GeoM.Translate(drawX, drawY)
 	op.GeoM.Scale(config.GameScale, config.GameScale)
 	screen.DrawImage(e.CurrentFrame, op)
+}
+
+// returns the actual absolute position where the entity will be drawn
+func (e Entity) DrawPos(offsetX, offsetY float64) (drawX, drawY float64) {
+	if e.CurrentFrame == nil {
+		panic("tried to get draw position for entity with no set frame")
+	}
+	drawX, drawY = rendering.GetImageDrawPos(e.CurrentFrame, e.X, e.Y, offsetX, offsetY)
+	drawY -= 6 // move up a little, since we want the entity to look like its standing in the middle of the tile
+	return drawX, drawY
+}
+
+// returns the absolute position where the "extent" of the entity's image lies.
+// by "extent", we basically mean just the position of the end of the actual image rectangle, when the image is positioned for drawing.
+// you would use this (along with DrawPos) when checking if an entity is actually touching or overlapping physically with something
+func (e Entity) ExtentPos(offsetX, offsetY float64) (extentX, extentY float64) {
+	if e.CurrentFrame == nil {
+		panic("tried to get extent position for entity with no set frame")
+	}
+	extentX, extentY = e.DrawPos(offsetX, offsetY)
+	extentX += float64(e.CurrentFrame.Bounds().Dx())
+	extentY += float64(e.CurrentFrame.Bounds().Dy())
+	return extentX, extentY
 }
 
 // If the entity is following a target path, this function handles setting the next target tile on the path.

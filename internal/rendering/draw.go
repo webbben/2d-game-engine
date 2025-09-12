@@ -2,6 +2,7 @@ package rendering
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/config"
 )
 
 /*
@@ -34,20 +35,26 @@ var BlendMultiply ebiten.Blend = ebiten.Blend{
 	BlendOperationAlpha:         ebiten.BlendOperationAdd,
 }
 
-// draws an image on the screen, without using any fancy options
-func DrawWorldImage(screen *ebiten.Image, img *ebiten.Image, x, y, offsetX, offsetY float64, scale float64) {
+// draws an image in the map, using the standard settings to do so.
+// can optionally pass in special options, but they should not mess with the following:
+//
+// # GeoM.Translate - already using this to place the object at its position
+//
+// GeoM.Scale - already setting this to the game scale set in config.
+func DrawWorldImage(screen *ebiten.Image, img *ebiten.Image, x, y, offsetX, offsetY float64, op *ebiten.DrawImageOptions) {
 	if screen == nil {
 		panic("DrawImage: screen is nil!")
 	}
 	if img == nil {
 		panic("DrawImage: image to draw is nil!")
 	}
-	op := &ebiten.DrawImageOptions{}
+	if op == nil {
+		op = &ebiten.DrawImageOptions{}
+	}
 	drawX, drawY := GetImageDrawPos(img, x, y, offsetX, offsetY)
 	op.GeoM.Translate(drawX, drawY)
-	if scale > 0 {
-		op.GeoM.Scale(scale, scale)
-	}
+	op.GeoM.Scale(config.GameScale, config.GameScale)
+
 	screen.DrawImage(img, op)
 }
 

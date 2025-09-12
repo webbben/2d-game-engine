@@ -11,18 +11,40 @@ import (
 )
 
 type Object struct {
-	PosX, PosY            int      // position this object is placed at (from top-left corner)
+	PosX, PosY            int      // position this object is drawn from (top-left corner of image)
 	OffsetX, OffsetY      int      // add an offset to the X position - in case the image dimensions push it slightly outside its intended tiles
 	TileWidth, TileHeight int      // number of tiles this object occupies
 	CollisionMap          [][]bool // map of which tiles are collisions
 	img                   *ebiten.Image
 	ImageSource           string
 
+	CanSeeBehind bool // if true, this object will become transparent when the player is standing behind it, so the player can see
+
 	Door
+
+	WorldContext
 }
 
+func (o Object) DrawPos(offsetX, offsetY float64) (drawX, drawY float64) {
+	drawX, drawY = rendering.GetImageDrawPos(o.img, float64(o.PosX+o.OffsetX), float64(o.PosY+o.OffsetY), offsetX, offsetY)
+	return drawX, drawY
+}
+
+func (o Object) ExtentPos(offsetX, offsetY float64) (extentX, extentY float64) {
+	extentX, extentY = o.DrawPos(offsetX, offsetY)
+	extentX += float64(o.img.Bounds().Dx())
+	extentY += float64(o.img.Bounds().Dy())
+	return extentX, extentY
+}
+
+type WorldContext interface {
+	PlayerIsBehindObject(obj Object) bool
+}
+
+// for sorting among other renderables in map
 func (o Object) Y() float64 {
-	return float64(o.PosY)
+	_, extentY := o.ExtentPos(0, 0)
+	return extentY
 }
 
 type Door struct {
@@ -43,6 +65,8 @@ func NewObject(imgSource string, tileWidth, tileHeight int) (Object, error) {
 	obj.img = img
 
 	obj.CollisionMap = createCollisionMap(tileWidth, tileHeight)
+
+	obj.validate()
 
 	return obj, nil
 }
@@ -83,8 +107,6 @@ func (o *Object) PlaceByDoorCoords(doorCoords model.Coords, doorTileWidth, doorT
 
 	o.PosX = placementX
 	o.PosY = placementY
-
-	fmt.Println("object placement:", "X =", o.PosX, "Y =", o.PosY)
 }
 
 func createCollisionMap(width, height int) [][]bool {
@@ -102,5 +124,12 @@ func createCollisionMap(width, height int) [][]bool {
 }
 
 func (o Object) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
-	rendering.DrawWorldImage(screen, o.img, float64(o.PosX+o.OffsetX), float64(o.PosY+o.OffsetY), offsetX, offsetY, config.GameScale)
+	op := ebiten.DrawImageOptions{}
+	if o.CanSeeBehind && o.WorldContext.PlayerIsBehindObject(o) {
+		op.ColorScale.ScaleAlpha(0.5)
+	}
+	drawX, drawY := o.DrawPos(offsetX, offsetY)
+	op.GeoM.Translate(drawX, drawY)
+	op.GeoM.Scale(config.GameScale, config.GameScale)
+	screen.DrawImage(o.img, &op)
 }
