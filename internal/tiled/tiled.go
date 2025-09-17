@@ -72,8 +72,16 @@ func (td *TileData) UpdateFrame() {
 }
 
 type MapMeta struct {
-	Loaded bool // flag indicating if the map has been successfully loaded yet
+	Loaded        bool   // flag indicating if the map has been successfully loaded yet
+	AbsSourcePath string // the absolute path to the source file for this map
 }
+
+const (
+	LAYER_TYPE_TILE   = "tilelayer"
+	LAYER_TYPE_OBJECT = "objectgroup"
+	LAYER_TYPE_IMAGE  = "imagelayer"
+	LAYER_TYPE_GROUP  = "group"
+)
 
 // Layer represents a layer in the map
 type Layer struct {

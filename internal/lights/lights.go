@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/tiled"
 )
 
 //go:embed shaders/light.kage
@@ -119,6 +121,27 @@ type Light struct {
 	currentRadius   float32
 }
 
+func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Light {
+	lightColor := LIGHT_TORCH
+	if lightProp.ColorPreset == "torch" {
+		// TODO setup some color presets
+		lightColor = LIGHT_TORCH
+	}
+	// if a custom light is defined, use it
+	if customLight != nil {
+		lightColor = *customLight
+	}
+
+	return Light{
+		X:                   float32(x),
+		Y:                   float32(y + lightProp.OffsetY),
+		MinRadius:           float32(lightProp.Radius),
+		MaxRadius:           float32(lightProp.Radius) + (float32(lightProp.Radius) * float32(lightProp.GlowFactor)),
+		LightColor:          lightColor,
+		FlickerTickInterval: 50,
+	}
+}
+
 func (l *Light) calculateNextRadius() {
 	if l.glowing {
 		l.flickerProgress++
@@ -134,11 +157,44 @@ func (l *Light) calculateNextRadius() {
 
 	flickerPercent := float64(l.flickerProgress) / float64(l.FlickerTickInterval)
 
-	l.currentRadius = ((l.MaxRadius - l.MinRadius) * float32(flickerPercent)) + l.MinRadius
+	maxRadius := l.MaxRadius * float32(config.GameScale)
+	minRadius := l.MinRadius * float32(config.GameScale)
+	l.currentRadius = ((maxRadius - minRadius) * float32(flickerPercent)) + minRadius
 }
 
-func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight LightColor, nightFx bool) {
-	drawLights(screen, scene, lights, daylight, nightFx)
+func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight LightColor, nightFx float32, offsetX, offsetY float64) {
+	maxLights := 16
+	lightPositions := make([]float32, maxLights*2) // X, Y
+	lightRadii := make([]float32, maxLights)       // radius
+	lightColors := make([]float32, maxLights*3)    // R, G, B
+
+	for i := range lights {
+		lights[i].calculateNextRadius()
+		l := lights[i]
+
+		// light position
+		lightPositions[i*2] = (l.X - float32(offsetX)) * float32(config.GameScale)
+		lightPositions[i*2+1] = (l.Y - float32(offsetY)) * float32(config.GameScale)
+
+		// light radius
+		lightRadii[i] = l.currentRadius
+
+		// light color
+		lightColors[i*3] = l.LightColor[0]
+		lightColors[i*3+1] = l.LightColor[1]
+		lightColors[i*3+2] = l.LightColor[2]
+	}
+
+	op := &ebiten.DrawRectShaderOptions{}
+	op.Images[0] = scene
+	op.Uniforms = map[string]interface{}{
+		"LightPositions": lightPositions,
+		"LightRadii":     lightRadii,
+		"LightColors":    lightColors,
+		"NightTint":      daylight,
+		"ExtraDarken":    nightFx,
+	}
+	screen.DrawRectShader(display.SCREEN_WIDTH, display.SCREEN_HEIGHT, lightShader, op)
 }
 
 func CalculateDaylight(hour int) LightColor {
@@ -150,7 +206,7 @@ func CalculateDaylight(hour int) LightColor {
 	// midnight: 0 - 4
 	// dark blue to black
 	case 0:
-		return LightColor{0.15, 0.2, 1}
+		return LightColor{0.15, 0.2, 0.8}
 	case 1:
 		return LightColor{0.15, 0.2, 0.8}
 	case 2:
@@ -176,68 +232,40 @@ func CalculateDaylight(hour int) LightColor {
 	case 10:
 		return LightColor{0.8, 0.85, 1}
 	case 11:
+		return LightColor{0.85, 0.85, 1}
 	// midday: 12 - 15
 	// light blue to yellow
 	case 12:
+		return LightColor{0.9, 0.9, 1}
 	case 13:
+		return LightColor{1.0, 0.9, 0.9}
 	case 14:
+		return LightColor{1.0, 0.9, 0.8}
 	case 15:
+		return LightColor{1.0, 0.9, 0.7}
 	// evening: 16 - 19
 	// yellow to red
 	case 16:
+		return LightColor{1.0, 0.8, 0.6}
 	case 17:
+		return LightColor{0.9, 0.75, 0.5}
 	case 18:
+		return LightColor{0.8, 0.5, 0.5}
 	case 19:
+		return LightColor{0.7, 0.4, 0.5}
 	// night: 20 - 23
 	// red to dark blue
 	case 20:
+		return LightColor{0.4, 0.4, 0.6}
 	case 21:
+		return LightColor{0.3, 0.3, 0.7}
 	case 22:
+		return LightColor{0.2, 0.2, 0.8}
 	case 23:
+		return LightColor{0.15, 0.2, 0.9}
 	default:
 		panic("unknown hour")
 	}
-	return DARK_NIGHTSKY
-}
-
-func drawLights(screen, scene *ebiten.Image, lights []*Light, darknessTint LightColor, nightFx bool) {
-	maxLights := 16
-	lightPositions := make([]float32, maxLights*2) // X, Y
-	lightRadii := make([]float32, maxLights)       // radius
-	lightColors := make([]float32, maxLights*3)    // R, G, B
-
-	for i := range lights {
-		lights[i].calculateNextRadius()
-		l := lights[i]
-
-		// light position
-		lightPositions[i*2] = l.X
-		lightPositions[i*2+1] = l.Y
-
-		// light radius
-		lightRadii[i] = l.currentRadius
-
-		// light color
-		lightColors[i*3] = l.LightColor[0]
-		lightColors[i*3+1] = l.LightColor[1]
-		lightColors[i*3+2] = l.LightColor[2]
-	}
-
-	var extraDarken float32 = 0.0
-	if nightFx {
-		extraDarken = 1.0
-	}
-
-	op := &ebiten.DrawRectShaderOptions{}
-	op.Images[0] = scene
-	op.Uniforms = map[string]interface{}{
-		"LightPositions": lightPositions,
-		"LightRadii":     lightRadii,
-		"LightColors":    lightColors,
-		"NightTint":      darknessTint,
-		"ExtraDarken":    extraDarken,
-	}
-	screen.DrawRectShader(display.SCREEN_WIDTH, display.SCREEN_HEIGHT, lightShader, op)
 }
 
 func shaderColorScale(c color.Color) LightColor {

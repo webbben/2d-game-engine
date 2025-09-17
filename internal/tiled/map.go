@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
@@ -13,6 +14,10 @@ import (
 )
 
 func OpenMap(mapSource string) (Map, error) {
+	mapSource, err := filepath.Abs(mapSource)
+	if err != nil {
+		return Map{}, fmt.Errorf("failed to resolve absolute path for map source: %w", err)
+	}
 	bytes, err := os.ReadFile(mapSource)
 	if err != nil {
 		return Map{}, fmt.Errorf("error reading map source file: %w", err)
@@ -22,6 +27,7 @@ func OpenMap(mapSource string) (Map, error) {
 	if err != nil {
 		return Map{}, fmt.Errorf("error reading map source JSON data: %w", err)
 	}
+	m.AbsSourcePath = mapSource
 	return m, nil
 }
 
@@ -29,7 +35,7 @@ func OpenMap(mapSource string) (Map, error) {
 func (m *Map) Load() error {
 	// ensure all tilesets have been loaded and created
 	for i, tileset := range m.Tilesets {
-		err := tileset.LoadJSONData()
+		err := tileset.LoadJSONData(m.AbsSourcePath)
 		if err != nil {
 			return err
 		}
@@ -107,7 +113,29 @@ func (m *Map) Update() {
 	}
 }
 
-func (m Map) DrawLayers(screen *ebiten.Image, offsetX float64, offsetY float64) {
+func (m Map) DrawGroundLayers(screen *ebiten.Image, offsetX float64, offsetY float64) {
+	if !m.Loaded {
+		log.Fatal("map not loaded! ensure map is loaded before drawing layers")
+	}
+	if m.TileImageMap == nil {
+		log.Fatal("tileImageMap is nil! ensure the tile images are loaded into memory before drawing layers")
+	}
+
+	// draw all tile layers except:
+	// - the BUILDING_ROOF layer: parts of buildings that the player can walk behind
+	for _, layer := range m.Layers {
+		if layer.Type != LAYER_TYPE_TILE {
+			continue
+		}
+		if layer.Name == "BUILDING_ROOF" {
+			continue
+		}
+
+		m.drawTileLayer(screen, offsetX, offsetY, layer)
+	}
+}
+
+func (m Map) DrawRooftopLayer(screen *ebiten.Image, offsetX, offsetY float64) {
 	if !m.Loaded {
 		log.Fatal("map not loaded! ensure map is loaded before drawing layers")
 	}
@@ -116,66 +144,73 @@ func (m Map) DrawLayers(screen *ebiten.Image, offsetX float64, offsetY float64) 
 	}
 
 	for _, layer := range m.Layers {
-		if layer.Type != "tilelayer" {
+		if layer.Name == "BUILDING_ROOF" {
+			m.drawTileLayer(screen, offsetX, offsetY, layer)
+			break
+		}
+	}
+}
+
+func (m Map) drawTileLayer(screen *ebiten.Image, offsetX, offsetY float64, layer Layer) {
+	if layer.Type != "tilelayer" {
+		return
+	}
+
+	if len(layer.Data) != layer.Width*layer.Height {
+		log.Fatalf("the layer data array is not the correct size; size=%v, expected=%v", len(layer.Data), layer.Width*layer.Height)
+	}
+
+	// index of the tile in the layer's Data array
+	// it's important that this value is always updated correctly if we skip any rows or columns, or else tiles will render in the wrong places
+	i := 0
+	for y := 0; y < layer.Height; y++ {
+		// skip this row if it's above the camera
+		if rendering.RowAboveCameraView(float64(y), offsetY) {
+			i += layer.Width
 			continue
 		}
-
-		if len(layer.Data) != layer.Width*layer.Height {
-			log.Fatalf("the layer data array is not the correct size; size=%v, expected=%v", len(layer.Data), layer.Width*layer.Height)
+		// skip all remaining rows if it's below the camera
+		if rendering.RowBelowCameraView(float64(y), offsetY) {
+			break
 		}
+		drawY := float64(y*config.TileSize) - offsetY
 
-		// index of the tile in the layer's Data array
-		// it's important that this value is always updated correctly if we skip any rows or columns, or else tiles will render in the wrong places
-		i := 0
-		for y := 0; y < layer.Height; y++ {
-			// skip this row if it's above the camera
-			if rendering.RowAboveCameraView(float64(y), offsetY) {
-				i += layer.Width
+		for x := 0; x < layer.Width; x++ {
+			if rendering.ColBeforeCameraView(float64(x), offsetX) {
+				i++
 				continue
 			}
-			// skip all remaining rows if it's below the camera
-			if rendering.RowBelowCameraView(float64(y), offsetY) {
+			// skip the rest of the columns if it's past the screen
+			if rendering.ColAfterCameraView(float64(x), offsetX) {
+				i += layer.Width - x
 				break
 			}
-			drawY := float64(y*config.TileSize) - offsetY
 
-			for x := 0; x < layer.Width; x++ {
-				if rendering.ColBeforeCameraView(float64(x), offsetX) {
-					i++
-					continue
-				}
-				// skip the rest of the columns if it's past the screen
-				if rendering.ColAfterCameraView(float64(x), offsetX) {
-					i += layer.Width - x
-					break
-				}
+			drawX := float64(x*config.TileSize) - offsetX
 
-				drawX := float64(x*config.TileSize) - offsetX
-
-				tileGID := layer.Data[i]
-				if tileGID == 0 {
-					// 0 means no tile is placed here
-					i++
-					continue
-				}
-
-				tileData, exists := m.TileImageMap[tileGID]
-				if !exists {
-					keys := make([]int, 0, len(m.TileImageMap))
-					for k := range m.TileImageMap {
-						keys = append(keys, k)
-					}
-					fmt.Println(keys)
-					log.Fatalf("tile GID (%v) not found in TileImageMap; was there an error during tileset initialization?", tileGID)
-				}
-
-				op := &ebiten.DrawImageOptions{}
-				op.GeoM.Translate(drawX, drawY)
-				op.GeoM.Scale(config.GameScale, config.GameScale)
-				screen.DrawImage(tileData.CurrentFrame, op)
-
+			tileGID := layer.Data[i]
+			if tileGID == 0 {
+				// 0 means no tile is placed here
 				i++
+				continue
 			}
+
+			tileData, exists := m.TileImageMap[tileGID]
+			if !exists {
+				keys := make([]int, 0, len(m.TileImageMap))
+				for k := range m.TileImageMap {
+					keys = append(keys, k)
+				}
+				fmt.Println(keys)
+				log.Fatalf("tile GID (%v) not found in TileImageMap; was there an error during tileset initialization?", tileGID)
+			}
+
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(drawX, drawY)
+			op.GeoM.Scale(config.GameScale, config.GameScale)
+			screen.DrawImage(tileData.CurrentFrame, op)
+
+			i++
 		}
 	}
 }
@@ -196,23 +231,28 @@ func (m *Map) CalculateCostMap() {
 	}
 
 	// Go through each layer and add any 'cost' properties up
-	i := 0
 	for _, layer := range m.Layers {
+		i := 0
 		for y := 0; y < layer.Height; y++ {
 			for x := 0; x < layer.Width; x++ {
-				tile, found := m.GetTileByGID(layer.Data[i])
-				if !found {
-					continue
-				}
-
-				for _, prop := range tile.Properties {
-					if prop.Name == "cost" {
-						m.CostMap[y][x] += prop.GetIntValue()
+				if layer.Name == "BUILDING_BASE" {
+					if layer.Data[i] != 0 {
+						// all tiles in building base layer are automatically collisions
+						m.CostMap[y][x] += 10
 					}
 				}
-			}
 
-			i++
+				tile, found := m.GetTileByGID(layer.Data[i])
+				if found {
+					for _, prop := range tile.Properties {
+						if prop.Name == "cost" {
+							m.CostMap[y][x] += prop.GetIntValue()
+						}
+					}
+				}
+
+				i++
+			}
 		}
 	}
 }

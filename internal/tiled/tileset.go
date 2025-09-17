@@ -9,12 +9,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/general_util"
+	"github.com/webbben/2d-game-engine/internal/model"
 )
 
 var tilePath = filepath.Join(config.GameAssetsPath(), "tiles")
@@ -40,17 +40,23 @@ func TilesetExists(tilesetName string) bool {
 	return general_util.FileExists(filepath.Join(tilePath, tilesetName))
 }
 
-func (t *Tileset) LoadJSONData() error {
+func (t *Tileset) LoadJSONData(absPath string) error {
 	// initially, when loading from a map file, we only have these two values:
 	// 1. FirstGID
 	// 2. Source
 
 	// start by loading JSON data from source
-
-	// TODO - this is a temporary hack. once we have a decided data directory, change how we get the source path.
-	if strings.HasPrefix(t.Source, "../tilesets/") {
-		t.Source = strings.TrimPrefix(t.Source, "../tilesets/")
-		t.Source = "assets/tiled/tilesets/" + t.Source
+	if !filepath.IsAbs(t.Source) {
+		// if the path is not absolute, follow the relative path based on the map file's absolute path
+		if absPath == "" {
+			p, err := filepath.Abs(t.Source)
+			if err != nil {
+				return err
+			}
+			absPath = p
+		}
+		absPath = filepath.Dir(absPath)
+		t.Source = filepath.Clean(filepath.Join(absPath, t.Source))
 	}
 
 	var loaded Tileset
@@ -63,9 +69,9 @@ func (t *Tileset) LoadJSONData() error {
 		return fmt.Errorf("failed to unmarshal source JSON file: %w", err)
 	}
 
-	// TODO - replace this hack with the long term approach for storing tileset images
-	if strings.HasPrefix(loaded.Image, "../") {
-		loaded.Image = "assets/images/" + strings.Split(loaded.Image, "/images/")[1]
+	if !filepath.IsAbs(loaded.Image) {
+		// if the source image for the tileset has a relative path, compute absolute path based on tileset absolute path
+		loaded.Image = filepath.Clean(filepath.Join(filepath.Dir(t.Source), loaded.Image))
 	}
 
 	// put the two initial values into this loaded one, and replace the original Tileset data
@@ -81,7 +87,7 @@ func LoadTileset(source string) (Tileset, error) {
 		FirstGID: 0,
 		Source:   source,
 	}
-	err := t.LoadJSONData()
+	err := t.LoadJSONData("")
 	return t, err
 }
 
@@ -164,10 +170,82 @@ func (m Map) GetTileByGID(gid int) (Tile, bool) {
 	return Tile{}, false
 }
 
+// given a gid for a tile, returns the coordinates for all places that this tile is placed in a map (in any tile layer).
+// used for positioning things like lights which are embedded in certain tiles
+func (m Map) GetAllTilePositions(gid int) []model.Coords {
+	coords := []model.Coords{}
+	for _, layer := range m.Layers {
+		if layer.Type != LAYER_TYPE_TILE {
+			continue
+		}
+		for i, dataGID := range layer.Data {
+			if dataGID == gid {
+				y := i / layer.Width
+				x := i % layer.Width
+				coords = append(coords, model.Coords{
+					X: x,
+					Y: y,
+				})
+			}
+		}
+	}
+
+	return coords
+}
+
 func (t Tileset) GetTileImage(id int) (*ebiten.Image, error) {
 	tileImg, _, err := ebitenutil.NewImageFromFile(filepath.Join(tilePath, t.Name, fmt.Sprintf("%v.png", id)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load tile image: %w", err)
 	}
 	return tileImg, nil
+}
+
+type LightProps struct {
+	TileID      int
+	ColorPreset string
+	GlowFactor  float64
+	OffsetY     int
+	Radius      int
+}
+
+func GetTileType(tile Tile) string {
+	for _, prop := range tile.Properties {
+		if prop.Name == "TYPE" {
+			return prop.GetStringValue()
+		}
+	}
+
+	return ""
+}
+
+func GetLightPropsFromTile(tile Tile) LightProps {
+	props := LightProps{
+		TileID: tile.ID,
+	}
+
+	for _, prop := range tile.Properties {
+		switch prop.Name {
+		case "light_color_preset":
+			props.ColorPreset = prop.GetStringValue()
+		case "light_glow_factor":
+			props.GlowFactor = prop.GetFloatValue()
+		case "light_offset_y":
+			props.OffsetY = prop.GetIntValue()
+		case "light_radius":
+			props.Radius = prop.GetIntValue()
+		}
+	}
+
+	return props
+}
+
+func GetBoolProperty(propName string, props []Property) (found, value bool) {
+	for _, prop := range props {
+		if prop.Name == propName {
+			return true, prop.GetBoolValue()
+		}
+	}
+
+	return false, false
 }
