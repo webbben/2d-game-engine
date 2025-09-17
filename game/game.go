@@ -40,7 +40,7 @@ func NewGame(hour int) *Game {
 	g := Game{
 		worldScene:     ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
 		lastHourChange: time.Now(),
-		daylightFader:  lights.NewLightFader(lights.LightColor{1, 1, 1}, 0.1, config.HourSpeed/10),
+		daylightFader:  lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20),
 	}
 
 	g.SetHour(hour, true)
@@ -53,12 +53,15 @@ func (g *Game) SetHour(hour int, skipFade bool) {
 		panic("invalid hour")
 	}
 
-	newDaylight := lights.CalculateDaylight(hour)
+	newDaylight, darknessFactor := lights.CalculateDaylight(hour)
 	if skipFade {
 		g.daylightFader.SetCurrentColor(newDaylight)
 		g.daylightFader.TargetColor = newDaylight
+		g.daylightFader.SetCurrentDarknessFactor(darknessFactor)
+		g.daylightFader.TargetDarknessFactor = darknessFactor
 	} else {
 		g.daylightFader.TargetColor = newDaylight
+		g.daylightFader.TargetDarknessFactor = darknessFactor
 	}
 
 	g.Hour = hour

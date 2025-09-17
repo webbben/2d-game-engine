@@ -202,11 +202,12 @@ func (t Tileset) GetTileImage(id int) (*ebiten.Image, error) {
 }
 
 type LightProps struct {
-	TileID      int
-	ColorPreset string
-	GlowFactor  float64
-	OffsetY     int
-	Radius      int
+	TileID            int
+	ColorPreset       string
+	GlowFactor        float64
+	InnerRadiusFactor float64
+	OffsetY           int
+	Radius            int
 }
 
 func GetTileType(tile Tile) string {
@@ -234,6 +235,8 @@ func GetLightPropsFromTile(tile Tile) LightProps {
 			props.OffsetY = prop.GetIntValue()
 		case "light_radius":
 			props.Radius = prop.GetIntValue()
+		case "light_inner_radius_factor":
+			props.InnerRadiusFactor = prop.GetFloatValue()
 		}
 	}
 

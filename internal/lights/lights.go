@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"image/color"
+	"log"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -46,18 +47,24 @@ func (l LightColor) Equals(lc LightColor) bool {
 }
 
 type LightFader struct {
-	TargetColor    LightColor
-	currentColor   LightColor
-	changeFactor   float32
-	changeInterval time.Duration
-	lastChange     time.Time
+	TargetColor           LightColor
+	currentColor          LightColor
+	TargetDarknessFactor  float32
+	currentDarknessFactor float32
+	changeFactor          float32
+	changeInterval        time.Duration
+	lastChange            time.Time
 }
 
 func (l LightFader) GetCurrentColor() LightColor {
 	return l.currentColor
 }
 
-func NewLightFader(initialColor LightColor, changeFactor float32, changeInterval time.Duration) LightFader {
+func (l LightFader) GetDarknessFactor() float32 {
+	return l.currentDarknessFactor
+}
+
+func NewLightFader(initialColor LightColor, initialDarknessFactor float32, changeFactor float32, changeInterval time.Duration) LightFader {
 	if changeFactor <= 0 {
 		changeFactor = 0.1
 	}
@@ -66,11 +73,13 @@ func NewLightFader(initialColor LightColor, changeFactor float32, changeInterval
 	}
 
 	lf := LightFader{
-		currentColor:   initialColor,
-		TargetColor:    initialColor,
-		changeFactor:   changeFactor,
-		lastChange:     time.Now(),
-		changeInterval: changeInterval,
+		currentColor:          initialColor,
+		TargetColor:           initialColor,
+		changeFactor:          changeFactor,
+		lastChange:            time.Now(),
+		changeInterval:        changeInterval,
+		currentDarknessFactor: initialDarknessFactor,
+		TargetDarknessFactor:  initialDarknessFactor,
 	}
 
 	return lf
@@ -78,6 +87,11 @@ func NewLightFader(initialColor LightColor, changeFactor float32, changeInterval
 
 func (lf *LightFader) SetCurrentColor(light LightColor) {
 	lf.currentColor = light
+	lf.lastChange = time.Now()
+}
+
+func (lf *LightFader) SetCurrentDarknessFactor(factor float32) {
+	lf.currentDarknessFactor = factor
 	lf.lastChange = time.Now()
 }
 
@@ -93,6 +107,8 @@ func (l *LightFader) Update() {
 	l.currentColor[0] += (l.TargetColor[0] - l.currentColor[0]) * l.changeFactor
 	l.currentColor[1] += (l.TargetColor[1] - l.currentColor[1]) * l.changeFactor
 	l.currentColor[2] += (l.TargetColor[2] - l.currentColor[2]) * l.changeFactor
+
+	l.currentDarknessFactor += (l.TargetDarknessFactor - l.currentDarknessFactor) * l.changeFactor
 }
 
 var (
@@ -113,8 +129,12 @@ var (
 type Light struct {
 	X, Y                 float32
 	MaxRadius, MinRadius float32
-	FlickerTickInterval  int
-	LightColor           LightColor
+
+	// the "inner radius" is a percentage of the light's radius that is at full brightness. Outside of this radius, brightness starts fading out.
+	// this should be a decimal value in the range (0, 1), but typically somewhere around 0.5
+	innerRadiusFactor   float32
+	FlickerTickInterval int
+	LightColor          LightColor
 
 	flickerProgress int
 	glowing         bool
@@ -132,6 +152,11 @@ func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Lig
 		lightColor = *customLight
 	}
 
+	if lightProp.InnerRadiusFactor <= 0 || lightProp.InnerRadiusFactor >= 1 {
+		log.Println("NewLight: given innerRadiusFactor was invalid; using default value of 0.5")
+		lightProp.InnerRadiusFactor = 0.5
+	}
+
 	return Light{
 		X:                   float32(x),
 		Y:                   float32(y + lightProp.OffsetY),
@@ -139,6 +164,7 @@ func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Lig
 		MaxRadius:           float32(lightProp.Radius) + (float32(lightProp.Radius) * float32(lightProp.GlowFactor)),
 		LightColor:          lightColor,
 		FlickerTickInterval: 50,
+		innerRadiusFactor:   float32(lightProp.InnerRadiusFactor),
 	}
 }
 
@@ -164,9 +190,11 @@ func (l *Light) calculateNextRadius() {
 
 func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight LightColor, nightFx float32, offsetX, offsetY float64) {
 	maxLights := 16
-	lightPositions := make([]float32, maxLights*2) // X, Y
-	lightRadii := make([]float32, maxLights)       // radius
-	lightColors := make([]float32, maxLights*3)    // R, G, B
+
+	lightPositions := make([]float32, maxLights*2)        // X, Y
+	lightRadii := make([]float32, maxLights)              // radius
+	lightInnerRadiusFactors := make([]float32, maxLights) // inner radius factors
+	lightColors := make([]float32, maxLights*3)           // R, G, B
 
 	for i := range lights {
 		lights[i].calculateNextRadius()
@@ -178,6 +206,7 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight Ligh
 
 		// light radius
 		lightRadii[i] = l.currentRadius
+		lightInnerRadiusFactors[i] = l.innerRadiusFactor
 
 		// light color
 		lightColors[i*3] = l.LightColor[0]
@@ -188,16 +217,17 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight Ligh
 	op := &ebiten.DrawRectShaderOptions{}
 	op.Images[0] = scene
 	op.Uniforms = map[string]interface{}{
-		"LightPositions": lightPositions,
-		"LightRadii":     lightRadii,
-		"LightColors":    lightColors,
-		"NightTint":      daylight,
-		"ExtraDarken":    nightFx,
+		"LightPositions":          lightPositions,
+		"LightRadii":              lightRadii,
+		"LightInnerRadiusFactors": lightInnerRadiusFactors,
+		"LightColors":             lightColors,
+		"NightTint":               daylight,
+		"ExtraDarken":             nightFx,
 	}
 	screen.DrawRectShader(display.SCREEN_WIDTH, display.SCREEN_HEIGHT, lightShader, op)
 }
 
-func CalculateDaylight(hour int) LightColor {
+func CalculateDaylight(hour int) (LightColor, float32) {
 	if hour < 0 || hour > 23 {
 		panic("invalid hour!")
 	}
@@ -206,63 +236,63 @@ func CalculateDaylight(hour int) LightColor {
 	// midnight: 0 - 4
 	// dark blue to black
 	case 0:
-		return LightColor{0.15, 0.2, 0.8}
+		return LightColor{0.15, 0.2, 0.8}, 1.2
 	case 1:
-		return LightColor{0.15, 0.2, 0.8}
+		return LightColor{0.15, 0.2, 0.8}, 1.2
 	case 2:
-		return LightColor{0.15, 0.15, 0.6}
+		return LightColor{0.15, 0.15, 0.6}, 1
 	case 3:
-		return LightColor{0.15, 0.15, 0.4}
+		return LightColor{0.15, 0.15, 0.4}, 0.9
 	case 4:
-		return LightColor{0.25, 0.15, 0.4}
+		return LightColor{0.25, 0.15, 0.4}, 0.8
 	// dawn: 5 - 7
 	// black to red
 	case 5:
-		return LightColor{0.35, 0.2, 0.45}
+		return LightColor{0.35, 0.2, 0.45}, 0.7
 	case 6:
-		return LightColor{0.55, 0.35, 0.5}
+		return LightColor{0.55, 0.35, 0.5}, 0.5
 	case 7:
-		return LightColor{0.7, 0.55, 0.55}
+		return LightColor{0.7, 0.55, 0.55}, 0.3
 	// morning: 8 - 11
 	// red to light blue
 	case 8:
-		return LightColor{0.8, 0.7, 0.7}
+		return LightColor{0.8, 0.7, 0.7}, 0.1
 	case 9:
-		return LightColor{0.8, 0.8, 0.9}
+		return LightColor{0.8, 0.8, 0.9}, 0
 	case 10:
-		return LightColor{0.8, 0.85, 1}
+		return LightColor{0.8, 0.85, 1}, 0
 	case 11:
-		return LightColor{0.85, 0.85, 1}
+		return LightColor{0.85, 0.85, 1}, 0
 	// midday: 12 - 15
 	// light blue to yellow
 	case 12:
-		return LightColor{0.9, 0.9, 1}
+		return LightColor{0.9, 0.9, 1}, 0
 	case 13:
-		return LightColor{1.0, 0.9, 0.9}
+		return LightColor{1.0, 0.9, 0.9}, 0
 	case 14:
-		return LightColor{1.0, 0.9, 0.8}
+		return LightColor{1.0, 0.9, 0.8}, 0
 	case 15:
-		return LightColor{1.0, 0.9, 0.7}
+		return LightColor{1.0, 0.9, 0.7}, 0
 	// evening: 16 - 19
 	// yellow to red
 	case 16:
-		return LightColor{1.0, 0.8, 0.6}
+		return LightColor{1.0, 0.8, 0.6}, 0
 	case 17:
-		return LightColor{0.9, 0.75, 0.5}
+		return LightColor{0.9, 0.75, 0.5}, 0.1
 	case 18:
-		return LightColor{0.8, 0.5, 0.5}
+		return LightColor{0.8, 0.5, 0.5}, 0.2
 	case 19:
-		return LightColor{0.7, 0.4, 0.5}
+		return LightColor{0.7, 0.4, 0.5}, 0.4
 	// night: 20 - 23
 	// red to dark blue
 	case 20:
-		return LightColor{0.4, 0.4, 0.6}
+		return LightColor{0.4, 0.4, 0.6}, 0.6
 	case 21:
-		return LightColor{0.3, 0.3, 0.7}
+		return LightColor{0.3, 0.3, 0.7}, 0.7
 	case 22:
-		return LightColor{0.2, 0.2, 0.8}
+		return LightColor{0.2, 0.2, 0.8}, 0.8
 	case 23:
-		return LightColor{0.15, 0.2, 0.9}
+		return LightColor{0.15, 0.2, 0.9}, 0.9
 	default:
 		panic("unknown hour")
 	}

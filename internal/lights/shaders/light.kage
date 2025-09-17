@@ -3,6 +3,7 @@ package main
 
 var LightPositions [16]vec2
 var LightRadii     [16]float
+var LightInnerRadiusFactors [16]float
 var LightColors    [16]vec3
 var NightTint vec3
 var ExtraDarken float
@@ -23,7 +24,7 @@ func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
         }
 
         outerRadius := LightRadii[i]
-        innerRadius := LightRadii[i] * 0.4
+        innerRadius := LightRadii[i] * LightInnerRadiusFactors[i]
         dist := distance(LightPositions[i], pix)
         att := 0.0
 
@@ -46,7 +47,7 @@ func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
 
     if ExtraDarken > 0.0 {
         // boost contrast of dark areas a bit
-        extraDark := pow(dark, vec3(1.6))
+        extraDark := pow(dark, vec3(1.8))
 
         // bias towards keeping bright areas more visible
         luma := dot(col.rgb, vec3(0.299, 0.587, 0.114))

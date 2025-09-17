@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -98,6 +99,7 @@ func (e *Entity) Update() {
 			e.trySetNextTargetPath()
 		}
 	}
+
 	if e.Movement.IsMoving {
 		e.updateMovement()
 	}
@@ -167,6 +169,11 @@ func (e *Entity) updateMovement() {
 		}
 		e.X += moveDx
 		e.Y += moveDy
+	}
+
+	if math.IsNaN(e.X) || math.IsNaN(e.Y) {
+		fmt.Println("e.X:", e.X, "e.Y:", e.Y)
+		panic("entity position is NaN")
 	}
 
 	// update animation

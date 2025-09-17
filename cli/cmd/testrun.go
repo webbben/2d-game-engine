@@ -50,7 +50,8 @@ to quickly create a Cobra application.`,
 		config.ShowPlayerCoords = true
 		config.ShowGameDebugInfo = true
 		//config.DrawGridLines = true
-		config.TrackMemoryUsage = true
+		//config.TrackMemoryUsage = true
+		//config.HourSpeed = time.Second * 20
 
 		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 0, 0)
 
@@ -112,7 +113,7 @@ func setupGameState() *game.Game {
 	}
 
 	// setup the game struct
-	g := game.NewGame(20)
+	g := game.NewGame(10)
 	g.MapInfo = mapInfo
 	g.Player = p
 
