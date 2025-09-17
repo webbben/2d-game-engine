@@ -1,128 +1,72 @@
 package object
 
-import (
-	"fmt"
+import "github.com/webbben/2d-game-engine/internal/tiled"
 
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/image"
-	"github.com/webbben/2d-game-engine/internal/model"
-	"github.com/webbben/2d-game-engine/internal/rendering"
+const (
+	TYPE_DOOR = "DOOR"
 )
 
 type Object struct {
-	PosX, PosY            int      // position this object is drawn from (top-left corner of image)
-	OffsetX, OffsetY      int      // add an offset to the X position - in case the image dimensions push it slightly outside its intended tiles
-	TileWidth, TileHeight int      // number of tiles this object occupies
-	CollisionMap          [][]bool // map of which tiles are collisions
-	img                   *ebiten.Image
-	ImageSource           string
-
-	fade rendering.Fade
-
-	CanSeeBehind bool // if true, this object will become transparent when the player is standing behind it, so the player can see
+	Name          string
+	Type          string
+	X, Y          float64
+	Width, Height float64
 
 	Door
-
-	WorldContext
-}
-
-func (o Object) DrawPos(offsetX, offsetY float64) (drawX, drawY float64) {
-	drawX, drawY = rendering.GetImageDrawPos(o.img, float64(o.PosX+o.OffsetX), float64(o.PosY+o.OffsetY), offsetX, offsetY)
-	return drawX, drawY
-}
-
-func (o Object) ExtentPos(offsetX, offsetY float64) (extentX, extentY float64) {
-	extentX, extentY = o.DrawPos(offsetX, offsetY)
-	extentX += float64(o.img.Bounds().Dx())
-	extentY += float64(o.img.Bounds().Dy())
-	return extentX, extentY
-}
-
-type WorldContext interface {
-	PlayerIsBehindObject(obj Object) bool
-}
-
-// for sorting among other renderables in map
-func (o Object) Y() float64 {
-	_, extentY := o.ExtentPos(0, 0)
-	return extentY
 }
 
 type Door struct {
-	IsDoor                        bool // if true, this object can be used as a door to another map
-	DoorX, DoorY                  int  // position of the tiles which represent the door (relative to main X/Y)
-	DoorTileWidth, DoorTileHeight int  // tile size of the door
+	TargetMapID string
 }
 
-func NewObject(imgSource string, tileWidth, tileHeight int) (Object, error) {
-	obj := Object{
-		TileWidth:  tileWidth,
-		TileHeight: tileHeight,
+func LoadObject(obj tiled.Object) *Object {
+	o := Object{
+		Name:   obj.Name,
+		X:      obj.X,
+		Y:      obj.Y,
+		Width:  obj.Width,
+		Height: obj.Height,
 	}
-	img, err := image.LoadImage(imgSource)
-	if err != nil {
-		return Object{}, fmt.Errorf("failed to load source image: %w", err)
-	}
-	obj.img = img
 
-	obj.CollisionMap = createCollisionMap(tileWidth, tileHeight)
-
-	obj.validate()
-
-	obj.fade = rendering.NewFader(1, 0.05)
-
-	return obj, nil
-}
-
-func (o Object) validate() {
-	if len(o.CollisionMap) != o.TileHeight {
-		panic("object collision map height doesn't match tile height")
-	}
-	if len(o.CollisionMap[0]) != o.TileWidth {
-		panic("object collision map width doesn't match tile width")
-	}
-}
-
-// places the object based on the given door position, which is assumed to be at the middle bottom of the image.
-//
-// The coords should be the position of a tile. It will be rounded down to one, if it's not at an exact tile origin.
-func (o *Object) PlaceByDoorCoords(doorCoords model.Coords, doorTileWidth, doorTileHeight int) {
-	width := o.img.Bounds().Dx()
-	height := o.img.Bounds().Dy()
-
-	absDoorX := doorCoords.X * config.TileSize
-	absDoorY := doorCoords.Y * config.TileSize
-
-	o.DoorX = absDoorX
-	o.DoorY = absDoorY
-	o.DoorTileWidth = doorTileWidth
-	o.DoorTileHeight = doorTileHeight
-
-	// determine placement X position
-	width -= o.DoorTileWidth * config.TileSize
-	width /= 2
-	placementX := absDoorX - width
-
-	// determine placement Y position
-	height -= o.DoorTileHeight * config.TileSize
-	height /= 2
-	placementY := absDoorY - height
-
-	o.PosX = placementX
-	o.PosY = placementY
-}
-
-func createCollisionMap(width, height int) [][]bool {
-	out := [][]bool{}
-
-	for range height {
-		row := make([]bool, width)
-		for j := range width {
-			row[j] = true
+	// get the type first - so we know what values to parse out
+	for _, prop := range obj.Properties {
+		if prop.Name == "TYPE" {
+			o.Type = resolveObjectType(prop.GetStringValue())
+			break
 		}
-		out = append(out, row)
+	}
+	if o.Type == "" {
+		// no type found... this must be a malformed tileset?
+		panic("no object type property found")
 	}
 
-	return out
+	// load data for specific object type
+	for _, prop := range obj.Properties {
+		switch o.Type {
+		case TYPE_DOOR:
+			o.loadDoorProperty(prop)
+		default:
+			panic("object type invalid")
+		}
+	}
+
+	return &o
+}
+
+func (obj *Object) loadDoorProperty(prop tiled.Property) {
+	switch prop.Name {
+	case "door_to":
+		obj.Door.TargetMapID = prop.GetStringValue()
+	case "door_sound":
+		// TODO
+	}
+}
+
+func resolveObjectType(objType string) string {
+	switch objType {
+	case TYPE_DOOR:
+		return TYPE_DOOR
+	default:
+		panic("object type doesn't exist!")
+	}
 }
