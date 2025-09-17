@@ -46,11 +46,14 @@ func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
 
     if ExtraDarken > 0.0 {
         // boost contrast of dark areas a bit
-        dark = pow(dark, vec3(1.6))
+        extraDark := pow(dark, vec3(1.6))
 
         // bias towards keeping bright areas more visible
         luma := dot(col.rgb, vec3(0.299, 0.587, 0.114))
-        dark = mix(dark, dark * 1.2, luma)
+        extraDark = mix(extraDark, extraDark * 1.2, luma)
+
+        // blend with original dark color based on ExtraDarken uniform
+        dark = mix(dark, extraDark, ExtraDarken)
     }
 
     col.rgb = mix(dark, col.rgb, total)
