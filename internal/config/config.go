@@ -10,14 +10,14 @@ import (
 )
 
 var (
-	GameScale         float64 = 2.5 // how much the game view is scaled up
+	GameScale         float64 = 3 // how much the game view is scaled up
 	DrawGridLines             = false
 	ShowPlayerCoords          = false
 	ShowNPCPaths              = false // highlight the paths that NPCs are following
 	TrackMemoryUsage          = false // show a report in the console of memory usage every few seconds
 	ShowGameDebugInfo         = false // show a report of various debugging info (like F12 in minecraft)
 
-	HourSpeed time.Duration = time.Second * 10 // how long it takes for an hour to pass in game
+	HourSpeed time.Duration = time.Minute // how long it takes for an hour to pass in game
 
 	DefaultFont font.Face // must be set by game
 )
