@@ -19,7 +19,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/npc"
-	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
 )
@@ -66,19 +65,10 @@ func init() {
 }
 
 func setupGameState() *game.Game {
-	mapInfo, err := game.SetupMap(game.MapInfo{NPCManager: game.NPCManager{RunBackgroundJobs: true}}, "assets/tiled/maps/testmap.tmj")
+	mapInfo, err := game.SetupMap(game.MapInfo{NPCManager: game.NPCManager{RunBackgroundJobs: true}}, "assets/tiled/maps/surano.tmj")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	mapInfo.Lights = append(mapInfo.Lights, &lights.Light{
-		X:                   float32(display.SCREEN_WIDTH) / 2,
-		Y:                   float32(display.SCREEN_HEIGHT) / 2,
-		MaxRadius:           120,
-		MinRadius:           100,
-		FlickerTickInterval: 50,
-		LightColor:          lights.LIGHT_TORCH,
-	})
 
 	// make the player
 	playerEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_750fde30-4e5a-41ce-96e3-0105e0064a4d.json"))
@@ -121,22 +111,8 @@ func setupGameState() *game.Game {
 		mapInfo.AddNPCToMap(&n, model.Coords{X: i, Y: 0})
 	}
 
-	// add objects
-	objDomus, err := object.NewObject(
-		"/Users/benwebb/dev/personal/ancient-rome/buildings/domus1-vines.png",
-		8,
-		9,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	objDomus.PlaceByDoorCoords(model.Coords{X: 15, Y: 5}, 2, 2)
-	objDomus.OffsetX = -2
-	objDomus.CanSeeBehind = true
-	mapInfo.AddObjectToMap(&objDomus, objDomus.PosX, objDomus.PosY)
-
 	// setup the game struct
-	g := game.NewGame()
+	g := game.NewGame(20)
 	g.MapInfo = mapInfo
 	g.Player = p
 

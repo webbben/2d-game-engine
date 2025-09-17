@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
@@ -42,12 +43,49 @@ func SetupMap(mi MapInfo, mapSource string) (*MapInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error while opening Tiled map: %w", err)
 	}
+
 	err = m.Load()
 	if err != nil {
 		return nil, fmt.Errorf("error while loading map: %w", err)
 	}
 	mi.Map = m
 	mi.NPCManager.mapRef = mi.Map
+
+	lightProps := []tiled.LightProps{}
+
+	// find all lights embedded in tiles
+	for _, tileset := range m.Tilesets {
+		for _, tile := range tileset.Tiles {
+			// determine if this is a light tile
+			tileType := tiled.GetTileType(tile)
+			if tileType == "LIGHT" {
+				tileProps := tiled.GetLightPropsFromTile(tile)
+				tileProps.TileID += tileset.FirstGID
+				lightProps = append(lightProps, tileProps)
+			}
+		}
+	}
+
+	// find the positions of the tiles where the lights are set
+	for _, lightProp := range lightProps {
+		lightPositions := m.GetAllTilePositions(lightProp.TileID)
+		for _, pos := range lightPositions {
+			l := lights.NewLight(pos.X*config.TileSize+(config.TileSize/2), (pos.Y*config.TileSize)+lightProp.OffsetY+(config.TileSize/2), lightProp, nil)
+			mi.Lights = append(mi.Lights, &l)
+			fmt.Println("light")
+			fmt.Println("x:", l.X, "y:", l.Y)
+			fmt.Println("radius:", l.MinRadius, l.MaxRadius)
+		}
+	}
+
+	// find all objects in the map
+	for _, layer := range m.Layers {
+		if layer.Type == tiled.LAYER_TYPE_OBJECT {
+			for _, obj := range layer.Objects {
+				mi.Objects = append(mi.Objects, object.LoadObject(obj))
+			}
+		}
+	}
 
 	// start up background jobs loop
 	if mi.NPCManager.backgroundJobsRunning {
@@ -184,36 +222,4 @@ func (mi MapInfo) CostMap() [][]int {
 
 func (mi *MapInfo) GetLights() []*lights.Light {
 	return mi.Lights
-}
-
-func (mi *MapInfo) AddObjectToMap(obj *object.Object, x, y int) {
-	obj.WorldContext = mi
-	mi.Objects = append(mi.Objects, obj)
-}
-
-// checks if the player is behind the object, but close enough that the object is covering the player
-func (mi MapInfo) PlayerIsBehindObject(obj object.Object) bool {
-	playerExtentX, playerExtentY := mi.PlayerRef.Entity.ExtentPos(0, 0)
-	objExtentX, objExtentY := obj.ExtentPos(0, 0)
-
-	if playerExtentY >= objExtentY {
-		return false
-	}
-
-	playerDrawX, _ := mi.PlayerRef.Entity.DrawPos(0, 0)
-	objDrawX, objDrawY := obj.DrawPos(0, 0)
-
-	if playerExtentY < objDrawY {
-		return false
-	}
-
-	if playerExtentX < objDrawX {
-		return false
-	}
-
-	if playerDrawX > objExtentX {
-		return false
-	}
-
-	return true
 }

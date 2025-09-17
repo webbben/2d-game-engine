@@ -45,7 +45,7 @@ func (g *Game) worldUpdates() {
 	}
 
 	// update time
-	if time.Since(g.lastHourChange) > time.Second*10 {
+	if time.Since(g.lastHourChange) > config.HourSpeed {
 		newHour := g.Hour + 1
 		if newHour > 23 {
 			newHour = 0
@@ -65,10 +65,6 @@ func (mi *MapInfo) updateMap() {
 	// sort all sortable renderable things on the map
 	mi.updateSortedRenderables()
 
-	for _, obj := range mi.Objects {
-		obj.Update()
-	}
-
 	for _, n := range mi.NPCs {
 		n.Update()
 	}
@@ -82,10 +78,6 @@ func (mi *MapInfo) updateSortedRenderables() {
 	}
 
 	mi.sortedRenderables = append(mi.sortedRenderables, mi.PlayerRef)
-
-	for _, obj := range mi.Objects {
-		mi.sortedRenderables = append(mi.sortedRenderables, obj)
-	}
 
 	sort.Slice(mi.sortedRenderables, func(i, j int) bool {
 		return mi.sortedRenderables[i].Y() < mi.sortedRenderables[j].Y()

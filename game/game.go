@@ -36,14 +36,14 @@ type Game struct {
 	worldScene *ebiten.Image
 }
 
-func NewGame() *Game {
+func NewGame(hour int) *Game {
 	g := Game{
 		worldScene:     ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
 		lastHourChange: time.Now(),
 		daylightFader:  lights.NewLightFader(lights.LightColor{1, 1, 1}, 0.1, config.HourSpeed/10),
 	}
 
-	g.SetHour(8, true)
+	g.SetHour(hour, true)
 
 	return &g
 }

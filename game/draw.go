@@ -33,12 +33,41 @@ func (g *Game) drawWorld(screen *ebiten.Image) {
 	g.worldScene.Clear()
 	g.drawWorldScene(g.worldScene)
 
+	var nightFx float32 = 0.0
 	// draw lighting with shader
-	nightFx := false
-	if g.Hour < 6 || g.Hour > 18 {
-		nightFx = true
+	if g.Hour <= 6 && g.Hour >= 18 {
+		// scale nightFx as the night deepens
+		switch g.Hour {
+		case 18:
+			nightFx = 0.1
+		case 19:
+			nightFx = 0.2
+		case 20:
+			nightFx = 0.3
+		case 21:
+			nightFx = 0.4
+		case 22:
+			nightFx = 0.5
+		case 23:
+			nightFx = 0.6
+		case 0:
+			nightFx = 0.7
+		case 1:
+			nightFx = 0.6
+		case 2:
+			nightFx = 0.5
+		case 3:
+			nightFx = 0.4
+		case 4:
+			nightFx = 0.3
+		case 5:
+			nightFx = 0.2
+		case 6:
+			nightFx = 0.1
+		}
 	}
-	lights.DrawMapLighting(screen, g.worldScene, g.MapInfo.Lights, g.daylightFader.GetCurrentColor(), nightFx)
+	offsetX, offsetY := g.Camera.GetAbsPos()
+	lights.DrawMapLighting(screen, g.worldScene, g.MapInfo.Lights, g.daylightFader.GetCurrentColor(), nightFx, offsetX, offsetY)
 
 	// draw dialog
 	if g.Dialog != nil {
@@ -49,8 +78,8 @@ func (g *Game) drawWorld(screen *ebiten.Image) {
 func (g *Game) drawWorldScene(screen *ebiten.Image) {
 	offsetX, offsetY := g.Camera.GetAbsPos()
 
-	// draw the terrain of the room
-	g.MapInfo.Map.DrawLayers(screen, offsetX, offsetY)
+	// draw all layers that should be shown below entities
+	g.MapInfo.Map.DrawGroundLayers(screen, offsetX, offsetY)
 
 	if config.DrawGridLines {
 		g.drawGridLines(screen, offsetX, offsetY)
@@ -63,4 +92,7 @@ func (g *Game) drawWorldScene(screen *ebiten.Image) {
 	for _, thing := range g.MapInfo.sortedRenderables {
 		thing.Draw(screen, offsetX, offsetY)
 	}
+
+	// draw roof tops
+	g.MapInfo.Map.DrawRooftopLayer(screen, offsetX, offsetY)
 }
