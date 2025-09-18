@@ -12,6 +12,7 @@ import (
 	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/game"
+	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
@@ -81,6 +82,12 @@ func setupGameState() *game.Game {
 	if err != nil {
 		log.Fatal(err)
 	}
+	playerEnt.LoadFootstepSFX(audio.FootstepSFX{
+		StepDefaultSrc: []string{
+			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_stone_01_A.mp3",
+			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_stone_01_B.mp3",
+		},
+	})
 	p := player.Player{
 		Entity: &playerEnt,
 	}

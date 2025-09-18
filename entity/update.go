@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -172,7 +171,7 @@ func (e *Entity) updateMovement() {
 	}
 
 	if math.IsNaN(e.X) || math.IsNaN(e.Y) {
-		fmt.Println("e.X:", e.X, "e.Y:", e.Y)
+		logz.Println(e.DisplayName, "e.X:", e.X, "e.Y:", e.Y)
 		panic("entity position is NaN")
 	}
 
@@ -182,6 +181,12 @@ func (e *Entity) updateMovement() {
 		_, frameCount := e.getMovementAnimationInfo()
 		e.Movement.AnimationFrame = (e.Movement.AnimationFrame + 1) % frameCount
 		e.Movement.AnimationTimer = 0
+	}
+	if e.IsPlayer {
+		e.footstepSFX.TicksUntilNextPlay--
+		if e.footstepSFX.TicksUntilNextPlay <= 0 {
+			e.footstepSFX.StepDefault()
+		}
 	}
 }
 

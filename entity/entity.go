@@ -10,6 +10,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
@@ -37,9 +38,16 @@ type Entity struct {
 	AnimationFrameCount map[string]int           `json:"-"`
 	Position
 
+	footstepSFX audio.FootstepSFX
+
 	FrameTilesetSources []string `json:"frame_tilesets"`
 
 	World WorldContext `json:"-"`
+}
+
+func (e *Entity) LoadFootstepSFX(source audio.FootstepSFX) {
+	e.footstepSFX = source
+	e.footstepSFX.Load()
 }
 
 // create a duplicate entity from this one.
