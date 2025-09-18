@@ -12,6 +12,7 @@ func (obj *Object) Update() {
 	if obj.Type == TYPE_DOOR {
 		if obj.MouseBehavior.LeftClick.ClickReleased {
 			log.Println("going to room:", obj.Door.TargetMapID)
+			obj.openSound.Play()
 		}
 	}
 }

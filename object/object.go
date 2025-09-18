@@ -1,6 +1,7 @@
 package object
 
 import (
+	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
@@ -26,6 +27,7 @@ type Object struct {
 
 type Door struct {
 	TargetMapID string
+	openSound   *audio.Sound
 }
 
 func LoadObject(obj tiled.Object) *Object {
@@ -67,7 +69,18 @@ func (obj *Object) loadDoorProperty(prop tiled.Property) {
 	case "door_to":
 		obj.Door.TargetMapID = prop.GetStringValue()
 	case "door_sound":
-		// TODO
+		doorSound := prop.GetStringValue()
+		switch doorSound {
+		case "wood":
+			// TODO work out a system for defining these default door sounds
+			sound, err := audio.LoadSound("/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/door/open_door_01.mp3", 0.5)
+			if err != nil {
+				panic("failed to load door sound:" + err.Error())
+			}
+			obj.Door.openSound = &sound
+		default:
+			panic("door_sound value not found:" + doorSound)
+		}
 	}
 }
 

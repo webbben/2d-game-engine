@@ -33,7 +33,7 @@ func (sfx *FootstepSFX) Load() {
 		sfx.TickDelay = 20
 	}
 	if sfx.Volume == 0 {
-		sfx.Volume = 0.1
+		sfx.Volume = 0.2
 	}
 
 	for _, src := range sfx.StepDefaultSrc {
