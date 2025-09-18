@@ -29,7 +29,7 @@ func (g *Game) Update() error {
 	return nil
 }
 
-// All "In World" updates happen here - basically anything happening when the player is walking in a room
+// All "In World" updates happen here - basically anything happening when the player is walking in a map
 func (g *Game) worldUpdates() {
 	// update dialog if currently in a dialog session
 	if g.Dialog != nil {
@@ -64,6 +64,10 @@ func (mi *MapInfo) updateMap() {
 
 	// sort all sortable renderable things on the map
 	mi.updateSortedRenderables()
+
+	for i := range mi.Objects {
+		mi.Objects[i].Update()
+	}
 
 	for _, n := range mi.NPCs {
 		n.Update()

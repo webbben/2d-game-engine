@@ -1,6 +1,9 @@
 package object
 
-import "github.com/webbben/2d-game-engine/internal/tiled"
+import (
+	"github.com/webbben/2d-game-engine/internal/mouse"
+	"github.com/webbben/2d-game-engine/internal/tiled"
+)
 
 const (
 	TYPE_DOOR = "DOOR"
@@ -9,8 +12,14 @@ const (
 type Object struct {
 	Name          string
 	Type          string
-	X, Y          float64
-	Width, Height float64
+	X, Y          float64 // logical position in the map
+	DrawX, DrawY  float64 // the actual position on the screen where this was last drawn - for things like click detection
+	Width, Height int
+
+	MouseBehavior mouse.MouseBehavior
+
+	OnLeftClick  func()
+	OnRightClick func()
 
 	Door
 }
@@ -24,8 +33,8 @@ func LoadObject(obj tiled.Object) *Object {
 		Name:   obj.Name,
 		X:      obj.X,
 		Y:      obj.Y,
-		Width:  obj.Width,
-		Height: obj.Height,
+		Width:  int(obj.Width),
+		Height: int(obj.Height),
 	}
 
 	// get the type first - so we know what values to parse out

@@ -60,6 +60,10 @@ func (g *Game) drawWorldScene(screen *ebiten.Image) {
 		thing.Draw(screen, offsetX, offsetY)
 	}
 
+	for _, obj := range g.MapInfo.Objects {
+		obj.Draw(offsetX, offsetY)
+	}
+
 	// draw roof tops
 	g.MapInfo.Map.DrawRooftopLayer(screen, offsetX, offsetY)
 }
