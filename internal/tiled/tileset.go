@@ -40,23 +40,25 @@ func TilesetExists(tilesetName string) bool {
 	return general_util.FileExists(filepath.Join(tilePath, tilesetName))
 }
 
-func (t *Tileset) LoadJSONData(absPath string) error {
+func (t *Tileset) LoadJSONData(mapAbsPath string) error {
 	// initially, when loading from a map file, we only have these two values:
 	// 1. FirstGID
 	// 2. Source
 
-	// start by loading JSON data from source
+	// if the path is not absolute, follow the relative path starting from the map file's absolute path
 	if !filepath.IsAbs(t.Source) {
-		// if the path is not absolute, follow the relative path based on the map file's absolute path
-		if absPath == "" {
+		if mapAbsPath == "" {
+			// if no map path is passed, then we don't need to do any back-tracking. just use t.Source.
+			fmt.Println("absPath is empty")
 			p, err := filepath.Abs(t.Source)
 			if err != nil {
 				return err
 			}
-			absPath = p
+			t.Source = p
+		} else {
+			mapAbsPath = filepath.Dir(mapAbsPath)
+			t.Source = filepath.Clean(filepath.Join(mapAbsPath, t.Source))
 		}
-		absPath = filepath.Dir(absPath)
-		t.Source = filepath.Clean(filepath.Join(absPath, t.Source))
 	}
 
 	var loaded Tileset
