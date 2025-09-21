@@ -6,6 +6,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
 	"golang.org/x/image/font"
@@ -17,9 +18,9 @@ type Button struct {
 	Width, Height int
 	x, y          int    // position of this button. this is set during draw, and only needed here for checking mouse hovers/clicks
 	OnClick       func() // callback function for when this button is clicked
-	isClicked     bool   // flag indicates that the button has been clicked and is waiting for mouse release
-	isHovered     bool   // flag indicates that the button is being hovered over
 	fontFace      font.Face
+
+	mouseBehavior mouse.MouseBehavior
 
 	hoverBoxImg *ebiten.Image
 	textImg     *ebiten.Image
@@ -86,26 +87,10 @@ func (b *Button) Update() {
 		panic("button dimensions are 0!")
 	}
 
-	mouseX, mouseY := ebiten.CursorPosition()
-	b.isHovered = mouseX > b.x && mouseX < b.x+b.Width && mouseY > b.y && mouseY < b.y+b.Height
-	if b.isHovered {
-		// handle button clicks
-		if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-			// button has been clicked
-			b.isClicked = true
-			return
-		} else {
-			if b.isClicked {
-				// button click has finished (user let go of mouse click), so trigger callback
-				b.OnClick()
-				b.isClicked = false
-				return
-			}
-		}
-	} else {
-		if b.isClicked {
-			b.isClicked = false
-		}
+	b.mouseBehavior.Update(b.x, b.y, b.Width, b.Height, false)
+
+	if b.mouseBehavior.LeftClick.ClickReleased {
+		b.OnClick()
 	}
 }
 
@@ -127,7 +112,7 @@ func (b *Button) Draw(screen *ebiten.Image, x, y int) {
 	dx, dy := rendering.CenterImageOnImage(b.hoverBoxImg, b.textImg)
 	rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
 
-	if b.isHovered {
+	if b.mouseBehavior.IsHovering {
 		// show a highlight box
 		rendering.DrawImage(screen, b.hoverBoxImg, float64(x), float64(y), 0)
 	}

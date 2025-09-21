@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	TYPE_DOOR = "DOOR"
+	TYPE_DOOR        = "DOOR"
+	TYPE_SPAWN_POINT = "SPAWN_POINT"
 )
 
 type Object struct {
@@ -23,11 +24,17 @@ type Object struct {
 	OnRightClick func()
 
 	Door
+
+	SpawnPoint
 }
 
 type Door struct {
 	TargetMapID string
 	openSound   *audio.Sound
+}
+
+type SpawnPoint struct {
+	spawnIndex int
 }
 
 func LoadObject(obj tiled.Object) *Object {
@@ -56,6 +63,8 @@ func LoadObject(obj tiled.Object) *Object {
 		switch o.Type {
 		case TYPE_DOOR:
 			o.loadDoorProperty(prop)
+		case TYPE_SPAWN_POINT:
+			o.loadSpawnProperty(prop)
 		default:
 			panic("object type invalid")
 		}
@@ -84,10 +93,19 @@ func (obj *Object) loadDoorProperty(prop tiled.Property) {
 	}
 }
 
+func (obj *Object) loadSpawnProperty(prop tiled.Property) {
+	switch prop.Name {
+	case "spawn_index":
+		obj.spawnIndex = prop.GetIntValue()
+	}
+}
+
 func resolveObjectType(objType string) string {
 	switch objType {
 	case TYPE_DOOR:
 		return TYPE_DOOR
+	case TYPE_SPAWN_POINT:
+		return TYPE_SPAWN_POINT
 	default:
 		panic("object type doesn't exist!")
 	}

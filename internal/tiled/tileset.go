@@ -40,6 +40,9 @@ func TilesetExists(tilesetName string) bool {
 	return general_util.FileExists(filepath.Join(tilePath, tilesetName))
 }
 
+// load the tileset data from it's JSON file. The JSON file should be defined in the Tileset already, at t.Source (this is how the data is saved in Tiled maps).
+// If loading the tileset from a map file, pass the absolute path of the map file.  This is because t.Source specifies a relative path to the source image.
+// So, we need to be able to construct the absolute path to that file.
 func (t *Tileset) LoadJSONData(mapAbsPath string) error {
 	// initially, when loading from a map file, we only have these two values:
 	// 1. FirstGID

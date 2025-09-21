@@ -17,14 +17,17 @@ type ClickBehavior struct {
 	ClickReleased bool
 }
 
-func (mouseBehavior *MouseBehavior) Update(drawX, drawY int, boxWidth, boxHeight int) {
+func (mouseBehavior *MouseBehavior) Update(drawX, drawY int, boxWidth, boxHeight int, scaleForGameWorld bool) {
 	mouseX, mouseY := ebiten.CursorPosition()
 
-	// adjust to game scale
-	boxWidth *= int(config.GameScale)
-	boxHeight *= int(config.GameScale)
+	// adjust to game scale if in world
+	if scaleForGameWorld {
+		boxWidth *= int(config.GameScale)
+		boxHeight *= int(config.GameScale)
+	}
 
 	// detect hovering
+	mouseBehavior.IsHovering = false
 	if mouseX > int(drawX) && mouseX < (drawX+boxWidth) {
 		if mouseY > int(drawY) && mouseY < (drawY+boxHeight) {
 			mouseBehavior.IsHovering = true

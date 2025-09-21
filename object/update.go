@@ -7,7 +7,7 @@ import (
 )
 
 func (obj *Object) Update() {
-	obj.MouseBehavior.Update(int(obj.DrawX), int(obj.DrawY), obj.Width, obj.Height)
+	obj.MouseBehavior.Update(int(obj.DrawX), int(obj.DrawY), obj.Width, obj.Height, true)
 
 	if obj.Type == TYPE_DOOR {
 		if obj.MouseBehavior.LeftClick.ClickReleased {
