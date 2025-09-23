@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	defaultWalkSpeed float64 = float64(config.TileSize) / 15
+	defaultWalkSpeed float64 = float64(config.TileSize) / 16
 )
 
 func GetDefaultWalkSpeed() float64 {
@@ -125,8 +125,9 @@ type EntityInfo struct {
 }
 
 type Position struct {
-	X, Y    float64      `json:"-"` // the exact position the entity is at on the map
-	TilePos model.Coords `json:"-"` // the tile the entity is technically inside of
+	X, Y             float64      `json:"-"` // the exact position the entity is at on the map
+	TargetX, TargetY float64      `json:"-"` // the target position the entity is moving to
+	TilePos          model.Coords `json:"-"` // the tile the entity is technically inside of
 }
 
 type Movement struct {
@@ -148,10 +149,11 @@ type Movement struct {
 
 	CanRun bool `json:"can_run"`
 
-	IsMoving    bool    `json:"-"`
-	Interrupted bool    `json:"-"`          // flag for if this entity's movement was stopped unexpectedly (e.g. by a collision)
-	WalkSpeed   float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
-	Speed       float64 `json:"-"`          // actual speed the entity is moving at
+	IsMoving        bool    `json:"-"`
+	movementStopped bool    // set when movement ends, so that animation knows when to prepare to go back to idle
+	Interrupted     bool    `json:"-"`          // flag for if this entity's movement was stopped unexpectedly (e.g. by a collision)
+	WalkSpeed       float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
+	Speed           float64 `json:"-"`          // actual speed the entity is moving at
 
 	TargetTile          model.Coords   `json:"-"` // next tile the entity is currently moving
 	TargetPath          []model.Coords `json:"-"` // path the entity is currently trying to travel on
@@ -253,4 +255,6 @@ func (e *Entity) SetPosition(c model.Coords) {
 	e.TilePos = c
 	e.X = float64(c.X) * float64(config.TileSize)
 	e.Y = float64(c.Y) * float64(config.TileSize)
+	e.TargetX = e.X
+	e.TargetY = e.Y
 }

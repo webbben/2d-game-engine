@@ -100,3 +100,26 @@ func (c Coords) IsAdjacent(otherPos Coords) bool {
 	dy := math.Abs(float64(c.Y) - float64(otherPos.Y))
 	return dx+dy == 1
 }
+
+type Vec2 struct {
+	X, Y float64
+}
+
+func (v Vec2) Add(o Vec2) Vec2      { return Vec2{v.X + o.X, v.Y + o.Y} }
+func (v Vec2) Sub(o Vec2) Vec2      { return Vec2{v.X - o.X, v.Y - o.Y} }
+func (v Vec2) Scale(s float64) Vec2 { return Vec2{v.X * s, v.Y * s} }
+func (v Vec2) Len() float64         { return math.Sqrt(v.X*v.X + v.Y*v.Y) }
+func (v Vec2) Equals(o Vec2) bool   { return v.X == o.X && v.Y == o.Y }
+
+func (v Vec2) Normalize() Vec2 {
+	l := v.Len()
+	if l == 0 {
+		return Vec2{0, 0}
+	}
+	return Vec2{v.X / l, v.Y / l}
+}
+
+func (pos Vec2) Dist(target Vec2) float64 {
+	dir := target.Sub(pos)
+	return dir.Len()
+}

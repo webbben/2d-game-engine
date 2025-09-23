@@ -2,8 +2,9 @@ package entity
 
 import (
 	"fmt"
+	"math"
 
-	"github.com/webbben/2d-game-engine/internal/general_util"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
@@ -29,71 +30,6 @@ func (me MoveError) String() string {
 		return "Cancelled"
 	}
 	return "No value set"
-}
-
-// set the next movement target and start the move process.
-// not meant to be a main entry point for movement control.
-func (e *Entity) move(c model.Coords) MoveError {
-	if e.World == nil {
-		panic("entity does not have world context set")
-	}
-	if e.World.Collides(c) {
-		logz.Println(e.DisplayName, "move: collision")
-		return MoveError{
-			Collision: true,
-		}
-	}
-
-	e.Movement.TargetTile = c
-	e.Movement.Speed = e.Movement.WalkSpeed
-	if e.Movement.Speed == 0 {
-		panic("entity movement speed set to 0 in TryMove")
-	}
-	e.Movement.Direction = model.GetRelativeDirection(e.TilePos, e.Movement.TargetTile)
-	e.Movement.IsMoving = true
-	e.Movement.Interrupted = false
-
-	return MoveError{
-		Success: true,
-	}
-}
-
-// TryMove is for handling an attempt to move to an adjacent tile.
-func (e *Entity) TryMove(c model.Coords) MoveError {
-	if e.Movement.IsMoving {
-		return MoveError{
-			AlreadyMoving: true,
-		}
-	}
-	if general_util.EuclideanDistCoords(e.TilePos, c) > 1 {
-		fmt.Println("from:", e.TilePos, "to:", c)
-		panic("TryMove: entity tried to move to a non-adjacent tile")
-	}
-
-	return e.move(c)
-}
-
-// Almost the same as TryMove, but for queuing up the next move right before the current one ends.
-// The purpose of this is to slightly improve movement performance and avoid wasting a tick.
-// Only allowed for moving to a "mostly adjacent" tile, i.e. a tile that is not further than 1.5 tiles away
-//
-// Only should be used in specific scenarios:
-//
-// 1. entity is following a path and its next move is the same direction
-//
-// 2. user is moving again in the same direction
-func (e *Entity) tryQueueNextMove(c model.Coords) MoveError {
-	// since we are already moving, we expect to have IsMoving be true
-	if !e.Movement.IsMoving {
-		panic("tryQueueNextMove called when entity is not moving. this means some logic somewhere must be mixed up!")
-	}
-	if general_util.EuclideanDistCoords(e.Movement.TargetTile, c) > 1.5 {
-		fmt.Println("from:", e.Movement.TargetTile, "to:", c)
-		fmt.Println("dist:", general_util.EuclideanDistCoords(e.Movement.TargetTile, c))
-		panic("tryQueueNextMove: entity tried to queue move to a tile that is not 'semi-adjacent' (< 1.5 tiles away)")
-	}
-
-	return e.move(c)
 }
 
 // Attempts to put the entity on a path to reach the given target.
@@ -134,25 +70,25 @@ func (e Entity) getMovementAnimationInfo() (string, int) {
 	var name string
 	switch e.Movement.Direction {
 	case model.Directions.Left:
-		if e.Movement.IsMoving {
+		if e.Movement.IsMoving || !e.Movement.movementStopped {
 			name = "left_walk"
 		} else {
 			name = "left_idle"
 		}
 	case model.Directions.Right:
-		if e.Movement.IsMoving {
+		if e.Movement.IsMoving || !e.Movement.movementStopped {
 			name = "right_walk"
 		} else {
 			name = "right_idle"
 		}
 	case model.Directions.Up:
-		if e.Movement.IsMoving {
+		if e.Movement.IsMoving || !e.Movement.movementStopped {
 			name = "up_walk"
 		} else {
 			name = "up_idle"
 		}
 	case model.Directions.Down:
-		if e.Movement.IsMoving {
+		if e.Movement.IsMoving || !e.Movement.movementStopped {
 			name = "down_walk"
 		} else {
 			name = "down_idle"
@@ -179,8 +115,166 @@ func (e *Entity) CancelCurrentPath() {
 	e.Movement.TargetPath = []model.Coords{}
 }
 
-// determines if another entity is moving towards this one.
-func (e Entity) EntityIsApproaching(otherEnt Entity) bool {
-	relativeDirection := model.GetRelativeDirection(e.TilePos, otherEnt.TilePos)
-	return otherEnt.Movement.Direction == model.GetOppositeDirection(relativeDirection)
+func (e *Entity) TryMovePx(dx, dy int) MoveError {
+	if dx == 0 && dy == 0 {
+		panic("TryMovePx: dx and dy are both 0")
+	}
+	x := int(e.TargetX) + dx
+	y := int(e.TargetY) + dy
+	tilePos := convertPxToTilePos(x, y)
+
+	if !tilePos.Equals(e.TilePos) && e.World.Collides(tilePos) {
+		return MoveError{
+			Collision: true,
+		}
+	}
+
+	e.Position.TargetX = float64(x)
+	e.Position.TargetY = float64(y)
+
+	if dx != 0 {
+		if dx > 0 {
+			e.Movement.Direction = model.Directions.Right
+		} else {
+			e.Movement.Direction = model.Directions.Left
+		}
+	} else {
+		if dy > 0 {
+			e.Movement.Direction = model.Directions.Down
+		} else {
+			e.Movement.Direction = model.Directions.Up
+		}
+	}
+
+	e.Movement.IsMoving = true
+	e.Movement.Speed = e.Movement.WalkSpeed
+
+	return MoveError{Success: true}
+}
+
+func convertPxToTilePos(x, y int) model.Coords {
+	return model.Coords{
+		X: x / config.TileSize,
+		Y: y / config.TileSize,
+	}
+}
+
+func (e *Entity) updateMovement() {
+	if e.Movement.Speed == 0 {
+		panic("updateMovement called when speed is 0; speed was not set wherever entity movement was started")
+	}
+
+	// check for suggested paths (if entity is currently following a path)
+	if len(e.Movement.TargetPath) > 0 && len(e.Movement.SuggestedTargetPath) > 0 {
+		e.tryMergeSuggestedPath(e.Movement.SuggestedTargetPath)
+		e.Movement.SuggestedTargetPath = []model.Coords{}
+	}
+
+	e.Movement.movementStopped = false
+
+	pos := model.Vec2{X: e.X, Y: e.Y}
+	target := model.Vec2{X: e.TargetX, Y: e.TargetY}
+
+	newPos := moveTowards(pos, target, e.Movement.Speed)
+	e.X = newPos.X
+	e.Y = newPos.Y
+
+	if math.IsNaN(e.X) || math.IsNaN(e.Y) {
+		logz.Println(e.DisplayName, "e.X:", e.X, "e.Y:", e.Y)
+		panic("entity position is NaN")
+	}
+
+	e.TilePos = convertPxToTilePos(int(e.X), int(e.Y))
+
+	if target.Equals(newPos) {
+		e.Movement.IsMoving = false
+	}
+
+	// update animation
+	e.Movement.AnimationTimer++
+	if e.Movement.AnimationTimer > 10 {
+		_, frameCount := e.getMovementAnimationInfo()
+		e.Movement.AnimationFrame = (e.Movement.AnimationFrame + 1) % frameCount
+		e.Movement.AnimationTimer = 0
+	}
+	if e.IsPlayer {
+		e.footstepSFX.TicksUntilNextPlay--
+		if e.footstepSFX.TicksUntilNextPlay <= 0 {
+			e.footstepSFX.StepDefault()
+		}
+	}
+}
+
+func moveTowards(pos, target model.Vec2, speed float64) model.Vec2 {
+	dir := target.Sub(pos)
+	dist := dir.Len()
+	step := dir.Normalize().Scale(speed)
+	if dist < speed {
+		// snap to target
+		return target
+	}
+
+	return pos.Add(step)
+}
+
+func (e *Entity) trySetNextTargetPath() MoveError {
+	if len(e.Movement.TargetPath) == 0 {
+		panic("tried to set next target along path for entity that has no set target path")
+	}
+	nextTarget := e.Movement.TargetPath[0]
+	if nextTarget.Equals(e.TilePos) {
+		panic("trySetNextTargetPath: next target is the same tile as current position")
+	}
+
+	curPos := model.Vec2{X: e.X, Y: e.Y}
+	target := model.Vec2{X: float64(nextTarget.X * config.TileSize), Y: float64(nextTarget.Y * config.TileSize)}
+	dist := curPos.Dist(target)
+	dPos := target.Sub(curPos)
+
+	if dist > 16 {
+		logz.Println(e.DisplayName, "curPos:", curPos, "target:", target, "dist:", dist)
+		panic("trySetNextTargetPath: next target is not an adjacent tile (dist > 16)")
+	}
+
+	moveError := e.TryMovePx(int(dPos.X), int(dPos.Y))
+
+	if !moveError.Success {
+		return moveError
+	}
+
+	e.Movement.TargetPath = e.Movement.TargetPath[1:]
+	e.Movement.IsMoving = true
+	return MoveError{Success: true}
+}
+
+func (e *Entity) tryMergeSuggestedPath(newPath []model.Coords) bool {
+	if len(e.Movement.TargetPath) == 0 {
+		panic("a path was suggested to an entity with no existing target path to merge it into")
+	}
+	if len(newPath) == 0 {
+		panic("an empty path was suggested to an entity")
+	}
+	if len(e.Movement.TargetPath) <= 3 {
+		return false
+	}
+	if newPath[0].Equals(e.TilePos) {
+		logz.Println("tryMergeSuggestedPath", "error: new path starts at entity's current position. it should start at a position in the target path ahead of the current position.")
+		return false
+	}
+
+	for i, c := range e.Movement.TargetPath {
+		if c.Equals(newPath[0]) {
+			// new path starts from this target path position; merge it in by replacing this position
+			e.Movement.TargetPath = append(e.Movement.TargetPath[:i], newPath...)
+			//logz.Println("tryMergeSuggestedPath", "merged suggested path into current target path")
+			return true
+		}
+		if c.IsAdjacent(newPath[0]) {
+			// new path is adjacent to a target path position; merge it in by adding it next to this position
+			e.Movement.TargetPath = append(e.Movement.TargetPath[:i+1], newPath...)
+			return true
+		}
+	}
+	logz.Println("tryMergeSuggestedPath", "failed to merge suggested path", "suggested path:", newPath, "current path:", e.Movement.TargetPath)
+	return false
 }
