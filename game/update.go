@@ -31,6 +31,11 @@ func (g *Game) Update() error {
 
 // All "In World" updates happen here - basically anything happening when the player is walking in a map
 func (g *Game) worldUpdates() {
+	if g.MapInfo == nil {
+		// no map to show yet
+		return
+	}
+
 	// update dialog if currently in a dialog session
 	if g.Dialog != nil {
 		g.Dialog.Update()

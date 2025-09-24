@@ -36,6 +36,10 @@ type Game struct {
 	worldScene *ebiten.Image
 }
 
+func (g *Game) RunGame() error {
+	return ebiten.RunGame(g)
+}
+
 func NewGame(hour int) *Game {
 	g := Game{
 		worldScene:     ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),

@@ -68,10 +68,10 @@ func init() {
 }
 
 func setupGameState() *game.Game {
-	mapInfo, err := game.SetupMap(game.MapInfo{NPCManager: game.NPCManager{RunBackgroundJobs: true}}, "assets/tiled/maps/surano.tmj")
-	if err != nil {
-		log.Fatal(err)
-	}
+	g := game.NewGame(10)
+	g.SetupMap("assets/tiled/maps/surano.tmj", game.OpenMapOptions{
+		RunNPCManager: true,
+	})
 
 	// make the player
 	playerEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_750fde30-4e5a-41ce-96e3-0105e0064a4d.json"))
@@ -93,7 +93,7 @@ func setupGameState() *game.Game {
 		Entity: &playerEnt,
 	}
 
-	mapInfo.AddPlayerToMap(&p, model.Coords{X: 5, Y: 5})
+	g.MapInfo.AddPlayerToMap(&p, model.Coords{X: 5, Y: 5})
 
 	// make NPCs
 	legionaryEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_6ef9b0ec-8e34-4ebf-a9da-e04ef154e80b.json"))
@@ -101,7 +101,7 @@ func setupGameState() *game.Game {
 		log.Fatal(err)
 	}
 
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 0; i++ {
 		npcEnt := legionaryEnt.Duplicate()
 		npcEnt.DisplayName = fmt.Sprintf("NPC_%v", i)
 		err = npcEnt.Load()
@@ -117,12 +117,10 @@ func setupGameState() *game.Game {
 
 		n.SetFollowTask(&playerEnt, 0)
 
-		mapInfo.AddNPCToMap(&n, model.Coords{X: i, Y: 0})
+		g.MapInfo.AddNPCToMap(&n, model.Coords{X: i, Y: 0})
 	}
 
 	// setup the game struct
-	g := game.NewGame(10)
-	g.MapInfo = mapInfo
 	g.Player = p
 
 	// add my test key bindings

@@ -16,6 +16,8 @@ import (
 
 // information about the current room the player is in
 type MapInfo struct {
+	Loaded      bool // flag indicating if this map has been loaded
+	ReadyToPlay bool // flag indicating if all loading steps are done, and this map is ready to show in the game
 	MapIsActive bool // flag indicating if the map is actively being used (e.g. for rendering, updates, etc)
 	Map         tiled.Map
 	ImageMap    map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
@@ -34,21 +36,28 @@ type sortedRenderable interface {
 	Draw(screen *ebiten.Image, offsetX, offsetY float64)
 }
 
-// Do all required setup for creating MapInfo and preparing it for use.
-// Note: if the runBackgroundJobs flag is set to true, this is where the background jobs loop is started.
-func SetupMap(mi MapInfo, mapSource string) (*MapInfo, error) {
+type OpenMapOptions struct {
+	// set to true if this map should run a NPC manager background process.
+	// this is not mandatory for using NPCs, just helps improve their behavior, especially when there are a lot of them in a map.
+	RunNPCManager bool
+}
+
+// prepare the MapInfo for in-game play
+func (g *Game) SetupMap(mapSource string, op OpenMapOptions) error {
 	// load and setup the map
 	m, err := tiled.OpenMap(mapSource)
 	if err != nil {
-		return nil, fmt.Errorf("error while opening Tiled map: %w", err)
+		return fmt.Errorf("error while opening Tiled map: %w", err)
 	}
 
 	err = m.Load()
 	if err != nil {
-		return nil, fmt.Errorf("error while loading map: %w", err)
+		return fmt.Errorf("error while loading map: %w", err)
 	}
-	mi.Map = m
-	mi.NPCManager.mapRef = mi.Map
+
+	g.MapInfo = &MapInfo{}
+	g.MapInfo.Map = m
+	g.MapInfo.NPCManager.mapRef = g.MapInfo.Map
 
 	lightProps := []tiled.LightProps{}
 
@@ -70,7 +79,7 @@ func SetupMap(mi MapInfo, mapSource string) (*MapInfo, error) {
 		lightPositions := m.GetAllTilePositions(lightProp.TileID)
 		for _, pos := range lightPositions {
 			l := lights.NewLight(pos.X*config.TileSize+(config.TileSize/2), (pos.Y*config.TileSize)+lightProp.OffsetY+(config.TileSize/2), lightProp, nil)
-			mi.Lights = append(mi.Lights, &l)
+			g.MapInfo.Lights = append(g.MapInfo.Lights, &l)
 			fmt.Println("light")
 			fmt.Println("x:", l.X, "y:", l.Y)
 			fmt.Println("radius:", l.MinRadius, l.MaxRadius)
@@ -81,20 +90,23 @@ func SetupMap(mi MapInfo, mapSource string) (*MapInfo, error) {
 	for _, layer := range m.Layers {
 		if layer.Type == tiled.LAYER_TYPE_OBJECT {
 			for _, obj := range layer.Objects {
-				mi.Objects = append(mi.Objects, object.LoadObject(obj))
+				g.MapInfo.Objects = append(g.MapInfo.Objects, object.LoadObject(obj))
 			}
 		}
 	}
 
 	// start up background jobs loop
-	if mi.NPCManager.backgroundJobsRunning {
+	if g.MapInfo.NPCManager.backgroundJobsRunning {
 		panic("backgroundJobsRunning flag is already true while initializing map")
 	}
-	if mi.NPCManager.RunBackgroundJobs {
-		mi.NPCManager.startBackgroundNPCManager()
+	if op.RunNPCManager {
+		g.MapInfo.RunBackgroundJobs = true
+		g.MapInfo.NPCManager.startBackgroundNPCManager()
 	}
 
-	return &mi, nil
+	g.MapInfo.Loaded = true
+
+	return nil
 }
 
 func (mi *MapInfo) CloseMap() {
@@ -131,6 +143,9 @@ func (mi *MapInfo) ResolveNPCJams() {
 
 // The official way to add the player to a map
 func (mi *MapInfo) AddPlayerToMap(p *player.Player, startPos model.Coords) {
+	if !mi.Loaded {
+		panic("map not loaded yet. use SetupMap before using this.")
+	}
 	r := model.Rect{
 		X: float64(startPos.X * config.TileSize),
 		Y: float64(startPos.Y * config.TileSize),
@@ -146,7 +161,11 @@ func (mi *MapInfo) AddPlayerToMap(p *player.Player, startPos model.Coords) {
 	p.Entity.SetPosition(startPos)
 }
 
+// the official way to add an NPC to a map
 func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
+	if !mi.Loaded {
+		panic("map not loaded yet. use SetupMap before using this.")
+	}
 	r := model.Rect{
 		X: float64(startPos.X * config.TileSize),
 		Y: float64(startPos.Y * config.TileSize),
@@ -163,6 +182,10 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	mi.NPCs = append(mi.NPCs, n)
 }
 
+// detects if the given rect collides in the map.
+// rectBased param determines if collisions check for collision rects (e.g. for buildings with nuanced collision rects)
+// or if it just uses tile-based collisions (if a tile contains a collision rect, the entire tile is marked as a collision).
+// generally, the player should use rect-based, and NPCs should use tile-based (since NPCs usually can't do partial tile/px based movement)
 func (mi MapInfo) Collides(r model.Rect, excludeEntId string, rectBased bool) bool {
 	// check map's CostMap
 	maxY := len(mi.Map.CostMap) * config.TileSize
@@ -266,8 +289,11 @@ func (mi MapInfo) CostMap() [][]int {
 		}
 	}
 
-	// TODO should this be centered under the player instead?
-	playerPos := mi.PlayerRef.Entity.TilePos
+	// TODO should I update the TilePos to be this position?
+	playerRect := mi.PlayerRef.Entity.CollisionRect()
+	playerX := playerRect.X + (playerRect.W / 2)
+	playerY := playerRect.Y + (playerRect.H / 2)
+	playerPos := model.ConvertPxToTilePos(int(playerX), int(playerY))
 	costMap[playerPos.Y][playerPos.X] += 10
 
 	return costMap
