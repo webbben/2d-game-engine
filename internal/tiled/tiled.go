@@ -33,8 +33,9 @@ type Map struct {
 	CompressionLevel int        `json:"compressionlevel,omitempty"`
 
 	// game engine data - not from Tiled
-	TileImageMap map[int]TileData // a map of gid to tile image data
-	CostMap      [][]int          // each tile's cost (used for path finding and collisions)
+	TileImageMap   map[int]TileData // a map of gid to tile image data
+	CostMap        [][]int          // each tile's cost (used for path finding and collisions)
+	CollisionRects [][]CollisionRect
 	MapMeta
 }
 

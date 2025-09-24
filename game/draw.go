@@ -54,6 +54,11 @@ func (g *Game) drawWorldScene(screen *ebiten.Image) {
 	if config.ShowNPCPaths {
 		g.drawPaths(screen, offsetX, offsetY)
 	}
+	if config.ShowEntityPositions {
+		g.drawEntityPositions(screen, offsetX, offsetY)
+	}
+
+	g.drawCollisions(screen, offsetX, offsetY)
 
 	// draw objects, entities, and the player in order of Y position (higher renders first)
 	for _, thing := range g.MapInfo.sortedRenderables {

@@ -248,12 +248,22 @@ func GetLightPropsFromTile(tile Tile) LightProps {
 	return props
 }
 
-func GetBoolProperty(propName string, props []Property) (found, value bool) {
+func GetBoolProperty(propName string, props []Property) (value, found bool) {
 	for _, prop := range props {
 		if prop.Name == propName {
-			return true, prop.GetBoolValue()
+			return prop.GetBoolValue(), true
 		}
 	}
 
 	return false, false
+}
+
+func GetStringProperty(propName string, props []Property) (val string, found bool) {
+	for _, prop := range props {
+		if prop.Name == propName {
+			return prop.GetStringValue(), true
+		}
+	}
+
+	return "", false
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/lights"
-	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/internal/tiled"
@@ -132,7 +131,13 @@ func (mi *MapInfo) ResolveNPCJams() {
 
 // The official way to add the player to a map
 func (mi *MapInfo) AddPlayerToMap(p *player.Player, startPos model.Coords) {
-	if mi.Collides(startPos) {
+	r := model.Rect{
+		X: float64(startPos.X * config.TileSize),
+		Y: float64(startPos.Y * config.TileSize),
+		W: config.TileSize,
+		H: config.TileSize,
+	}
+	if mi.Collides(r, "", false) {
 		// this also handles placement outside of map bounds
 		panic("player added to map on colliding tile")
 	}
@@ -142,7 +147,13 @@ func (mi *MapInfo) AddPlayerToMap(p *player.Player, startPos model.Coords) {
 }
 
 func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
-	if mi.Collides(startPos) {
+	r := model.Rect{
+		X: float64(startPos.X * config.TileSize),
+		Y: float64(startPos.Y * config.TileSize),
+		W: config.TileSize,
+		H: config.TileSize,
+	}
+	if mi.Collides(r, "", false) {
 		panic("npc added to map on colliding tile")
 	}
 	n.Entity.World = mi
@@ -152,32 +163,73 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	mi.NPCs = append(mi.NPCs, n)
 }
 
-func (mi MapInfo) Collides(c model.Coords) bool {
+func (mi MapInfo) Collides(r model.Rect, excludeEntId string, rectBased bool) bool {
 	// check map's CostMap
-	maxY := len(mi.Map.CostMap)
-	maxX := len(mi.Map.CostMap[0])
-	if c.Y == maxY || c.X == maxX || c.X == -1 || c.Y == -1 {
+	maxY := len(mi.Map.CostMap) * config.TileSize
+	maxX := len(mi.Map.CostMap[0]) * config.TileSize
+	if r.Y < 0 || r.Y+r.H > float64(maxY) || r.X < 0 || r.X+r.W > float64(maxX) {
 		// attempting to move past the edge of the map
 		return true
 	}
-	if c.Y > maxY || c.X > maxX || c.X < -1 || c.Y < -1 {
-		logz.Errorf("MapInfo", "map boundaries: X = [%v, %v], Y = [%v, %v]\n", 0, maxX, 0, maxY)
-		panic("mapInfo.Collides given a value that is far beyond map boundaries; if an entity is trying to move here, something must have gone wrong")
-	}
-	if mi.Map.CostMap[c.Y][c.X] >= 10 {
-		return true
+
+	tl := model.ConvertPxToTilePos(int(r.X), int(r.Y))
+	tr := model.ConvertPxToTilePos(int(r.X+r.W), int(r.Y))
+	bl := model.ConvertPxToTilePos(int(r.X), int(r.Y+r.H))
+	br := model.ConvertPxToTilePos(int(r.X+r.W), int(r.Y+r.H))
+
+	if rectBased {
+		r1 := mi.mapRef.CollisionRects[tl.Y][tl.X]
+		if r1.IsCollision {
+			if r1.OffsetRect(float64(tl.X*config.TileSize), float64(tl.Y*config.TileSize)).Intersects(r) {
+				return true
+			}
+		}
+		r2 := mi.mapRef.CollisionRects[tr.Y][tr.X]
+		if r2.IsCollision {
+			if r2.OffsetRect(float64(tr.X*config.TileSize), float64(tr.Y*config.TileSize)).Intersects(r) {
+				return true
+			}
+		}
+		r3 := mi.mapRef.CollisionRects[bl.Y][bl.X]
+		if r3.IsCollision {
+			if r3.OffsetRect(float64(bl.X*config.TileSize), float64(bl.Y*config.TileSize)).Intersects(r) {
+				return true
+			}
+		}
+		r4 := mi.mapRef.CollisionRects[br.Y][br.X]
+		if r4.IsCollision {
+			if r4.OffsetRect(float64(br.X*config.TileSize), float64(br.Y*config.TileSize)).Intersects(r) {
+				return true
+			}
+		}
+	} else {
+		if mi.Map.CostMap[tl.Y][tl.X] >= 10 {
+			return true
+		}
+		if mi.Map.CostMap[tr.Y][tr.X] >= 10 {
+			return true
+		}
+		if mi.Map.CostMap[bl.Y][bl.X] >= 10 {
+			return true
+		}
+		if mi.Map.CostMap[br.Y][br.X] >= 10 {
+			return true
+		}
 	}
 
 	// check entity positions
-	if mi.PlayerRef != nil && c.Equals(mi.PlayerRef.Entity.TilePos) {
-		return true
+	if mi.PlayerRef != nil {
+		if mi.PlayerRef.Entity.ID != excludeEntId {
+			if r.Intersects(mi.PlayerRef.Entity.CollisionRect()) {
+				return true
+			}
+		}
 	}
 	for _, n := range mi.NPCs {
-		if n.Entity.TilePos.Equals(c) {
-			return true
+		if n.Entity.ID == excludeEntId {
+			continue
 		}
-		// include tile entity is moving into
-		if n.Entity.Movement.TargetTile.Equals(c) {
+		if r.Intersects(n.Entity.CollisionRect()) {
 			return true
 		}
 	}
@@ -214,6 +266,7 @@ func (mi MapInfo) CostMap() [][]int {
 		}
 	}
 
+	// TODO should this be centered under the player instead?
 	playerPos := mi.PlayerRef.Entity.TilePos
 	costMap[playerPos.Y][playerPos.X] += 10
 

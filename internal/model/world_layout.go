@@ -3,6 +3,8 @@ package model
 import (
 	"fmt"
 	"math"
+
+	"github.com/webbben/2d-game-engine/internal/config"
 )
 
 /*
@@ -101,6 +103,13 @@ func (c Coords) IsAdjacent(otherPos Coords) bool {
 	return dx+dy == 1
 }
 
+func ConvertPxToTilePos(x, y int) Coords {
+	return Coords{
+		X: x / config.TileSize,
+		Y: y / config.TileSize,
+	}
+}
+
 type Vec2 struct {
 	X, Y float64
 }
@@ -122,4 +131,19 @@ func (v Vec2) Normalize() Vec2 {
 func (pos Vec2) Dist(target Vec2) float64 {
 	dir := target.Sub(pos)
 	return dir.Len()
+}
+
+type Rect struct {
+	X, Y, W, H float64
+}
+
+func (r Rect) String() string {
+	return fmt.Sprintf("x: %v y: %v w: %v h: %v", r.X, r.Y, r.W, r.H)
+}
+
+func (r Rect) Intersects(other Rect) bool {
+	return r.X < other.X+other.W &&
+		r.X+r.W > other.X &&
+		r.Y < other.Y+other.H &&
+		r.Y+r.H > other.Y
 }

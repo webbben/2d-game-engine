@@ -121,9 +121,9 @@ func (e *Entity) TryMovePx(dx, dy int) MoveError {
 	}
 	x := int(e.TargetX) + dx
 	y := int(e.TargetY) + dy
-	tilePos := convertPxToTilePos(x, y)
+	targetRect := model.Rect{X: float64(x), Y: float64(y), W: e.width, H: e.width}
 
-	if !tilePos.Equals(e.TilePos) && e.World.Collides(tilePos) {
+	if e.World.Collides(targetRect, e.ID, e.IsPlayer) {
 		return MoveError{
 			Collision: true,
 		}
@@ -152,13 +152,6 @@ func (e *Entity) TryMovePx(dx, dy int) MoveError {
 	return MoveError{Success: true}
 }
 
-func convertPxToTilePos(x, y int) model.Coords {
-	return model.Coords{
-		X: x / config.TileSize,
-		Y: y / config.TileSize,
-	}
-}
-
 func (e *Entity) updateMovement() {
 	if e.Movement.Speed == 0 {
 		panic("updateMovement called when speed is 0; speed was not set wherever entity movement was started")
@@ -184,7 +177,7 @@ func (e *Entity) updateMovement() {
 		panic("entity position is NaN")
 	}
 
-	e.TilePos = convertPxToTilePos(int(e.X), int(e.Y))
+	e.TilePos = model.ConvertPxToTilePos(int(e.X), int(e.Y))
 
 	if target.Equals(newPos) {
 		e.Movement.IsMoving = false

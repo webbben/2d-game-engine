@@ -50,7 +50,8 @@ to quickly create a Cobra application.`,
 		// set config
 		config.ShowPlayerCoords = true
 		config.ShowGameDebugInfo = true
-		//config.DrawGridLines = true
+		config.DrawGridLines = true
+		config.ShowEntityPositions = true
 		//config.TrackMemoryUsage = true
 		//config.HourSpeed = time.Second * 20
 

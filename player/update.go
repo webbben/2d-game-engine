@@ -1,10 +1,10 @@
 package player
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
 
@@ -60,6 +60,6 @@ func (p *Player) handleMovement() {
 
 	e := p.Entity.TryMovePx(int(scaled.X), int(scaled.Y))
 	if !e.Success {
-		fmt.Println(e)
+		logz.Println(p.Entity.DisplayName, e)
 	}
 }

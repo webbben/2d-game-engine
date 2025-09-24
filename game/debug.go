@@ -72,6 +72,75 @@ func (g Game) drawPaths(screen *ebiten.Image, offsetX, offsetY float64) {
 	}
 }
 
+func (g Game) drawCollisions(screen *ebiten.Image, offsetX, offsetY float64) {
+	if g.MapInfo == nil {
+		panic("tried to draw paths on a nil map!")
+	}
+	color1 := color.RGBA{150, 0, 0, 50}
+	color2 := color.RGBA{0, 0, 150, 50}
+	tile := ebiten.NewImage(config.TileSize, config.TileSize)
+	tile.Fill(color1)
+
+	for y, row := range g.MapInfo.CostMap() {
+		for x, cost := range row {
+			if cost >= 10 {
+				op := &ebiten.DrawImageOptions{}
+				drawX, drawY := rendering.GetImageDrawPos(tile, float64(x)*config.TileSize, float64(y)*config.TileSize, offsetX, offsetY)
+				op.GeoM.Translate(drawX, drawY)
+				op.GeoM.Scale(config.GameScale, config.GameScale)
+				screen.DrawImage(tile, op)
+			}
+
+			r := g.MapInfo.Map.CollisionRects[y][x]
+			if r.IsCollision {
+				rectImg := ebiten.NewImage(int(r.Rect.W), int(r.Rect.H))
+				rectImg.Fill(color2)
+
+				op := &ebiten.DrawImageOptions{}
+				drawX, drawY := (float64(x*config.TileSize)+r.Rect.X)-offsetX, (float64(y*config.TileSize)+r.Rect.Y)-offsetY
+				op.GeoM.Translate(drawX, drawY)
+				op.GeoM.Scale(config.GameScale, config.GameScale)
+				screen.DrawImage(rectImg, op)
+			}
+		}
+	}
+}
+
+func (g Game) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY float64) {
+	if g.MapInfo == nil {
+		panic("tried to draw paths on a nil map!")
+	}
+	yellow := color.RGBA{0, 255, 255, 50}
+	positionDot := ebiten.NewImage(1, 1)
+	positionDot.Fill(yellow)
+	// tile2 := ebiten.NewImage(config.TileSize, config.TileSize)
+	// color2 := color.RGBA{0, 0, 255, 50}
+	// tile2.Fill(color2)
+
+	op := &ebiten.DrawImageOptions{}
+	drawX, drawY := g.Player.Entity.X-offsetX, g.Player.Entity.Y-offsetY
+	op.GeoM.Translate(drawX, drawY)
+	op.GeoM.Scale(config.GameScale, config.GameScale)
+	screen.DrawImage(positionDot, op)
+
+	op = &ebiten.DrawImageOptions{}
+	rect := g.Player.Entity.CollisionRect()
+	drawX, drawY = rect.X-offsetX, rect.Y-offsetY
+	op.GeoM.Translate(drawX, drawY)
+	op.GeoM.Scale(config.GameScale, config.GameScale)
+	rectImg := ebiten.NewImage(int(rect.W), int(rect.H))
+	rectImg.Fill(color.RGBA{0, 0, 255, 50})
+	screen.DrawImage(rectImg, op)
+
+	for _, n := range g.MapInfo.NPCManager.NPCs {
+		op := &ebiten.DrawImageOptions{}
+		drawX, drawY := rendering.GetImageDrawPos(positionDot, n.Entity.X, n.Entity.Y, offsetX, offsetY)
+		op.GeoM.Translate(drawX, drawY)
+		op.GeoM.Scale(config.GameScale, config.GameScale)
+		screen.DrawImage(positionDot, op)
+	}
+}
+
 func (g Game) showEntityCoords() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf(

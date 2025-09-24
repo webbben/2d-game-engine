@@ -54,6 +54,30 @@ func (m *Map) Load() error {
 		return err
 	}
 
+	m.CollisionRects = make([][]CollisionRect, m.Height)
+	for i := range m.Height {
+		m.CollisionRects[i] = make([]CollisionRect, m.Width)
+	}
+
+	// find all collision rects
+	for _, layer := range m.Layers {
+		for i, d := range layer.Data {
+			tile, found := m.GetTileByGID(d)
+			if !found {
+				continue
+			}
+			collisionVal, found := GetStringProperty("COLLISION", tile.Properties)
+			if !found {
+				continue
+			}
+
+			x := i % layer.Width
+			y := i / layer.Width
+			cr := NewCollisionRect(collisionVal)
+			m.CollisionRects[y][x] = cr
+		}
+	}
+
 	m.CalculateCostMap()
 
 	m.Loaded = true
@@ -215,8 +239,57 @@ func (m Map) drawTileLayer(screen *ebiten.Image, offsetX, offsetY float64, layer
 	}
 }
 
+type CollisionRect struct {
+	IsCollision bool
+	Rect        model.Rect
+}
+
+func (cr CollisionRect) OffsetRect(x, y float64) model.Rect {
+	return model.Rect{
+		X: cr.Rect.X + x,
+		Y: cr.Rect.Y + y,
+		W: cr.Rect.W,
+		H: cr.Rect.H,
+	}
+}
+
+func NewCollisionRect(collisionType string) CollisionRect {
+	if collisionType == "" {
+		return CollisionRect{IsCollision: false}
+	}
+
+	cr := CollisionRect{IsCollision: true}
+	switch collisionType {
+	case "HALF_L":
+		cr.Rect = model.Rect{X: 0, Y: 0, W: config.TileSize / 2, H: config.TileSize}
+	case "HALF_R":
+		cr.Rect = model.Rect{X: config.TileSize / 2, Y: 0, W: config.TileSize / 2, H: config.TileSize}
+	case "HALF_T":
+		cr.Rect = model.Rect{X: 0, Y: 0, W: config.TileSize, H: config.TileSize / 2}
+	case "HALF_B":
+		cr.Rect = model.Rect{X: 0, Y: config.TileSize / 2, W: config.TileSize, H: config.TileSize / 2}
+	case "WHOLE":
+		cr.Rect = model.Rect{X: 0, Y: 0, W: config.TileSize, H: config.TileSize}
+	case "CORNER_TL":
+		cr.Rect = model.Rect{X: 0, Y: 0, W: config.TileSize / 2, H: config.TileSize / 2}
+	case "CORNER_TR":
+		cr.Rect = model.Rect{X: config.TileSize / 2, Y: 0, W: config.TileSize / 2, H: config.TileSize / 2}
+	case "CORNER_BR":
+		cr.Rect = model.Rect{X: config.TileSize / 2, Y: config.TileSize / 2, W: config.TileSize / 2, H: config.TileSize / 2}
+	case "CORNER_BL":
+		cr.Rect = model.Rect{X: 0, Y: config.TileSize / 2, W: config.TileSize / 2, H: config.TileSize / 2}
+	case "CENTER_POLE":
+		cr.Rect = model.Rect{X: config.TileSize / 4, Y: 0, W: config.TileSize / 2, H: config.TileSize}
+	default:
+		panic("collision rect type not found")
+	}
+
+	return cr
+}
+
 // CalculateCostMap calculates the cost for each position in the map.
 // The CostMap is required for being able to calculate things such as path finding and collisions.
+// Mainly used by NPCs, since the player has more dynamic movement ability (can partially move in tiles)
 func (m *Map) CalculateCostMap() {
 	if m.Height == 0 {
 		panic("map cannot have a height (num rows) of 0")
@@ -230,18 +303,20 @@ func (m *Map) CalculateCostMap() {
 		m.CostMap[i] = make([]int, m.Width)
 	}
 
+	// any tile that has a collision rect is blocked for NPCs
+	for y, row := range m.CollisionRects {
+		for x, r := range row {
+			if r.IsCollision {
+				m.CostMap[y][x] += 10
+			}
+		}
+	}
+
 	// Go through each layer and add any 'cost' properties up
 	for _, layer := range m.Layers {
 		i := 0
 		for y := 0; y < layer.Height; y++ {
 			for x := 0; x < layer.Width; x++ {
-				if layer.Name == "BUILDING_BASE" {
-					if layer.Data[i] != 0 {
-						// all tiles in building base layer are automatically collisions
-						m.CostMap[y][x] += 10
-					}
-				}
-
 				tile, found := m.GetTileByGID(layer.Data[i])
 				if found {
 					for _, prop := range tile.Properties {

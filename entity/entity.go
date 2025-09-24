@@ -38,11 +38,23 @@ type Entity struct {
 	AnimationFrameCount map[string]int           `json:"-"`
 	Position
 
+	width float64 // used for collision rect
+
 	footstepSFX audio.FootstepSFX
 
 	FrameTilesetSources []string `json:"frame_tilesets"`
 
 	World WorldContext `json:"-"`
+}
+
+func (e Entity) CollisionRect() model.Rect {
+	offsetX := (config.TileSize - e.width) / 2
+	return model.Rect{
+		X: e.X + offsetX,
+		Y: e.Y,
+		W: e.width,
+		H: e.width,
+	}
 }
 
 func (e *Entity) LoadFootstepSFX(source audio.FootstepSFX) {
@@ -74,7 +86,7 @@ func (e Entity) Duplicate() Entity {
 }
 
 type WorldContext interface {
-	Collides(c model.Coords) bool
+	Collides(r model.Rect, excludeEntityId string, rectBased bool) bool
 	FindPath(start, goal model.Coords) ([]model.Coords, bool)
 	MapDimensions() (width int, height int)
 }
@@ -111,7 +123,9 @@ func (e *Entity) Load() error {
 	e.Movement.IsMoving = false
 	e.updateCurrentFrame()
 
-	// set world context functions
+	e.width = float64(e.CurrentFrame.Bounds().Dx())
+
+	fmt.Println("width:", e.width)
 
 	e.Loaded = true
 	return nil

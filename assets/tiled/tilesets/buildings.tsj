@@ -111,8 +111,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -120,8 +120,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -129,8 +129,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -138,8 +138,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -147,8 +147,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -156,8 +156,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -165,8 +165,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -174,8 +174,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -183,8 +183,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -192,8 +192,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -201,8 +201,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -210,8 +210,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -219,8 +219,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -228,8 +228,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -237,8 +237,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -246,8 +246,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -255,8 +255,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -264,8 +264,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -273,8 +273,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -282,8 +282,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -291,8 +291,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -300,8 +300,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -309,8 +309,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -318,8 +318,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -327,8 +327,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -336,8 +336,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -345,8 +345,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -354,8 +354,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -363,8 +363,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -372,8 +372,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -381,8 +381,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -390,8 +390,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -399,8 +399,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -408,8 +408,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -417,8 +417,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -426,8 +426,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -435,8 +435,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -444,8 +444,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -453,8 +453,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -462,8 +462,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -471,8 +471,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -480,8 +480,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -489,8 +489,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -498,8 +498,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -507,8 +507,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -516,8 +516,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -525,8 +525,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -534,8 +534,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -543,8 +543,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -552,8 +552,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -561,8 +561,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -570,8 +570,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -579,8 +579,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -588,8 +588,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -597,8 +597,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -606,8 +606,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -615,8 +615,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -624,8 +624,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -633,8 +633,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -642,8 +642,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -651,8 +651,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -660,8 +660,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -669,8 +669,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -678,8 +678,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -687,8 +687,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -696,8 +696,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -705,8 +705,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -714,8 +714,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -723,8 +723,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -732,8 +732,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -741,8 +741,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -750,8 +750,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -759,8 +759,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -768,8 +768,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -777,8 +777,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -786,8 +786,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -795,8 +795,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -804,8 +804,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -813,8 +813,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -822,8 +822,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -831,8 +831,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -840,8 +840,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -849,8 +849,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -858,8 +858,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -867,8 +867,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -876,8 +876,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -885,8 +885,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -894,8 +894,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -903,8 +903,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -912,8 +912,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -921,8 +921,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -930,8 +930,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -939,8 +939,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -948,8 +948,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -957,8 +957,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -966,8 +966,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -975,8 +975,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -984,8 +984,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -993,8 +993,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1002,8 +1002,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1011,8 +1011,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1020,8 +1020,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1029,8 +1029,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1038,8 +1038,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -1047,8 +1047,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -1056,8 +1056,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1065,8 +1065,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1074,8 +1074,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1083,8 +1083,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1092,8 +1092,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1101,8 +1101,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1110,8 +1110,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -1119,8 +1119,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -1128,8 +1128,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1137,8 +1137,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1146,8 +1146,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1155,8 +1155,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1164,8 +1164,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1173,8 +1173,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -1182,8 +1182,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -1191,8 +1191,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1200,8 +1200,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1209,8 +1209,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1218,8 +1218,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1227,8 +1227,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1236,8 +1236,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -1245,8 +1245,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -1254,8 +1254,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1263,8 +1263,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1272,8 +1272,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1281,8 +1281,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1290,8 +1290,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1299,8 +1299,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -1308,8 +1308,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -1317,8 +1317,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1326,8 +1326,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1335,8 +1335,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1344,8 +1344,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1353,8 +1353,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1362,8 +1362,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -1371,8 +1371,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -1380,8 +1380,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1389,8 +1389,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1398,8 +1398,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1407,8 +1407,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1416,8 +1416,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1425,8 +1425,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -1434,8 +1434,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -1443,8 +1443,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1452,8 +1452,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1461,8 +1461,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1470,8 +1470,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1479,8 +1479,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1488,8 +1488,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -1497,8 +1497,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -1506,8 +1506,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1515,8 +1515,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1524,8 +1524,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1533,8 +1533,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1542,8 +1542,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1551,8 +1551,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -1560,8 +1560,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -1569,8 +1569,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1578,8 +1578,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1587,8 +1587,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1596,8 +1596,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1605,8 +1605,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1614,8 +1614,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -1623,8 +1623,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -1632,8 +1632,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1641,8 +1641,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1650,8 +1650,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1659,8 +1659,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1668,8 +1668,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1677,8 +1677,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }, 
         {
@@ -1686,8 +1686,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_R"
                 }]
         }, 
         {
@@ -1695,8 +1695,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1704,8 +1704,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1713,8 +1713,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1722,8 +1722,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1731,8 +1731,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }, 
         {
@@ -1740,8 +1740,8 @@
          "properties":[
                 {
                  "name":"COLLISION",
-                 "type":"bool",
-                 "value":true
+                 "type":"string",
+                 "value":"HALF_L"
                 }]
         }],
  "tilewidth":16,
