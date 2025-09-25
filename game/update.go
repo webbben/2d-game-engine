@@ -38,7 +38,7 @@ func (g *Game) worldUpdates() {
 
 	// update dialog if currently in a dialog session
 	if g.Dialog != nil {
-		g.Dialog.Update()
+		g.Dialog.Update(g.EventBus)
 		if g.Dialog.Exit {
 			// dialog has ended, so remove it
 			g.Dialog = nil

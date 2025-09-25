@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/lights"
+	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/player"
 	"github.com/webbben/2d-game-engine/screen"
 
@@ -34,6 +35,8 @@ type Game struct {
 	outsideWidth, outsideHeight int
 
 	worldScene *ebiten.Image
+
+	EventBus *pubsub.EventBus
 }
 
 func (g *Game) RunGame() error {
@@ -45,6 +48,7 @@ func NewGame(hour int) *Game {
 		worldScene:     ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
 		lastHourChange: time.Now(),
 		daylightFader:  lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20),
+		EventBus:       pubsub.NewEventBus(),
 	}
 
 	g.SetHour(hour, true)
@@ -69,6 +73,13 @@ func (g *Game) SetHour(hour int, skipFade bool) {
 	}
 
 	g.Hour = hour
+
+	g.EventBus.Publish(pubsub.Event{
+		Type: pubsub.Event_TimePass,
+		Data: map[string]any{
+			"hour": hour,
+		},
+	})
 }
 
 // Binds a key to a given function for global keybindings.

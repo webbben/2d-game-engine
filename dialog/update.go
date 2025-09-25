@@ -3,6 +3,7 @@ package dialog
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
 )
@@ -53,7 +54,7 @@ func (d *Dialog) Draw(screen *ebiten.Image) {
 	}
 }
 
-func (d *Dialog) Update() {
+func (d *Dialog) Update(eventBus *pubsub.EventBus) {
 	if d.Exit {
 		// dialog has ended
 		return
@@ -62,6 +63,14 @@ func (d *Dialog) Update() {
 	if !d.init {
 		// do initialization
 		d.initialize()
+		eventBus.Publish(pubsub.Event{
+			Type: pubsub.Event_StartDialog,
+			Data: map[string]any{
+				"NPCID":    d.NPCID,
+				"EntID":    d.EntID,
+				"DialogID": d.ID,
+			},
+		})
 		return
 	}
 

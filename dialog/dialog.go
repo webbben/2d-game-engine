@@ -68,6 +68,9 @@ type Font struct {
 }
 
 type Dialog struct {
+	ID                   string
+	NPCID                string
+	EntID                string
 	boxDef                      // definition of the tiles that build this box
 	BoxTilesetSource     string // path to the tileset for the dialog box tiles
 	TextFont             Font
