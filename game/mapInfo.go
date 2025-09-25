@@ -8,6 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
+	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/npc"
 	"github.com/webbben/2d-game-engine/object"
@@ -16,9 +17,11 @@ import (
 
 // information about the current room the player is in
 type MapInfo struct {
-	Loaded      bool // flag indicating if this map has been loaded
-	ReadyToPlay bool // flag indicating if all loading steps are done, and this map is ready to show in the game
-	MapIsActive bool // flag indicating if the map is actively being used (e.g. for rendering, updates, etc)
+	ID          string
+	DisplayName string // the name of the map shown to the player
+	Loaded      bool   // flag indicating if this map has been loaded
+	ReadyToPlay bool   // flag indicating if all loading steps are done, and this map is ready to show in the game
+	MapIsActive bool   // flag indicating if the map is actively being used (e.g. for rendering, updates, etc)
 	Map         tiled.Map
 	ImageMap    map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
 	PlayerRef   *player.Player
@@ -42,8 +45,40 @@ type OpenMapOptions struct {
 	RunNPCManager bool
 }
 
+// sets up a map and puts the player in it at the given position. meant for use once player already exists in game state
+func (g *Game) EnterMap(mapID string, op *OpenMapOptions, playerSpawnIndex int) error {
+	if g.MapInfo != nil {
+		g.MapInfo.CloseMap()
+	}
+
+	err := g.SetupMap(mapID, op)
+	if err != nil {
+		return err
+	}
+
+	spawnX, spawnY, found := g.MapInfo.GetSpawnPosition(playerSpawnIndex)
+	if !found {
+		return fmt.Errorf("given spawn index not found in map objects: %v", playerSpawnIndex)
+	}
+
+	g.MapInfo.AddPlayerToMap(&g.Player, spawnX, spawnY)
+
+	return nil
+}
+
 // prepare the MapInfo for in-game play
-func (g *Game) SetupMap(mapSource string, op OpenMapOptions) error {
+func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
+	if op == nil {
+		op = &OpenMapOptions{}
+	}
+
+	if g.MapInfo != nil {
+		g.MapInfo.CloseMap()
+	}
+
+	mapSource := config.ResolveMapPath(mapID)
+	fmt.Println("map source:", mapSource)
+
 	// load and setup the map
 	m, err := tiled.OpenMap(mapSource)
 	if err != nil {
@@ -55,7 +90,10 @@ func (g *Game) SetupMap(mapSource string, op OpenMapOptions) error {
 		return fmt.Errorf("error while loading map: %w", err)
 	}
 
-	g.MapInfo = &MapInfo{}
+	g.MapInfo = &MapInfo{
+		ID:          m.ID,
+		DisplayName: m.DisplayName,
+	}
 	g.MapInfo.Map = m
 	g.MapInfo.NPCManager.mapRef = g.MapInfo.Map
 
@@ -106,6 +144,14 @@ func (g *Game) SetupMap(mapSource string, op OpenMapOptions) error {
 
 	g.MapInfo.Loaded = true
 
+	g.EventBus.Publish(pubsub.Event{
+		Type: pubsub.Event_VisitMap,
+		Data: map[string]any{
+			"MapID":          g.MapInfo.ID,
+			"MapDisplayName": g.MapInfo.DisplayName,
+		},
+	})
+
 	return nil
 }
 
@@ -142,23 +188,26 @@ func (mi *MapInfo) ResolveNPCJams() {
 }
 
 // The official way to add the player to a map
-func (mi *MapInfo) AddPlayerToMap(p *player.Player, startPos model.Coords) {
+func (mi *MapInfo) AddPlayerToMap(p *player.Player, x, y float64) {
 	if !mi.Loaded {
 		panic("map not loaded yet. use SetupMap before using this.")
 	}
+	if p == nil {
+		panic("player is nil when adding to map")
+	}
 	r := model.Rect{
-		X: float64(startPos.X * config.TileSize),
-		Y: float64(startPos.Y * config.TileSize),
+		X: x,
+		Y: y,
 		W: config.TileSize,
 		H: config.TileSize,
 	}
-	if mi.Collides(r, "", false) {
+	if mi.Collides(r, "", true) {
 		// this also handles placement outside of map bounds
 		panic("player added to map on colliding tile")
 	}
 	mi.PlayerRef = p
 	p.Entity.World = mi
-	p.Entity.SetPosition(startPos)
+	p.Entity.SetPositionPx(x, y)
 }
 
 // the official way to add an NPC to a map
@@ -290,15 +339,28 @@ func (mi MapInfo) CostMap() [][]int {
 	}
 
 	// TODO should I update the TilePos to be this position?
-	playerRect := mi.PlayerRef.Entity.CollisionRect()
-	playerX := playerRect.X + (playerRect.W / 2)
-	playerY := playerRect.Y + (playerRect.H / 2)
-	playerPos := model.ConvertPxToTilePos(int(playerX), int(playerY))
-	costMap[playerPos.Y][playerPos.X] += 10
+	if mi.PlayerRef != nil {
+		playerRect := mi.PlayerRef.Entity.CollisionRect()
+		playerX := playerRect.X + (playerRect.W / 2)
+		playerY := playerRect.Y + (playerRect.H / 2)
+		playerPos := model.ConvertPxToTilePos(int(playerX), int(playerY))
+		costMap[playerPos.Y][playerPos.X] += 10
+	}
 
 	return costMap
 }
 
 func (mi *MapInfo) GetLights() []*lights.Light {
 	return mi.Lights
+}
+
+func (mi *MapInfo) GetSpawnPosition(index int) (x, y float64, found bool) {
+	for _, obj := range mi.Objects {
+		if obj.Type == object.TYPE_SPAWN_POINT {
+			if obj.SpawnPoint.SpawnIndex == index {
+				return obj.X, obj.Y, true
+			}
+		}
+	}
+	return -1, -1, false
 }

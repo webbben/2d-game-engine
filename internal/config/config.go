@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ var (
 	GameScale           float64 = 3 // how much the game view is scaled up
 	DrawGridLines               = false
 	ShowEntityPositions         = false // show the logical positions and collision boxes of entities
+	ShowCollisions              = false // show the areas that are collisions on the map
 	ShowPlayerCoords            = false
 	ShowNPCPaths                = false // highlight the paths that NPCs are following
 	TrackMemoryUsage            = false // show a report in the console of memory usage every few seconds
@@ -21,6 +23,8 @@ var (
 	HourSpeed time.Duration = time.Minute // how long it takes for an hour to pass in game
 
 	DefaultFont font.Face // must be set by game
+
+	MapPathOverride string = "" // set this if you have a custom directory where maps are stored
 )
 
 const (
@@ -43,4 +47,16 @@ func GameAssetsPath() string {
 
 func GameDefsPath() string {
 	return filepath.Join(GameDataRootPath(), "defs")
+}
+
+// given a map ID, returns the full path to the map's TMJ file for loading purposes.
+func ResolveMapPath(mapID string) string {
+	absPath := ""
+	if MapPathOverride != "" {
+		absPath = filepath.Join(MapPathOverride, fmt.Sprintf("%s.tmj", mapID))
+	} else {
+		absPath = filepath.Join(GameAssetsPath(), "maps", fmt.Sprintf("%s.tmj", mapID))
+	}
+
+	return absPath
 }

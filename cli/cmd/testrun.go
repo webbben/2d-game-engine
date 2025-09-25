@@ -37,6 +37,18 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		display.SetupGameDisplay("Ancient Rome!", false)
 
+		// set config
+		config.ShowPlayerCoords = true
+		config.ShowGameDebugInfo = true
+		//config.DrawGridLines = true
+		//config.ShowEntityPositions = true
+		config.TrackMemoryUsage = true
+		//config.HourSpeed = time.Second * 20
+
+		config.MapPathOverride = "/Users/benwebb/dev/personal/2d-game-engine/assets/tiled/maps"
+
+		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 0, 0)
+
 		err := lights.LoadShaders()
 		if err != nil {
 			log.Fatal("error loading shaders: ", err)
@@ -46,16 +58,6 @@ to quickly create a Cobra application.`,
 
 		// get our testrun game state
 		game := setupGameState()
-
-		// set config
-		config.ShowPlayerCoords = true
-		config.ShowGameDebugInfo = true
-		config.DrawGridLines = true
-		config.ShowEntityPositions = true
-		//config.TrackMemoryUsage = true
-		//config.HourSpeed = time.Second * 20
-
-		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 0, 0)
 
 		if err := ebiten.RunGame(game); err != nil {
 			panic(err)
@@ -69,9 +71,12 @@ func init() {
 
 func setupGameState() *game.Game {
 	g := game.NewGame(10)
-	g.SetupMap("assets/tiled/maps/surano.tmj", game.OpenMapOptions{
+	err := g.SetupMap("village_surano", &game.OpenMapOptions{
 		RunNPCManager: true,
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// make the player
 	playerEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_750fde30-4e5a-41ce-96e3-0105e0064a4d.json"))
@@ -93,7 +98,7 @@ func setupGameState() *game.Game {
 		Entity: &playerEnt,
 	}
 
-	g.MapInfo.AddPlayerToMap(&p, model.Coords{X: 5, Y: 5})
+	g.MapInfo.AddPlayerToMap(&p, config.TileSize*5, config.TileSize*5)
 
 	// make NPCs
 	legionaryEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_6ef9b0ec-8e34-4ebf-a9da-e04ef154e80b.json"))

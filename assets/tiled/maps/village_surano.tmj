@@ -269,7 +269,7 @@
                         {
                          "name":"door_to",
                          "type":"string",
-                         "value":"village_surano_manor01"
+                         "value":"village_surano_manor_01"
                         }],
                  "rotation":0,
                  "type":"",
@@ -341,6 +341,17 @@
  "nextlayerid":6,
  "nextobjectid":17,
  "orientation":"orthogonal",
+ "properties":[
+        {
+         "name":"DisplayName",
+         "type":"string",
+         "value":"Surano"
+        }, 
+        {
+         "name":"ID",
+         "type":"string",
+         "value":"village_surano"
+        }],
  "renderorder":"right-down",
  "tiledversion":"1.11.0",
  "tileheight":16,

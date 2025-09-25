@@ -59,7 +59,7 @@ func (p *Player) handleMovement() {
 	}
 
 	e := p.Entity.TryMovePx(int(scaled.X), int(scaled.Y))
-	if !e.Success {
+	if !e.Success && !e.Collision {
 		logz.Println(p.Entity.DisplayName, e)
 	}
 }

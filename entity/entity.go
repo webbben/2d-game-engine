@@ -272,3 +272,11 @@ func (e *Entity) SetPosition(c model.Coords) {
 	e.TargetX = e.X
 	e.TargetY = e.Y
 }
+
+func (e *Entity) SetPositionPx(x, y float64) {
+	e.TilePos = model.ConvertPxToTilePos(int(x), int(y))
+	e.X = x
+	e.Y = y
+	e.TargetX = e.X
+	e.TargetY = e.Y
+}

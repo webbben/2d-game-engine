@@ -58,10 +58,15 @@ func (g *Game) drawWorldScene(screen *ebiten.Image) {
 		g.drawEntityPositions(screen, offsetX, offsetY)
 	}
 
-	g.drawCollisions(screen, offsetX, offsetY)
+	if config.ShowCollisions {
+		g.drawCollisions(screen, offsetX, offsetY)
+	}
 
 	// draw objects, entities, and the player in order of Y position (higher renders first)
 	for _, thing := range g.MapInfo.sortedRenderables {
+		if thing == nil {
+			continue
+		}
 		thing.Draw(screen, offsetX, offsetY)
 	}
 

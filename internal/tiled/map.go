@@ -33,6 +33,19 @@ func OpenMap(mapSource string) (Map, error) {
 
 // Load a map and all its tilesets or other pre-processable data
 func (m *Map) Load() error {
+	// load property data
+	id, found := GetStringProperty("ID", m.Properties)
+	if !found {
+		panic("Map required property not found: ID. Be sure to set this as a custom property within Tiled.")
+	}
+	displayName, found := GetStringProperty("DisplayName", m.Properties)
+	if !found {
+		panic("Map required property not found: DisplayName. Be sure to set this as a custom property within Tiled.")
+	}
+
+	m.ID = id
+	m.DisplayName = displayName
+
 	// ensure all tilesets have been loaded and created
 	for i, tileset := range m.Tilesets {
 		err := tileset.LoadJSONData(m.AbsSourcePath)

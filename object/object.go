@@ -34,7 +34,7 @@ type Door struct {
 }
 
 type SpawnPoint struct {
-	spawnIndex int
+	SpawnIndex int
 }
 
 func LoadObject(obj tiled.Object) *Object {
@@ -96,7 +96,7 @@ func (obj *Object) loadDoorProperty(prop tiled.Property) {
 func (obj *Object) loadSpawnProperty(prop tiled.Property) {
 	switch prop.Name {
 	case "spawn_index":
-		obj.spawnIndex = prop.GetIntValue()
+		obj.SpawnIndex = prop.GetIntValue()
 	}
 }
 

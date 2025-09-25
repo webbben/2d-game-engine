@@ -46,7 +46,7 @@ func (g *Game) worldUpdates() {
 	} else {
 		// handle player and npc updates
 		g.Player.Update()
-		g.MapInfo.updateMap()
+		g.updateMap()
 	}
 
 	// update time
@@ -64,29 +64,40 @@ func (g *Game) worldUpdates() {
 	g.Camera.MoveCamera(g.Player.Entity.X, g.Player.Entity.Y)
 }
 
-func (mi *MapInfo) updateMap() {
-	mi.Map.Update()
+func (g *Game) updateMap() {
+	g.MapInfo.Map.Update()
 
 	// sort all sortable renderable things on the map
-	mi.updateSortedRenderables()
+	g.MapInfo.updateSortedRenderables()
 
-	for i := range mi.Objects {
-		mi.Objects[i].Update()
+	for i := range g.MapInfo.Objects {
+		result := g.MapInfo.Objects[i].Update()
+
+		if result.ChangeMapID != "" {
+			err := g.EnterMap(result.ChangeMapID, nil, result.ChangeMapSpawnIndex)
+			if err != nil {
+				panic(err)
+			}
+			return
+		}
 	}
 
-	for _, n := range mi.NPCs {
+	for _, n := range g.MapInfo.NPCs {
 		n.Update()
 	}
 }
 
 func (mi *MapInfo) updateSortedRenderables() {
+	// Always ensure data isn't nil before adding to this slice
 	mi.sortedRenderables = []sortedRenderable{}
 
 	for _, n := range mi.NPCs {
 		mi.sortedRenderables = append(mi.sortedRenderables, n)
 	}
 
-	mi.sortedRenderables = append(mi.sortedRenderables, mi.PlayerRef)
+	if mi.PlayerRef != nil {
+		mi.sortedRenderables = append(mi.sortedRenderables, mi.PlayerRef)
+	}
 
 	sort.Slice(mi.sortedRenderables, func(i, j int) bool {
 		return mi.sortedRenderables[i].Y() < mi.sortedRenderables[j].Y()
