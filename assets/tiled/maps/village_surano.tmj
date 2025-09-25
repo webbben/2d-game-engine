@@ -331,6 +331,116 @@
                  "width":14.7272727272727,
                  "x":320.727272727273,
                  "y":512.727272727273
+                }, 
+                {
+                 "height":11.6666666666666,
+                 "id":17,
+                 "name":"",
+                 "properties":[
+                        {
+                         "name":"TYPE",
+                         "type":"string",
+                         "value":"SPAWN_POINT"
+                        }, 
+                        {
+                         "name":"spawn_index",
+                         "type":"int",
+                         "value":0
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":11.3333333333333,
+                 "x":26.3333333333333,
+                 "y":348
+                }, 
+                {
+                 "height":11.6667,
+                 "id":18,
+                 "name":"",
+                 "properties":[
+                        {
+                         "name":"TYPE",
+                         "type":"string",
+                         "value":"SPAWN_POINT"
+                        }, 
+                        {
+                         "name":"spawn_index",
+                         "type":"int",
+                         "value":1
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":11.3333,
+                 "x":394.33335,
+                 "y":146.833316666667
+                }, 
+                {
+                 "height":11.6667,
+                 "id":19,
+                 "name":"",
+                 "properties":[
+                        {
+                         "name":"TYPE",
+                         "type":"string",
+                         "value":"SPAWN_POINT"
+                        }, 
+                        {
+                         "name":"spawn_index",
+                         "type":"int",
+                         "value":2
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":11.3333,
+                 "x":762.33335,
+                 "y":345.16665
+                }, 
+                {
+                 "height":11.6667,
+                 "id":20,
+                 "name":"",
+                 "properties":[
+                        {
+                         "name":"TYPE",
+                         "type":"string",
+                         "value":"SPAWN_POINT"
+                        }, 
+                        {
+                         "name":"spawn_index",
+                         "type":"int",
+                         "value":3
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":11.3333,
+                 "x":322.33335,
+                 "y":548.499983333333
+                }, 
+                {
+                 "height":11.6667,
+                 "id":21,
+                 "name":"",
+                 "properties":[
+                        {
+                         "name":"TYPE",
+                         "type":"string",
+                         "value":"SPAWN_POINT"
+                        }, 
+                        {
+                         "name":"spawn_index",
+                         "type":"int",
+                         "value":4
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":11.3333,
+                 "x":194.33335,
+                 "y":531.833316666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -339,7 +449,7 @@
          "y":0
         }],
  "nextlayerid":6,
- "nextobjectid":17,
+ "nextobjectid":22,
  "orientation":"orthogonal",
  "properties":[
         {

@@ -56,14 +56,7 @@ func (g *Game) EnterMap(mapID string, op *OpenMapOptions, playerSpawnIndex int) 
 		return err
 	}
 
-	spawnX, spawnY, found := g.MapInfo.GetSpawnPosition(playerSpawnIndex)
-	if !found {
-		return fmt.Errorf("given spawn index not found in map objects: %v", playerSpawnIndex)
-	}
-
-	g.MapInfo.AddPlayerToMap(&g.Player, spawnX, spawnY)
-
-	return nil
+	return g.MapInfo.PlacePlayerAtSpawnPoint(&g.Player, playerSpawnIndex)
 }
 
 // prepare the MapInfo for in-game play
@@ -363,4 +356,13 @@ func (mi *MapInfo) GetSpawnPosition(index int) (x, y float64, found bool) {
 		}
 	}
 	return -1, -1, false
+}
+
+func (mi *MapInfo) PlacePlayerAtSpawnPoint(p *player.Player, spawnIndex int) error {
+	x, y, found := mi.GetSpawnPosition(spawnIndex)
+	if !found {
+		return fmt.Errorf("given spawn point index not found in map: %v", spawnIndex)
+	}
+	mi.AddPlayerToMap(p, x, y)
+	return nil
 }
