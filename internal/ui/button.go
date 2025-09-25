@@ -16,8 +16,7 @@ type Button struct {
 	init          bool
 	ButtonText    string
 	Width, Height int
-	x, y          int    // position of this button. this is set during draw, and only needed here for checking mouse hovers/clicks
-	OnClick       func() // callback function for when this button is clicked
+	x, y          int // position of this button. this is set during draw, and only needed here for checking mouse hovers/clicks
 	fontFace      font.Face
 
 	mouseBehavior mouse.MouseBehavior
@@ -26,7 +25,7 @@ type Button struct {
 	textImg     *ebiten.Image
 }
 
-func NewButton(buttonText string, fontFace font.Face, width, height int, onClick func()) *Button {
+func NewButton(buttonText string, fontFace font.Face, width, height int) *Button {
 	// set defaults
 	if fontFace == nil {
 		fontFace = config.DefaultFont
@@ -65,7 +64,6 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, onClick
 		ButtonText: buttonText,
 		Width:      width,
 		Height:     height,
-		OnClick:    onClick,
 		fontFace:   fontFace,
 	}
 
@@ -79,7 +77,11 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, onClick
 	return &b
 }
 
-func (b *Button) Update() {
+type ButtonUpdateResult struct {
+	Clicked bool
+}
+
+func (b *Button) Update() ButtonUpdateResult {
 	if !b.init {
 		panic("button not created yet: " + b.ButtonText)
 	}
@@ -87,11 +89,15 @@ func (b *Button) Update() {
 		panic("button dimensions are 0!")
 	}
 
+	result := ButtonUpdateResult{}
+
 	b.mouseBehavior.Update(b.x, b.y, b.Width, b.Height, false)
 
 	if b.mouseBehavior.LeftClick.ClickReleased {
-		b.OnClick()
+		result.Clicked = true
 	}
+
+	return result
 }
 
 func (b *Button) Draw(screen *ebiten.Image, x, y int) {

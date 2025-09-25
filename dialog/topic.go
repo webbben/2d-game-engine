@@ -63,10 +63,7 @@ func (d *Dialog) setCurrentTextBranch(textBranch TextBranch) {
 
 	for i := range d.currentTopic.currentTextBranch.Options {
 		op := d.currentTopic.currentTextBranch.Options[i]
-		d.currentTopic.currentTextBranch.Options[i].button = ui.NewButton(op.OptionText, nil, 0, 0, func() {
-			// when text branch option is clicked, switch to that option
-			d.setCurrentTextBranch(op)
-		})
+		d.currentTopic.currentTextBranch.Options[i].button = ui.NewButton(op.OptionText, nil, 0, 0)
 	}
 
 	d.currentTopic.status = topic_status_showingMainText
@@ -118,13 +115,7 @@ func (d *Dialog) setTopic(t Topic, isReturning bool) {
 		buttonWidth := d.topicBoxWidth - 15
 		subtopic := d.currentTopic.SubTopics[i]
 
-		d.currentTopic.SubTopics[i].button = ui.NewButton(subtopic.TopicText, nil, buttonWidth, buttonHeight, func() {
-			if subtopic.isEndDialogTopic {
-				d.EndDialog()
-			} else {
-				d.setTopic(subtopic, false)
-			}
-		})
+		d.currentTopic.SubTopics[i].button = ui.NewButton(subtopic.TopicText, nil, buttonWidth, buttonHeight)
 	}
 
 	if isReturning {

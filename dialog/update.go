@@ -130,9 +130,10 @@ func (d *Dialog) Update(eventBus *pubsub.EventBus) {
 				panic("awaiting text branch option choice, but there are no text branch options")
 			}
 			for i := range d.currentTopic.currentTextBranch.Options {
-				d.currentTopic.currentTextBranch.Options[i].button.Update()
-				if d.currentTopic.status == topic_status_showingMainText {
-					// an option must have been chosen, so stop checking this
+				result := d.currentTopic.currentTextBranch.Options[i].button.Update()
+				if result.Clicked {
+					// when text branch option is clicked, switch to that option
+					d.setCurrentTextBranch(d.currentTopic.currentTextBranch.Options[i])
 					return
 				}
 			}
@@ -146,9 +147,13 @@ func (d *Dialog) Update(eventBus *pubsub.EventBus) {
 				panic("waiting for subtopic selection even though no subtopics exist!")
 			}
 			for i := range d.currentTopic.SubTopics {
-				d.currentTopic.SubTopics[i].button.Update()
-				// check if current topic changed - if so, return since we need to restart update loop
-				if d.currentTopic.status != topic_status_awaitSubtopic {
+				result := d.currentTopic.SubTopics[i].button.Update()
+				if result.Clicked {
+					if d.currentTopic.SubTopics[i].isEndDialogTopic {
+						d.EndDialog()
+					} else {
+						d.setTopic(d.currentTopic.SubTopics[i], false)
+					}
 					return
 				}
 			}
