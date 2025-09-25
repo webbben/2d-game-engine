@@ -7,6 +7,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
+	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/tiled"
@@ -104,8 +105,17 @@ type Dialog struct {
 	ticksSinceLastClick int
 }
 
-func (d *Dialog) initialize() {
+func (d *Dialog) initialize(eventBus *pubsub.EventBus) {
 	d.init = true
+
+	eventBus.Publish(pubsub.Event{
+		Type: pubsub.Event_StartDialog,
+		Data: map[string]any{
+			"NPCID":    d.NPCID,
+			"EntID":    d.EntID,
+			"DialogID": d.ID,
+		},
+	})
 
 	// get box tiles
 	d.loadBoxTiles()
@@ -141,12 +151,23 @@ func (d *Dialog) initialize() {
 		d.RootTopic.SubTopics = append([]Topic{goodbyeTopic}, d.RootTopic.SubTopics...)
 	}
 
-	d.setTopic(d.RootTopic, false)
+	d.setTopic(d.RootTopic, false, eventBus)
 }
 
 // call this to formally end the dialog
-func (d *Dialog) EndDialog() {
+func (d *Dialog) EndDialog(eventBus *pubsub.EventBus) {
+	if d.Exit {
+		panic("tried to end dialog when Exit is already set to true. are multiple places trying to simultaneously end dialog?")
+	}
 	d.Exit = true
+	eventBus.Publish(pubsub.Event{
+		Type: pubsub.Event_EndDialog,
+		Data: map[string]any{
+			"NPCID":    d.NPCID,
+			"EntID":    d.EntID,
+			"DialogID": d.ID,
+		},
+	})
 	// TODO handle any cleanup here?
 }
 

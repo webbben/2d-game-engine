@@ -62,15 +62,8 @@ func (d *Dialog) Update(eventBus *pubsub.EventBus) {
 
 	if !d.init {
 		// do initialization
-		d.initialize()
-		eventBus.Publish(pubsub.Event{
-			Type: pubsub.Event_StartDialog,
-			Data: map[string]any{
-				"NPCID":    d.NPCID,
-				"EntID":    d.EntID,
-				"DialogID": d.ID,
-			},
-		})
+		d.initialize(eventBus)
+
 		return
 	}
 
@@ -140,7 +133,7 @@ func (d *Dialog) Update(eventBus *pubsub.EventBus) {
 			return
 		case topic_status_goingBack:
 			// final text has finished; time to go back to parent topic for real
-			d.returnToParentTopic()
+			d.returnToParentTopic(eventBus)
 			return
 		case topic_status_awaitSubtopic:
 			if len(d.currentTopic.SubTopics) == 0 {
@@ -150,9 +143,9 @@ func (d *Dialog) Update(eventBus *pubsub.EventBus) {
 				result := d.currentTopic.SubTopics[i].button.Update()
 				if result.Clicked {
 					if d.currentTopic.SubTopics[i].isEndDialogTopic {
-						d.EndDialog()
+						d.EndDialog(eventBus)
 					} else {
-						d.setTopic(d.currentTopic.SubTopics[i], false)
+						d.setTopic(d.currentTopic.SubTopics[i], false, eventBus)
 					}
 					return
 				}
@@ -162,12 +155,12 @@ func (d *Dialog) Update(eventBus *pubsub.EventBus) {
 
 		// All text has been shown and there are no user selection options waiting
 		// the current topic has nowhere to go, so await user confirmation to end this topic and go back
-		d.awaitDone()
+		d.awaitDone(eventBus)
 		return
 	}
 }
 
-func (d *Dialog) awaitDone() {
+func (d *Dialog) awaitDone(eventBus *pubsub.EventBus) {
 	if d.currentTopic.status != topic_status_mainTextDone && d.currentTopic.status != topic_status_goingBack {
 		// we shouldn't be waiting for a user continue unless we are in one of these topic statuses
 		panic("invalid status for dialog.awaitDone: " + d.currentTopic.status)
@@ -185,7 +178,7 @@ func (d *Dialog) awaitDone() {
 
 	if d.handleUserClick() {
 		// user has signaled to continue; end current topic.
-		d.returnToParentTopic()
+		d.returnToParentTopic(eventBus)
 	}
 }
 

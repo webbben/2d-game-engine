@@ -2,6 +2,7 @@ package dialog
 
 import (
 	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/internal/ui"
 )
 
@@ -30,6 +31,7 @@ var goodbyeTopic Topic = Topic{
 // A Topic represents a node in a dialog/conversation.
 // It can have a main text, and then options to take you to a different node of the conversation.
 type Topic struct {
+	ID               string
 	isEndDialogTopic bool // flag indicates if this topic should end the conversation
 
 	parentTopic       *Topic      // when switching to a sub-topic, this will be populated so that we know which topic to revert back to
@@ -92,7 +94,7 @@ type TextBranch struct {
 	button *ui.Button
 }
 
-func (d *Dialog) setTopic(t Topic, isReturning bool) {
+func (d *Dialog) setTopic(t Topic, isReturning bool, eventBus *pubsub.EventBus) {
 	if d.currentTopic != nil {
 		logz.Println(d.currentTopic.TopicText, "setting new topic", t.TopicText)
 	}
@@ -124,15 +126,23 @@ func (d *Dialog) setTopic(t Topic, isReturning bool) {
 		// this is a new topic
 		d.setCurrentTextBranch(d.currentTopic.MainText)
 	}
+
+	eventBus.Publish(pubsub.Event{
+		Type: pubsub.Event_StartTopic,
+		Data: map[string]any{
+			"TopicID":    t.ID,
+			"TopicTitle": t.TopicText,
+		},
+	})
 }
 
-func (d *Dialog) returnToParentTopic() {
+func (d *Dialog) returnToParentTopic(eventBus *pubsub.EventBus) {
 	if d.currentTopic == nil {
 		panic("tried to return to parent topic, but current topic is nil!")
 	}
 	if d.currentTopic.parentTopic == nil {
 		// this is the root topic; end the conversation
-		d.EndDialog()
+		d.EndDialog(eventBus)
 		return
 	}
 
@@ -146,7 +156,7 @@ func (d *Dialog) returnToParentTopic() {
 	// we've already displayed the done/return text, so we are ready to change the topic now
 	// or, if no final text is found, just return while leaving the current text on the screen
 	if d.currentTopic.status == topic_status_goingBack || textToShow == "" {
-		d.setTopic(*d.currentTopic.parentTopic, true)
+		d.setTopic(*d.currentTopic.parentTopic, true, eventBus)
 		return
 	}
 
