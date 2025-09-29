@@ -56,7 +56,7 @@ func (g *Game) EnterMap(mapID string, op *OpenMapOptions, playerSpawnIndex int) 
 		return err
 	}
 
-	return g.MapInfo.PlacePlayerAtSpawnPoint(&g.Player, playerSpawnIndex)
+	return g.PlacePlayerAtSpawnPoint(&g.Player, playerSpawnIndex)
 }
 
 // prepare the MapInfo for in-game play
@@ -229,39 +229,46 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 // or if it just uses tile-based collisions (if a tile contains a collision rect, the entire tile is marked as a collision).
 // generally, the player should use rect-based, and NPCs should use tile-based (since NPCs usually can't do partial tile/px based movement)
 func (mi MapInfo) Collides(r model.Rect, excludeEntId string, rectBased bool) bool {
-	// check map's CostMap
-	maxY := len(mi.Map.CostMap) * config.TileSize
-	maxX := len(mi.Map.CostMap[0]) * config.TileSize
-	if r.Y < 0 || r.Y+r.H > float64(maxY) || r.X < 0 || r.X+r.W > float64(maxX) {
-		// attempting to move past the edge of the map
-		return true
-	}
-
 	tl := model.ConvertPxToTilePos(int(r.X), int(r.Y))
 	tr := model.ConvertPxToTilePos(int(r.X+r.W), int(r.Y))
 	bl := model.ConvertPxToTilePos(int(r.X), int(r.Y+r.H))
 	br := model.ConvertPxToTilePos(int(r.X+r.W), int(r.Y+r.H))
+	// check if any part of the target is outside the map
+	maxTileX := len(mi.Map.CostMap[0]) - 1
+	maxTileY := len(mi.Map.CostMap) - 1
+	if !tl.WithinBounds(0, maxTileX, 0, maxTileY) {
+		return true
+	}
+	if !tr.WithinBounds(0, maxTileX, 0, maxTileY) {
+		return true
+	}
+	if !bl.WithinBounds(0, maxTileX, 0, maxTileY) {
+		return true
+	}
+	if !br.WithinBounds(0, maxTileX, 0, maxTileY) {
+		return true
+	}
 
 	if rectBased {
-		r1 := mi.mapRef.CollisionRects[tl.Y][tl.X]
+		r1 := mi.Map.CollisionRects[tl.Y][tl.X]
 		if r1.IsCollision {
 			if r1.OffsetRect(float64(tl.X*config.TileSize), float64(tl.Y*config.TileSize)).Intersects(r) {
 				return true
 			}
 		}
-		r2 := mi.mapRef.CollisionRects[tr.Y][tr.X]
+		r2 := mi.Map.CollisionRects[tr.Y][tr.X]
 		if r2.IsCollision {
 			if r2.OffsetRect(float64(tr.X*config.TileSize), float64(tr.Y*config.TileSize)).Intersects(r) {
 				return true
 			}
 		}
-		r3 := mi.mapRef.CollisionRects[bl.Y][bl.X]
+		r3 := mi.Map.CollisionRects[bl.Y][bl.X]
 		if r3.IsCollision {
 			if r3.OffsetRect(float64(bl.X*config.TileSize), float64(bl.Y*config.TileSize)).Intersects(r) {
 				return true
 			}
 		}
-		r4 := mi.mapRef.CollisionRects[br.Y][br.X]
+		r4 := mi.Map.CollisionRects[br.Y][br.X]
 		if r4.IsCollision {
 			if r4.OffsetRect(float64(br.X*config.TileSize), float64(br.Y*config.TileSize)).Intersects(r) {
 				return true
@@ -358,11 +365,15 @@ func (mi *MapInfo) GetSpawnPosition(index int) (x, y float64, found bool) {
 	return -1, -1, false
 }
 
-func (mi *MapInfo) PlacePlayerAtSpawnPoint(p *player.Player, spawnIndex int) error {
-	x, y, found := mi.GetSpawnPosition(spawnIndex)
+func (g *Game) PlacePlayerAtSpawnPoint(p *player.Player, spawnIndex int) error {
+	if g.MapInfo == nil {
+		panic("map info is nil")
+	}
+	x, y, found := g.MapInfo.GetSpawnPosition(spawnIndex)
 	if !found {
 		return fmt.Errorf("given spawn point index not found in map: %v", spawnIndex)
 	}
-	mi.AddPlayerToMap(p, x, y)
+	g.MapInfo.AddPlayerToMap(p, x, y)
+	g.Camera.SetCameraPosition(x, y)
 	return nil
 }

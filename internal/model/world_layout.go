@@ -110,6 +110,10 @@ func ConvertPxToTilePos(x, y int) Coords {
 	}
 }
 
+func (c Coords) WithinBounds(x1, x2, y1, y2 int) bool {
+	return c.X >= x1 && c.X <= x2 && c.Y >= y1 && c.Y <= y2
+}
+
 type Vec2 struct {
 	X, Y float64
 }
