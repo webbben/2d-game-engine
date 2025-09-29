@@ -74,6 +74,7 @@ type Dialog struct {
 	EntID                string
 	boxDef                      // definition of the tiles that build this box
 	BoxTilesetSource     string // path to the tileset for the dialog box tiles
+	BoxTilesetID         string // ID of the box to use (from the given tileset). property name is "box_id"
 	TextFont             Font
 	init                 bool // flag to indicate if this Dialog's data has been loaded and is ready to render
 	Exit                 bool // flag to indicate dialog has exited. cuts off dialog updates and draws.
@@ -206,6 +207,9 @@ func ConvertStringToLines(s string, f font.Face, lineWidthPx int) []string {
 }
 
 func (d *Dialog) loadBoxTiles() {
+	if d.BoxTilesetID == "" {
+		panic("no box tileset id set")
+	}
 	tileset, err := tiled.LoadTileset(d.BoxTilesetSource)
 	if err != nil {
 		panic("failed to load box tileset: " + err.Error())
@@ -216,6 +220,10 @@ func (d *Dialog) loadBoxTiles() {
 	}
 
 	for _, tile := range tileset.Tiles {
+		boxID, found := tiled.GetStringProperty("box_id", tile.Properties)
+		if !found || boxID != d.BoxTilesetID {
+			continue
+		}
 		for _, prop := range tile.Properties {
 			if prop.Name == "box" {
 				img, err := tileset.GetTileImage(tile.ID)

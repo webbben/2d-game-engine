@@ -59,9 +59,12 @@ to quickly create a Cobra application.`,
 		// get our testrun game state
 		game := setupGameState()
 
-		if err := ebiten.RunGame(game); err != nil {
+		if err := game.RunGame(); err != nil {
 			panic(err)
 		}
+		// if err := ebiten.RunGame(game); err != nil {
+		// 	panic(err)
+		// }
 	},
 }
 
@@ -159,7 +162,8 @@ func addCustomKeyBindings(g *game.Game) {
 
 func GetDialog() dialog.Dialog {
 	d := dialog.Dialog{
-		BoxTilesetSource: "assets/tiled/tilesets/boxes/box1.tsj",
+		BoxTilesetSource: "assets/tiled/tilesets/boxes/boxes.tsj",
+		BoxTilesetID:     "greek_tile_03",
 		TextFont: dialog.Font{
 			Source: "assets/fonts/ashlander-pixel.ttf",
 		},
