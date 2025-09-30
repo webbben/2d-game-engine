@@ -121,7 +121,7 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 	for _, layer := range m.Layers {
 		if layer.Type == tiled.LAYER_TYPE_OBJECT {
 			for _, obj := range layer.Objects {
-				g.MapInfo.Objects = append(g.MapInfo.Objects, object.LoadObject(obj))
+				g.MapInfo.AddObjectToMap(obj)
 			}
 		}
 	}
@@ -222,6 +222,12 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	n.Entity.SetPosition(startPos)
 	n.Priority = mi.NPCManager.getNextNPCPriority()
 	mi.NPCs = append(mi.NPCs, n)
+}
+
+func (mi *MapInfo) AddObjectToMap(obj tiled.Object) {
+	o := object.LoadObject(obj)
+	o.WorldContext = mi
+	mi.Objects = append(mi.Objects, o)
 }
 
 // detects if the given rect collides in the map.
@@ -376,4 +382,11 @@ func (g *Game) PlacePlayerAtSpawnPoint(p *player.Player, spawnIndex int) error {
 	g.MapInfo.AddPlayerToMap(p, x, y)
 	g.Camera.SetCameraPosition(x, y)
 	return nil
+}
+
+func (mi MapInfo) GetPlayerRect() model.Rect {
+	if mi.PlayerRef == nil {
+		panic("player ref is nil")
+	}
+	return mi.PlayerRef.Entity.CollisionRect()
 }

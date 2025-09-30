@@ -2,6 +2,8 @@ package object
 
 import (
 	"github.com/webbben/2d-game-engine/internal/audio"
+	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
@@ -17,6 +19,7 @@ type Object struct {
 	X, Y          float64 // logical position in the map
 	DrawX, DrawY  float64 // the actual position on the screen where this was last drawn - for things like click detection
 	Width, Height int
+	Rect          model.Rect
 
 	MouseBehavior mouse.MouseBehavior
 
@@ -26,11 +29,19 @@ type Object struct {
 	Door
 
 	SpawnPoint
+
+	WorldContext
+}
+
+type WorldContext interface {
+	GetPlayerRect() model.Rect
 }
 
 type Door struct {
-	TargetMapID string
-	openSound   *audio.Sound
+	targetMapID      string
+	targetSpawnIndex int
+	openSound        *audio.Sound
+	activateType     string // "click", "step"
 }
 
 type SpawnPoint struct {
@@ -44,6 +55,12 @@ func LoadObject(obj tiled.Object) *Object {
 		Y:      obj.Y,
 		Width:  int(obj.Width),
 		Height: int(obj.Height),
+		Rect: model.Rect{
+			X: obj.X,
+			Y: obj.Y,
+			W: obj.Width,
+			H: obj.Height,
+		},
 	}
 
 	// get the type first - so we know what values to parse out
@@ -70,13 +87,41 @@ func LoadObject(obj tiled.Object) *Object {
 		}
 	}
 
+	if o.Type == TYPE_DOOR {
+		o.verifyDoorObject()
+	}
+
 	return &o
+}
+
+func (obj Object) verifyDoorObject() {
+	// make sure required properties are defined
+	if obj.Door.targetMapID == "" {
+		panic("door: no target map ID set. check Tiled object definition.")
+	}
+	if obj.Door.activateType == "" {
+		panic("door: no activate type set. check Tiled object definition.")
+	}
+	switch obj.Door.activateType {
+	case "click":
+	case "step":
+	default:
+		logz.Panicf("door: invalid activation type set: %s. check Tiled object definition.", obj.Door.activateType)
+	}
+
+	if obj.openSound == nil {
+		panic("door: no openSound defined. check Tiled object definition.")
+	}
 }
 
 func (obj *Object) loadDoorProperty(prop tiled.Property) {
 	switch prop.Name {
 	case "door_to":
-		obj.Door.TargetMapID = prop.GetStringValue()
+		obj.Door.targetMapID = prop.GetStringValue()
+	case "door_spawn_index":
+		obj.Door.targetSpawnIndex = prop.GetIntValue()
+	case "door_activate":
+		obj.Door.activateType = prop.GetStringValue()
 	case "door_sound":
 		doorSound := prop.GetStringValue()
 		switch doorSound {

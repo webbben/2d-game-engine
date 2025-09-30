@@ -45,3 +45,8 @@ func Warnf(category string, format string, args ...any) {
 	format = fmt.Sprintf("WARNING: %s", format)
 	Printf(category, format, args...)
 }
+
+func Panicf(formatString string, args ...any) {
+	format := fmt.Sprintf(formatString, args...)
+	panic(format)
+}

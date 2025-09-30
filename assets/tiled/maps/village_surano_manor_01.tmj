@@ -196,7 +196,7 @@
                 {
                  "height":12.3333333333333,
                  "id":2,
-                 "name":"",
+                 "name":"door to surano",
                  "properties":[
                         {
                          "name":"TYPE",
@@ -204,9 +204,24 @@
                          "value":"DOOR"
                         }, 
                         {
-                         "name":"door_type",
+                         "name":"door_activate",
                          "type":"string",
-                         "value":"enter"
+                         "value":"step"
+                        }, 
+                        {
+                         "name":"door_sound",
+                         "type":"string",
+                         "value":"wood"
+                        }, 
+                        {
+                         "name":"door_spawn_index",
+                         "type":"int",
+                         "value":1
+                        }, 
+                        {
+                         "name":"door_to",
+                         "type":"string",
+                         "value":"village_surano"
                         }],
                  "rotation":0,
                  "type":"",

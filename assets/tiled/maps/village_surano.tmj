@@ -262,9 +262,19 @@
                          "value":"DOOR"
                         }, 
                         {
+                         "name":"door_activate",
+                         "type":"string",
+                         "value":"click"
+                        }, 
+                        {
                          "name":"door_sound",
                          "type":"string",
                          "value":"wood"
+                        }, 
+                        {
+                         "name":"door_spawn_index",
+                         "type":"int",
+                         "value":0
                         }, 
                         {
                          "name":"door_to",
@@ -287,6 +297,11 @@
                          "name":"TYPE",
                          "type":"string",
                          "value":"DOOR"
+                        }, 
+                        {
+                         "name":"door_activate",
+                         "type":"string",
+                         "value":"click"
                         }, 
                         {
                          "name":"door_sound",
@@ -314,6 +329,11 @@
                          "name":"TYPE",
                          "type":"string",
                          "value":"DOOR"
+                        }, 
+                        {
+                         "name":"door_activate",
+                         "type":"string",
+                         "value":"click"
                         }, 
                         {
                          "name":"door_sound",
