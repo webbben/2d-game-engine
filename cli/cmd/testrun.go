@@ -44,6 +44,7 @@ to quickly create a Cobra application.`,
 		//config.ShowEntityPositions = true
 		config.TrackMemoryUsage = true
 		//config.HourSpeed = time.Second * 20
+		//config.ShowCollisions = true
 
 		config.MapPathOverride = "/Users/benwebb/dev/personal/2d-game-engine/assets/tiled/maps"
 

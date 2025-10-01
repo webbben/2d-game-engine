@@ -58,7 +58,7 @@ func (p *Player) handleMovement() {
 		scaled.Y = math.Round(scaled.Y * 2)
 	}
 
-	e := p.Entity.TryMovePx(int(scaled.X), int(scaled.Y))
+	e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y))
 	if !e.Success && !e.Collision {
 		logz.Println(p.Entity.DisplayName, e)
 	}

@@ -10,10 +10,11 @@ import (
 )
 
 type MoveError struct {
-	AlreadyMoving bool
-	Collision     bool
-	Cancelled     bool
-	Success       bool
+	AlreadyMoving   bool
+	Collision       bool
+	Cancelled       bool
+	Success         bool
+	CollisionResult model.CollisionResult
 }
 
 func (me MoveError) String() string {
@@ -115,6 +116,137 @@ func (e *Entity) CancelCurrentPath() {
 	e.Movement.TargetPath = []model.Coords{}
 }
 
+const (
+	fullOpen = iota
+	partialOpen
+	fullBlock
+)
+
+// same as TryMovePx, but lets the entity still move in the direction even if a collision is encountered,
+// as long as there is some space in that direction
+func (e *Entity) TryMoveMaxPx(dx, dy int) MoveError {
+	if dx == 0 && dy == 0 {
+		panic("TryMoveMaxPx called with no distance given")
+	}
+	moveError := e.TryMovePx(dx, dy)
+	if moveError.Collision {
+		// a collision occurred; try to adjust the target by the intersection area
+		cr := moveError.CollisionResult
+		cx, cy := 0, 0
+
+		top := cr.TopLeft.Int() + cr.TopRight.Int()
+		left := cr.TopLeft.Int() + cr.BottomLeft.Int()
+		right := cr.TopRight.Int() + cr.BottomRight.Int()
+		bottom := cr.BottomLeft.Int() + cr.BottomRight.Int()
+
+		// TODO: the below logic seems to work well, but it seems too long and probably can be simplified.
+		// let's try to combine the "one direction" logic into the "bi-direction" section
+		if dx == 0 || dy == 0 {
+			// only moving in one direction; simpler logic
+			if dx < 0 {
+				// left
+				if left != fullOpen {
+					// get as close as possible
+					cx = int(max(cr.BottomLeft.Dx, cr.TopLeft.Dx))
+				}
+			} else if dx > 0 {
+				// right
+				if right != fullOpen {
+					cx = -int(max(cr.BottomRight.Dx, cr.TopRight.Dx))
+				}
+			}
+			if dy < 0 {
+				// up
+				if top != fullOpen {
+					cy = int(max(cr.TopLeft.Dy, cr.TopRight.Dy))
+				}
+			} else if dy > 0 {
+				// down
+				if bottom != fullOpen {
+					cy = -int(max(cr.BottomLeft.Dy, cr.BottomRight.Dy))
+				}
+			}
+		} else {
+			// moving in two directions; more special cases logic to consider
+			yDir := 0
+			var yDirCorner1, yDirCorner2 model.IntersectionResult
+			var xDirCorner1, xDirCorner2 model.IntersectionResult
+			xDirFactor, yDirFactor := 1, 1
+			if dy < 0 {
+				yDir = top
+				yDirCorner1, yDirCorner2 = cr.TopLeft, cr.TopRight
+			} else {
+				yDir = bottom
+				yDirCorner1, yDirCorner2 = cr.BottomLeft, cr.BottomRight
+				yDirFactor = -1
+			}
+			xDir := 0
+			if dx < 0 {
+				xDir = left
+				xDirCorner1, xDirCorner2 = cr.TopLeft, cr.BottomLeft
+			} else {
+				xDir = right
+				xDirCorner1, xDirCorner2 = cr.TopRight, cr.BottomRight
+				xDirFactor = -1
+			}
+
+			if yDir != fullOpen || xDir != fullOpen {
+				// there is blockage in one (or both) directions. let's suss it out.
+				switch xDir {
+				case fullBlock:
+					// get as close as possible, but ultimately block this direction
+					cx = xDirFactor * int(max(xDirCorner1.Dx, xDirCorner2.Dx))
+				case partialOpen:
+					switch yDir {
+					case fullBlock:
+						// sliding along a wall; continue freely
+					case partialOpen:
+						// walking into an outwardly pointing corner
+						// need to decide which side we will go along
+						// go along the direction that overlaps the most (smaller overlap gets clamped)
+						xOverlap := int(max(xDirCorner1.Dx, xDirCorner2.Dx))
+						yOverlap := int(max(yDirCorner1.Dy, yDirCorner2.Dy))
+						if xOverlap > yOverlap {
+							cy = yDirFactor * int(max(yDirCorner1.Dy, yDirCorner2.Dy))
+						} else {
+							cx = xDirFactor * int(max(xDirCorner1.Dx, xDirCorner2.Dx))
+						}
+					case fullOpen:
+						// about to turn around a corner
+						// this direction should be cancelled for now
+						cx = xDirFactor * int(max(xDirCorner1.Dx, xDirCorner2.Dx))
+					}
+				}
+				switch yDir {
+				case fullBlock:
+					cy = yDirFactor * int(max(yDirCorner1.Dy, yDirCorner2.Dy))
+				case partialOpen:
+					switch xDir {
+					case fullBlock:
+						// sliding along a wall; continue freely
+					case fullOpen:
+						// about to turn around a corner
+						// this direction should be cancelled for now
+						cy = yDirFactor * int(max(yDirCorner1.Dy, yDirCorner2.Dy))
+					}
+				}
+			}
+		}
+
+		dx += cx
+		dy += cy
+
+		// if no actual change will occur after adjustments, give up
+		// entity is probably directly up against some collision rects
+		if dx == 0 && dy == 0 {
+			return moveError
+		}
+
+		return e.TryMovePx(dx, dy)
+	}
+	return moveError
+}
+
 func (e *Entity) TryMovePx(dx, dy int) MoveError {
 	if dx == 0 && dy == 0 {
 		panic("TryMovePx: dx and dy are both 0")
@@ -123,9 +255,11 @@ func (e *Entity) TryMovePx(dx, dy int) MoveError {
 	y := int(e.TargetY) + dy
 	targetRect := model.Rect{X: float64(x), Y: float64(y), W: e.width, H: e.width}
 
-	if e.World.Collides(targetRect, e.ID, e.IsPlayer) {
+	res := e.World.Collides(targetRect, e.ID, e.IsPlayer)
+	if res.Collides() {
 		return MoveError{
-			Collision: true,
+			Collision:       true,
+			CollisionResult: res,
 		}
 	}
 

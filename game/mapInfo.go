@@ -194,7 +194,7 @@ func (mi *MapInfo) AddPlayerToMap(p *player.Player, x, y float64) {
 		W: config.TileSize,
 		H: config.TileSize,
 	}
-	if mi.Collides(r, "", true) {
+	if res := mi.Collides(r, "", true); res.Collides() {
 		// this also handles placement outside of map bounds
 		panic("player added to map on colliding tile")
 	}
@@ -214,7 +214,7 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 		W: config.TileSize,
 		H: config.TileSize,
 	}
-	if mi.Collides(r, "", false) {
+	if res := mi.Collides(r, "", false); res.Collides() {
 		panic("npc added to map on colliding tile")
 	}
 	n.Entity.World = mi
@@ -234,7 +234,7 @@ func (mi *MapInfo) AddObjectToMap(obj tiled.Object) {
 // rectBased param determines if collisions check for collision rects (e.g. for buildings with nuanced collision rects)
 // or if it just uses tile-based collisions (if a tile contains a collision rect, the entire tile is marked as a collision).
 // generally, the player should use rect-based, and NPCs should use tile-based (since NPCs usually can't do partial tile/px based movement)
-func (mi MapInfo) Collides(r model.Rect, excludeEntId string, rectBased bool) bool {
+func (mi MapInfo) Collides(r model.Rect, excludeEntId string, rectBased bool) model.CollisionResult {
 	tl := model.ConvertPxToTilePos(int(r.X), int(r.Y))
 	tr := model.ConvertPxToTilePos(int(r.X+r.W), int(r.Y))
 	bl := model.ConvertPxToTilePos(int(r.X), int(r.Y+r.H))
@@ -242,64 +242,76 @@ func (mi MapInfo) Collides(r model.Rect, excludeEntId string, rectBased bool) bo
 	// check if any part of the target is outside the map
 	maxTileX := len(mi.Map.CostMap[0]) - 1
 	maxTileY := len(mi.Map.CostMap) - 1
+
+	cr := model.CollisionResult{}
+
+	// first, check for corners of the rect that are off the map
 	if !tl.WithinBounds(0, maxTileX, 0, maxTileY) {
-		return true
+		cr.TopLeft.Intersects = true
 	}
 	if !tr.WithinBounds(0, maxTileX, 0, maxTileY) {
-		return true
+		cr.TopRight.Intersects = true
 	}
 	if !bl.WithinBounds(0, maxTileX, 0, maxTileY) {
-		return true
+		cr.BottomLeft.Intersects = true
 	}
 	if !br.WithinBounds(0, maxTileX, 0, maxTileY) {
-		return true
+		cr.BottomRight.Intersects = true
 	}
 
+	// next, check for regular collisions on the map
 	if rectBased {
-		r1 := mi.Map.CollisionRects[tl.Y][tl.X]
-		if r1.IsCollision {
-			if r1.OffsetRect(float64(tl.X*config.TileSize), float64(tl.Y*config.TileSize)).Intersects(r) {
-				return true
+		if !cr.TopLeft.Intersects {
+			r1 := mi.Map.CollisionRects[tl.Y][tl.X]
+			if r1.IsCollision {
+				cr.TopLeft = r1.OffsetRect(float64(tl.X*config.TileSize), float64(tl.Y*config.TileSize)).IntersectionArea(r)
 			}
 		}
-		r2 := mi.Map.CollisionRects[tr.Y][tr.X]
-		if r2.IsCollision {
-			if r2.OffsetRect(float64(tr.X*config.TileSize), float64(tr.Y*config.TileSize)).Intersects(r) {
-				return true
+		if !cr.TopRight.Intersects {
+			r2 := mi.Map.CollisionRects[tr.Y][tr.X]
+			if r2.IsCollision {
+				cr.TopRight = r2.OffsetRect(float64(tr.X*config.TileSize), float64(tr.Y*config.TileSize)).IntersectionArea(r)
 			}
 		}
-		r3 := mi.Map.CollisionRects[bl.Y][bl.X]
-		if r3.IsCollision {
-			if r3.OffsetRect(float64(bl.X*config.TileSize), float64(bl.Y*config.TileSize)).Intersects(r) {
-				return true
+		if !cr.BottomLeft.Intersects {
+			r3 := mi.Map.CollisionRects[bl.Y][bl.X]
+			if r3.IsCollision {
+				cr.BottomLeft = r3.OffsetRect(float64(bl.X*config.TileSize), float64(bl.Y*config.TileSize)).IntersectionArea(r)
 			}
 		}
-		r4 := mi.Map.CollisionRects[br.Y][br.X]
-		if r4.IsCollision {
-			if r4.OffsetRect(float64(br.X*config.TileSize), float64(br.Y*config.TileSize)).Intersects(r) {
-				return true
+		if !cr.BottomRight.Intersects {
+			r4 := mi.Map.CollisionRects[br.Y][br.X]
+			if r4.IsCollision {
+				cr.BottomRight = r4.OffsetRect(float64(br.X*config.TileSize), float64(br.Y*config.TileSize)).IntersectionArea(r)
 			}
 		}
 	} else {
-		if mi.Map.CostMap[tl.Y][tl.X] >= 10 {
-			return true
+		if !cr.TopLeft.Intersects {
+			cr.TopLeft.Intersects = mi.Map.CostMap[tl.Y][tl.X] >= 10
 		}
-		if mi.Map.CostMap[tr.Y][tr.X] >= 10 {
-			return true
+		if !cr.TopRight.Intersects {
+			cr.TopRight.Intersects = mi.Map.CostMap[tr.Y][tr.X] >= 10
 		}
-		if mi.Map.CostMap[bl.Y][bl.X] >= 10 {
-			return true
+		if !cr.BottomLeft.Intersects {
+			cr.BottomLeft.Intersects = mi.Map.CostMap[bl.Y][bl.X] >= 10
 		}
-		if mi.Map.CostMap[br.Y][br.X] >= 10 {
-			return true
+		if !cr.BottomRight.Intersects {
+			cr.BottomRight.Intersects = mi.Map.CostMap[br.Y][br.X] >= 10
 		}
 	}
 
-	// check entity positions
+	// if any static collisions are found, report those
+	if cr.Collides() {
+		cr.Assert() // can probably remove these asserts
+		return cr
+	}
+
+	// if no static collisions are found, find any entity collisions
 	if mi.PlayerRef != nil {
 		if mi.PlayerRef.Entity.ID != excludeEntId {
-			if r.Intersects(mi.PlayerRef.Entity.CollisionRect()) {
-				return true
+			cr.Other = r.IntersectionArea(mi.PlayerRef.Entity.CollisionRect())
+			if cr.Other.Intersects {
+				return cr
 			}
 		}
 	}
@@ -307,12 +319,14 @@ func (mi MapInfo) Collides(r model.Rect, excludeEntId string, rectBased bool) bo
 		if n.Entity.ID == excludeEntId {
 			continue
 		}
-		if r.Intersects(n.Entity.CollisionRect()) {
-			return true
+		cr.Other = r.IntersectionArea(n.Entity.CollisionRect())
+		if cr.Other.Intersects {
+			return cr
 		}
 	}
 
-	return false
+	cr.Assert()
+	return cr
 }
 
 // Returns a path to the goal, or if it cannot be reached, a path to the closest reachable position.

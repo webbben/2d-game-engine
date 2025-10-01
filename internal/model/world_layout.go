@@ -151,3 +151,93 @@ func (r Rect) Intersects(other Rect) bool {
 		r.Y < other.Y+other.H &&
 		r.Y+r.H > other.Y
 }
+
+type IntersectionResult struct {
+	Intersects bool
+	Dx, Dy     float64
+}
+
+func (ir IntersectionResult) Int() int {
+	if ir.Intersects {
+		return 1
+	}
+	return 0
+}
+
+func (ir IntersectionResult) assert() {
+	// intersections can have 0 intersection area, since we currently do that for map edges
+	// but non intersections must have 0 intersection area
+	if !ir.Intersects {
+		if ir.Dx != 0 || ir.Dy != 0 {
+			panic("not an intersection, but there is an intersection area (dx or dy are not 0)")
+		}
+	}
+}
+
+type CollisionResult struct {
+	TopLeft     IntersectionResult
+	TopRight    IntersectionResult
+	BottomLeft  IntersectionResult
+	BottomRight IntersectionResult
+	Other       IntersectionResult // for general use when not specifically corner related
+}
+
+func (c CollisionResult) String() string {
+	if !c.Collides() {
+		return "(No Collisions)"
+	}
+	coll := []string{}
+	if c.TopLeft.Intersects {
+		coll = append(coll, "TL")
+	}
+	if c.TopRight.Intersects {
+		coll = append(coll, "TR")
+	}
+	if c.BottomLeft.Intersects {
+		coll = append(coll, "BL")
+	}
+	if c.BottomRight.Intersects {
+		coll = append(coll, "BR")
+	}
+	if c.Other.Intersects {
+		coll = append(coll, "O")
+	}
+	return fmt.Sprintf("%v", coll)
+}
+
+func (c CollisionResult) Collides() bool {
+	return c.TopLeft.Intersects ||
+		c.TopRight.Intersects ||
+		c.BottomLeft.Intersects ||
+		c.BottomRight.Intersects ||
+		c.Other.Intersects
+}
+
+func (c CollisionResult) Assert() {
+	c.TopLeft.assert()
+	c.TopRight.assert()
+	c.BottomLeft.assert()
+	c.BottomRight.assert()
+}
+
+// gets the area that intersects between two rects.
+// dx and dy area always positive (or 0 if no intersection)
+func (r Rect) IntersectionArea(other Rect) IntersectionResult {
+	res := IntersectionResult{}
+	res.Intersects = r.Intersects(other)
+	if res.Intersects {
+		// find intersecting area
+		// for some reason these calculations come out 1 short, so adding 1 here seems to fix it
+		if r.X < other.X {
+			res.Dx = (r.X + r.W) - other.X
+		} else {
+			res.Dx = (other.X + other.W) - r.X
+		}
+		if r.Y < other.Y {
+			res.Dy = (r.Y + r.H) - other.Y
+		} else {
+			res.Dy = (other.Y + other.H) - r.Y
+		}
+	}
+	return res
+}
