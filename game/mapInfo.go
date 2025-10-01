@@ -42,7 +42,8 @@ type sortedRenderable interface {
 type OpenMapOptions struct {
 	// set to true if this map should run a NPC manager background process.
 	// this is not mandatory for using NPCs, just helps improve their behavior, especially when there are a lot of them in a map.
-	RunNPCManager bool
+	RunNPCManager    bool
+	RegenerateImages bool // set to true if tile images should be regenerated
 }
 
 // sets up a map and puts the player in it at the given position. meant for use once player already exists in game state
@@ -78,7 +79,7 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 		return fmt.Errorf("error while opening Tiled map: %w", err)
 	}
 
-	err = m.Load()
+	err = m.Load(op.RegenerateImages)
 	if err != nil {
 		return fmt.Errorf("error while loading map: %w", err)
 	}

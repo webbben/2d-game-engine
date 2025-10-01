@@ -14,6 +14,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/general_util"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
 
@@ -28,12 +29,16 @@ func InitFileStructure() {
 	}
 
 	// tiles
-	if !general_util.FileExists(tilePath) {
-		err := os.MkdirAll(tilePath, os.ModePerm)
-		if err != nil {
-			log.Fatal(err)
-		}
+	// remove all existing tiles on startup, to ensure that all tiles are up to date with source data
+	if general_util.FileExists(tilePath) {
+		logz.Println("SYSTEM", "deleting all existing generated tiles from previous runs")
+		os.RemoveAll(tilePath)
 	}
+	err := os.MkdirAll(tilePath, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
 
 func TilesetExists(tilesetName string) bool {

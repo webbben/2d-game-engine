@@ -10,6 +10,24 @@
  "tileheight":16,
  "tiles":[
         {
+         "id":2,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":3,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
          "id":4,
          "properties":[
                 {
@@ -389,6 +407,33 @@
         }, 
         {
          "id":57,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":65,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":66,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":67,
          "properties":[
                 {
                  "name":"COLLISION",

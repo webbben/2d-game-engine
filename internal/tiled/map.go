@@ -32,7 +32,7 @@ func OpenMap(mapSource string) (Map, error) {
 }
 
 // Load a map and all its tilesets or other pre-processable data
-func (m *Map) Load() error {
+func (m *Map) Load(regenerateImages bool) error {
 	// load property data
 	id, found := GetStringProperty("ID", m.Properties)
 	if !found {
@@ -52,13 +52,13 @@ func (m *Map) Load() error {
 		if err != nil {
 			return err
 		}
-		if !TilesetExists(tileset.Name) {
+		// ensure tilesets are regenerated on game startup, just in case source image files were changed since last play
+		if regenerateImages || !TilesetExists(tileset.Name) {
 			err = tileset.GenerateTiles()
 			if err != nil {
 				return err
 			}
 		}
-
 		m.Tilesets[i] = tileset
 	}
 

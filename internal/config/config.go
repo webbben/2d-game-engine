@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	GameScale           float64 = 3 // how much the game view is scaled up
+	GameScale           float64 = 3.5 // how much the game view is scaled up
 	DrawGridLines               = false
 	ShowEntityPositions         = false // show the logical positions and collision boxes of entities
 	ShowCollisions              = false // show the areas that are collisions on the map
