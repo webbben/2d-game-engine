@@ -66,10 +66,13 @@ func DrawImage(screen *ebiten.Image, img *ebiten.Image, x, y, scale float64) {
 		panic("DrawImage: image to draw is nil!")
 	}
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(x, y)
+
 	if scale > 0 {
 		op.GeoM.Scale(scale, scale)
 	}
+	// important: if translate is above scale, it will come out weird
+	// I guess this is because these effects are applied in order
+	op.GeoM.Translate(x, y)
 	screen.DrawImage(img, op)
 }
 

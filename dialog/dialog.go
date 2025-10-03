@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
@@ -160,21 +161,24 @@ func (d *Dialog) buildBoxImage() {
 	// verify box tile images
 	d.BoxDef.VerifyImages()
 	// determine box size
+	tileWidth, tileHeight := d.BoxDef.TileDimensions()
 	d.width = display.SCREEN_WIDTH
-	d.width -= d.width % d.TileWidth // round it to the size of the box tile
+	d.width -= d.width % tileWidth // round it to the size of the box tile
 
 	if d.TopicsEnabled {
-		d.topicBoxWidth = d.TileWidth * 10
+		// using config tilesize instead of box tilesize since box tilesize is scaled by UI scale
+		d.topicBoxWidth = config.TileSize * 17
+		d.topicBoxWidth -= d.topicBoxWidth % tileWidth
 		// fit the topic box into the main box width calculation
 		d.width = display.SCREEN_WIDTH - d.topicBoxWidth
-		d.width -= d.width % d.TileWidth
+		d.width -= d.width % tileWidth
 		// set height to allow space for a character portrait
 		d.topicBoxHeight = display.SCREEN_HEIGHT / 4 * 3 // 3/4 of the screen height
-		d.topicBoxHeight -= d.topicBoxHeight % d.TileHeight
+		d.topicBoxHeight -= d.topicBoxHeight % tileHeight
 	}
 
 	d.height = display.SCREEN_HEIGHT / 4
-	d.height -= d.height % d.TileHeight
+	d.height -= d.height % tileHeight
 
 	d.boxImage = d.BoxDef.CreateBoxImage(d.width, d.height)
 	d.topicBoxImage = d.BoxDef.CreateBoxImage(d.topicBoxWidth, d.topicBoxHeight)

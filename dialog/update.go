@@ -27,7 +27,8 @@ func (d *Dialog) Draw(screen *ebiten.Image) {
 	}
 
 	// draw main dialog box content
-	lineWriterLastY := d.lineWriter.Draw(screen, int(d.x+20), int(d.y+35))
+	boxTileWidth, boxTileHeight := d.BoxDef.TileDimensions()
+	lineWriterLastY := d.lineWriter.Draw(screen, int(d.x)+boxTileWidth, int(d.y)+(boxTileHeight/2))
 	// show text branch options if applicable
 	if d.currentTopic.status == topic_status_awaitOption {
 		nextOptionButtonY := lineWriterLastY + 10
@@ -38,8 +39,8 @@ func (d *Dialog) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	continueX := int(d.x) + d.boxImage.Bounds().Dx() - 25
-	continueY := int(d.y) + d.boxImage.Bounds().Dy() - 10
+	continueX := int(d.x) + d.boxImage.Bounds().Dx() - boxTileWidth
+	continueY := int(d.y) + d.boxImage.Bounds().Dy() - (boxTileHeight / 2)
 	if d.flashContinueIcon {
 		text.DrawShadowText(screen, "…", d.TextFont.fontFace, continueX, continueY, nil, nil, 0, 0)
 	} else if d.flashDoneIcon {
@@ -48,7 +49,7 @@ func (d *Dialog) Draw(screen *ebiten.Image) {
 
 	// draw subtopic buttons
 	for i, subtopic := range d.currentTopic.SubTopics {
-		buttonX := int(d.topicBoxX) + (d.BoxDef.TileWidth / 2)
+		buttonX := int(d.topicBoxX) + (boxTileWidth / 2)
 		buttonY := display.SCREEN_HEIGHT - ((i + 1) * subtopic.button.Height) - 15
 		subtopic.button.Draw(screen, buttonX, buttonY)
 	}

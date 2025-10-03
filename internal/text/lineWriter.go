@@ -148,9 +148,9 @@ func (lw *LineWriter) Clear() {
 // returns the last written Y position (for reference by other drawing functions)
 func (lw LineWriter) Draw(screen *ebiten.Image, startX, startY int) int {
 	y := startY
-	for i, line := range lw.writtenLines {
+	for _, line := range lw.writtenLines {
 		gray := color.RGBA{20, 20, 20, 75}
-		y = startY + (i * lw.lineHeight)
+		y = y + lw.lineHeight
 		DrawShadowText(screen, line, lw.fontFace, startX, y, color.Black, gray, -2, -2)
 	}
 	return y

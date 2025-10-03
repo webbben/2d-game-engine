@@ -113,8 +113,9 @@ func (d *Dialog) setTopic(t Topic, isReturning bool, eventBus *pubsub.EventBus) 
 
 	// prepare sub-topic buttons
 	buttonHeight := 35
+	boxTileWidth, _ := d.BoxDef.TileDimensions()
 	for i := range d.currentTopic.SubTopics {
-		buttonWidth := d.topicBoxWidth - 15
+		buttonWidth := d.topicBoxWidth - boxTileWidth
 		subtopic := d.currentTopic.SubTopics[i]
 
 		d.currentTopic.SubTopics[i].button = ui.NewButton(subtopic.TopicText, nil, buttonWidth, buttonHeight)

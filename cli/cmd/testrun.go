@@ -165,7 +165,7 @@ func addCustomKeyBindings(g *game.Game) {
 func GetDialog() dialog.Dialog {
 	d := dialog.Dialog{
 		BoxTilesetSource: "assets/tiled/tilesets/boxes/boxes.tsj",
-		BoxTilesetID:     "greek_tile_03",
+		BoxTilesetID:     "basic_01",
 		TextFont: dialog.Font{
 			Source: "assets/fonts/ashlander-pixel.ttf",
 		},

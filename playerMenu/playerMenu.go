@@ -37,11 +37,14 @@ func (pm *PlayerMenu) Load() {
 	pm.x = 0
 	pm.y = 0
 
+	pm.BoxDef.LoadBoxTiles(pm.boxTilesetSource, pm.boxID)
+	tileWidth, tileHeight := pm.BoxDef.TileDimensions()
+
 	// determine full size of player menu
 	pm.width = display.SCREEN_WIDTH
-	pm.width -= pm.width % pm.TileWidth // round it to the size of the box tile
+	pm.width -= pm.width % tileWidth // round it to the size of the box tile
 	pm.height = display.SCREEN_HEIGHT
-	pm.height -= pm.height % pm.TileHeight
+	pm.height -= pm.height % tileHeight
 
 	// load menu tabs
 	pm.pageTabs = ui.NewTabControl(pm.pageTabsTilesetSource, []ui.Tab{
@@ -75,6 +78,5 @@ func (pm *PlayerMenu) Load() {
 	pm.mainContentWidth = pm.width
 
 	// generate box image for main content area
-	pm.BoxDef.LoadBoxTiles(pm.boxTilesetSource, pm.boxID)
 	pm.boxImage = pm.BoxDef.CreateBoxImage(pm.mainContentWidth, pm.mainContentHeight)
 }

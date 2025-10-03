@@ -11,15 +11,27 @@ import (
 )
 
 var (
-	GameScale           float64 = 3.5 // how much the game view is scaled up
-	UIScale             float64 = 1   // how much the UI (not in game world) is scaled up
-	DrawGridLines               = false
-	ShowEntityPositions         = false // show the logical positions and collision boxes of entities
-	ShowCollisions              = false // show the areas that are collisions on the map
-	ShowPlayerCoords            = false
-	ShowNPCPaths                = false // highlight the paths that NPCs are following
-	TrackMemoryUsage            = false // show a report in the console of memory usage every few seconds
-	ShowGameDebugInfo           = false // show a report of various debugging info (like F12 in minecraft)
+	// how much the game view is scaled up.
+	// seems better to keep this a whole number.
+	// Using .5's sometimes seems to cause slight distortion in rendered pixels.
+	GameScale float64 = 4
+
+	// how much the UI (not in game world) is scaled up.
+	// does not affect actual size of resulting GUI, but scales the tiles and images that are used.
+	// so, tiles or images used in UI should be created with a consistent tile size (e.g 16px)
+	UIScale float64 = 2
+
+	// debug options
+
+	DrawGridLines       = false
+	ShowEntityPositions = false // show the logical positions and collision boxes of entities
+	ShowCollisions      = false // show the areas that are collisions on the map
+	ShowPlayerCoords    = false
+	ShowNPCPaths        = false // highlight the paths that NPCs are following
+	TrackMemoryUsage    = false // show a report in the console of memory usage every few seconds
+	ShowGameDebugInfo   = false // show a report of various debugging info (like F12 in minecraft)
+
+	// misc
 
 	HourSpeed time.Duration = time.Minute // how long it takes for an hour to pass in game
 
