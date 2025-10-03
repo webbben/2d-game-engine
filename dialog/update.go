@@ -48,7 +48,7 @@ func (d *Dialog) Draw(screen *ebiten.Image) {
 
 	// draw subtopic buttons
 	for i, subtopic := range d.currentTopic.SubTopics {
-		buttonX := int(d.topicBoxX) + (d.boxDef.TileWidth / 2)
+		buttonX := int(d.topicBoxX) + (d.BoxDef.TileWidth / 2)
 		buttonY := display.SCREEN_HEIGHT - ((i + 1) * subtopic.button.Height) - 15
 		subtopic.button.Draw(screen, buttonX, buttonY)
 	}

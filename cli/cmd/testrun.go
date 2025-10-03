@@ -74,7 +74,7 @@ func init() {
 }
 
 func setupGameState() *game.Game {
-	g := game.NewGame(20)
+	g := game.NewGame(10)
 	err := g.SetupMap("village_surano", &game.OpenMapOptions{
 		RunNPCManager:    true,
 		RegenerateImages: true,

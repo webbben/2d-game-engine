@@ -178,6 +178,48 @@
                 }]
         }, 
         {
+         "id":16,
+         "properties":[
+                {
+                 "name":"box",
+                 "type":"string",
+                 "value":"TL"
+                }, 
+                {
+                 "name":"box_id",
+                 "type":"string",
+                 "value":"basic_01"
+                }]
+        }, 
+        {
+         "id":17,
+         "properties":[
+                {
+                 "name":"box",
+                 "type":"string",
+                 "value":"T"
+                }, 
+                {
+                 "name":"box_id",
+                 "type":"string",
+                 "value":"basic_01"
+                }]
+        }, 
+        {
+         "id":18,
+         "properties":[
+                {
+                 "name":"box",
+                 "type":"string",
+                 "value":"TR"
+                }, 
+                {
+                 "name":"box_id",
+                 "type":"string",
+                 "value":"basic_01"
+                }]
+        }, 
+        {
          "id":32,
          "properties":[
                 {
@@ -346,6 +388,48 @@
                 }]
         }, 
         {
+         "id":48,
+         "properties":[
+                {
+                 "name":"box",
+                 "type":"string",
+                 "value":"L"
+                }, 
+                {
+                 "name":"box_id",
+                 "type":"string",
+                 "value":"basic_01"
+                }]
+        }, 
+        {
+         "id":49,
+         "properties":[
+                {
+                 "name":"box",
+                 "type":"string",
+                 "value":"M"
+                }, 
+                {
+                 "name":"box_id",
+                 "type":"string",
+                 "value":"basic_01"
+                }]
+        }, 
+        {
+         "id":50,
+         "properties":[
+                {
+                 "name":"box",
+                 "type":"string",
+                 "value":"R"
+                }, 
+                {
+                 "name":"box_id",
+                 "type":"string",
+                 "value":"basic_01"
+                }]
+        }, 
+        {
          "id":64,
          "properties":[
                 {
@@ -511,6 +595,48 @@
                  "name":"box_id",
                  "type":"string",
                  "value":"greek_tile_03"
+                }]
+        }, 
+        {
+         "id":80,
+         "properties":[
+                {
+                 "name":"box",
+                 "type":"string",
+                 "value":"BL"
+                }, 
+                {
+                 "name":"box_id",
+                 "type":"string",
+                 "value":"basic_01"
+                }]
+        }, 
+        {
+         "id":81,
+         "properties":[
+                {
+                 "name":"box",
+                 "type":"string",
+                 "value":"B"
+                }, 
+                {
+                 "name":"box_id",
+                 "type":"string",
+                 "value":"basic_01"
+                }]
+        }, 
+        {
+         "id":82,
+         "properties":[
+                {
+                 "name":"box",
+                 "type":"string",
+                 "value":"BR"
+                }, 
+                {
+                 "name":"box_id",
+                 "type":"string",
+                 "value":"basic_01"
                 }]
         }],
  "tilewidth":16,
