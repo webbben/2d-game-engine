@@ -43,6 +43,8 @@ func (g *Game) worldUpdates() {
 			// dialog has ended, so remove it
 			g.Dialog = nil
 		}
+	} else if g.ShowPlayerMenu {
+		g.PlayerMenu.Update()
 	} else {
 		// handle player and npc updates
 		g.Player.Update()
@@ -84,6 +86,10 @@ func (g *Game) updateMap() {
 
 	for _, n := range g.MapInfo.NPCs {
 		n.Update()
+	}
+
+	if g.UpdateHooks.UpdateMapHook != nil {
+		g.UpdateHooks.UpdateMapHook(g)
 	}
 }
 

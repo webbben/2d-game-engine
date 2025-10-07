@@ -19,7 +19,7 @@ var (
 	// how much the UI (not in game world) is scaled up.
 	// does not affect actual size of resulting GUI, but scales the tiles and images that are used.
 	// so, tiles or images used in UI should be created with a consistent tile size (e.g 16px)
-	UIScale float64 = 2
+	UIScale float64 = 3
 
 	// debug options
 

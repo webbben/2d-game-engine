@@ -39,6 +39,8 @@ func (g *Game) drawWorld(screen *ebiten.Image) {
 	// draw dialog
 	if g.Dialog != nil {
 		g.Dialog.Draw(screen)
+	} else if g.ShowPlayerMenu {
+		g.PlayerMenu.Draw(screen)
 	}
 }
 

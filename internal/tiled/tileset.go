@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"image"
 	"image/png"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -20,11 +19,11 @@ import (
 
 var tilePath = filepath.Join(config.GameAssetsPath(), "tiles")
 
-func InitFileStructure() {
+func InitFileStructure() error {
 	if !general_util.FileExists(config.GameAssetsPath()) {
 		err := os.MkdirAll(config.GameAssetsPath(), os.ModePerm)
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("error while creating game assets path: %w", err)
 		}
 	}
 
@@ -36,9 +35,10 @@ func InitFileStructure() {
 	}
 	err := os.MkdirAll(tilePath, os.ModePerm)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("error while creating image tile path: %w", err)
 	}
 
+	return nil
 }
 
 func TilesetExists(tilesetName string) bool {
@@ -98,6 +98,11 @@ func LoadTileset(source string) (Tileset, error) {
 		Source:   source,
 	}
 	err := t.LoadJSONData("")
+
+	if !TilesetExists(t.Name) {
+		err = t.GenerateTiles()
+	}
+
 	return t, err
 }
 

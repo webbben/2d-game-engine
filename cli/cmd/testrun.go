@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"image/color"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,12 +15,12 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
-	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/model"
-	"github.com/webbben/2d-game-engine/internal/tiled"
+	"github.com/webbben/2d-game-engine/inventory"
+	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/npc"
 	"github.com/webbben/2d-game-engine/player"
-	"github.com/webbben/2d-game-engine/screen"
+	playermenu "github.com/webbben/2d-game-engine/playerMenu"
 )
 
 // testrunCmd represents the testrun command
@@ -50,17 +49,27 @@ to quickly create a Cobra application.`,
 
 		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 0, 0)
 
-		err := lights.LoadShaders()
+		err := game.InitialStartUp()
 		if err != nil {
-			log.Fatal("error loading shaders: ", err)
+			log.Fatal(err)
 		}
 
-		tiled.InitFileStructure()
-
 		// get our testrun game state
-		game := setupGameState()
+		gameState := setupGameState()
 
-		if err := game.RunGame(); err != nil {
+		LoadItems(gameState)
+
+		gameState.PlayerMenu.InventoryPage.Inventory.Items = []inventory.InventoryItem{
+			{
+				Instance: item.ItemInstance{
+					DefID:      "longsword_01",
+					Durability: 100,
+				},
+				Def: gameState.ItemDefs["longsword_01"],
+			},
+		}
+
+		if err := gameState.RunGame(); err != nil {
 			panic(err)
 		}
 		// if err := ebiten.RunGame(game); err != nil {
@@ -136,6 +145,8 @@ func setupGameState() *game.Game {
 	// add my test key bindings
 	addCustomKeyBindings(g)
 
+	g.PlayerMenu = GetPlayerMenu()
+
 	return g
 }
 
@@ -151,15 +162,38 @@ func addCustomKeyBindings(g *game.Game) {
 	})
 	g.SetGlobalKeyBinding(ebiten.KeyMinus, func(gg *game.Game) {
 		go func() {
-			fmt.Println("getting title screen")
-			s := GetTitleScreen()
-			gg.CurrentScreen = &s
+			fmt.Println("toggle player menu")
+			gg.ShowPlayerMenu = !gg.ShowPlayerMenu
+			if gg.ShowPlayerMenu {
+				gg.PlayerMenu.InventoryPage.Inventory.Load()
+			}
 		}()
 	})
 
 	g.SetGlobalKeyBinding(ebiten.KeyEscape, func(gg *game.Game) {
 		os.Exit(0)
 	})
+}
+
+func GetPlayerMenu() playermenu.PlayerMenu {
+	pm := playermenu.PlayerMenu{
+		BoxTilesetSource:      "assets/tiled/tilesets/boxes/boxes.tsj",
+		PageTabsTilesetSource: "assets/tiled/tilesets/ui-components.tsj",
+		BoxID:                 "basic_01",
+		InventoryPage: playermenu.InventoryPage{
+			Inventory: inventory.Inventory{
+				ItemSlotTilesetSource:    "assets/tiled/tilesets/ui-components.tsj",
+				SlotEnabledTileID:        0,
+				SlotDisabledTileID:       1,
+				SlotEquipedBorderTileID:  3,
+				SlotSelectedBorderTileID: 4,
+			},
+		},
+	}
+
+	pm.Load()
+
+	return pm
 }
 
 func GetDialog() dialog.Dialog {
@@ -227,27 +261,22 @@ In et aliquet orci. Curabitur pharetra sit amet felis et faucibus. Morbi vitae m
 	return d
 }
 
-func GetTitleScreen() screen.Screen {
-	s := screen.Screen{
-		Title:               "Ancient Rome!",
-		TitleFontName:       "Herculanum",
-		TitleFontColor:      color.White,
-		BodyFontName:        "Herculanum",
-		BodyFontColor:       color.White,
-		BackgroundImagePath: "image/bg/dark_cistern.png",
-	}
-
-	// add a menu
-	m := screen.Menu{
-		Buttons: []screen.Button{
-			{Text: "New Game", Callback: func() {}},
-			{Text: "Load Game", Callback: func() {}},
-			{Text: "Options", Callback: func() {}},
-			{Text: "Quit", Callback: func() { os.Exit(0) }},
+func LoadItems(g *game.Game) {
+	itemDefs := []item.ItemDef{
+		&item.WeaponDef{
+			ItemBase: item.ItemBase{
+				ID:            "longsword_01",
+				Name:          "Iron Longsword",
+				Value:         100,
+				Weight:        25,
+				MaxDurability: 250,
+				TilesetSource: "assets/tiled/tilesets/items_01.tsj",
+				TileID:        0,
+			},
+			Damage:        10,
+			HitsPerSecond: 1,
 		},
-		BoxTilesetPath: "tileset/borders/stone_1",
 	}
-	s.Menus = append(s.Menus, m)
 
-	return s
+	g.LoadItemDefs(itemDefs)
 }

@@ -79,10 +79,6 @@ func (bd *BoxDef) LoadBoxTiles(boxTilesetSource string, boxID string) {
 	if err != nil {
 		panic("failed to load box tileset: " + err.Error())
 	}
-	err = tileset.GenerateTiles()
-	if err != nil {
-		panic("failed to generate box tileset images: " + err.Error())
-	}
 
 	for _, tile := range tileset.Tiles {
 		id, found := tiled.GetStringProperty("box_id", tile.Properties)

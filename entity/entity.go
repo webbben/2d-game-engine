@@ -199,11 +199,6 @@ func (e *Entity) loadAnimationFrames() error {
 			return fmt.Errorf("error while loading tileset data: %w", err)
 		}
 
-		err = t.GenerateTiles()
-		if err != nil {
-			return fmt.Errorf("error while generating tiles: %w", err)
-		}
-
 		// find all the animation frames
 		for _, tile := range t.Tiles {
 			frames := ""

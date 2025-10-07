@@ -10,7 +10,10 @@ import (
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
+	"github.com/webbben/2d-game-engine/internal/tiled"
+	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/player"
+	playermenu "github.com/webbben/2d-game-engine/playerMenu"
 	"github.com/webbben/2d-game-engine/screen"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -18,13 +21,19 @@ import (
 
 // game state
 type Game struct {
-	MapInfo               *MapInfo
-	Player                player.Player                // the player
-	Camera                camera.Camera                // the camera/viewport
-	Dialog                *dialog.Dialog               // if set, a dialog is shown
-	GlobalKeyBindings     map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
-	activeGlobalKeyBindFn map[ebiten.Key]bool          // maps which keybinding functions are actively executing, to prevent repeated calls from long key presses.
-	GamePaused            bool                         // if true, the game is paused
+	MapInfo *MapInfo
+	Player  player.Player // the player
+	Camera  camera.Camera // the camera/viewport
+
+	Dialog         *dialog.Dialog // if set, a dialog is shown
+	PlayerMenu     playermenu.PlayerMenu
+	ShowPlayerMenu bool
+
+	GlobalKeyBindings map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
+	TestDataMap       map[string]any               // a general purpose map; used for testing in the update hook functions
+
+	activeGlobalKeyBindFn map[ebiten.Key]bool // maps which keybinding functions are actively executing, to prevent repeated calls from long key presses.
+	GamePaused            bool                // if true, the game is paused
 
 	Hour           int
 	lastHourChange time.Time
@@ -37,6 +46,29 @@ type Game struct {
 	worldScene *ebiten.Image
 
 	EventBus *pubsub.EventBus
+
+	UpdateHooks
+
+	Definitions
+}
+
+type Definitions struct {
+	ItemDefs map[string]item.ItemDef
+}
+
+type UpdateHooks struct {
+	UpdateMapHook func(*Game)
+}
+
+// run startup functions to prepare the game to play.
+// only need to call once, at the beginning.
+func InitialStartUp() error {
+	err := tiled.InitFileStructure()
+	if err != nil {
+		return err
+	}
+	err = lights.LoadShaders()
+	return err
 }
 
 func (g *Game) RunGame() error {

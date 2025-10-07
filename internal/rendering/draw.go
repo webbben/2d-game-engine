@@ -87,9 +87,9 @@ func DrawImageWithOps(screen *ebiten.Image, img *ebiten.Image, x, y, scale float
 	if op == nil {
 		op = &ebiten.DrawImageOptions{}
 	}
-	op.GeoM.Translate(x, y)
 	if scale > 0 {
 		op.GeoM.Scale(scale, scale)
 	}
+	op.GeoM.Translate(x, y)
 	screen.DrawImage(img, op)
 }

@@ -2,8 +2,10 @@ package ui
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/mouse"
+	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
 
@@ -14,6 +16,14 @@ type Tab struct {
 	ImgTileId     int // tile ID of tile in the source tileset
 	img           *ebiten.Image
 	mouseBehavior mouse.MouseBehavior
+	Active        bool // flag indicating if this tag is active or not
+}
+
+func (t Tab) Dimensions() (dx, dy int) {
+	if t.img == nil {
+		panic("image is nil")
+	}
+	return int(float64(t.img.Bounds().Dx()) * config.UIScale), int(float64(t.img.Bounds().Dy()) * config.UIScale)
 }
 
 type TabControl struct {
@@ -22,6 +32,7 @@ type TabControl struct {
 	Tabs          []Tab
 }
 
+// returns the dimensions of the entire tab control
 func (tc TabControl) Dimensions() (dx, dy int) {
 	if len(tc.Tabs) == 0 {
 		panic("no tabs in tab control")
@@ -32,7 +43,8 @@ func (tc TabControl) Dimensions() (dx, dy int) {
 	if tc.Tabs[0].img == nil {
 		panic("tab image is nil")
 	}
-	return tc.Tabs[0].img.Bounds().Dx(), tc.Tabs[0].img.Bounds().Dy()
+	tabWidth, tabHeight := tc.Tabs[0].Dimensions()
+	return tabWidth * len(tc.Tabs), tabHeight
 }
 
 func NewTabControl(sourceTileset string, tabs []Tab) TabControl {
@@ -67,7 +79,32 @@ func (tc *TabControl) Load() {
 }
 
 func (tc *TabControl) Update() {
+	tabWidth, tabHeight := tc.Tabs[0].Dimensions()
 	for i, tab := range tc.Tabs {
-		tc.Tabs[i].mouseBehavior.Update(int(tab.x), int(tab.y), tab.img.Bounds().Dx(), tab.img.Bounds().Dy(), false)
+		tc.Tabs[i].mouseBehavior.Update(int(tab.x), int(tab.y), tabWidth, tabHeight, false)
+	}
+}
+
+func (tc *TabControl) Draw(screen *ebiten.Image, drawX, drawY float64) {
+	if len(tc.Tabs) == 0 {
+		panic("tried to draw a tab control with no tabs")
+	}
+
+	tc.x = drawX
+	tc.y = drawY
+
+	tabX, tabY := drawX, drawY
+	tabWidth, _ := tc.Tabs[0].Dimensions()
+
+	for i, tab := range tc.Tabs {
+		op := ebiten.DrawImageOptions{}
+		if tab.mouseBehavior.IsHovering {
+			op.ColorScale.Scale(1.1, 1.1, 1.1, 1)
+		}
+		rendering.DrawImageWithOps(screen, tab.img, tabX, tabY, config.UIScale, &op)
+
+		tc.Tabs[i].x = tabX
+		tc.Tabs[i].y = tabY
+		tabX += float64(tabWidth)
 	}
 }
