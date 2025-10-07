@@ -70,15 +70,15 @@ func (inv *Inventory) Load() {
 			logz.Println("inventory", "item:", itemDef.GetID())
 		}
 
-		inv.itemSlots = append(inv.itemSlots, ItemSlot{
-			enabledImg:        enabledImg,
-			disabledImg:       disabledImg,
-			equipedBorderImg:  equipedBorder,
-			selectedBorderImg: selectedBorder,
-			Enabled:           i < inv.EnabledSlotsCount,
-			Item:              &itemInstance,
-			ItemInfo:          itemDef,
-		})
+		itemSlot := NewItemSlot(
+			enabledImg,
+			disabledImg,
+			equipedBorder,
+			selectedBorder,
+			i < inv.EnabledSlotsCount,
+		)
+		itemSlot.SetContent(&itemInstance, itemDef)
+		inv.itemSlots = append(inv.itemSlots, itemSlot)
 	}
 
 	inv.init = true
