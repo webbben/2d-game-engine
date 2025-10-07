@@ -37,6 +37,15 @@ func (mouseBehavior *MouseBehavior) Update(drawX, drawY int, boxWidth, boxHeight
 			mouseBehavior.RightClick.detectClick(ebiten.MouseButtonRight, mouseBehavior.RightClick)
 		}
 	}
+	// if not hovering, unset any active click states
+	if !mouseBehavior.IsHovering {
+		mouseBehavior.LeftClick.ClickHolding = false
+		mouseBehavior.LeftClick.ClickReleased = false
+		mouseBehavior.LeftClick.ClickStart = false
+		mouseBehavior.RightClick.ClickHolding = false
+		mouseBehavior.RightClick.ClickReleased = false
+		mouseBehavior.RightClick.ClickStart = false
+	}
 }
 
 func (c *ClickBehavior) detectClick(mouseButton ebiten.MouseButton, prev ClickBehavior) {
