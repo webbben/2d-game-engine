@@ -23,8 +23,9 @@ type PlayerMenu struct {
 
 	InventoryPage InventoryPage
 
-	mainContentX, mainContentY          int // start position for tab main content
-	mainContentWidth, mainContentHeight int // size of a tab main content section
+	mainContentBoxX, mainContentBoxY                int // start position for tab main content box
+	mainContentBoxWidth, mainContentBoxHeight       int // size of the tab main content box
+	mainContentActualWidth, mainContentActualHeight int // actual area main content tabs can take
 }
 
 func (pm *PlayerMenu) Load() {
@@ -81,16 +82,18 @@ func (pm *PlayerMenu) Load() {
 	pm.boxX = pm.x
 	pm.boxY = pm.y + pageTabsHeight
 
-	pm.mainContentX = pm.boxX + (tileWidth / 2) // space the inner content from the outer box by a tile
-	pm.mainContentY = pm.boxY + (tileWidth / 2)
-	pm.mainContentHeight = pm.height - (pm.mainContentY - pm.y) - tileHeight
-	pm.mainContentWidth = pm.width - tileWidth
+	pm.mainContentBoxX = pm.boxX + (tileWidth / 2) // space the inner content from the outer box by a tile
+	pm.mainContentBoxY = pm.boxY + (tileWidth / 2)
+	pm.mainContentBoxHeight = pm.height - (pm.mainContentBoxY - pm.y)
+	pm.mainContentBoxWidth = pm.width
 
 	// generate box image for main content area
-	pm.boxImage = pm.BoxDef.CreateBoxImage(pm.mainContentWidth, pm.mainContentHeight)
+	pm.boxImage = pm.BoxDef.CreateBoxImage(pm.mainContentBoxWidth, pm.mainContentBoxHeight)
 
 	// load each page
-	pm.InventoryPage.Load()
+	pm.mainContentActualWidth = pm.mainContentBoxWidth - (tileWidth)
+	pm.mainContentActualHeight = pm.mainContentBoxHeight - (tileHeight)
+	pm.InventoryPage.Load(pm.mainContentActualWidth, pm.mainContentActualHeight)
 }
 
 func (pm *PlayerMenu) Draw(screen *ebiten.Image) {
@@ -100,7 +103,7 @@ func (pm *PlayerMenu) Draw(screen *ebiten.Image) {
 	pm.pageTabs.Draw(screen, float64(pm.pageTabsX), float64(pm.pageTabsY))
 
 	// inventory page (for now, until we implement other tabs)
-	pm.InventoryPage.Draw(screen, float64(pm.mainContentX), float64(pm.mainContentY))
+	pm.InventoryPage.Draw(screen, float64(pm.mainContentBoxX), float64(pm.mainContentBoxY))
 }
 
 func (pm *PlayerMenu) Update() {

@@ -25,6 +25,11 @@ type Inventory struct {
 	Items     []InventoryItem // the items that are in this inventory
 }
 
+func (inv Inventory) Dimensions() (dx, dy int) {
+	slotWidth, slotHeight := inv.itemSlots[0].Dimensions()
+	return slotWidth * inv.ColCount, slotHeight * inv.RowCount
+}
+
 type InventoryItem struct {
 	Instance item.ItemInstance
 	Def      item.ItemDef

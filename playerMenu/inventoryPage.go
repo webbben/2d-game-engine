@@ -11,7 +11,9 @@ type InventoryPage struct {
 	width, height int
 }
 
-func (ip *InventoryPage) Load() {
+func (ip *InventoryPage) Load(pageWidth, pageHeight int) {
+	ip.width = pageWidth
+	ip.height = pageHeight
 	ip.Inventory.RowCount = 9
 	ip.Inventory.ColCount = 9
 	ip.Inventory.EnabledSlotsCount = 18
@@ -32,5 +34,8 @@ func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64) {
 		panic("inventory page not initialized")
 	}
 
-	ip.Inventory.Draw(screen, drawX, drawY)
+	// draw inventory item slots
+	inventoryWidth, _ := ip.Inventory.Dimensions()
+	inventoryDrawX := int(drawX) + ip.width - inventoryWidth
+	ip.Inventory.Draw(screen, float64(inventoryDrawX), drawY)
 }
