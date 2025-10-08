@@ -79,7 +79,15 @@ func (d *Dialog) initialize(eventBus *pubsub.EventBus) {
 
 	// setup lineWriter
 	d.TextFont.fontFace = image.LoadFont(d.TextFont.Source, 24, 72)
-	d.lineWriter = text.NewLineWriter(maxLineWidth, maxHeight, d.TextFont.fontFace, color.Black, color.RGBA{20, 20, 20, 75}, true)
+	d.lineWriter = text.NewLineWriter(
+		maxLineWidth,
+		maxHeight,
+		d.TextFont.fontFace,
+		color.Black,
+		color.RGBA{20, 20, 20, 75},
+		true,
+		false,
+	)
 
 	// set box position
 	d.x = 0

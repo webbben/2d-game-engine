@@ -189,7 +189,7 @@ func NewTextWindow(title, bodyText string, params TextWindowParams) TextWindow {
 
 	textWindow.box.BuildWindowImage(windowWidth, windowHeight)
 
-	textWindow.lineWriter = text.NewLineWriter(lineWidth, bodyTextHeight+tileSize, params.BodyFont, nil, nil, true)
+	textWindow.lineWriter = text.NewLineWriter(lineWidth, bodyTextHeight+tileSize, params.BodyFont, nil, nil, true, true)
 
 	textWindow.lineWriter.SetSourceText(bodyText)
 

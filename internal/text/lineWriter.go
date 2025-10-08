@@ -39,12 +39,13 @@ type LineWriter struct {
 	currentLineIndex  int              // the index of the current line we are writing
 	writtenLines      []string         // the "output" that is actually drawn
 	WritingStatus     LineWriterStatus // the current status of the lineWriter, regarding the text it is writing
+	writeImmediately  bool
 }
 
 // Creates a new LineWriter.
 // fg and bg colors can be left nil, in which case they assume the normal defaults (fg = black, bg = gray).
 // set useShadow to true if you want the shadow effect to be used when drawing text.
-func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color, useShadow bool) LineWriter {
+func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color, useShadow bool, writeImmediately bool) LineWriter {
 	minWidth, minHeight, _ := GetStringSize("ABC!/|", f)
 	if lineWidthPx < minWidth {
 		panic(fmt.Sprintf("lineWriter lineWidthPx must not be too small to draw text. minWidth determined by font: %v px", minWidth))
@@ -54,14 +55,15 @@ func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color
 	}
 
 	lw := LineWriter{
-		WritingStatus: LW_AWAIT_TEXT,
-		init:          true,
-		maxLineWidth:  lineWidthPx,
-		maxHeight:     maxHeightPx,
-		fontFace:      f,
-		fgColor:       fg,
-		bgColor:       bg,
-		shadow:        useShadow,
+		WritingStatus:    LW_AWAIT_TEXT,
+		init:             true,
+		maxLineWidth:     lineWidthPx,
+		maxHeight:        maxHeightPx,
+		fontFace:         f,
+		fgColor:          fg,
+		bgColor:          bg,
+		shadow:           useShadow,
+		writeImmediately: writeImmediately,
 	}
 
 	// prepare lines to write
@@ -176,6 +178,9 @@ func (lw *LineWriter) Update() {
 		}
 		if lw.currentPage > len(lw.pages)-1 {
 			panic("current page index is too big!")
+		}
+		if lw.writeImmediately {
+			lw.FastForward()
 		}
 		currentPage := lw.pages[lw.currentPage]
 		if lw.currentLineNumber < len(currentPage) {
