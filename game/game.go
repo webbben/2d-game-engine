@@ -23,8 +23,8 @@ import (
 // game state
 type Game struct {
 	MapInfo *MapInfo
-	Player  player.Player // the player
-	Camera  camera.Camera // the camera/viewport
+	Player  *player.Player // the player
+	Camera  camera.Camera  // the camera/viewport
 
 	Dialog         *dialog.Dialog // if set, a dialog is shown
 	PlayerMenu     playermenu.PlayerMenu

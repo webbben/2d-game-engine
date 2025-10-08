@@ -43,3 +43,21 @@ func CreateImageFromParts(imageParts []ImagePart, widthPx, heightPx int) (*ebite
 
 	return bg, nil
 }
+
+// draws an entity's avatar box
+// (used to look at entity in a closer look, such as the inventory or character creation)
+func (e *Entity) DrawAvatarBox(widthPx, heightPx int) *ebiten.Image {
+	frameToDraw := e.getAnimationFrame("down_idle", 0)
+
+	baseImg := ebiten.NewImage(widthPx, heightPx)
+
+	// determine amount to scale up the entity image
+	factorX := float64(widthPx) / float64(frameToDraw.Bounds().Dx())
+	factorY := float64(heightPx) / float64(frameToDraw.Bounds().Dy())
+
+	op := ebiten.DrawImageOptions{}
+	op.GeoM.Scale(factorX, factorY)
+	baseImg.DrawImage(frameToDraw, &op)
+
+	return baseImg
+}

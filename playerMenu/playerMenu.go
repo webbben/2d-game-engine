@@ -6,12 +6,15 @@ import (
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/ui"
+	"github.com/webbben/2d-game-engine/player"
 )
 
 type PlayerMenu struct {
 	init          bool
 	x, y          int
 	width, height int
+
+	playerRef *player.Player
 
 	ui.BoxDef
 	BoxTilesetSource string
@@ -30,13 +33,17 @@ type PlayerMenu struct {
 	mainContentActualWidth, mainContentActualHeight int // actual area main content tabs can take
 }
 
-func (pm *PlayerMenu) Load() {
+func (pm *PlayerMenu) Load(playerRef *player.Player) {
 	if pm.BoxTilesetSource == "" {
 		panic("no box tileset source set")
 	}
 	if pm.PageTabsTilesetSource == "" {
 		panic("no page tabs tileset source set")
 	}
+	if playerRef == nil {
+		panic("player ref is nil")
+	}
+	pm.playerRef = playerRef
 
 	pm.BoxDef = ui.NewBox(pm.BoxTilesetSource, pm.BoxOriginIndex)
 	tileSize := pm.BoxDef.TileSize()
@@ -93,7 +100,7 @@ func (pm *PlayerMenu) Load() {
 	// load each page
 	pm.mainContentActualWidth = pm.mainContentBoxWidth - (tileSize)
 	pm.mainContentActualHeight = pm.mainContentBoxHeight - (tileSize)
-	pm.InventoryPage.Load(pm.mainContentActualWidth, pm.mainContentActualHeight)
+	pm.InventoryPage.Load(pm.mainContentActualWidth, pm.mainContentActualHeight, pm.playerRef)
 
 	pm.init = true
 }

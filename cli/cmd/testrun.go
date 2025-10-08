@@ -142,12 +142,12 @@ func setupGameState() *game.Game {
 	}
 
 	// setup the game struct
-	g.Player = p
+	g.Player = &p
 
 	// add my test key bindings
 	addCustomKeyBindings(g)
 
-	g.PlayerMenu = GetPlayerMenu()
+	g.PlayerMenu = GetPlayerMenu(g.Player)
 
 	return g
 }
@@ -178,7 +178,7 @@ func addCustomKeyBindings(g *game.Game) {
 	})
 }
 
-func GetPlayerMenu() playermenu.PlayerMenu {
+func GetPlayerMenu(p *player.Player) playermenu.PlayerMenu {
 	pm := playermenu.PlayerMenu{
 		BoxTilesetSource:      "assets/tiled/tilesets/boxes/boxes.tsj",
 		PageTabsTilesetSource: "assets/tiled/tilesets/ui-components.tsj",
@@ -198,7 +198,7 @@ func GetPlayerMenu() playermenu.PlayerMenu {
 		},
 	}
 
-	pm.Load()
+	pm.Load(p)
 
 	return pm
 }

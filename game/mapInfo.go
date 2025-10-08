@@ -57,7 +57,7 @@ func (g *Game) EnterMap(mapID string, op *OpenMapOptions, playerSpawnIndex int) 
 		return err
 	}
 
-	return g.PlacePlayerAtSpawnPoint(&g.Player, playerSpawnIndex)
+	return g.PlacePlayerAtSpawnPoint(g.Player, playerSpawnIndex)
 }
 
 // prepare the MapInfo for in-game play
