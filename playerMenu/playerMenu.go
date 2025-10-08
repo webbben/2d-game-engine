@@ -56,6 +56,7 @@ func (pm *PlayerMenu) Load() {
 		{
 			ImgTileId:   64,
 			DisplayName: "Inventory",
+			Active:      true, // start with inventory as active
 		},
 		{
 			ImgTileId:   65,

@@ -82,6 +82,9 @@ func (tc *TabControl) Update() {
 	tabWidth, tabHeight := tc.Tabs[0].Dimensions()
 	for i, tab := range tc.Tabs {
 		tc.Tabs[i].mouseBehavior.Update(int(tab.x), int(tab.y), tabWidth, tabHeight, false)
+		if tc.Tabs[i].mouseBehavior.LeftClick.ClickReleased {
+			tc.ActivateTab(i)
+		}
 	}
 }
 
@@ -97,14 +100,32 @@ func (tc *TabControl) Draw(screen *ebiten.Image, drawX, drawY float64) {
 	tabWidth, _ := tc.Tabs[0].Dimensions()
 
 	for i, tab := range tc.Tabs {
+		tc.Tabs[i].x = tabX
+		tc.Tabs[i].y = tabY
+		if tab.Active {
+			tc.Tabs[i].y += 4 * config.UIScale // lower the tab that is currently active
+		}
+
 		op := ebiten.DrawImageOptions{}
 		if tab.mouseBehavior.IsHovering {
 			op.ColorScale.Scale(1.1, 1.1, 1.1, 1)
 		}
-		rendering.DrawImageWithOps(screen, tab.img, tabX, tabY, config.UIScale, &op)
+		rendering.DrawImageWithOps(screen, tab.img, tc.Tabs[i].x, tc.Tabs[i].y, config.UIScale, &op)
 
-		tc.Tabs[i].x = tabX
-		tc.Tabs[i].y = tabY
 		tabX += float64(tabWidth)
+	}
+}
+
+func (tc *TabControl) ActivateTab(tabIndex int) {
+	if tc.Tabs[tabIndex].Active {
+		return
+	}
+	for i, tab := range tc.Tabs {
+		if tab.Active {
+			tc.Tabs[i].Active = false
+		}
+		if i == tabIndex {
+			tc.Tabs[i].Active = true
+		}
 	}
 }
