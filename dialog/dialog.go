@@ -25,7 +25,7 @@ type Dialog struct {
 	EntID                string
 	ui.BoxDef                   // definition of the tiles that build this box
 	BoxTilesetSource     string // path to the tileset for the dialog box tiles
-	BoxTilesetID         string // ID of the box to use (from the given tileset). property name is "box_id"
+	BoxOriginTileIndex   int    // index of top left tile for this box in the tileset
 	TextFont             Font
 	init                 bool // flag to indicate if this Dialog's data has been loaded and is ready to render
 	Exit                 bool // flag to indicate dialog has exited. cuts off dialog updates and draws.
@@ -70,7 +70,7 @@ func (d *Dialog) initialize(eventBus *pubsub.EventBus) {
 	})
 
 	// get box tiles
-	d.BoxDef.LoadBoxTiles(d.BoxTilesetSource, d.BoxTilesetID)
+	d.BoxDef = ui.NewBox(d.BoxTilesetSource, d.BoxOriginTileIndex)
 
 	// build box image
 	d.buildBoxImage()
@@ -158,28 +158,26 @@ func ConvertStringToLines(s string, f font.Face, lineWidthPx int) []string {
 }
 
 func (d *Dialog) buildBoxImage() {
-	// verify box tile images
-	d.BoxDef.VerifyImages()
 	// determine box size
-	tileWidth, tileHeight := d.BoxDef.TileDimensions()
+	tileSize := d.BoxDef.TileSize()
 	d.width = display.SCREEN_WIDTH
-	d.width -= d.width % tileWidth // round it to the size of the box tile
+	d.width -= d.width % tileSize // round it to the size of the box tile
 
 	if d.TopicsEnabled {
 		// using config tilesize instead of box tilesize since box tilesize is scaled by UI scale
 		d.topicBoxWidth = config.TileSize * 17
-		d.topicBoxWidth -= d.topicBoxWidth % tileWidth
+		d.topicBoxWidth -= d.topicBoxWidth % tileSize
 		// fit the topic box into the main box width calculation
 		d.width = display.SCREEN_WIDTH - d.topicBoxWidth
-		d.width -= d.width % tileWidth
+		d.width -= d.width % tileSize
 		// set height to allow space for a character portrait
 		d.topicBoxHeight = display.SCREEN_HEIGHT / 4 * 3 // 3/4 of the screen height
-		d.topicBoxHeight -= d.topicBoxHeight % tileHeight
+		d.topicBoxHeight -= d.topicBoxHeight % tileSize
 	}
 
 	d.height = display.SCREEN_HEIGHT / 4
-	d.height -= d.height % tileHeight
+	d.height -= d.height % tileSize
 
-	d.boxImage = d.BoxDef.CreateBoxImage(d.width, d.height)
-	d.topicBoxImage = d.BoxDef.CreateBoxImage(d.topicBoxWidth, d.topicBoxHeight)
+	d.boxImage = d.BoxDef.BuildBoxImage(d.width, d.height)
+	d.topicBoxImage = d.BoxDef.BuildBoxImage(d.topicBoxWidth, d.topicBoxHeight)
 }

@@ -15,7 +15,7 @@ type PlayerMenu struct {
 
 	ui.BoxDef
 	BoxTilesetSource string
-	BoxID            string // ID of box used from box tileset (box_id=)
+	BoxOriginIndex   int // index of the top left tile of this box in the tileset
 	boxImage         *ebiten.Image
 	boxX, boxY       int // position of the entire box containing the page content
 
@@ -34,21 +34,18 @@ func (pm *PlayerMenu) Load() {
 	if pm.BoxTilesetSource == "" {
 		panic("no box tileset source set")
 	}
-	if pm.BoxID == "" {
-		panic("no box ID set")
-	}
 	if pm.PageTabsTilesetSource == "" {
 		panic("no page tabs tileset source set")
 	}
 
-	pm.BoxDef.LoadBoxTiles(pm.BoxTilesetSource, pm.BoxID)
-	tileWidth, tileHeight := pm.BoxDef.TileDimensions()
+	pm.BoxDef = ui.NewBox(pm.BoxTilesetSource, pm.BoxOriginIndex)
+	tileSize := pm.BoxDef.TileSize()
 
 	// determine full size of player menu
 	pm.width = display.SCREEN_WIDTH * 2 / 3
-	pm.width -= pm.width % tileWidth // round it to the size of the box tile
+	pm.width -= pm.width % tileSize // round it to the size of the box tile
 	pm.height = display.SCREEN_HEIGHT * 2 / 3
-	pm.height -= pm.height % tileHeight
+	pm.height -= pm.height % tileSize
 
 	// center the page on the screen
 	pm.x = (display.SCREEN_WIDTH - pm.width) / 2
@@ -75,7 +72,7 @@ func (pm *PlayerMenu) Load() {
 	})
 	pm.pageTabs.Load()
 
-	pm.pageTabsX = pm.x + tileWidth
+	pm.pageTabsX = pm.x + tileSize
 	pm.pageTabsY = pm.y
 
 	// get size of main content box
@@ -84,17 +81,17 @@ func (pm *PlayerMenu) Load() {
 	pm.boxX = pm.x
 	pm.boxY = pm.y + pageTabsHeight
 
-	pm.mainContentBoxX = pm.boxX + (tileWidth / 2) // space the inner content from the outer box by a tile
-	pm.mainContentBoxY = pm.boxY + (tileWidth / 2)
+	pm.mainContentBoxX = pm.boxX + (tileSize / 2) // space the inner content from the outer box by a tile
+	pm.mainContentBoxY = pm.boxY + (tileSize / 2)
 	pm.mainContentBoxHeight = pm.height - (pm.mainContentBoxY - pm.y)
 	pm.mainContentBoxWidth = pm.width
 
 	// generate box image for main content area
-	pm.boxImage = pm.BoxDef.CreateBoxImage(pm.mainContentBoxWidth, pm.mainContentBoxHeight)
+	pm.boxImage = pm.BoxDef.BuildBoxImage(pm.mainContentBoxWidth, pm.mainContentBoxHeight)
 
 	// load each page
-	pm.mainContentActualWidth = pm.mainContentBoxWidth - (tileWidth)
-	pm.mainContentActualHeight = pm.mainContentBoxHeight - (tileHeight)
+	pm.mainContentActualWidth = pm.mainContentBoxWidth - (tileSize)
+	pm.mainContentActualHeight = pm.mainContentBoxHeight - (tileSize)
 	pm.InventoryPage.Load(pm.mainContentActualWidth, pm.mainContentActualHeight)
 
 	pm.init = true

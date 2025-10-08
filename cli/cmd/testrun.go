@@ -182,7 +182,7 @@ func GetPlayerMenu() playermenu.PlayerMenu {
 	pm := playermenu.PlayerMenu{
 		BoxTilesetSource:      "assets/tiled/tilesets/boxes/boxes.tsj",
 		PageTabsTilesetSource: "assets/tiled/tilesets/ui-components.tsj",
-		BoxID:                 "basic_01",
+		BoxOriginIndex:        16,
 		InventoryPage: playermenu.InventoryPage{
 			PlayerInventory: inventory.Inventory{
 				ItemSlotTilesetSource:    "assets/tiled/tilesets/ui-components.tsj",
@@ -205,8 +205,8 @@ func GetPlayerMenu() playermenu.PlayerMenu {
 
 func GetDialog() dialog.Dialog {
 	d := dialog.Dialog{
-		BoxTilesetSource: "assets/tiled/tilesets/boxes/boxes.tsj",
-		BoxTilesetID:     "basic_01",
+		BoxTilesetSource:   "assets/tiled/tilesets/boxes/boxes.tsj",
+		BoxOriginTileIndex: 16,
 		TextFont: dialog.Font{
 			Source: "assets/fonts/ashlander-pixel.ttf",
 		},
