@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/lights"
+	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/item"
@@ -47,6 +48,8 @@ type Game struct {
 
 	EventBus *pubsub.EventBus
 
+	OverlayManager *overlay.OverlayManager
+
 	UpdateHooks
 
 	Definitions
@@ -81,6 +84,7 @@ func NewGame(hour int) *Game {
 		lastHourChange: time.Now(),
 		daylightFader:  lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20),
 		EventBus:       pubsub.NewEventBus(),
+		OverlayManager: &overlay.OverlayManager{},
 	}
 
 	g.SetHour(hour, true)

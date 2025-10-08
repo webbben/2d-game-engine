@@ -16,6 +16,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/npc"
@@ -48,6 +49,7 @@ to quickly create a Cobra application.`,
 		config.MapPathOverride = "/Users/benwebb/dev/personal/2d-game-engine/assets/tiled/maps"
 
 		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 0, 0)
+		config.DefaultTitleFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 25, 0)
 
 		err := game.InitialStartUp()
 		if err != nil {
@@ -59,7 +61,7 @@ to quickly create a Cobra application.`,
 
 		LoadItems(gameState)
 
-		gameState.PlayerMenu.InventoryPage.Inventory.Items = []inventory.InventoryItem{
+		gameState.PlayerMenu.InventoryPage.PlayerInventory.Items = []inventory.InventoryItem{
 			{
 				Instance: item.ItemInstance{
 					DefID:      "longsword_01",
@@ -163,10 +165,11 @@ func addCustomKeyBindings(g *game.Game) {
 	g.SetGlobalKeyBinding(ebiten.KeyMinus, func(gg *game.Game) {
 		go func() {
 			fmt.Println("toggle player menu")
-			gg.ShowPlayerMenu = !gg.ShowPlayerMenu
-			if gg.ShowPlayerMenu {
-				gg.PlayerMenu.InventoryPage.Inventory.Load()
+			showPlayerMenu := !gg.ShowPlayerMenu
+			if showPlayerMenu {
+				gg.PlayerMenu.InventoryPage.PlayerInventory.Load()
 			}
+			gg.ShowPlayerMenu = showPlayerMenu
 		}()
 	})
 
@@ -181,12 +184,16 @@ func GetPlayerMenu() playermenu.PlayerMenu {
 		PageTabsTilesetSource: "assets/tiled/tilesets/ui-components.tsj",
 		BoxID:                 "basic_01",
 		InventoryPage: playermenu.InventoryPage{
-			Inventory: inventory.Inventory{
+			PlayerInventory: inventory.Inventory{
 				ItemSlotTilesetSource:    "assets/tiled/tilesets/ui-components.tsj",
 				SlotEnabledTileID:        0,
 				SlotDisabledTileID:       1,
 				SlotEquipedBorderTileID:  3,
 				SlotSelectedBorderTileID: 4,
+				HoverWindowParams: ui.TextWindowParams{
+					TilesetSource:   "assets/tiled/tilesets/boxes/boxes.tsj",
+					OriginTileIndex: 20,
+				},
 			},
 		},
 	}
@@ -267,6 +274,7 @@ func LoadItems(g *game.Game) {
 			ItemBase: item.ItemBase{
 				ID:            "longsword_01",
 				Name:          "Iron Longsword",
+				Description:   "An iron longsword forged by blacksmiths in Gaul.",
 				Value:         100,
 				Weight:        25,
 				MaxDurability: 250,

@@ -3,11 +3,13 @@ package playermenu
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/ui"
 )
 
 type PlayerMenu struct {
+	init          bool
 	x, y          int
 	width, height int
 
@@ -94,16 +96,21 @@ func (pm *PlayerMenu) Load() {
 	pm.mainContentActualWidth = pm.mainContentBoxWidth - (tileWidth)
 	pm.mainContentActualHeight = pm.mainContentBoxHeight - (tileHeight)
 	pm.InventoryPage.Load(pm.mainContentActualWidth, pm.mainContentActualHeight)
+
+	pm.init = true
 }
 
-func (pm *PlayerMenu) Draw(screen *ebiten.Image) {
+func (pm *PlayerMenu) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
+	if !pm.init {
+		panic("player menu drawing before being initialized")
+	}
 	// menu box
 	rendering.DrawImage(screen, pm.boxImage, float64(pm.boxX), float64(pm.boxY), 0)
 	// top level menu tabs
 	pm.pageTabs.Draw(screen, float64(pm.pageTabsX), float64(pm.pageTabsY))
 
 	// inventory page (for now, until we implement other tabs)
-	pm.InventoryPage.Draw(screen, float64(pm.mainContentBoxX), float64(pm.mainContentBoxY))
+	pm.InventoryPage.Draw(screen, float64(pm.mainContentBoxX), float64(pm.mainContentBoxY), om)
 }
 
 func (pm *PlayerMenu) Update() {

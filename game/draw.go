@@ -4,6 +4,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/lights"
+	"github.com/webbben/2d-game-engine/internal/overlay"
 )
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -21,7 +22,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	g.drawWorld(screen)
+	g.drawWorld(screen, g.OverlayManager)
+
+	g.OverlayManager.Draw(screen)
 
 	// show game debug info, including this scale info
 	if config.ShowGameDebugInfo {
@@ -29,7 +32,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 }
 
-func (g *Game) drawWorld(screen *ebiten.Image) {
+func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {
 	g.worldScene.Clear()
 	g.drawWorldScene(g.worldScene)
 
@@ -40,7 +43,7 @@ func (g *Game) drawWorld(screen *ebiten.Image) {
 	if g.Dialog != nil {
 		g.Dialog.Draw(screen)
 	} else if g.ShowPlayerMenu {
-		g.PlayerMenu.Draw(screen)
+		g.PlayerMenu.Draw(screen, om)
 	}
 }
 

@@ -9,11 +9,12 @@ import (
 )
 
 type ItemDef interface {
-	GetID() string         // the internal ID of this item.
-	GetName() string       // the display name of this item.
-	GetValue() int         // the full value of this item, if it were sold at maximum price.
-	GetWeight() float64    // the weight of this item, which factors into the player's inventory weight.
-	GetMaxDurability() int // the full durability of this item. a higher value means it takes longer to break.
+	GetID() string          // the internal ID of this item.
+	GetName() string        // the display name of this item.
+	GetDescription() string // the description of the item
+	GetValue() int          // the full value of this item, if it were sold at maximum price.
+	GetWeight() float64     // the weight of this item, which factors into the player's inventory weight.
+	GetMaxDurability() int  // the full durability of this item. a higher value means it takes longer to break.
 
 	GetTileImg() *ebiten.Image // gets the "tile image", i.e. the image used in places like the inventory slots
 
@@ -26,6 +27,7 @@ type ItemBase struct {
 	init          bool // flag to indicate if item has been loaded yet
 	ID            string
 	Name          string
+	Description   string
 	Value         int
 	Weight        float64
 	MaxDurability int
@@ -40,6 +42,9 @@ func (ib ItemBase) GetID() string {
 }
 func (ib ItemBase) GetName() string {
 	return ib.Name
+}
+func (ib ItemBase) GetDescription() string {
+	return ib.Description
 }
 func (ib ItemBase) GetValue() int {
 	return ib.Value

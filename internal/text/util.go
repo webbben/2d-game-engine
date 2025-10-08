@@ -54,6 +54,19 @@ func ConvertStringToLines(s string, f font.Face, lineWidthPx int) []string {
 	return lines
 }
 
+// returns the height of a body of text, when split according to the given lineWidth
+func GetStringLinesHeight(s string, f font.Face, lineWidthPx int) int {
+	lines := ConvertStringToLines(s, f, lineWidthPx)
+	height := 0
+
+	for _, line := range lines {
+		_, dy, _ := GetStringSize(line, f)
+		height += dy
+	}
+
+	return height
+}
+
 func GetStringSize(s string, f font.Face) (dx int, dy int, baseline int) {
 	bounds, advance := font.BoundString(f, s)
 	return advance.Round(), (bounds.Max.Y - bounds.Min.Y).Round(), -bounds.Min.Y.Round()

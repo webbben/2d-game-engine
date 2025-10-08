@@ -3,7 +3,9 @@ package inventory
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/tiled"
+	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/item"
 )
 
@@ -17,6 +19,8 @@ type Inventory struct {
 	SlotEquipedBorderTileID  int    // tile id for the image of the border that signifies the slot is equiped
 	SlotSelectedBorderTileID int    // tile id for the image of the border that signifies the slot is selected
 
+	HoverWindowParams ui.TextWindowParams
+
 	RowCount          int // number of rows of item slots
 	ColCount          int // number of columns of item slots
 	EnabledSlotsCount int // number of item slots that are enabled
@@ -26,6 +30,12 @@ type Inventory struct {
 }
 
 func (inv Inventory) Dimensions() (dx, dy int) {
+	if !inv.init {
+		panic("getting dimensions of inventory before initializing")
+	}
+	if len(inv.itemSlots) == 0 {
+		panic("no item slots in inventory when getting inventory dimensions. did something load out or order?")
+	}
 	slotWidth, slotHeight := inv.itemSlots[0].Dimensions()
 	return slotWidth * inv.ColCount, slotHeight * inv.RowCount
 }
@@ -41,6 +51,9 @@ func (inv *Inventory) Load() {
 	}
 	if inv.RowCount == 0 || inv.ColCount == 0 {
 		panic("row count or column count is 0")
+	}
+	if inv.HoverWindowParams.TilesetSource == "" {
+		panic("hover window params: tileset source is empty")
 	}
 
 	ts, err := tiled.LoadTileset(inv.ItemSlotTilesetSource)
@@ -75,23 +88,34 @@ func (inv *Inventory) Load() {
 			logz.Println("inventory", "item:", itemDef.GetID())
 		}
 
-		itemSlot := NewItemSlot(
-			enabledImg,
-			disabledImg,
-			equipedBorder,
-			selectedBorder,
-			i < inv.EnabledSlotsCount,
-		)
-		itemSlot.SetContent(&itemInstance, itemDef)
+		itemSlot := NewItemSlot(ItemSlotParams{
+			EnabledImage:   enabledImg,
+			DisabledImage:  disabledImg,
+			EquipedBorder:  equipedBorder,
+			SelectedBorder: selectedBorder,
+			Enabled:        i < inv.EnabledSlotsCount,
+		}, inv.HoverWindowParams)
+
+		if itemDef != nil {
+			itemSlot.SetContent(&itemInstance, itemDef)
+		}
+
 		inv.itemSlots = append(inv.itemSlots, itemSlot)
+	}
+
+	if len(inv.itemSlots) == 0 {
+		panic("inventory has no item slots?")
 	}
 
 	inv.init = true
 }
 
-func (inv *Inventory) Draw(screen *ebiten.Image, drawX, drawY float64) {
+func (inv *Inventory) Draw(screen *ebiten.Image, drawX, drawY float64, om *overlay.OverlayManager) {
 	if !inv.init {
 		panic("inventory not initialized before drawing")
+	}
+	if len(inv.itemSlots) == 0 {
+		panic("inventory has no item slots")
 	}
 
 	inv.x = int(drawX)
@@ -104,11 +128,14 @@ func (inv *Inventory) Draw(screen *ebiten.Image, drawX, drawY float64) {
 		col := i % inv.ColCount
 		x := inv.x + (slotWidth * col)
 		y := inv.y + (slotHeight * row)
-		inv.itemSlots[i].Draw(screen, float64(x), float64(y))
+		inv.itemSlots[i].Draw(screen, float64(x), float64(y), om)
 	}
 }
 
 func (inv *Inventory) Update() {
+	if !inv.init {
+		panic("inventory not initialized before update called")
+	}
 	for i := range inv.itemSlots {
 		inv.itemSlots[i].Update()
 	}

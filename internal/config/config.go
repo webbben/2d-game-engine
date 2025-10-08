@@ -35,7 +35,8 @@ var (
 
 	HourSpeed time.Duration = time.Minute // how long it takes for an hour to pass in game
 
-	DefaultFont font.Face // must be set by game
+	DefaultFont      font.Face // default font for most body text (e.g. item info tooltips); must be set by game
+	DefaultTitleFont font.Face // default font for titles of text areas (e.g. item info tooltips); must be set by game
 
 	MapPathOverride string = "" // set this if you have a custom directory where maps are stored
 )
