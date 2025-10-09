@@ -2,10 +2,12 @@ package playermenu
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/ui"
+	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/player"
 )
 
@@ -33,7 +35,7 @@ type PlayerMenu struct {
 	mainContentActualWidth, mainContentActualHeight int // actual area main content tabs can take
 }
 
-func (pm *PlayerMenu) Load(playerRef *player.Player) {
+func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
 	if pm.BoxTilesetSource == "" {
 		panic("no box tileset source set")
 	}
@@ -67,7 +69,7 @@ func (pm *PlayerMenu) Load(playerRef *player.Player) {
 		},
 		{
 			ImgTileId:   65,
-			DisplayName: "Map",
+			DisplayName: "Levels",
 		},
 		{
 			ImgTileId:   66,
@@ -75,7 +77,11 @@ func (pm *PlayerMenu) Load(playerRef *player.Player) {
 		},
 		{
 			ImgTileId:   67,
-			DisplayName: "Statistics",
+			DisplayName: "Quests",
+		},
+		{
+			ImgTileId:   68,
+			DisplayName: "Misc Stats",
 		},
 	})
 	pm.pageTabs.Load()
@@ -100,7 +106,7 @@ func (pm *PlayerMenu) Load(playerRef *player.Player) {
 	// load each page
 	pm.mainContentActualWidth = pm.mainContentBoxWidth - (tileSize)
 	pm.mainContentActualHeight = pm.mainContentBoxHeight - (tileSize)
-	pm.InventoryPage.Load(pm.mainContentActualWidth, pm.mainContentActualHeight, pm.playerRef)
+	pm.InventoryPage.Load(pm.mainContentActualWidth, pm.mainContentActualHeight, pm.playerRef, defMgr, inventoryParams)
 
 	pm.init = true
 }

@@ -18,7 +18,27 @@ type ItemDef interface {
 
 	GetTileImg() *ebiten.Image // gets the "tile image", i.e. the image used in places like the inventory slots
 
+	// if true, item can be grouped together with other same items in inventories
+	// this tends to be true for items that don't have durability, like potions or arrows, but not for weapons and armor.
+	IsGroupable() bool
+	// if true, this item is treated as an equipable weapon that is held
+	IsWeapon() bool
+	// if true, this item is treated as an equipable piece of armor that is worn
+	IsArmor() bool
+	// if true, this item is treated as an equipable accessory (amulet, ring, etc) that is worn
+	IsAccessory() bool
+	// if true, this item is treated as an equipable ammunition type (arrows, etc)
+	IsAmmunition() bool
+	// if true, this item is treated as an item that can be consumed (food, potions, etc)
+	IsConsumable() bool
+	// if true, this item has no specific use or utility; it just exists in your inventory and may have value or weight
+	IsMiscItem() bool
+	// determines if this item can be equiped
+	IsEquipable() bool
+
 	Load() // load things like images
+
+	Validate() // checks if item def is properly defined
 }
 
 // includes the basic functions required for an item to implement the ItemDef interface.
@@ -31,10 +51,64 @@ type ItemBase struct {
 	Value         int
 	Weight        float64
 	MaxDurability int
+	Groupable     bool
+
+	Weapon     bool
+	Armor      bool
+	Accessory  bool
+	Ammunition bool
+	Consumable bool
+	MiscItem   bool
 
 	TilesetSource string
 	TileID        int
 	TileImg       *ebiten.Image
+}
+
+func (ib ItemBase) Validate() {
+	if ib.Value < 0 {
+		panic("value < 0")
+	}
+	if ib.Name == "" {
+		panic("item has no name")
+	}
+	if ib.ID == "" {
+		panic("item has no ID")
+	}
+	if ib.Description == "" {
+		panic("item has no description")
+	}
+	i := 0
+	if ib.Weapon {
+		i++
+	}
+	if ib.Armor {
+		i++
+	}
+	if ib.Accessory {
+		i++
+	}
+	if ib.Ammunition {
+		i++
+	}
+	if ib.Consumable {
+		i++
+	}
+	if ib.MiscItem {
+		i++
+	}
+	if i == 0 {
+		panic("item has no designated type")
+	}
+	if i > 1 {
+		panic("item has more than one designated type")
+	}
+	if ib.TilesetSource == "" {
+		panic("item has no tileset source")
+	}
+	if ib.MaxDurability != 0 && ib.Groupable {
+		panic("items with durability cannot be groupable")
+	}
 }
 
 func (ib ItemBase) GetID() string {
@@ -57,6 +131,30 @@ func (ib ItemBase) GetMaxDurability() int {
 }
 func (ib ItemBase) GetTileImg() *ebiten.Image {
 	return ib.TileImg
+}
+func (ib ItemBase) IsGroupable() bool {
+	return ib.Groupable
+}
+func (ib ItemBase) IsWeapon() bool {
+	return ib.Weapon
+}
+func (ib ItemBase) IsArmor() bool {
+	return ib.Armor
+}
+func (ib ItemBase) IsAccessory() bool {
+	return ib.Accessory
+}
+func (ib ItemBase) IsAmmunition() bool {
+	return ib.Ammunition
+}
+func (ib ItemBase) IsConsumable() bool {
+	return ib.Consumable
+}
+func (ib ItemBase) IsMiscItem() bool {
+	return ib.MiscItem
+}
+func (ib ItemBase) IsEquipable() bool {
+	return ib.Armor || ib.Weapon || ib.Accessory || ib.Ammunition
 }
 
 func (ib *ItemBase) Load() {

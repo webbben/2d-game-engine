@@ -1,11 +1,15 @@
 package inventory
 
 import (
+	"fmt"
+	"image/color"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/item"
 )
@@ -24,8 +28,9 @@ type ItemSlot struct {
 
 	selectedBorderFader rendering.BounceFader
 
-	Item     *item.ItemInstance // the actual item in the slot
-	ItemInfo item.ItemDef       // the general item information (value, weight, etc)
+	Item         *item.ItemInstance // the actual item in the slot
+	ItemInfo     item.ItemDef       // the general item information (value, weight, etc)
+	ItemQuantity int                // number of this item that is in the item slot (if item is group-able)
 
 	Enabled    bool
 	IsSelected bool
@@ -67,19 +72,32 @@ func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) I
 	}
 }
 
-func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.ItemDef) {
+func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.ItemDef, quantity int) {
 	if itemInfo == nil {
 		panic("item info is nil")
 	}
 	if itemInstance == nil {
 		panic("item instance is nil")
 	}
+	if quantity <= 0 {
+		panic("quantity is an invalid value. must be 1 or greater.")
+	}
+	if quantity > 1 && !itemInfo.IsGroupable() {
+		panic("tried to add multiple of a non-groupable item to an item slot")
+	}
 	is.Item = itemInstance
 	is.ItemInfo = itemInfo
+	is.ItemQuantity = quantity
 
 	// when an item is set, calculate the hover window
 	// we have to do this on setting the item, since the text content may determine the actual size of the hover window.
 	is.hoverWindow = ui.NewHoverWindow(itemInfo.GetName(), itemInfo.GetDescription(), is.hoverWindowParams)
+}
+
+func (is *ItemSlot) Clear() {
+	is.Item = nil
+	is.ItemInfo = nil
+	is.ItemQuantity = 0
 }
 
 func (is ItemSlot) Dimensions() (dx, dy int) {
@@ -92,6 +110,8 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 	}
 	is.x = int(x)
 	is.y = int(y)
+
+	slotSize, _ := is.Dimensions()
 
 	drawImg := is.enabledImg
 	if !is.Enabled {
@@ -108,6 +128,14 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 			rendering.DrawImage(screen, is.equipedBorderImg, x, y, config.UIScale)
 		}
 		rendering.DrawImage(screen, is.ItemInfo.GetTileImg(), x, y, config.UIScale)
+		// draw quantity if applicable
+		if is.ItemQuantity > 1 {
+			qS := fmt.Sprintf("%v", is.ItemQuantity)
+			qDx, _, _ := text.GetStringSize(qS, config.DefaultFont)
+			qX := is.x + slotSize - qDx - 3
+			qY := is.y + (slotSize) - 5
+			text.DrawShadowText(screen, fmt.Sprintf("%v", is.ItemQuantity), config.DefaultTitleFont, qX, qY, color.Black, color.White, 0, 0)
+		}
 		if is.IsSelected {
 			ops := ebiten.DrawImageOptions{}
 			ops.ColorScale.Scale(1, 1, 1, is.selectedBorderFader.GetCurrentScale())
@@ -130,7 +158,9 @@ func (is *ItemSlot) Update() {
 
 	if is.Item != nil {
 		if is.mouseBehavior.LeftClick.ClickReleased {
-			is.IsEquiped = !is.IsEquiped
+			if is.ItemInfo.IsEquipable() {
+				is.IsEquiped = !is.IsEquiped
+			}
 		}
 		if is.mouseBehavior.RightClick.ClickReleased {
 			is.IsSelected = !is.IsSelected

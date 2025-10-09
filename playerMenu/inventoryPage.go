@@ -2,6 +2,7 @@ package playermenu
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/inventory"
@@ -16,7 +17,7 @@ type InventoryPage struct {
 	width, height   int
 }
 
-func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Player) {
+func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Player, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
 	if playerRef == nil {
 		panic("player ref is nil")
 	}
@@ -29,10 +30,10 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 	ip.PlayerInventory.RowCount = 9
 	ip.PlayerInventory.ColCount = 9
 	ip.PlayerInventory.EnabledSlotsCount = 18
-	ip.PlayerInventory.Load()
+	ip.PlayerInventory = inventory.NewInventory(defMgr, inventoryParams)
 
 	ip.playerRef = playerRef
-	ip.playerAvatar = ip.playerRef.Entity.DrawAvatarBox(150, 300)
+	ip.playerAvatar = ip.playerRef.Entity.DrawAvatarBox(100, 200)
 
 	ip.init = true
 }

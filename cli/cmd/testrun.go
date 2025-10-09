@@ -8,6 +8,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/spf13/cobra"
+	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/game"
@@ -48,8 +49,8 @@ to quickly create a Cobra application.`,
 
 		config.MapPathOverride = "/Users/benwebb/dev/personal/2d-game-engine/assets/tiled/maps"
 
-		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 0, 0)
-		config.DefaultTitleFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 25, 0)
+		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 22, 0)
+		config.DefaultTitleFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 28, 0)
 
 		err := game.InitialStartUp()
 		if err != nil {
@@ -61,15 +62,18 @@ to quickly create a Cobra application.`,
 
 		LoadItems(gameState)
 
-		gameState.PlayerMenu.InventoryPage.PlayerInventory.Items = []inventory.InventoryItem{
+		gameState.PlayerMenu.InventoryPage.PlayerInventory.AddItems([]item.ItemInstance{
 			{
-				Instance: item.ItemInstance{
-					DefID:      "longsword_01",
-					Durability: 100,
-				},
-				Def: gameState.ItemDefs["longsword_01"],
+				DefID:      "longsword_01",
+				Durability: 100,
 			},
-		}
+			{
+				DefID: "potion_herculean_strength",
+			},
+			{
+				DefID: "potion_herculean_strength",
+			},
+		})
 
 		if err := gameState.RunGame(); err != nil {
 			panic(err)
@@ -147,7 +151,7 @@ func setupGameState() *game.Game {
 	// add my test key bindings
 	addCustomKeyBindings(g)
 
-	g.PlayerMenu = GetPlayerMenu(g.Player)
+	g.PlayerMenu = GetPlayerMenu(g.Player, g.DefinitionManager)
 
 	return g
 }
@@ -166,9 +170,6 @@ func addCustomKeyBindings(g *game.Game) {
 		go func() {
 			fmt.Println("toggle player menu")
 			showPlayerMenu := !gg.ShowPlayerMenu
-			if showPlayerMenu {
-				gg.PlayerMenu.InventoryPage.PlayerInventory.Load()
-			}
 			gg.ShowPlayerMenu = showPlayerMenu
 		}()
 	})
@@ -178,27 +179,29 @@ func addCustomKeyBindings(g *game.Game) {
 	})
 }
 
-func GetPlayerMenu(p *player.Player) playermenu.PlayerMenu {
+func GetPlayerMenu(p *player.Player, defMgr *definitions.DefinitionManager) playermenu.PlayerMenu {
 	pm := playermenu.PlayerMenu{
 		BoxTilesetSource:      "assets/tiled/tilesets/boxes/boxes.tsj",
 		PageTabsTilesetSource: "assets/tiled/tilesets/ui-components.tsj",
 		BoxOriginIndex:        16,
-		InventoryPage: playermenu.InventoryPage{
-			PlayerInventory: inventory.Inventory{
-				ItemSlotTilesetSource:    "assets/tiled/tilesets/ui-components.tsj",
-				SlotEnabledTileID:        0,
-				SlotDisabledTileID:       1,
-				SlotEquipedBorderTileID:  3,
-				SlotSelectedBorderTileID: 4,
-				HoverWindowParams: ui.TextWindowParams{
-					TilesetSource:   "assets/tiled/tilesets/boxes/boxes.tsj",
-					OriginTileIndex: 20,
-				},
-			},
-		},
 	}
 
-	pm.Load(p)
+	invParams := inventory.InventoryParams{
+		ItemSlotTilesetSource:    "assets/tiled/tilesets/ui-components.tsj",
+		SlotEnabledTileID:        0,
+		SlotDisabledTileID:       1,
+		SlotEquipedBorderTileID:  3,
+		SlotSelectedBorderTileID: 4,
+		HoverWindowParams: ui.TextWindowParams{
+			TilesetSource:   "assets/tiled/tilesets/boxes/boxes.tsj",
+			OriginTileIndex: 20,
+		},
+		RowCount:          10,
+		ColCount:          9,
+		EnabledSlotsCount: 18,
+	}
+
+	pm.Load(p, defMgr, invParams)
 
 	return pm
 }
@@ -280,11 +283,23 @@ func LoadItems(g *game.Game) {
 				MaxDurability: 250,
 				TilesetSource: "assets/tiled/tilesets/items_01.tsj",
 				TileID:        0,
+				Weapon:        true,
 			},
 			Damage:        10,
 			HitsPerSecond: 1,
 		},
+		&item.ItemBase{
+			ID:            "potion_herculean_strength",
+			Name:          "Potion of Herculean Strength",
+			Description:   "This potion invigorates the drinker and gives him strength only matched by Hercules himself.",
+			Value:         200,
+			Weight:        3,
+			TilesetSource: "assets/tiled/tilesets/items_01.tsj",
+			TileID:        129,
+			Groupable:     true,
+			Consumable:    true,
+		},
 	}
 
-	g.LoadItemDefs(itemDefs)
+	g.DefinitionManager.LoadItemDefs(itemDefs)
 }

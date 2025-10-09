@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/tiled"
@@ -13,13 +14,13 @@ type Inventory struct {
 	init bool
 	x, y int
 
-	ItemSlotTilesetSource    string // tileset where inventory tiles are loaded from
-	SlotEnabledTileID        int    // tile id from the tileset of the enabled slot image
-	SlotDisabledTileID       int    // tile id from the tileset of the disabled slot image
-	SlotEquipedBorderTileID  int    // tile id for the image of the border that signifies the slot is equiped
-	SlotSelectedBorderTileID int    // tile id for the image of the border that signifies the slot is selected
+	itemSlotTilesetSource    string // tileset where inventory tiles are loaded from
+	slotEnabledTileID        int    // tile id from the tileset of the enabled slot image
+	slotDisabledTileID       int    // tile id from the tileset of the disabled slot image
+	slotEquipedBorderTileID  int    // tile id for the image of the border that signifies the slot is equiped
+	slotSelectedBorderTileID int    // tile id for the image of the border that signifies the slot is selected
 
-	HoverWindowParams ui.TextWindowParams
+	hoverWindowParams ui.TextWindowParams
 
 	RowCount          int // number of rows of item slots
 	ColCount          int // number of columns of item slots
@@ -27,6 +28,147 @@ type Inventory struct {
 
 	itemSlots []ItemSlot
 	Items     []InventoryItem // the items that are in this inventory
+
+	defMgr *definitions.DefinitionManager
+}
+
+type InventoryParams struct {
+	ItemSlotTilesetSource    string // tileset where inventory tiles are loaded from
+	SlotEnabledTileID        int    // tile id from the tileset of the enabled slot image
+	SlotDisabledTileID       int    // tile id from the tileset of the disabled slot image
+	SlotEquipedBorderTileID  int    // tile id for the image of the border that signifies the slot is equiped
+	SlotSelectedBorderTileID int    // tile id for the image of the border that signifies the slot is selected
+
+	RowCount          int // number of rows of item slots
+	ColCount          int // number of columns of item slots
+	EnabledSlotsCount int // number of item slots that are enabled
+
+	HoverWindowParams ui.TextWindowParams
+}
+
+func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams) Inventory {
+	inv := Inventory{
+		defMgr:                   defMgr,
+		itemSlotTilesetSource:    params.ItemSlotTilesetSource,
+		slotEnabledTileID:        params.SlotEnabledTileID,
+		slotDisabledTileID:       params.SlotDisabledTileID,
+		slotEquipedBorderTileID:  params.SlotEquipedBorderTileID,
+		slotSelectedBorderTileID: params.SlotSelectedBorderTileID,
+		RowCount:                 params.RowCount,
+		ColCount:                 params.ColCount,
+		EnabledSlotsCount:        params.EnabledSlotsCount,
+		hoverWindowParams:        params.HoverWindowParams,
+	}
+
+	if inv.itemSlotTilesetSource == "" {
+		panic("no inventory tileset set")
+	}
+	if inv.RowCount == 0 || inv.ColCount == 0 {
+		panic("row count or column count is 0")
+	}
+	if inv.hoverWindowParams.TilesetSource == "" {
+		panic("hover window params: tileset source is empty")
+	}
+
+	ts, err := tiled.LoadTileset(inv.itemSlotTilesetSource)
+	if err != nil {
+		logz.Panicf("failed to load tileset for inventory: %s", err)
+	}
+	enabledImg, err := ts.GetTileImage(inv.slotEnabledTileID)
+	if err != nil {
+		panic(err)
+	}
+	disabledImg, err := ts.GetTileImage(inv.slotDisabledTileID)
+	if err != nil {
+		panic(err)
+	}
+	selectedBorder, err := ts.GetTileImage(inv.slotSelectedBorderTileID)
+	if err != nil {
+		panic(err)
+	}
+	equipedBorder, err := ts.GetTileImage(inv.slotEquipedBorderTileID)
+	if err != nil {
+		panic(err)
+	}
+
+	inv.itemSlots = make([]ItemSlot, 0)
+
+	for i := range inv.RowCount * inv.ColCount {
+		var itemInstance item.ItemInstance
+		var itemDef item.ItemDef
+		if i < len(inv.Items) {
+			itemInstance = inv.Items[i].Instance
+			itemDef = inv.Items[i].Def
+		}
+
+		itemSlot := NewItemSlot(ItemSlotParams{
+			EnabledImage:   enabledImg,
+			DisabledImage:  disabledImg,
+			EquipedBorder:  equipedBorder,
+			SelectedBorder: selectedBorder,
+			Enabled:        i < inv.EnabledSlotsCount,
+		}, inv.hoverWindowParams)
+
+		if itemDef != nil {
+			itemSlot.SetContent(&itemInstance, itemDef, inv.Items[i].Quantity)
+		}
+
+		inv.itemSlots = append(inv.itemSlots, itemSlot)
+	}
+
+	if len(inv.itemSlots) == 0 {
+		panic("inventory has no item slots?")
+	}
+
+	inv.init = true
+
+	return inv
+}
+
+// returns the items that failed to be added (due to inventory being too full)
+func (inv *Inventory) AddItems(items []item.ItemInstance) []item.ItemInstance {
+	failedToAdd := []item.ItemInstance{}
+
+	// find matching item that can merge
+	for _, instance := range items {
+		placed := false
+		for i, invItem := range inv.Items {
+			if invItem.Def.GetID() == instance.DefID {
+				if invItem.Def.IsGroupable() {
+					inv.Items[i].Quantity++
+					placed = true
+					break
+				}
+			}
+		}
+		if placed {
+			continue
+		}
+		// if no matching groupable item was found, add it anew
+		if len(inv.Items) == inv.EnabledSlotsCount {
+			// no more space
+			failedToAdd = append(failedToAdd, instance)
+			continue
+		}
+		inventoryItem := InventoryItem{
+			Instance: instance,
+			Def:      inv.defMgr.GetItemDef(instance.DefID),
+			Quantity: 1,
+		}
+		inv.Items = append(inv.Items, inventoryItem)
+	}
+
+	// put the items in the item slots
+	for i := range inv.itemSlots {
+		if i < len(inv.Items) {
+			invItem := inv.Items[i]
+			inv.itemSlots[i].SetContent(&invItem.Instance, invItem.Def, invItem.Quantity)
+		} else {
+			inv.itemSlots[i].Clear()
+		}
+	}
+
+	return failedToAdd
 }
 
 func (inv Inventory) Dimensions() (dx, dy int) {
@@ -43,71 +185,7 @@ func (inv Inventory) Dimensions() (dx, dy int) {
 type InventoryItem struct {
 	Instance item.ItemInstance
 	Def      item.ItemDef
-}
-
-func (inv *Inventory) Load() {
-	if inv.ItemSlotTilesetSource == "" {
-		panic("no inventory tileset set")
-	}
-	if inv.RowCount == 0 || inv.ColCount == 0 {
-		panic("row count or column count is 0")
-	}
-	if inv.HoverWindowParams.TilesetSource == "" {
-		panic("hover window params: tileset source is empty")
-	}
-
-	ts, err := tiled.LoadTileset(inv.ItemSlotTilesetSource)
-	if err != nil {
-		logz.Panicf("failed to load tileset for inventory: %s", err)
-	}
-	enabledImg, err := ts.GetTileImage(inv.SlotEnabledTileID)
-	if err != nil {
-		panic(err)
-	}
-	disabledImg, err := ts.GetTileImage(inv.SlotDisabledTileID)
-	if err != nil {
-		panic(err)
-	}
-	selectedBorder, err := ts.GetTileImage(inv.SlotSelectedBorderTileID)
-	if err != nil {
-		panic(err)
-	}
-	equipedBorder, err := ts.GetTileImage(inv.SlotEquipedBorderTileID)
-	if err != nil {
-		panic(err)
-	}
-
-	inv.itemSlots = make([]ItemSlot, 0)
-
-	for i := range inv.RowCount * inv.ColCount {
-		var itemInstance item.ItemInstance
-		var itemDef item.ItemDef
-		if i < len(inv.Items) {
-			itemInstance = inv.Items[i].Instance
-			itemDef = inv.Items[i].Def
-			logz.Println("inventory", "item:", itemDef.GetID())
-		}
-
-		itemSlot := NewItemSlot(ItemSlotParams{
-			EnabledImage:   enabledImg,
-			DisabledImage:  disabledImg,
-			EquipedBorder:  equipedBorder,
-			SelectedBorder: selectedBorder,
-			Enabled:        i < inv.EnabledSlotsCount,
-		}, inv.HoverWindowParams)
-
-		if itemDef != nil {
-			itemSlot.SetContent(&itemInstance, itemDef)
-		}
-
-		inv.itemSlots = append(inv.itemSlots, itemSlot)
-	}
-
-	if len(inv.itemSlots) == 0 {
-		panic("inventory has no item slots?")
-	}
-
-	inv.init = true
+	Quantity int
 }
 
 func (inv *Inventory) Draw(screen *ebiten.Image, drawX, drawY float64, om *overlay.OverlayManager) {
@@ -139,4 +217,12 @@ func (inv *Inventory) Update() {
 	for i := range inv.itemSlots {
 		inv.itemSlots[i].Update()
 	}
+}
+
+func (inv *Inventory) TotalWeight() int {
+	var total float64
+	for _, invItem := range inv.Items {
+		total += invItem.Def.GetWeight() * float64(invItem.Quantity)
+	}
+	return int(total)
 }

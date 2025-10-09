@@ -45,6 +45,9 @@ type Entity struct {
 	FrameTilesetSources []string `json:"frame_tilesets"`
 
 	World WorldContext `json:"-"`
+
+	Vitals     Vitals
+	Attributes Attributes
 }
 
 func (e Entity) CollisionRect() model.Rect {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/internal/camera"
 	"github.com/webbben/2d-game-engine/internal/config"
@@ -12,7 +13,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/internal/tiled"
-	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/player"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
 	"github.com/webbben/2d-game-engine/screen"
@@ -52,11 +52,7 @@ type Game struct {
 
 	UpdateHooks
 
-	Definitions
-}
-
-type Definitions struct {
-	ItemDefs map[string]item.ItemDef
+	DefinitionManager *definitions.DefinitionManager
 }
 
 type UpdateHooks struct {
@@ -80,11 +76,12 @@ func (g *Game) RunGame() error {
 
 func NewGame(hour int) *Game {
 	g := Game{
-		worldScene:     ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
-		lastHourChange: time.Now(),
-		daylightFader:  lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20),
-		EventBus:       pubsub.NewEventBus(),
-		OverlayManager: &overlay.OverlayManager{},
+		worldScene:        ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
+		lastHourChange:    time.Now(),
+		daylightFader:     lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20),
+		EventBus:          pubsub.NewEventBus(),
+		OverlayManager:    &overlay.OverlayManager{},
+		DefinitionManager: definitions.NewDefinitionManager(),
 	}
 
 	g.SetHour(hour, true)
