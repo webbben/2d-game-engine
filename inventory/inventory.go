@@ -24,10 +24,14 @@ type Inventory struct {
 	ColCount          int // number of columns of item slots
 	EnabledSlotsCount int // number of item slots that are enabled
 
-	itemSlots []ItemSlot
+	itemSlots []*ItemSlot
 	Items     []InventoryItem // the items that are in this inventory
 
 	defMgr *definitions.DefinitionManager
+}
+
+func (inv Inventory) GetItemSlots() []*ItemSlot {
+	return inv.itemSlots
 }
 
 type InventoryParams struct {
@@ -76,7 +80,7 @@ func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams)
 		params.SlotSelectedBorderTileID,
 	)
 
-	inv.itemSlots = make([]ItemSlot, 0)
+	inv.itemSlots = make([]*ItemSlot, 0)
 
 	for i := range inv.RowCount * inv.ColCount {
 		var itemInstance item.ItemInstance

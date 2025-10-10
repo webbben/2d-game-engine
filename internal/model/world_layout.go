@@ -152,6 +152,10 @@ func (r Rect) Intersects(other Rect) bool {
 		r.Y+r.H > other.Y
 }
 
+func (r Rect) Within(x, y int) bool {
+	return x > int(r.X) && x < int(r.X+r.W) && y > int(r.Y) && y < int(r.Y+r.H)
+}
+
 type IntersectionResult struct {
 	Intersects bool
 	Dx, Dy     float64

@@ -27,9 +27,7 @@ type ItemSlot struct {
 
 	selectedBorderFader rendering.BounceFader
 
-	Item         *item.ItemInstance // the actual item in the slot
-	ItemInfo     item.ItemDef       // the general item information (value, weight, etc)
-	ItemQuantity int                // number of this item that is in the item slot (if item is group-able)
+	Item *InventoryItem
 
 	Enabled    bool
 	IsSelected bool
@@ -45,7 +43,7 @@ type ItemSlotParams struct {
 	Tooltip       string
 }
 
-func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) ItemSlot {
+func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) *ItemSlot {
 	if params.ItemSlotTiles.EnabledTile == nil {
 		panic("EnabledImage is nil")
 	}
@@ -77,7 +75,7 @@ func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) I
 		itemSlot.tooltip = params.Tooltip
 	}
 
-	return itemSlot
+	return &itemSlot
 }
 
 func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.ItemDef, quantity int) {
@@ -93,9 +91,11 @@ func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.It
 	if quantity > 1 && !itemInfo.IsGroupable() {
 		panic("tried to add multiple of a non-groupable item to an item slot")
 	}
-	is.Item = itemInstance
-	is.ItemInfo = itemInfo
-	is.ItemQuantity = quantity
+	is.Item = &InventoryItem{
+		Instance: *itemInstance,
+		Def:      itemInfo,
+		Quantity: quantity,
+	}
 
 	// when an item is set, calculate the hover window
 	// we have to do this on setting the item, since the text content may determine the actual size of the hover window.
@@ -104,8 +104,6 @@ func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.It
 
 func (is *ItemSlot) Clear() {
 	is.Item = nil
-	is.ItemInfo = nil
-	is.ItemQuantity = 0
 }
 
 func (is ItemSlot) Dimensions() (dx, dy int) {
@@ -138,23 +136,23 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 		ops.ColorScale.Scale(1.1, 1.1, 1.1, 1)
 	}
 	rendering.DrawImageWithOps(screen, drawImg, x, y, config.UIScale, &ops)
-	if is.ItemInfo == nil && is.itemSlotTiles.BgImage != nil {
+	if is.Item == nil && is.itemSlotTiles.BgImage != nil {
 		// only show bg image if item slot is empty
 		rendering.DrawImage(screen, is.itemSlotTiles.BgImage, x, y, config.UIScale)
 	}
 
-	if is.ItemInfo != nil {
+	if is.Item != nil {
 		if is.IsEquiped {
 			rendering.DrawImage(screen, is.itemSlotTiles.EquipedTile, x, y, config.UIScale)
 		}
-		rendering.DrawImage(screen, is.ItemInfo.GetTileImg(), x, y, config.UIScale)
+		rendering.DrawImage(screen, is.Item.Def.GetTileImg(), x, y, config.UIScale)
 		// draw quantity if applicable
-		if is.ItemQuantity > 1 {
-			qS := fmt.Sprintf("%v", is.ItemQuantity)
+		if is.Item.Quantity > 1 {
+			qS := fmt.Sprintf("%v", is.Item.Quantity)
 			qDx, _, _ := text.GetStringSize(qS, config.DefaultFont)
 			qX := is.x + slotSize - qDx - 3
 			qY := is.y + (slotSize) - 5
-			text.DrawOutlinedText(screen, fmt.Sprintf("%v", is.ItemQuantity), config.DefaultFont, qX, qY, color.Black, color.White, 0, 0)
+			text.DrawOutlinedText(screen, fmt.Sprintf("%v", is.Item.Quantity), config.DefaultFont, qX, qY, color.Black, color.White, 0, 0)
 		}
 		if is.IsSelected {
 			ops := ebiten.DrawImageOptions{}
@@ -182,7 +180,7 @@ func (is *ItemSlot) Update() {
 
 	if is.Item != nil {
 		if is.mouseBehavior.LeftClick.ClickReleased {
-			if is.ItemInfo.IsEquipable() {
+			if is.Item.Def.IsEquipable() {
 				is.IsEquiped = !is.IsEquiped
 			}
 		}

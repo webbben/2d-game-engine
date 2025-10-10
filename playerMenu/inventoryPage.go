@@ -14,21 +14,23 @@ import (
 type InventoryPage struct {
 	init bool
 
-	EquipedHead inventory.ItemSlot // for hats, helmets, etc
-	EquipedBody inventory.ItemSlot // for shirts, cuirasses, robes,etc
-	EquipedFeet inventory.ItemSlot // for boots, shoes, etc
+	EquipedHead *inventory.ItemSlot // for hats, helmets, etc
+	EquipedBody *inventory.ItemSlot // for shirts, cuirasses, robes,etc
+	EquipedFeet *inventory.ItemSlot // for boots, shoes, etc
 
-	EquipedAmulet inventory.ItemSlot // can wear one amulet
-	EquipedRing1  inventory.ItemSlot // can wear two rings
-	EquipedRing2  inventory.ItemSlot
+	EquipedAmulet *inventory.ItemSlot // can wear one amulet
+	EquipedRing1  *inventory.ItemSlot // can wear two rings
+	EquipedRing2  *inventory.ItemSlot
 
-	EquipedAmmo      inventory.ItemSlot // for arrows, sling bullets, etc
-	EquipedAuxiliary inventory.ItemSlot // for shields, torches, etc
+	EquipedAmmo      *inventory.ItemSlot // for arrows, sling bullets, etc
+	EquipedAuxiliary *inventory.ItemSlot // for shields, torches, etc
 
 	PlayerInventory inventory.Inventory
 	playerAvatar    *ebiten.Image
 	playerRef       *player.Player
 	width, height   int
+
+	itemMover inventory.ItemMover
 }
 
 func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Player, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
@@ -110,6 +112,22 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 	ip.playerRef = playerRef
 	ip.playerAvatar = ip.playerRef.Entity.DrawAvatarBox(100, 200)
 
+	itemSlots := []*inventory.ItemSlot{}
+	itemSlots = append(itemSlots, ip.PlayerInventory.GetItemSlots()...)
+	itemSlots = append(
+		itemSlots,
+		ip.EquipedHead,
+		ip.EquipedBody,
+		ip.EquipedFeet,
+		ip.EquipedAmulet,
+		ip.EquipedRing1,
+		ip.EquipedRing2,
+		ip.EquipedAmmo,
+		ip.EquipedAuxiliary,
+	)
+
+	ip.itemMover = inventory.NewItemMover(itemSlots)
+
 	ip.init = true
 }
 
@@ -126,6 +144,8 @@ func (ip *InventoryPage) Update() {
 	ip.EquipedAmulet.Update()
 	ip.EquipedRing1.Update()
 	ip.EquipedRing2.Update()
+
+	ip.itemMover.Update()
 }
 
 func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *overlay.OverlayManager) {
@@ -157,4 +177,5 @@ func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *ov
 	ip.EquipedAmmo.Draw(screen, equipStartX+(tileSize*3), equipStartY+(0.75*tileSize), om)
 	ip.EquipedAuxiliary.Draw(screen, equipStartX+(tileSize*3), equipStartY+(2.25*tileSize), om)
 
+	ip.itemMover.Draw(om)
 }
