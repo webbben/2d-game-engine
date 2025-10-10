@@ -1,16 +1,12 @@
 package inventory
 
 import (
-	"fmt"
-	"image/color"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
-	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/item"
@@ -125,8 +121,6 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 	is.x = int(x)
 	is.y = int(y)
 
-	slotSize, _ := is.Dimensions()
-
 	drawImg := is.itemSlotTiles.EnabledTile
 	if !is.Enabled {
 		drawImg = is.itemSlotTiles.DisabledTile
@@ -145,15 +139,9 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 		if is.IsEquiped {
 			rendering.DrawImage(screen, is.itemSlotTiles.EquipedTile, x, y, config.UIScale)
 		}
-		rendering.DrawImage(screen, is.Item.Def.GetTileImg(), x, y, config.UIScale)
-		// draw quantity if applicable
-		if is.Item.Quantity > 1 {
-			qS := fmt.Sprintf("%v", is.Item.Quantity)
-			qDx, _, _ := text.GetStringSize(qS, config.DefaultFont)
-			qX := is.x + slotSize - qDx - 3
-			qY := is.y + (slotSize) - 5
-			text.DrawOutlinedText(screen, fmt.Sprintf("%v", is.Item.Quantity), config.DefaultFont, qX, qY, color.Black, color.White, 0, 0)
-		}
+
+		is.Item.Draw(screen, x, y)
+
 		if is.IsSelected {
 			ops := ebiten.DrawImageOptions{}
 			ops.ColorScale.Scale(1, 1, 1, is.selectedBorderFader.GetCurrentScale())
@@ -179,14 +167,6 @@ func (is *ItemSlot) Update() {
 	is.mouseBehavior.Update(is.x, is.y, width, height, false)
 
 	if is.Item != nil {
-		if is.mouseBehavior.LeftClick.ClickReleased {
-			if is.Item.Def.IsEquipable() {
-				is.IsEquiped = !is.IsEquiped
-			}
-		}
-		if is.mouseBehavior.RightClick.ClickReleased {
-			is.IsSelected = !is.IsSelected
-		}
 		w, h := is.Dimensions()
 		is.hoverWindow.Update(float64(is.x), float64(is.y), w, h)
 	} else {

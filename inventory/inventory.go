@@ -1,9 +1,15 @@
 package inventory
 
 import (
+	"fmt"
+	"image/color"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/overlay"
+	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/item"
 )
@@ -172,6 +178,19 @@ type InventoryItem struct {
 	Instance item.ItemInstance
 	Def      item.ItemDef
 	Quantity int
+}
+
+func (i InventoryItem) Draw(screen *ebiten.Image, x, y float64) {
+	tileSize := int(config.TileSize * config.UIScale)
+	rendering.DrawImage(screen, i.Def.GetTileImg(), x, y, config.UIScale)
+
+	if i.Quantity > 1 {
+		qS := fmt.Sprintf("%v", i.Quantity)
+		qDx, _, _ := text.GetStringSize(qS, config.DefaultFont)
+		qX := int(x) + tileSize - qDx - 3
+		qY := int(y) + tileSize - 5
+		text.DrawOutlinedText(screen, fmt.Sprintf("%v", i.Quantity), config.DefaultFont, qX, qY, color.Black, color.White, 0, 0)
+	}
 }
 
 func (inv *Inventory) Draw(screen *ebiten.Image, drawX, drawY float64, om *overlay.OverlayManager) {

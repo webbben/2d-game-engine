@@ -6,7 +6,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/overlay"
-	"github.com/webbben/2d-game-engine/internal/rendering"
 )
 
 type ItemMover struct {
@@ -21,14 +20,22 @@ func NewItemMover(itemSlots []*ItemSlot) ItemMover {
 	}
 }
 
-func (im *ItemMover) pickupItem(itemToCarry *InventoryItem) bool {
+func (im *ItemMover) pickupItem(itemToCarry *InventoryItem, amount int) bool {
 	if im.carryItem != nil {
 		// already carrying an item
 		return false
 	}
 
-	im.carryItem = itemToCarry
-	im.itemImg = rendering.ScaleImage(im.carryItem.Def.GetTileImg(), config.UIScale)
+	im.carryItem = &InventoryItem{
+		Instance: itemToCarry.Instance,
+		Def:      itemToCarry.Def,
+		Quantity: amount,
+	}
+
+	tileSize := int(config.TileSize * config.UIScale)
+
+	im.itemImg = ebiten.NewImage(tileSize, tileSize)
+	im.carryItem.Draw(im.itemImg, 0, 0)
 	return true
 }
 
@@ -53,26 +60,37 @@ func (im *ItemMover) Update() {
 			}
 			if slot.mouseBehavior.LeftClick.ClickReleased {
 				// the slot has been clicked!
-				if im.pickupItem(slot.Item) {
+				if im.pickupItem(slot.Item, slot.Item.Quantity) {
 					logz.Println(slot.Item.Def.GetName(), "picked up item")
 					// item was successfully picked up
 					// clear item slot of its item
 					slot.Clear()
 					break
 				}
+			} else if slot.mouseBehavior.RightClick.ClickReleased {
+				// right click = pick up half
+				amount := slot.Item.Quantity
+				if amount > 1 {
+					amount /= 2
+				}
+				remaining := slot.Item.Quantity - amount
+				if im.pickupItem(slot.Item, amount) {
+					if remaining > 0 {
+						slot.SetContent(&slot.Item.Instance, slot.Item.Def, remaining)
+					} else {
+						slot.Clear()
+					}
+					break
+				}
 			}
 		}
 	} else {
 		// item is already being carried; check for item placement
-		if im.checkItemPlacement() {
-			logz.Println(im.carryItem.Def.GetName(), "placed item")
-			// item was placed!
-			im.carryItem = nil
-		}
+		im.handleItemPlacement()
 	}
 }
 
-func (im *ItemMover) checkItemPlacement() bool {
+func (im *ItemMover) handleItemPlacement() {
 	if im.carryItem == nil {
 		panic("tried to place item but no carryItem exists")
 	}
@@ -84,26 +102,48 @@ func (im *ItemMover) checkItemPlacement() bool {
 		if !slotRect.Within(mouseX, mouseY) {
 			continue
 		}
-		if !slot.mouseBehavior.LeftClick.ClickReleased {
-			continue
-		}
+		if slot.mouseBehavior.LeftClick.ClickReleased {
+			// placing all of the item
+			// check if the slot is empty
+			if slot.Item == nil {
+				// slot is empty, we can put this item here
+				slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, im.carryItem.Quantity)
+				im.carryItem = nil
+				return
+			}
 
-		// check if the slot is empty
-		if slot.Item == nil {
-			// slot is empty, we can put this item here
-			slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, im.carryItem.Quantity)
-			return true
-		}
-
-		// check if slot has the same item type (and is groupable)
-		if slot.Item.Def.GetID() == im.carryItem.Instance.DefID {
-			if im.carryItem.Def.IsGroupable() && slot.Item.Def.IsGroupable() {
-				// found a matching groupable item
-				slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, im.carryItem.Quantity+slot.Item.Quantity)
-				return true
+			// check if slot has the same item type (and is groupable)
+			if slot.Item.Def.GetID() == im.carryItem.Instance.DefID {
+				if im.carryItem.Def.IsGroupable() && slot.Item.Def.IsGroupable() {
+					// found a matching groupable item
+					slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, im.carryItem.Quantity+slot.Item.Quantity)
+					im.carryItem = nil
+					return
+				}
+			}
+		} else if slot.mouseBehavior.RightClick.ClickReleased {
+			// placing single item
+			if slot.Item == nil {
+				slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, 1)
+				im.carryItem.Quantity--
+				if im.carryItem.Quantity == 0 {
+					im.carryItem = nil
+				}
+				return
+			}
+			// check if slot has the same item type (and is groupable)
+			if slot.Item.Def.GetID() == im.carryItem.Instance.DefID {
+				if im.carryItem.Def.IsGroupable() && slot.Item.Def.IsGroupable() {
+					// found a matching groupable item
+					slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, slot.Item.Quantity+1)
+					im.carryItem.Quantity--
+					if im.carryItem.Quantity == 0 {
+						im.carryItem = nil
+					}
+					return
+				}
 			}
 		}
-	}
 
-	return false
+	}
 }
