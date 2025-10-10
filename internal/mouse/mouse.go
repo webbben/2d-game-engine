@@ -15,9 +15,21 @@ type MouseBehavior struct {
 }
 
 type ClickBehavior struct {
+	LastClick     time.Time // time the last click was released
+	lastClickMs   int64     // ms since last-last click was done
 	ClickStart    bool
 	ClickHolding  bool
 	ClickReleased bool
+}
+
+func (cb *ClickBehavior) Reset() {
+	cb.ClickStart = false
+	cb.ClickHolding = false
+	cb.ClickReleased = false
+}
+
+func (cb ClickBehavior) DoubleClicked() bool {
+	return cb.ClickReleased && (time.Duration(cb.lastClickMs) < 250)
 }
 
 func (mouseBehavior *MouseBehavior) Update(drawX, drawY int, boxWidth, boxHeight int, scaleForGameWorld bool) {
@@ -43,12 +55,8 @@ func (mouseBehavior *MouseBehavior) Update(drawX, drawY int, boxWidth, boxHeight
 	// if not hovering, unset any active click states
 	if !mouseBehavior.IsHovering {
 		mouseBehavior.HoverStart = time.Now() // continuously set the start time to now, until actually hovering
-		mouseBehavior.LeftClick.ClickHolding = false
-		mouseBehavior.LeftClick.ClickReleased = false
-		mouseBehavior.LeftClick.ClickStart = false
-		mouseBehavior.RightClick.ClickHolding = false
-		mouseBehavior.RightClick.ClickReleased = false
-		mouseBehavior.RightClick.ClickStart = false
+		mouseBehavior.LeftClick.Reset()
+		mouseBehavior.RightClick.Reset()
 	}
 }
 
@@ -76,6 +84,8 @@ func (c *ClickBehavior) detectClick(mouseButton ebiten.MouseButton, prev ClickBe
 
 		// check if it is being released
 		if prev.ClickStart || prev.ClickHolding {
+			c.lastClickMs = time.Since(c.LastClick).Milliseconds()
+			c.LastClick = time.Now()
 			c.ClickReleased = true
 		} else {
 			// last tick was not a mouse click; left click is officially completely done

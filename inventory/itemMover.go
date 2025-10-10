@@ -1,11 +1,14 @@
 package inventory
 
 import (
+	"fmt"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/overlay"
+	"github.com/webbben/2d-game-engine/item"
 )
 
 type ItemMover struct {
@@ -32,11 +35,20 @@ func (im *ItemMover) pickupItem(itemToCarry *InventoryItem, amount int) bool {
 		Quantity: amount,
 	}
 
+	im.MakeItemImage()
+
+	return true
+}
+
+func (im *ItemMover) MakeItemImage() {
+	if im.carryItem == nil {
+		panic("no carry item to generate image for")
+	}
+
 	tileSize := int(config.TileSize * config.UIScale)
 
 	im.itemImg = ebiten.NewImage(tileSize, tileSize)
 	im.carryItem.Draw(im.itemImg, 0, 0)
-	return true
 }
 
 func (im *ItemMover) Draw(om *overlay.OverlayManager) {
@@ -103,6 +115,14 @@ func (im *ItemMover) handleItemPlacement() {
 			continue
 		}
 		if slot.mouseBehavior.LeftClick.ClickReleased {
+			// first, detect if this is a double click; if so, we should gather all of this item, rather than placing
+			if slot.Item == nil && slot.mouseBehavior.LeftClick.DoubleClicked() {
+				fmt.Println("double click")
+				// gather all of this item
+				im.gatherAllOfItem(im.carryItem.Def)
+				return
+			}
+
 			// placing all of the item
 			// check if the slot is empty
 			if slot.Item == nil {
@@ -128,6 +148,8 @@ func (im *ItemMover) handleItemPlacement() {
 				im.carryItem.Quantity--
 				if im.carryItem.Quantity == 0 {
 					im.carryItem = nil
+				} else {
+					im.MakeItemImage()
 				}
 				return
 			}
@@ -146,4 +168,22 @@ func (im *ItemMover) handleItemPlacement() {
 		}
 
 	}
+}
+
+func (im *ItemMover) gatherAllOfItem(def item.ItemDef) {
+	if !def.IsGroupable() {
+		return
+	}
+
+	for _, slot := range im.dropableSlots {
+		if slot.Item == nil {
+			continue
+		}
+		if slot.Item.Def.GetID() == def.GetID() {
+			im.carryItem.Quantity += slot.Item.Quantity
+			slot.Clear()
+		}
+	}
+
+	im.MakeItemImage()
 }
