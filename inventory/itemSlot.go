@@ -154,7 +154,7 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 			qDx, _, _ := text.GetStringSize(qS, config.DefaultFont)
 			qX := is.x + slotSize - qDx - 3
 			qY := is.y + (slotSize) - 5
-			text.DrawShadowText(screen, fmt.Sprintf("%v", is.ItemQuantity), config.DefaultTitleFont, qX, qY, color.Black, color.White, 0, 0)
+			text.DrawOutlinedText(screen, fmt.Sprintf("%v", is.ItemQuantity), config.DefaultFont, qX, qY, color.Black, color.White, 0, 0)
 		}
 		if is.IsSelected {
 			ops := ebiten.DrawImageOptions{}

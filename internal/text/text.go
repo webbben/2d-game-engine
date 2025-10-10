@@ -37,3 +37,23 @@ func DrawText(screen *ebiten.Image, s string, f font.Face, x, y int, c color.Col
 	}
 	ebiten_text.Draw(screen, s, f, x, y, c)
 }
+
+func DrawOutlinedText(screen *ebiten.Image, s string, f font.Face, x, y int, fg color.Color, bg color.Color, bgOffsetX, bgOffsetY int) {
+	if fg == nil {
+		fg = color.Black
+	}
+	if bg == nil {
+		bg = color.White
+	}
+	if bgOffsetX == 0 {
+		bgOffsetX = 2
+	}
+	if bgOffsetY == 0 {
+		bgOffsetY = 2
+	}
+	DrawText(screen, s, f, x-bgOffsetX, y, bg)
+	DrawText(screen, s, f, x+bgOffsetX, y, bg)
+	DrawText(screen, s, f, x, y-bgOffsetY, bg)
+	DrawText(screen, s, f, x, y+bgOffsetY, bg)
+	DrawText(screen, s, f, x, y, fg)
+}
