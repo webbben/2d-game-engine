@@ -1,12 +1,15 @@
 package mouse
 
 import (
+	"time"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 )
 
 type MouseBehavior struct {
 	IsHovering bool // mouse is hovering
+	HoverStart time.Time
 	LeftClick  ClickBehavior
 	RightClick ClickBehavior
 }
@@ -39,6 +42,7 @@ func (mouseBehavior *MouseBehavior) Update(drawX, drawY int, boxWidth, boxHeight
 	}
 	// if not hovering, unset any active click states
 	if !mouseBehavior.IsHovering {
+		mouseBehavior.HoverStart = time.Now() // continuously set the start time to now, until actually hovering
 		mouseBehavior.LeftClick.ClickHolding = false
 		mouseBehavior.LeftClick.ClickReleased = false
 		mouseBehavior.LeftClick.ClickStart = false

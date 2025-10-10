@@ -34,11 +34,15 @@ type ItemSlot struct {
 	Enabled    bool
 	IsSelected bool
 	IsEquiped  bool
+
+	tooltip      string
+	hoverTooltip ui.HoverTooltip
 }
 
 type ItemSlotParams struct {
 	ItemSlotTiles ItemSlotTiles
 	Enabled       bool
+	Tooltip       string
 }
 
 func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) ItemSlot {
@@ -58,13 +62,22 @@ func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) I
 		panic("hover window tileset source is empty")
 	}
 
-	return ItemSlot{
+	itemSlot := ItemSlot{
 		init:                true,
 		itemSlotTiles:       params.ItemSlotTiles,
 		Enabled:             params.Enabled,
 		selectedBorderFader: rendering.NewBounceFader(0.5, 0.5, 0.8, 0.1),
 		hoverWindowParams:   hoverWindowParams,
 	}
+
+	if params.Tooltip != "" {
+		tooltipTileset := config.DefaultTooltipBox.TilesetSrc
+		tooltipOrigin := config.DefaultTooltipBox.OriginIndex
+		itemSlot.hoverTooltip = ui.NewHoverTooltip(params.Tooltip, tooltipTileset, tooltipOrigin, 1000, -10, -10)
+		itemSlot.tooltip = params.Tooltip
+	}
+
+	return itemSlot
 }
 
 func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.ItemDef, quantity int) {
@@ -125,6 +138,10 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 		ops.ColorScale.Scale(1.1, 1.1, 1.1, 1)
 	}
 	rendering.DrawImageWithOps(screen, drawImg, x, y, config.UIScale, &ops)
+	if is.ItemInfo == nil && is.itemSlotTiles.BgImage != nil {
+		// only show bg image if item slot is empty
+		rendering.DrawImage(screen, is.itemSlotTiles.BgImage, x, y, config.UIScale)
+	}
 
 	if is.ItemInfo != nil {
 		if is.IsEquiped {
@@ -145,6 +162,10 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 			rendering.DrawImageWithOps(screen, is.itemSlotTiles.SelectedTile, x, y, config.UIScale, &ops)
 		}
 		is.hoverWindow.Draw(om)
+	} else {
+		if is.tooltip != "" {
+			is.hoverTooltip.Draw(om)
+		}
 	}
 }
 
@@ -170,6 +191,10 @@ func (is *ItemSlot) Update() {
 		}
 		w, h := is.Dimensions()
 		is.hoverWindow.Update(float64(is.x), float64(is.y), w, h)
+	} else {
+		if is.tooltip != "" {
+			is.hoverTooltip.Update(float64(is.x), float64(is.y), width, height)
+		}
 	}
 
 	if is.IsSelected {
@@ -183,6 +208,7 @@ type ItemSlotTiles struct {
 	DisabledTile *ebiten.Image
 	EquipedTile  *ebiten.Image
 	SelectedTile *ebiten.Image
+	BgImage      *ebiten.Image
 }
 
 func LoadItemSlotTiles(tilesetSrc string, enTileID, disTileID, eqTileID, selTileID int) ItemSlotTiles {
@@ -207,10 +233,16 @@ func LoadItemSlotTiles(tilesetSrc string, enTileID, disTileID, eqTileID, selTile
 		panic(err)
 	}
 
-	return ItemSlotTiles{
+	tiles := ItemSlotTiles{
 		EnabledTile:  enabledImg,
 		DisabledTile: disabledImg,
 		SelectedTile: selectedBorder,
 		EquipedTile:  equipedBorder,
 	}
+
+	return tiles
+}
+
+func (is *ItemSlot) SetBGImage(img *ebiten.Image) {
+	is.itemSlotTiles.BgImage = img
 }

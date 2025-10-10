@@ -52,6 +52,11 @@ to quickly create a Cobra application.`,
 		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 22, 0)
 		config.DefaultTitleFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 28, 0)
 
+		config.DefaultTooltipBox = config.DefaultBox{
+			TilesetSrc:  "assets/tiled/tilesets/boxes/boxes.tsj",
+			OriginIndex: 132,
+		}
+
 		err := game.InitialStartUp()
 		if err != nil {
 			log.Fatal(err)

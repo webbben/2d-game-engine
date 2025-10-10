@@ -5,6 +5,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/mouse"
+	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
@@ -16,6 +17,7 @@ type Tab struct {
 	ImgTileId     int // tile ID of tile in the source tileset
 	img           *ebiten.Image
 	mouseBehavior mouse.MouseBehavior
+	hoverTooltip  HoverTooltip
 	Active        bool // flag indicating if this tag is active or not
 }
 
@@ -48,6 +50,13 @@ func (tc TabControl) Dimensions() (dx, dy int) {
 }
 
 func NewTabControl(sourceTileset string, tabs []Tab) TabControl {
+	if config.DefaultTooltipBox.TilesetSrc == "" {
+		panic("no default tooltip box tileset src set. currently it is required to be globally set for using tab controls.")
+	}
+	for i, tab := range tabs {
+		tabs[i].hoverTooltip = NewHoverTooltip(tab.DisplayName, config.DefaultTooltipBox.TilesetSrc, config.DefaultTooltipBox.OriginIndex, 1000, -10, -10)
+	}
+
 	tabControl := TabControl{
 		SourceTileset: sourceTileset,
 		Tabs:          tabs,
@@ -85,10 +94,11 @@ func (tc *TabControl) Update() {
 		if tc.Tabs[i].mouseBehavior.LeftClick.ClickReleased {
 			tc.ActivateTab(i)
 		}
+		tc.Tabs[i].hoverTooltip.Update(tab.x, tab.y, tabWidth, tabHeight)
 	}
 }
 
-func (tc *TabControl) Draw(screen *ebiten.Image, drawX, drawY float64) {
+func (tc *TabControl) Draw(screen *ebiten.Image, drawX, drawY float64, om *overlay.OverlayManager) {
 	if len(tc.Tabs) == 0 {
 		panic("tried to draw a tab control with no tabs")
 	}
@@ -111,6 +121,8 @@ func (tc *TabControl) Draw(screen *ebiten.Image, drawX, drawY float64) {
 			op.ColorScale.Scale(1.1, 1.1, 1.1, 1)
 		}
 		rendering.DrawImageWithOps(screen, tab.img, tc.Tabs[i].x, tc.Tabs[i].y, config.UIScale, &op)
+
+		tab.hoverTooltip.Draw(om)
 
 		tabX += float64(tabWidth)
 	}

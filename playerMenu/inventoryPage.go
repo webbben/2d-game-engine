@@ -6,6 +6,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/player"
 )
@@ -13,9 +14,14 @@ import (
 type InventoryPage struct {
 	init bool
 
-	EquipedHead      inventory.ItemSlot // for hats, helmets, etc
-	EquipedBody      inventory.ItemSlot // for shirts, cuirasses, robes,etc
-	EquipedFeet      inventory.ItemSlot // for boots, shoes, etc
+	EquipedHead inventory.ItemSlot // for hats, helmets, etc
+	EquipedBody inventory.ItemSlot // for shirts, cuirasses, robes,etc
+	EquipedFeet inventory.ItemSlot // for boots, shoes, etc
+
+	EquipedAmulet inventory.ItemSlot // can wear one amulet
+	EquipedRing1  inventory.ItemSlot // can wear two rings
+	EquipedRing2  inventory.ItemSlot
+
 	EquipedAmmo      inventory.ItemSlot // for arrows, sling bullets, etc
 	EquipedAuxiliary inventory.ItemSlot // for shields, torches, etc
 
@@ -49,26 +55,57 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 		inventoryParams.SlotSelectedBorderTileID,
 	)
 
+	src := inventoryParams.ItemSlotTilesetSource
+
 	ip.EquipedHead = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
+		Tooltip:       "Headwear",
 	}, inventoryParams.HoverWindowParams)
+	ip.EquipedHead.SetBGImage(tiled.GetTileImage(src, 5))
 	ip.EquipedBody = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
+		Tooltip:       "Bodywear",
 	}, inventoryParams.HoverWindowParams)
+	ip.EquipedBody.SetBGImage(tiled.GetTileImage(src, 6))
 	ip.EquipedFeet = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
+		Tooltip:       "Footwear",
 	}, inventoryParams.HoverWindowParams)
+	ip.EquipedFeet.SetBGImage(tiled.GetTileImage(src, 7))
 	ip.EquipedAmmo = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
+		Tooltip:       "Ammunition",
 	}, inventoryParams.HoverWindowParams)
+	ip.EquipedAmmo.SetBGImage(tiled.GetTileImage(src, 8))
 	ip.EquipedAuxiliary = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
+		Tooltip:       "Auxiliary",
 	}, inventoryParams.HoverWindowParams)
+	ip.EquipedAuxiliary.SetBGImage(tiled.GetTileImage(src, 9))
+
+	ip.EquipedAmulet = inventory.NewItemSlot(inventory.ItemSlotParams{
+		ItemSlotTiles: itemSlotImages,
+		Enabled:       true,
+		Tooltip:       "Amulet",
+	}, inventoryParams.HoverWindowParams)
+	ip.EquipedAmulet.SetBGImage(tiled.GetTileImage(src, 10))
+	ip.EquipedRing1 = inventory.NewItemSlot(inventory.ItemSlotParams{
+		ItemSlotTiles: itemSlotImages,
+		Enabled:       true,
+		Tooltip:       "Ring",
+	}, inventoryParams.HoverWindowParams)
+	ip.EquipedRing1.SetBGImage(tiled.GetTileImage(src, 11))
+	ip.EquipedRing2 = inventory.NewItemSlot(inventory.ItemSlotParams{
+		ItemSlotTiles: itemSlotImages,
+		Enabled:       true,
+		Tooltip:       "Ring",
+	}, inventoryParams.HoverWindowParams)
+	ip.EquipedRing2.SetBGImage(tiled.GetTileImage(src, 11))
 
 	ip.playerRef = playerRef
 	ip.playerAvatar = ip.playerRef.Entity.DrawAvatarBox(100, 200)
@@ -86,6 +123,9 @@ func (ip *InventoryPage) Update() {
 	ip.EquipedFeet.Update()
 	ip.EquipedAmmo.Update()
 	ip.EquipedAuxiliary.Update()
+	ip.EquipedAmulet.Update()
+	ip.EquipedRing1.Update()
+	ip.EquipedRing2.Update()
 }
 
 func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *overlay.OverlayManager) {
@@ -105,9 +145,16 @@ func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *ov
 	// player equipment item slots
 	equipStartX := drawX + float64(ip.playerAvatar.Bounds().Dx()) + 10
 	equipStartY := drawY + 10
+
 	ip.EquipedHead.Draw(screen, equipStartX, equipStartY, om)
 	ip.EquipedBody.Draw(screen, equipStartX, equipStartY+(1.5*tileSize), om)
 	ip.EquipedFeet.Draw(screen, equipStartX, equipStartY+(3*tileSize), om)
-	ip.EquipedAmmo.Draw(screen, equipStartX+(tileSize*1.5), equipStartY+(0.75*tileSize), om)
-	ip.EquipedAuxiliary.Draw(screen, equipStartX+(tileSize*1.5), equipStartY+(2.25*tileSize), om)
+
+	ip.EquipedAmulet.Draw(screen, equipStartX+(tileSize*1.5), equipStartY, om)
+	ip.EquipedRing1.Draw(screen, equipStartX+(tileSize*1.5), equipStartY+(1.5*tileSize), om)
+	ip.EquipedRing2.Draw(screen, equipStartX+(tileSize*1.5), equipStartY+(3*tileSize), om)
+
+	ip.EquipedAmmo.Draw(screen, equipStartX+(tileSize*3), equipStartY+(0.75*tileSize), om)
+	ip.EquipedAuxiliary.Draw(screen, equipStartX+(tileSize*3), equipStartY+(2.25*tileSize), om)
+
 }

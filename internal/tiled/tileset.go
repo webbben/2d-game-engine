@@ -216,6 +216,18 @@ func (t Tileset) GetTileImage(id int) (*ebiten.Image, error) {
 	return tileImg, nil
 }
 
+func GetTileImage(tilesetSrc string, tileID int) *ebiten.Image {
+	tileset, err := LoadTileset(tilesetSrc)
+	if err != nil {
+		logz.Panicf("failed to load tileset: %s", err)
+	}
+	img, err := tileset.GetTileImage(tileID)
+	if err != nil {
+		panic(err)
+	}
+	return img
+}
+
 type LightProps struct {
 	TileID            int
 	ColorPreset       string

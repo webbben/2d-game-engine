@@ -141,7 +141,7 @@ func (pm *PlayerMenu) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 	rendering.DrawImage(screen, pm.boxImage, float64(pm.boxX), float64(pm.boxY), 0)
 	pm.boxTitle.Draw(screen, float64(pm.boxX+(pm.width/2)-pm.boxTitle.Width()+100), float64(pm.boxY-tileSize))
 	// top level menu tabs
-	pm.pageTabs.Draw(screen, float64(pm.pageTabsX), float64(pm.pageTabsY))
+	pm.pageTabs.Draw(screen, float64(pm.pageTabsX), float64(pm.pageTabsY), om)
 
 	// inventory page (for now, until we implement other tabs)
 	pm.InventoryPage.Draw(screen, float64(pm.mainContentBoxX), float64(pm.mainContentBoxY), om)

@@ -10,6 +10,11 @@ import (
 	"golang.org/x/image/font"
 )
 
+type DefaultBox struct {
+	TilesetSrc  string
+	OriginIndex int
+}
+
 var (
 	// how much the game view is scaled up.
 	// seems better to keep this a whole number.
@@ -37,6 +42,10 @@ var (
 
 	DefaultFont      font.Face // default font for most body text (e.g. item info tooltips); must be set by game
 	DefaultTitleFont font.Face // default font for titles of text areas (e.g. item info tooltips); must be set by game
+
+	// default box used for simple tooltips (e.g. tooltips for tabs); must be set by game
+	// (this one is actually required as of now)
+	DefaultTooltipBox DefaultBox
 
 	MapPathOverride string = "" // set this if you have a custom directory where maps are stored
 )

@@ -50,7 +50,14 @@ func NewBox(tilesetSource string, originTileIndex int) BoxDef {
 }
 
 func (b *BoxDef) BuildBoxImage(widthPx, heightPx int) *ebiten.Image {
+	if widthPx <= 0 || heightPx <= 0 {
+		logz.Panicf("box dimensions must be positive and greater than zero. dx: %v dy: %v", widthPx, heightPx)
+	}
 	tileSize := b.TileSize()
+
+	if widthPx < tileSize || heightPx < tileSize {
+		logz.Panicf("given dimensions are smaller than a single tile! w: %v h: %v tileSize: %v", widthPx, heightPx, tileSize)
+	}
 
 	widthPx -= widthPx % tileSize
 	heightPx -= heightPx % tileSize
