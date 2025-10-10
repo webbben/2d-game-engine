@@ -6,10 +6,12 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
+	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/item"
 )
@@ -21,10 +23,7 @@ type ItemSlot struct {
 	hoverWindow       ui.HoverWindow
 	hoverWindowParams ui.TextWindowParams // since we have to recalculate the hover window when text changes, save the params
 
-	enabledImg        *ebiten.Image
-	disabledImg       *ebiten.Image
-	equipedBorderImg  *ebiten.Image
-	selectedBorderImg *ebiten.Image
+	itemSlotTiles ItemSlotTiles
 
 	selectedBorderFader rendering.BounceFader
 
@@ -38,34 +37,30 @@ type ItemSlot struct {
 }
 
 type ItemSlotParams struct {
-	EnabledImage, DisabledImage   *ebiten.Image
-	EquipedBorder, SelectedBorder *ebiten.Image
-	Enabled                       bool
+	ItemSlotTiles ItemSlotTiles
+	Enabled       bool
 }
 
 func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) ItemSlot {
-	if params.EnabledImage == nil {
+	if params.ItemSlotTiles.EnabledTile == nil {
 		panic("EnabledImage is nil")
 	}
-	if params.DisabledImage == nil {
+	if params.ItemSlotTiles.DisabledTile == nil {
 		panic("DisabledImage is nil")
 	}
-	if params.EquipedBorder == nil {
+	if params.ItemSlotTiles.EquipedTile == nil {
 		panic("EquipedBorder is nil")
 	}
-	if params.SelectedBorder == nil {
+	if params.ItemSlotTiles.SelectedTile == nil {
 		panic("SelectedBorder is nil")
 	}
 	if hoverWindowParams.TilesetSource == "" {
-		panic("tileset source is empty")
+		panic("hover window tileset source is empty")
 	}
 
 	return ItemSlot{
 		init:                true,
-		enabledImg:          params.EnabledImage,
-		disabledImg:         params.DisabledImage,
-		equipedBorderImg:    params.EquipedBorder,
-		selectedBorderImg:   params.SelectedBorder,
+		itemSlotTiles:       params.ItemSlotTiles,
 		Enabled:             params.Enabled,
 		selectedBorderFader: rendering.NewBounceFader(0.5, 0.5, 0.8, 0.1),
 		hoverWindowParams:   hoverWindowParams,
@@ -101,7 +96,15 @@ func (is *ItemSlot) Clear() {
 }
 
 func (is ItemSlot) Dimensions() (dx, dy int) {
-	return is.enabledImg.Bounds().Dx() * int(config.UIScale), is.enabledImg.Bounds().Dy() * int(config.UIScale)
+	dx = is.itemSlotTiles.EnabledTile.Bounds().Dx() * int(config.UIScale)
+	dy = is.itemSlotTiles.EnabledTile.Bounds().Dy() * int(config.UIScale)
+	if dx == 0 {
+		panic("item slot has no width")
+	}
+	if dy == 0 {
+		panic("item slot has no height")
+	}
+	return dx, dy
 }
 
 func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.OverlayManager) {
@@ -113,9 +116,9 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 
 	slotSize, _ := is.Dimensions()
 
-	drawImg := is.enabledImg
+	drawImg := is.itemSlotTiles.EnabledTile
 	if !is.Enabled {
-		drawImg = is.disabledImg
+		drawImg = is.itemSlotTiles.DisabledTile
 	}
 	ops := ebiten.DrawImageOptions{}
 	if is.mouseBehavior.IsHovering {
@@ -125,7 +128,7 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 
 	if is.ItemInfo != nil {
 		if is.IsEquiped {
-			rendering.DrawImage(screen, is.equipedBorderImg, x, y, config.UIScale)
+			rendering.DrawImage(screen, is.itemSlotTiles.EquipedTile, x, y, config.UIScale)
 		}
 		rendering.DrawImage(screen, is.ItemInfo.GetTileImg(), x, y, config.UIScale)
 		// draw quantity if applicable
@@ -139,7 +142,7 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 		if is.IsSelected {
 			ops := ebiten.DrawImageOptions{}
 			ops.ColorScale.Scale(1, 1, 1, is.selectedBorderFader.GetCurrentScale())
-			rendering.DrawImageWithOps(screen, is.selectedBorderImg, x, y, config.UIScale, &ops)
+			rendering.DrawImageWithOps(screen, is.itemSlotTiles.SelectedTile, x, y, config.UIScale, &ops)
 		}
 		is.hoverWindow.Draw(om)
 	}
@@ -173,4 +176,41 @@ func (is *ItemSlot) Update() {
 		is.selectedBorderFader.Update()
 	}
 
+}
+
+type ItemSlotTiles struct {
+	EnabledTile  *ebiten.Image
+	DisabledTile *ebiten.Image
+	EquipedTile  *ebiten.Image
+	SelectedTile *ebiten.Image
+}
+
+func LoadItemSlotTiles(tilesetSrc string, enTileID, disTileID, eqTileID, selTileID int) ItemSlotTiles {
+	ts, err := tiled.LoadTileset(tilesetSrc)
+	if err != nil {
+		logz.Panicf("failed to load tileset for inventory: %s", err)
+	}
+	enabledImg, err := ts.GetTileImage(enTileID)
+	if err != nil {
+		panic(err)
+	}
+	disabledImg, err := ts.GetTileImage(disTileID)
+	if err != nil {
+		panic(err)
+	}
+	selectedBorder, err := ts.GetTileImage(selTileID)
+	if err != nil {
+		panic(err)
+	}
+	equipedBorder, err := ts.GetTileImage(eqTileID)
+	if err != nil {
+		panic(err)
+	}
+
+	return ItemSlotTiles{
+		EnabledTile:  enabledImg,
+		DisabledTile: disabledImg,
+		SelectedTile: selectedBorder,
+		EquipedTile:  equipedBorder,
+	}
 }

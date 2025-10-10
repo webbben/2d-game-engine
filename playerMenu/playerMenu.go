@@ -3,9 +3,11 @@ package playermenu
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/player"
@@ -19,10 +21,12 @@ type PlayerMenu struct {
 	playerRef *player.Player
 
 	ui.BoxDef
-	BoxTilesetSource string
-	BoxOriginIndex   int // index of the top left tile of this box in the tileset
-	boxImage         *ebiten.Image
-	boxX, boxY       int // position of the entire box containing the page content
+	BoxTilesetSource    string
+	BoxOriginIndex      int // index of the top left tile of this box in the tileset
+	BoxTitleOriginIndex int // index of the top left of the box title
+	boxImage            *ebiten.Image
+	boxTitle            ui.BoxTitle
+	boxX, boxY          int // position of the entire box containing the page content
 
 	pageTabs              ui.TabControl
 	PageTabsTilesetSource string // tileset for the tab control ui component
@@ -73,14 +77,18 @@ func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.Definit
 		},
 		{
 			ImgTileId:   66,
-			DisplayName: "Pantheon",
+			DisplayName: "Map",
 		},
 		{
 			ImgTileId:   67,
-			DisplayName: "Quests",
+			DisplayName: "Pantheon",
 		},
 		{
 			ImgTileId:   68,
+			DisplayName: "Quests",
+		},
+		{
+			ImgTileId:   69,
 			DisplayName: "Misc Stats",
 		},
 	})
@@ -103,6 +111,18 @@ func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.Definit
 	// generate box image for main content area
 	pm.boxImage = pm.BoxDef.BuildBoxImage(pm.mainContentBoxWidth, pm.mainContentBoxHeight)
 
+	longestTitle := ""
+	longestTitleWidth := 0
+	for _, tab := range pm.pageTabs.Tabs {
+		w, _, _ := text.GetStringSize(tab.DisplayName, config.DefaultTitleFont)
+		if w > longestTitleWidth {
+			longestTitle = tab.DisplayName
+			longestTitleWidth = w
+		}
+	}
+
+	pm.boxTitle = ui.NewBoxTitle(pm.BoxTilesetSource, pm.BoxTitleOriginIndex, longestTitle, nil)
+
 	// load each page
 	pm.mainContentActualWidth = pm.mainContentBoxWidth - (tileSize)
 	pm.mainContentActualHeight = pm.mainContentBoxHeight - (tileSize)
@@ -115,8 +135,11 @@ func (pm *PlayerMenu) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 	if !pm.init {
 		panic("player menu drawing before being initialized")
 	}
+	tileSize := pm.BoxDef.TileSize()
+
 	// menu box
 	rendering.DrawImage(screen, pm.boxImage, float64(pm.boxX), float64(pm.boxY), 0)
+	pm.boxTitle.Draw(screen, float64(pm.boxX+(pm.width/2)-pm.boxTitle.Width()+100), float64(pm.boxY-tileSize))
 	// top level menu tabs
 	pm.pageTabs.Draw(screen, float64(pm.pageTabsX), float64(pm.pageTabsY))
 
@@ -126,5 +149,8 @@ func (pm *PlayerMenu) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 
 func (pm *PlayerMenu) Update() {
 	pm.pageTabs.Update()
+	activeTab := pm.pageTabs.GetActiveTab()
+	pm.boxTitle.SetTitle(activeTab.DisplayName)
+
 	pm.InventoryPage.Update()
 }

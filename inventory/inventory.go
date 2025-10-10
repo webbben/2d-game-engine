@@ -3,9 +3,7 @@ package inventory
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/definitions"
-	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/overlay"
-	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/item"
 )
@@ -70,26 +68,13 @@ func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams)
 		panic("hover window params: tileset source is empty")
 	}
 
-	ts, err := tiled.LoadTileset(inv.itemSlotTilesetSource)
-	if err != nil {
-		logz.Panicf("failed to load tileset for inventory: %s", err)
-	}
-	enabledImg, err := ts.GetTileImage(inv.slotEnabledTileID)
-	if err != nil {
-		panic(err)
-	}
-	disabledImg, err := ts.GetTileImage(inv.slotDisabledTileID)
-	if err != nil {
-		panic(err)
-	}
-	selectedBorder, err := ts.GetTileImage(inv.slotSelectedBorderTileID)
-	if err != nil {
-		panic(err)
-	}
-	equipedBorder, err := ts.GetTileImage(inv.slotEquipedBorderTileID)
-	if err != nil {
-		panic(err)
-	}
+	itemSlotTiles := LoadItemSlotTiles(
+		params.ItemSlotTilesetSource,
+		params.SlotEnabledTileID,
+		params.SlotDisabledTileID,
+		params.SlotEquipedBorderTileID,
+		params.SlotSelectedBorderTileID,
+	)
 
 	inv.itemSlots = make([]ItemSlot, 0)
 
@@ -102,11 +87,8 @@ func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams)
 		}
 
 		itemSlot := NewItemSlot(ItemSlotParams{
-			EnabledImage:   enabledImg,
-			DisabledImage:  disabledImg,
-			EquipedBorder:  equipedBorder,
-			SelectedBorder: selectedBorder,
-			Enabled:        i < inv.EnabledSlotsCount,
+			ItemSlotTiles: itemSlotTiles,
+			Enabled:       i < inv.EnabledSlotsCount,
 		}, inv.hoverWindowParams)
 
 		if itemDef != nil {

@@ -1,6 +1,7 @@
 package item
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -16,7 +17,8 @@ type ItemDef interface {
 	GetWeight() float64     // the weight of this item, which factors into the player's inventory weight.
 	GetMaxDurability() int  // the full durability of this item. a higher value means it takes longer to break.
 
-	GetTileImg() *ebiten.Image // gets the "tile image", i.e. the image used in places like the inventory slots
+	GetTileImg() *ebiten.Image        // gets the "tile image", i.e. the image used in places like the inventory slots
+	GetEquipedTiles() []*ebiten.Image // gets the tiles for the equiped view of this item (if equipable)
 
 	// if true, item can be grouped together with other same items in inventories
 	// this tends to be true for items that don't have durability, like potions or arrows, but not for weapons and armor.
@@ -60,23 +62,27 @@ type ItemBase struct {
 	Consumable bool
 	MiscItem   bool
 
-	TilesetSource string
-	TileID        int
-	TileImg       *ebiten.Image
+	TilesetSourceTileImg      string // tileset where tile image is found
+	TileImgIndex              int    // index of tile image in tileset
+	TileImg                   *ebiten.Image
+	TilesetSourceEquipedTiles string // tileset where equiped tiles are found
+	OriginIndexEquipedTiles   int    // index of origin where equiped tiles are in tileset
+	EquipedTiles              []*ebiten.Image
 }
 
 func (ib ItemBase) Validate() {
-	if ib.Value < 0 {
-		panic("value < 0")
-	}
+	name := fmt.Sprintf("%s / %s", ib.Name, ib.ID)
 	if ib.Name == "" {
 		panic("item has no name")
 	}
 	if ib.ID == "" {
-		panic("item has no ID")
+		logz.Panicf("[%s] item has no ID", ib.Name)
+	}
+	if ib.Value < 0 {
+		logz.Panicf("[%s] %s", name, "value < 0")
 	}
 	if ib.Description == "" {
-		panic("item has no description")
+		logz.Panicf("[%s] %s", name, "item has no description")
 	}
 	i := 0
 	if ib.Weapon {
@@ -98,16 +104,21 @@ func (ib ItemBase) Validate() {
 		i++
 	}
 	if i == 0 {
-		panic("item has no designated type")
+		logz.Panicf("[%s] %s", name, "item has no designated type")
 	}
 	if i > 1 {
-		panic("item has more than one designated type")
+		logz.Panicf("[%s] %s", name, "item has more than one designated type")
 	}
-	if ib.TilesetSource == "" {
-		panic("item has no tileset source")
+	if ib.TilesetSourceTileImg == "" {
+		logz.Panicf("[%s] %s", name, "item has no tileset source for tile image")
 	}
 	if ib.MaxDurability != 0 && ib.Groupable {
-		panic("items with durability cannot be groupable")
+		logz.Panicf("[%s] %s", name, "items with durability cannot be groupable")
+	}
+	if ib.IsEquipable() {
+		if ib.TilesetSourceEquipedTiles == "" {
+			logz.Panicf("[%s] %s", name, "equipable items must have an equiped tiles tileset")
+		}
 	}
 }
 
@@ -131,6 +142,9 @@ func (ib ItemBase) GetMaxDurability() int {
 }
 func (ib ItemBase) GetTileImg() *ebiten.Image {
 	return ib.TileImg
+}
+func (ib ItemBase) GetEquipedTiles() []*ebiten.Image {
+	return ib.EquipedTiles
 }
 func (ib ItemBase) IsGroupable() bool {
 	return ib.Groupable
@@ -158,19 +172,35 @@ func (ib ItemBase) IsEquipable() bool {
 }
 
 func (ib *ItemBase) Load() {
-	if ib.TilesetSource == "" {
-		panic("no tileset source defined for item")
+	if ib.TilesetSourceTileImg == "" {
+		panic("no tileset source defined for item tile image")
 	}
-	tileset, err := tiled.LoadTileset(ib.TilesetSource)
+
+	// load tile image
+	tileset, err := tiled.LoadTileset(ib.TilesetSourceTileImg)
 	if err != nil {
-		logz.Panicf("error while loading tileset for item: %s", err)
+		logz.Panicf("error while loading tileset for item tile image: %s", err)
 	}
-	img, err := tileset.GetTileImage(ib.TileID)
+	img, err := tileset.GetTileImage(ib.TileImgIndex)
 	if err != nil {
 		logz.Panicf("error while getting item tile image: %s", err)
 	}
-
 	ib.TileImg = img
+
+	// load equiped tiles
+	if ib.IsEquipable() {
+		tileset, err = tiled.LoadTileset(ib.TilesetSourceEquipedTiles)
+		if err != nil {
+			logz.Panicf("error while loading tileset for item equiped tiles: %s", err)
+		}
+		for i := range 4 {
+			img, err := tileset.GetTileImage(ib.OriginIndexEquipedTiles + i)
+			if err != nil {
+				logz.Panicf("error while loading item equiped tile: %s", err)
+			}
+			ib.EquipedTiles = append(ib.EquipedTiles, img)
+		}
+	}
 
 	ib.init = true
 }

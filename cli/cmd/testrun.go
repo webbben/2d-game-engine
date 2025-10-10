@@ -184,6 +184,7 @@ func GetPlayerMenu(p *player.Player, defMgr *definitions.DefinitionManager) play
 		BoxTilesetSource:      "assets/tiled/tilesets/boxes/boxes.tsj",
 		PageTabsTilesetSource: "assets/tiled/tilesets/ui-components.tsj",
 		BoxOriginIndex:        16,
+		BoxTitleOriginIndex:   111,
 	}
 
 	invParams := inventory.InventoryParams{
@@ -275,29 +276,29 @@ func LoadItems(g *game.Game) {
 	itemDefs := []item.ItemDef{
 		&item.WeaponDef{
 			ItemBase: item.ItemBase{
-				ID:            "longsword_01",
-				Name:          "Iron Longsword",
-				Description:   "An iron longsword forged by blacksmiths in Gaul.",
-				Value:         100,
-				Weight:        25,
-				MaxDurability: 250,
-				TilesetSource: "assets/tiled/tilesets/items_01.tsj",
-				TileID:        0,
-				Weapon:        true,
+				ID:                   "longsword_01",
+				Name:                 "Iron Longsword",
+				Description:          "An iron longsword forged by blacksmiths in Gaul.",
+				Value:                100,
+				Weight:               25,
+				MaxDurability:        250,
+				TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+				TileImgIndex:         0,
+				MiscItem:             true,
 			},
 			Damage:        10,
 			HitsPerSecond: 1,
 		},
 		&item.ItemBase{
-			ID:            "potion_herculean_strength",
-			Name:          "Potion of Herculean Strength",
-			Description:   "This potion invigorates the drinker and gives him strength only matched by Hercules himself.",
-			Value:         200,
-			Weight:        3,
-			TilesetSource: "assets/tiled/tilesets/items_01.tsj",
-			TileID:        129,
-			Groupable:     true,
-			Consumable:    true,
+			ID:                   "potion_herculean_strength",
+			Name:                 "Potion of Herculean Strength",
+			Description:          "This potion invigorates the drinker and gives him strength only matched by Hercules himself.",
+			Value:                200,
+			Weight:               3,
+			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TileImgIndex:         129,
+			Groupable:            true,
+			Consumable:           true,
 		},
 	}
 

@@ -3,6 +3,7 @@ package playermenu
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/inventory"
@@ -10,7 +11,14 @@ import (
 )
 
 type InventoryPage struct {
-	init            bool
+	init bool
+
+	EquipedHead      inventory.ItemSlot // for hats, helmets, etc
+	EquipedBody      inventory.ItemSlot // for shirts, cuirasses, robes,etc
+	EquipedFeet      inventory.ItemSlot // for boots, shoes, etc
+	EquipedAmmo      inventory.ItemSlot // for arrows, sling bullets, etc
+	EquipedAuxiliary inventory.ItemSlot // for shields, torches, etc
+
 	PlayerInventory inventory.Inventory
 	playerAvatar    *ebiten.Image
 	playerRef       *player.Player
@@ -32,6 +40,36 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 	ip.PlayerInventory.EnabledSlotsCount = 18
 	ip.PlayerInventory = inventory.NewInventory(defMgr, inventoryParams)
 
+	// load the item slot images for our equiped items slots
+	itemSlotImages := inventory.LoadItemSlotTiles(
+		inventoryParams.ItemSlotTilesetSource,
+		inventoryParams.SlotEnabledTileID,
+		inventoryParams.SlotDisabledTileID,
+		inventoryParams.SlotEquipedBorderTileID,
+		inventoryParams.SlotSelectedBorderTileID,
+	)
+
+	ip.EquipedHead = inventory.NewItemSlot(inventory.ItemSlotParams{
+		ItemSlotTiles: itemSlotImages,
+		Enabled:       true,
+	}, inventoryParams.HoverWindowParams)
+	ip.EquipedBody = inventory.NewItemSlot(inventory.ItemSlotParams{
+		ItemSlotTiles: itemSlotImages,
+		Enabled:       true,
+	}, inventoryParams.HoverWindowParams)
+	ip.EquipedFeet = inventory.NewItemSlot(inventory.ItemSlotParams{
+		ItemSlotTiles: itemSlotImages,
+		Enabled:       true,
+	}, inventoryParams.HoverWindowParams)
+	ip.EquipedAmmo = inventory.NewItemSlot(inventory.ItemSlotParams{
+		ItemSlotTiles: itemSlotImages,
+		Enabled:       true,
+	}, inventoryParams.HoverWindowParams)
+	ip.EquipedAuxiliary = inventory.NewItemSlot(inventory.ItemSlotParams{
+		ItemSlotTiles: itemSlotImages,
+		Enabled:       true,
+	}, inventoryParams.HoverWindowParams)
+
 	ip.playerRef = playerRef
 	ip.playerAvatar = ip.playerRef.Entity.DrawAvatarBox(100, 200)
 
@@ -43,12 +81,19 @@ func (ip *InventoryPage) Update() {
 		panic("inventory page not initialized")
 	}
 	ip.PlayerInventory.Update()
+	ip.EquipedHead.Update()
+	ip.EquipedBody.Update()
+	ip.EquipedFeet.Update()
+	ip.EquipedAmmo.Update()
+	ip.EquipedAuxiliary.Update()
 }
 
 func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *overlay.OverlayManager) {
 	if !ip.init {
 		panic("inventory page not initialized")
 	}
+
+	tileSize := config.TileSize * config.UIScale
 
 	// draw player avatar
 	rendering.DrawImage(screen, ip.playerAvatar, drawX, drawY, 0)
@@ -57,4 +102,12 @@ func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *ov
 	inventoryWidth, _ := ip.PlayerInventory.Dimensions()
 	inventoryDrawX := int(drawX) + ip.width - inventoryWidth
 	ip.PlayerInventory.Draw(screen, float64(inventoryDrawX), drawY, om)
+	// player equipment item slots
+	equipStartX := drawX + float64(ip.playerAvatar.Bounds().Dx()) + 10
+	equipStartY := drawY + 10
+	ip.EquipedHead.Draw(screen, equipStartX, equipStartY, om)
+	ip.EquipedBody.Draw(screen, equipStartX, equipStartY+(1.5*tileSize), om)
+	ip.EquipedFeet.Draw(screen, equipStartX, equipStartY+(3*tileSize), om)
+	ip.EquipedAmmo.Draw(screen, equipStartX+(tileSize*1.5), equipStartY+(0.75*tileSize), om)
+	ip.EquipedAuxiliary.Draw(screen, equipStartX+(tileSize*1.5), equipStartY+(2.25*tileSize), om)
 }

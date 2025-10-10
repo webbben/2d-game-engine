@@ -129,3 +129,12 @@ func (tc *TabControl) ActivateTab(tabIndex int) {
 		}
 	}
 }
+
+func (tc TabControl) GetActiveTab() Tab {
+	for _, tab := range tc.Tabs {
+		if tab.Active {
+			return tab
+		}
+	}
+	panic("no active tab found?")
+}
