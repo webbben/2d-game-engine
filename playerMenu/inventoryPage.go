@@ -7,6 +7,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/tiled"
+	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/player"
 )
@@ -30,7 +31,9 @@ type InventoryPage struct {
 	playerRef       *player.Player
 	width, height   int
 
-	itemMover inventory.ItemMover
+	itemMover inventory.ItemMover // for moving the items between slots
+
+	goldCount ui.TextBox // displays the amount gold in the inventory
 }
 
 func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Player, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
@@ -128,6 +131,11 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 
 	ip.itemMover = inventory.NewItemMover(itemSlots)
 
+	tileSize := int(config.TileSize * config.UIScale)
+
+	goldIcon := tiled.GetTileImage(inventoryParams.ItemSlotTilesetSource, 194)
+	ip.goldCount = ui.NewTextBox("25", inventoryParams.HoverWindowParams.TilesetSource, 135, config.DefaultFont, goldIcon, tileSize*4)
+
 	ip.init = true
 }
 
@@ -178,4 +186,6 @@ func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *ov
 	ip.EquipedAuxiliary.Draw(screen, equipStartX+(tileSize*3), equipStartY+(2.25*tileSize), om)
 
 	ip.itemMover.Draw(om)
+
+	ip.goldCount.Draw(screen, equipStartX+(tileSize*4.5), equipStartY)
 }
