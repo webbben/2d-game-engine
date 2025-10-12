@@ -1,9 +1,12 @@
 package playermenu
 
 import (
+	"fmt"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/tiled"
@@ -33,7 +36,16 @@ type InventoryPage struct {
 
 	itemMover inventory.ItemMover // for moving the items between slots
 
-	goldCount ui.TextBox // displays the amount gold in the inventory
+	goldCountX, goldCountY          float64
+	goldCountWidth, goldCountHeight int
+	goldCount                       ui.TextBox // displays the amount gold in the inventory
+	goldCountMouse                  mouse.MouseBehavior
+
+	coinPurseX, coinPurseY float64
+	coinPurse              inventory.Inventory // inventory section that holds the coins
+	coinPurseBox           *ebiten.Image       // box that holds the coin purse inventory
+	showCoinPurse          bool
+	coinPurseMouse         mouse.MouseBehavior // for detecting if the user clicks outside the coin purse
 }
 
 func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Player, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
@@ -133,8 +145,21 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 
 	tileSize := int(config.TileSize * config.UIScale)
 
+	// gold counter and coin purse set up
+
 	goldIcon := tiled.GetTileImage(inventoryParams.ItemSlotTilesetSource, 194)
-	ip.goldCount = ui.NewTextBox("25", inventoryParams.HoverWindowParams.TilesetSource, 135, config.DefaultFont, goldIcon, tileSize*4)
+	ip.goldCount = ui.NewTextBox("25", inventoryParams.HoverWindowParams.TilesetSource, 135, config.DefaultFont, goldIcon, &ui.TextBoxOptions{
+		SetWidthPx:       tileSize * 4,
+		HighlightOnHover: true,
+	})
+
+	coinPurseBox := ui.NewBox(config.DefaultUIBox.TilesetSrc, config.DefaultUIBox.OriginIndex)
+	ip.coinPurseBox = coinPurseBox.BuildBoxImage(tileSize*4, tileSize*3)
+	coinPurseInvParams := inventoryParams
+	coinPurseInvParams.RowCount = 2
+	coinPurseInvParams.ColCount = 3
+	coinPurseInvParams.EnabledSlotsCount = 6
+	ip.coinPurse = inventory.NewInventory(defMgr, coinPurseInvParams)
 
 	ip.init = true
 }
@@ -154,6 +179,27 @@ func (ip *InventoryPage) Update() {
 	ip.EquipedRing2.Update()
 
 	ip.itemMover.Update()
+
+	// gold counter and coin purse
+	ip.goldCount.Update()
+	ip.goldCountMouse.Update(int(ip.goldCountX), int(ip.goldCountY), ip.goldCountWidth, ip.goldCountHeight, false)
+	if ip.goldCountMouse.LeftClick.ClickReleased {
+		fmt.Println("clicked")
+		ip.showCoinPurse = !ip.showCoinPurse
+		fmt.Println("show?:", ip.showCoinPurse)
+		ip.coinPurseMouse.LeftClickOutside.Reset() // need this to prevent a dropped click
+	}
+
+	if ip.showCoinPurse {
+		ip.coinPurse.Update()
+		bounds := ip.coinPurseBox.Bounds()
+		w, h := bounds.Dx(), bounds.Dy()
+		ip.coinPurseMouse.Update(int(ip.coinPurseX), int(ip.coinPurseY), w, h, false)
+		if ip.coinPurseMouse.LeftClickOutside.ClickReleased {
+			ip.showCoinPurse = false
+			fmt.Println("clicked outside coinpurse")
+		}
+	}
 }
 
 func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *overlay.OverlayManager) {
@@ -187,5 +233,15 @@ func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *ov
 
 	ip.itemMover.Draw(om)
 
-	ip.goldCount.Draw(screen, equipStartX+(tileSize*4.5), equipStartY)
+	ip.goldCountX = equipStartX + (tileSize * 4.5)
+	ip.goldCountY = equipStartY
+	ip.goldCountWidth, ip.goldCountHeight = ip.goldCount.Dimensions()
+	ip.goldCount.Draw(screen, ip.goldCountX, ip.goldCountY)
+
+	if ip.showCoinPurse {
+		ip.coinPurseX = ip.goldCountX
+		ip.coinPurseY = ip.goldCountY + (tileSize * 2)
+		rendering.DrawImage(screen, ip.coinPurseBox, ip.coinPurseX, ip.coinPurseY, 0)
+		ip.coinPurse.Draw(screen, ip.coinPurseX+(tileSize/2), ip.coinPurseY+(tileSize/2), om)
+	}
 }

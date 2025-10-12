@@ -22,7 +22,7 @@ func NewHoverTooltip(s string, tilesetSrc string, originIndex int, msDelay int, 
 	}
 
 	hoverTooltip := HoverTooltip{
-		textBox:      NewTextBox(s, tilesetSrc, originIndex, config.DefaultFont, nil, 0),
+		textBox:      NewTextBox(s, tilesetSrc, originIndex, config.DefaultFont, nil, nil),
 		mouseOffsetX: mouseOffsetX,
 		mouseOffsetY: mouseOffsetY,
 		msDelay:      msDelay,

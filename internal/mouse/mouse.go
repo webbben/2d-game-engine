@@ -8,10 +8,11 @@ import (
 )
 
 type MouseBehavior struct {
-	IsHovering bool // mouse is hovering
-	HoverStart time.Time
-	LeftClick  ClickBehavior
-	RightClick ClickBehavior
+	IsHovering       bool // mouse is hovering
+	HoverStart       time.Time
+	LeftClick        ClickBehavior
+	LeftClickOutside ClickBehavior // for detecting if outside clicks occur
+	RightClick       ClickBehavior
 }
 
 type ClickBehavior struct {
@@ -20,6 +21,19 @@ type ClickBehavior struct {
 	ClickStart    bool
 	ClickHolding  bool
 	ClickReleased bool
+}
+
+func (cb ClickBehavior) String() string {
+	if cb.ClickStart {
+		return "Click Start"
+	}
+	if cb.ClickHolding {
+		return "Click Holding"
+	}
+	if cb.ClickReleased {
+		return "Click Released"
+	}
+	return "no behavior detected"
 }
 
 func (cb *ClickBehavior) Reset() {
@@ -46,6 +60,7 @@ func (mouseBehavior *MouseBehavior) Update(drawX, drawY int, boxWidth, boxHeight
 	if mouseX > int(drawX) && mouseX < (drawX+boxWidth) {
 		if mouseY > int(drawY) && mouseY < (drawY+boxHeight) {
 			mouseBehavior.IsHovering = true
+			mouseBehavior.LeftClickOutside.Reset() // not clicking outside, so reset this
 
 			// detect click behavior
 			mouseBehavior.LeftClick.detectClick(ebiten.MouseButtonLeft, mouseBehavior.LeftClick)
@@ -57,6 +72,9 @@ func (mouseBehavior *MouseBehavior) Update(drawX, drawY int, boxWidth, boxHeight
 		mouseBehavior.HoverStart = time.Now() // continuously set the start time to now, until actually hovering
 		mouseBehavior.LeftClick.Reset()
 		mouseBehavior.RightClick.Reset()
+
+		// detect outside clicks
+		mouseBehavior.LeftClickOutside.detectClick(ebiten.MouseButtonLeft, mouseBehavior.LeftClickOutside)
 	}
 }
 

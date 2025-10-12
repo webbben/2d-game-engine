@@ -46,6 +46,7 @@ var (
 	// default box used for simple tooltips (e.g. tooltips for tabs); must be set by game
 	// (this one is actually required as of now)
 	DefaultTooltipBox DefaultBox
+	DefaultUIBox      DefaultBox // default box used for UI menus (e.g. the player's inventory menu, etc). required.
 
 	MapPathOverride string = "" // set this if you have a custom directory where maps are stored
 )

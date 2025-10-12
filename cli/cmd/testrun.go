@@ -56,6 +56,10 @@ to quickly create a Cobra application.`,
 			TilesetSrc:  "assets/tiled/tilesets/boxes/boxes.tsj",
 			OriginIndex: 132,
 		}
+		config.DefaultUIBox = config.DefaultBox{
+			TilesetSrc:  "assets/tiled/tilesets/boxes/boxes.tsj",
+			OriginIndex: 16,
+		}
 
 		err := game.InitialStartUp()
 		if err != nil {
