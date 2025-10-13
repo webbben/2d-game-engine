@@ -15,7 +15,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/player"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
-	"github.com/webbben/2d-game-engine/screen"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -39,8 +38,6 @@ type Game struct {
 	Hour           int
 	lastHourChange time.Time
 	daylightFader  lights.LightFader
-
-	CurrentScreen *screen.Screen // if set, a screen is being displayed and we are not in the game world
 
 	outsideWidth, outsideHeight int
 

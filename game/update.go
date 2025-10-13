@@ -13,11 +13,6 @@ func (g *Game) Update() error {
 		g.handleGlobalKeyBindings()
 	}
 
-	if g.CurrentScreen != nil {
-		g.CurrentScreen.UpdateScreen()
-		return nil
-	}
-
 	if !g.GamePaused {
 		g.worldUpdates()
 	}

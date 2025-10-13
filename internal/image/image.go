@@ -2,7 +2,6 @@ package image
 
 import (
 	"errors"
-	"fmt"
 	"image"
 	"image/color"
 	"log"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/webbben/2d-game-engine/tileset"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 )
@@ -119,36 +117,6 @@ func (bt BoxTiles) Verify() error {
 		return errors.New("fill image has different dimensions")
 	}
 	return nil
-}
-
-// LoadBoxTileSet loads a set of box tiles from a tileset image folder
-//
-// tilesetPath: the path to the tileset image folder
-//
-// returns: the box tiles and an error if one occurred
-//
-// The tileset image folder must contain the following images:
-// T.png: the top tile, TL.png: the top left tile, TR.png: the top right tile,
-// L.png: the left tile, R.png: the right tile, BL.png: the bottom left tile,
-// B.png: the bottom tile, BR.png: the bottom right tile, F.png: the fill tile
-func LoadBoxTileSet(tilesetPath string) (BoxTiles, error) {
-	tiles := BoxTiles{}
-	tileset, err := tileset.LoadTilesetByPath(tilesetPath)
-	if err != nil {
-		fmt.Println("failed to set dialog tiles:", err)
-		return BoxTiles{}, err
-	}
-	tiles.Top = tileset["T"]
-	tiles.TopLeft = tileset["TL"]
-	tiles.TopRight = tileset["TR"]
-	tiles.Left = tileset["L"]
-	tiles.Right = tileset["R"]
-	tiles.BottomLeft = tileset["BL"]
-	tiles.Bottom = tileset["B"]
-	tiles.BottomRight = tileset["BR"]
-	tiles.Fill = tileset["F"]
-
-	return tiles, tiles.Verify()
 }
 
 // CreateBox creates a box image from the given tiles
