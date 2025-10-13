@@ -40,10 +40,22 @@ type ItemDef interface {
 	// determines if this item can be equiped
 	IsEquipable() bool
 
+	GetItemType() string // gives a string representation of the item type (IsWeapon, IsArmor, etc). Used for direct comparisons of item types.
+
 	Load() // load things like images
 
 	Validate() // checks if item def is properly defined
 }
+
+const (
+	TypeWeapon     = "WEAPON"
+	TypeArmor      = "ARMOR"
+	TypeAccessory  = "ACCESSORY"
+	TypeAmmunition = "AMMUNITION"
+	TypeConsumable = "CONSUMABLE"
+	TypeMisc       = "MISC"
+	TypeCurrency   = "CURRENCY"
+)
 
 // includes the basic functions required for an item to implement the ItemDef interface.
 // embed into a struct to make it effectively an item type.
@@ -178,6 +190,30 @@ func (ib ItemBase) IsCurrencyItem() bool {
 }
 func (ib ItemBase) IsEquipable() bool {
 	return ib.Armor || ib.Weapon || ib.Accessory || ib.Ammunition
+}
+func (ib ItemBase) GetItemType() string {
+	if ib.IsWeapon() {
+		return TypeWeapon
+	}
+	if ib.IsArmor() {
+		return TypeArmor
+	}
+	if ib.IsAccessory() {
+		return TypeAccessory
+	}
+	if ib.IsAmmunition() {
+		return TypeAmmunition
+	}
+	if ib.IsConsumable() {
+		return TypeConsumable
+	}
+	if ib.IsMiscItem() {
+		return TypeMisc
+	}
+	if ib.IsCurrencyItem() {
+		return TypeCurrency
+	}
+	panic("unknown item type; one of the item types must be set for all items")
 }
 
 func (ib *ItemBase) Load() {

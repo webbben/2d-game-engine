@@ -52,7 +52,7 @@ type InventoryParams struct {
 
 	HoverWindowParams ui.TextWindowParams
 
-	AllowedItemDefs []string // if set, all slots in this inventory will only allow items in this list of item IDs
+	AllowedItemTypes []string // if set, all slots in this inventory will only allow items in this list of item IDs
 }
 
 func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams) Inventory {
@@ -91,9 +91,9 @@ func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams)
 
 	for i := range inv.RowCount * inv.ColCount {
 		itemSlot := NewItemSlot(ItemSlotParams{
-			ItemSlotTiles:   itemSlotTiles,
-			Enabled:         i < inv.EnabledSlotsCount,
-			AllowedItemDefs: params.AllowedItemDefs,
+			ItemSlotTiles:    itemSlotTiles,
+			Enabled:          i < inv.EnabledSlotsCount,
+			AllowedItemTypes: params.AllowedItemTypes,
 		}, inv.hoverWindowParams)
 
 		inv.itemSlots = append(inv.itemSlots, itemSlot)

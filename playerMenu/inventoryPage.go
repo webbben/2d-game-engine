@@ -147,6 +147,7 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 	coinPurseInvParams.RowCount = 2
 	coinPurseInvParams.ColCount = 3
 	coinPurseInvParams.EnabledSlotsCount = 6
+	coinPurseInvParams.AllowedItemTypes = []string{item.TypeCurrency}
 	ip.coinPurse = inventory.NewInventory(defMgr, coinPurseInvParams)
 
 	// set up item mover

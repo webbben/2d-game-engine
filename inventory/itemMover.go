@@ -119,7 +119,7 @@ func (im *ItemMover) handleItemPlacement() {
 			}
 
 			// placing all of the item
-			if slot.CanTakeItemID(im.carryItem.Instance.DefID) {
+			if slot.CanTakeItemType(im.carryItem.Def.GetItemType()) {
 				// check if the slot is empty
 				if slot.Item == nil {
 					// slot is empty, we can put this item here
@@ -140,7 +140,7 @@ func (im *ItemMover) handleItemPlacement() {
 			}
 		} else if slot.mouseBehavior.RightClick.ClickReleased {
 			// placing single item
-			if slot.CanTakeItemID(im.carryItem.Instance.DefID) {
+			if slot.CanTakeItemType(im.carryItem.Def.GetItemType()) {
 				if slot.Item == nil {
 					slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, 1)
 					im.carryItem.Quantity--

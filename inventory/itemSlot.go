@@ -32,15 +32,14 @@ type ItemSlot struct {
 	tooltip      string
 	hoverTooltip ui.HoverTooltip
 
-	allowItemDefs []string // if set, only items with these def IDs will be allowed in this slot
+	allowedItemTypes []string // each item type in this array will be allowed; if nothing is set here, all items are allowed
 }
 
 type ItemSlotParams struct {
-	ItemSlotTiles ItemSlotTiles
-	Enabled       bool
-	Tooltip       string
-
-	AllowedItemDefs []string // if set, this item slot will only allow these item defs
+	ItemSlotTiles    ItemSlotTiles
+	Enabled          bool
+	Tooltip          string
+	AllowedItemTypes []string // each item type in this array will be allowed; if nothing is set here, all items are allowed
 }
 
 func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) *ItemSlot {
@@ -66,7 +65,7 @@ func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) *
 		Enabled:             params.Enabled,
 		selectedBorderFader: rendering.NewBounceFader(0.5, 0.5, 0.8, 0.1),
 		hoverWindowParams:   hoverWindowParams,
-		allowItemDefs:       params.AllowedItemDefs,
+		allowedItemTypes:    params.AllowedItemTypes,
 	}
 
 	if params.Tooltip != "" {
@@ -79,12 +78,12 @@ func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) *
 	return &itemSlot
 }
 
-func (is ItemSlot) CanTakeItemID(defID string) bool {
-	if len(is.allowItemDefs) == 0 {
+func (is ItemSlot) CanTakeItemType(itemType string) bool {
+	if len(is.allowedItemTypes) == 0 {
 		return true
 	}
-	for _, id := range is.allowItemDefs {
-		if id == defID {
+	for _, allowedType := range is.allowedItemTypes {
+		if itemType == allowedType {
 			return true
 		}
 	}
@@ -104,7 +103,7 @@ func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.It
 	if quantity > 1 && !itemInfo.IsGroupable() {
 		panic("tried to add multiple of a non-groupable item to an item slot")
 	}
-	if !is.CanTakeItemID(itemInstance.DefID) {
+	if !is.CanTakeItemType(itemInfo.GetItemType()) {
 		panic("item slot can't take this item")
 	}
 	is.Item = &item.InventoryItem{
