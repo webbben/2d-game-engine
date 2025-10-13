@@ -1,8 +1,6 @@
 package playermenu
 
 import (
-	"fmt"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/config"
@@ -12,7 +10,9 @@ import (
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/inventory"
+	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/player"
+	"golang.org/x/text/message"
 )
 
 type InventoryPage struct {
@@ -46,8 +46,11 @@ type InventoryPage struct {
 	coinPurseBox           *ebiten.Image       // box that holds the coin purse inventory
 	showCoinPurse          bool
 	coinPurseMouse         mouse.MouseBehavior // for detecting if the user clicks outside the coin purse
+
+	defMgr *definitions.DefinitionManager
 }
 
+// for first time loading
 func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Player, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
 	if playerRef == nil {
 		panic("player ref is nil")
@@ -55,6 +58,8 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 	if playerRef.Entity == nil {
 		panic("player entity is nil")
 	}
+
+	ip.defMgr = defMgr
 
 	ip.width = pageWidth
 	ip.height = pageHeight
@@ -127,26 +132,9 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 	ip.playerRef = playerRef
 	ip.playerAvatar = ip.playerRef.Entity.DrawAvatarBox(100, 200)
 
-	itemSlots := []*inventory.ItemSlot{}
-	itemSlots = append(itemSlots, ip.PlayerInventory.GetItemSlots()...)
-	itemSlots = append(
-		itemSlots,
-		ip.EquipedHead,
-		ip.EquipedBody,
-		ip.EquipedFeet,
-		ip.EquipedAmulet,
-		ip.EquipedRing1,
-		ip.EquipedRing2,
-		ip.EquipedAmmo,
-		ip.EquipedAuxiliary,
-	)
-
-	ip.itemMover = inventory.NewItemMover(itemSlots)
-
 	tileSize := int(config.TileSize * config.UIScale)
 
 	// gold counter and coin purse set up
-
 	goldIcon := tiled.GetTileImage(inventoryParams.ItemSlotTilesetSource, 194)
 	ip.goldCount = ui.NewTextBox("25", inventoryParams.HoverWindowParams.TilesetSource, 135, config.DefaultFont, goldIcon, &ui.TextBoxOptions{
 		SetWidthPx:       tileSize * 4,
@@ -161,7 +149,60 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 	coinPurseInvParams.EnabledSlotsCount = 6
 	ip.coinPurse = inventory.NewInventory(defMgr, coinPurseInvParams)
 
+	// set up item mover
+	itemSlots := []*inventory.ItemSlot{}
+	itemSlots = append(itemSlots, ip.PlayerInventory.GetItemSlots()...)
+	itemSlots = append(itemSlots, ip.coinPurse.GetItemSlots()...)
+	itemSlots = append(
+		itemSlots,
+		ip.EquipedHead,
+		ip.EquipedBody,
+		ip.EquipedFeet,
+		ip.EquipedAmulet,
+		ip.EquipedRing1,
+		ip.EquipedRing2,
+		ip.EquipedAmmo,
+		ip.EquipedAuxiliary,
+	)
+	ip.itemMover = inventory.NewItemMover(itemSlots)
+
 	ip.init = true
+}
+
+func (ip *InventoryPage) SyncPlayerItems() {
+	// set equiped items
+	setInventoryItem(ip.EquipedHead, ip.playerRef.EquipedHeadwear)
+	setInventoryItem(ip.EquipedBody, ip.playerRef.EquipedBodywear)
+	setInventoryItem(ip.EquipedFeet, ip.playerRef.EquipedFootwear)
+
+	setInventoryItem(ip.EquipedAmulet, ip.playerRef.EquipedAmulet)
+	setInventoryItem(ip.EquipedRing1, ip.playerRef.EquipedRing1)
+	setInventoryItem(ip.EquipedRing2, ip.playerRef.EquipedRing2)
+
+	setInventoryItem(ip.EquipedAmmo, ip.playerRef.EquipedAmmo)
+	setInventoryItem(ip.EquipedAuxiliary, ip.playerRef.EquipedAuxiliary)
+
+	// set inventory items
+	ip.PlayerInventory.SetItemSlots(ip.playerRef.InventoryItems)
+
+	// set coin purse items
+	ip.coinPurse.SetItemSlots(ip.playerRef.CoinPurse)
+
+	moneyCount := ip.CountMoney()
+	p := message.NewPrinter(message.MatchLanguage("en"))
+	ip.goldCount.SetText(p.Sprintf("%d", moneyCount))
+}
+
+func setInventoryItem(itemSlot *inventory.ItemSlot, invItem *item.InventoryItem) {
+	if invItem == nil {
+		itemSlot.Clear()
+	} else {
+		itemSlot.SetContent(
+			&invItem.Instance,
+			invItem.Def,
+			invItem.Quantity,
+		)
+	}
 }
 
 func (ip *InventoryPage) Update() {
@@ -184,9 +225,7 @@ func (ip *InventoryPage) Update() {
 	ip.goldCount.Update()
 	ip.goldCountMouse.Update(int(ip.goldCountX), int(ip.goldCountY), ip.goldCountWidth, ip.goldCountHeight, false)
 	if ip.goldCountMouse.LeftClick.ClickReleased {
-		fmt.Println("clicked")
 		ip.showCoinPurse = !ip.showCoinPurse
-		fmt.Println("show?:", ip.showCoinPurse)
 		ip.coinPurseMouse.LeftClickOutside.Reset() // need this to prevent a dropped click
 	}
 
@@ -197,7 +236,6 @@ func (ip *InventoryPage) Update() {
 		ip.coinPurseMouse.Update(int(ip.coinPurseX), int(ip.coinPurseY), w, h, false)
 		if ip.coinPurseMouse.LeftClickOutside.ClickReleased {
 			ip.showCoinPurse = false
-			fmt.Println("clicked outside coinpurse")
 		}
 	}
 }
@@ -244,4 +282,28 @@ func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *ov
 		rendering.DrawImage(screen, ip.coinPurseBox, ip.coinPurseX, ip.coinPurseY, 0)
 		ip.coinPurse.Draw(screen, ip.coinPurseX+(tileSize/2), ip.coinPurseY+(tileSize/2), om)
 	}
+}
+
+func (ip InventoryPage) CountMoney() int {
+	sum := 0
+	for _, itemSlot := range ip.coinPurse.GetItemSlots() {
+		if itemSlot.Item == nil {
+			continue
+		}
+		if itemSlot.Item.Def.IsCurrencyItem() {
+			sum += itemSlot.Item.Def.GetValue() * itemSlot.Item.Quantity
+		}
+	}
+
+	// also check for coins not in coin purse
+	for _, itemSlot := range ip.PlayerInventory.GetItemSlots() {
+		if itemSlot.Item == nil {
+			continue
+		}
+		if itemSlot.Item.Def.IsCurrencyItem() {
+			sum += itemSlot.Item.Def.GetValue() * itemSlot.Item.Quantity
+		}
+	}
+
+	return sum
 }

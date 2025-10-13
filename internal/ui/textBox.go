@@ -12,9 +12,12 @@ import (
 type TextBox struct {
 	box              BoxDef
 	boxImage         *ebiten.Image
+	icon             *ebiten.Image
 	highlightOnHover bool
 	mouse.MouseBehavior
-	x, y int
+	x, y    int
+	options TextBoxOptions
+	f       font.Face
 }
 
 func (tb TextBox) Dimensions() (dx, dy int) {
@@ -39,40 +42,47 @@ func NewTextBox(s string, tilesetSrc string, originIndex int, f font.Face, icon 
 	textBox := TextBox{
 		box:              NewBox(tilesetSrc, originIndex),
 		highlightOnHover: ops.HighlightOnHover,
+		icon:             icon,
+		options:          *ops,
+		f:                f,
 	}
 
+	textBox.SetText(s)
+
+	return textBox
+}
+
+func (tb *TextBox) SetText(s string) {
 	tileSize := int(config.TileSize * config.UIScale)
 
 	height := tileSize * 2
-	width, _, _ := text.GetStringSize(s, f)
-	if icon != nil {
-		width += int(float64(icon.Bounds().Dx())*config.UIScale) / 2
+	width, _, _ := text.GetStringSize(s, tb.f)
+	if tb.icon != nil {
+		width += int(float64(tb.icon.Bounds().Dx())*config.UIScale) / 2
 	}
 	width += int(2.5 * float64(tileSize))
 	width -= width % tileSize
 
-	if ops.SetWidthPx > 0 {
-		width = ops.SetWidthPx
+	if tb.options.SetWidthPx > 0 {
+		width = tb.options.SetWidthPx
 	}
 
-	textBox.boxImage = textBox.box.BuildBoxImage(width, height)
+	tb.boxImage = tb.box.BuildBoxImage(width, height)
 
-	if icon != nil {
-		rendering.DrawImage(textBox.boxImage, icon, float64(tileSize/2), float64(tileSize/2), config.UIScale)
+	if tb.icon != nil {
+		rendering.DrawImage(tb.boxImage, tb.icon, float64(tileSize/2), float64(tileSize/2), config.UIScale)
 	}
 
-	sx, _, _ := text.GetStringSize(s, f)
-	sy, _ := text.GetRealisticFontMetrics(f)
+	sx, _, _ := text.GetStringSize(s, tb.f)
+	sy, _ := text.GetRealisticFontMetrics(tb.f)
 	textX := (width / 2) - (sx / 2)
 	textY := (height / 2) + (sy / 2)
 
-	if icon != nil {
-		textX += (icon.Bounds().Dx() * int(config.UIScale)) / 2
+	if tb.icon != nil {
+		textX += (tb.icon.Bounds().Dx() * int(config.UIScale)) / 2
 	}
 
-	text.DrawShadowText(textBox.boxImage, s, f, textX, textY, nil, nil, 0, 0)
-
-	return textBox
+	text.DrawShadowText(tb.boxImage, s, tb.f, textX, textY, nil, nil, 0, 0)
 }
 
 func (tb *TextBox) GetImage() *ebiten.Image {

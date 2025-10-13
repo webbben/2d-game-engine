@@ -1,15 +1,9 @@
 package inventory
 
 import (
-	"fmt"
-	"image/color"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/definitions"
-	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/overlay"
-	"github.com/webbben/2d-game-engine/internal/rendering"
-	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/item"
 )
@@ -31,13 +25,18 @@ type Inventory struct {
 	EnabledSlotsCount int // number of item slots that are enabled
 
 	itemSlots []*ItemSlot
-	Items     []InventoryItem // the items that are in this inventory
 
 	defMgr *definitions.DefinitionManager
 }
 
 func (inv Inventory) GetItemSlots() []*ItemSlot {
 	return inv.itemSlots
+}
+
+func (inv *Inventory) ClearItemSlots() {
+	for _, slot := range inv.itemSlots {
+		slot.Clear()
+	}
 }
 
 type InventoryParams struct {
@@ -52,6 +51,8 @@ type InventoryParams struct {
 	EnabledSlotsCount int // number of item slots that are enabled
 
 	HoverWindowParams ui.TextWindowParams
+
+	AllowedItemDefs []string // if set, all slots in this inventory will only allow items in this list of item IDs
 }
 
 func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams) Inventory {
@@ -89,21 +90,11 @@ func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams)
 	inv.itemSlots = make([]*ItemSlot, 0)
 
 	for i := range inv.RowCount * inv.ColCount {
-		var itemInstance item.ItemInstance
-		var itemDef item.ItemDef
-		if i < len(inv.Items) {
-			itemInstance = inv.Items[i].Instance
-			itemDef = inv.Items[i].Def
-		}
-
 		itemSlot := NewItemSlot(ItemSlotParams{
-			ItemSlotTiles: itemSlotTiles,
-			Enabled:       i < inv.EnabledSlotsCount,
+			ItemSlotTiles:   itemSlotTiles,
+			Enabled:         i < inv.EnabledSlotsCount,
+			AllowedItemDefs: params.AllowedItemDefs,
 		}, inv.hoverWindowParams)
-
-		if itemDef != nil {
-			itemSlot.SetContent(&itemInstance, itemDef, inv.Items[i].Quantity)
-		}
 
 		inv.itemSlots = append(inv.itemSlots, itemSlot)
 	}
@@ -117,17 +108,40 @@ func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams)
 	return inv
 }
 
+// sets all item slots; a nil spot represents an empty item slot
+func (inv *Inventory) SetItemSlots(items []*item.InventoryItem) {
+	if len(items) > len(inv.itemSlots) {
+		panic("trying to set more items than there are item slots")
+	}
+	if len(items) > inv.EnabledSlotsCount {
+		panic("trying to set more items than there are enabled item slots")
+	}
+
+	inv.ClearItemSlots()
+
+	for i, invItem := range items {
+		if invItem == nil {
+			inv.itemSlots[i].Clear()
+		} else {
+			inv.itemSlots[i].SetContent(&invItem.Instance, invItem.Def, invItem.Quantity)
+		}
+	}
+}
+
 // returns the items that failed to be added (due to inventory being too full)
-func (inv *Inventory) AddItems(items []item.ItemInstance) []item.ItemInstance {
-	failedToAdd := []item.ItemInstance{}
+func (inv *Inventory) AddItems(items []item.InventoryItem) []item.InventoryItem {
+	failedToAdd := []item.InventoryItem{}
 
 	// find matching item that can merge
-	for _, instance := range items {
+	for _, newItem := range items {
 		placed := false
-		for i, invItem := range inv.Items {
-			if invItem.Def.GetID() == instance.DefID {
-				if invItem.Def.IsGroupable() {
-					inv.Items[i].Quantity++
+		for _, itemSlot := range inv.itemSlots {
+			if itemSlot.Item == nil {
+				continue
+			}
+			if newItem.Instance.DefID == itemSlot.Item.Instance.DefID {
+				if newItem.Def.IsGroupable() {
+					itemSlot.Item.Quantity += newItem.Quantity
 					placed = true
 					break
 				}
@@ -136,27 +150,20 @@ func (inv *Inventory) AddItems(items []item.ItemInstance) []item.ItemInstance {
 		if placed {
 			continue
 		}
-		// if no matching groupable item was found, add it anew
-		if len(inv.Items) == inv.EnabledSlotsCount {
-			// no more space
-			failedToAdd = append(failedToAdd, instance)
-			continue
-		}
-		inventoryItem := InventoryItem{
-			Instance: instance,
-			Def:      inv.defMgr.GetItemDef(instance.DefID),
-			Quantity: 1,
-		}
-		inv.Items = append(inv.Items, inventoryItem)
-	}
 
-	// put the items in the item slots
-	for i := range inv.itemSlots {
-		if i < len(inv.Items) {
-			invItem := inv.Items[i]
-			inv.itemSlots[i].SetContent(&invItem.Instance, invItem.Def, invItem.Quantity)
-		} else {
-			inv.itemSlots[i].Clear()
+		// if no matching groupable item was found, add it anew
+		// find an empty slot if one exists
+		for _, itemSlot := range inv.itemSlots {
+			if itemSlot.Item == nil {
+				itemSlot.SetContent(&newItem.Instance, newItem.Def, newItem.Quantity)
+				placed = true
+				break
+			}
+		}
+
+		if !placed {
+			// still haven't placed it - this is a failed item then
+			failedToAdd = append(failedToAdd, newItem)
 		}
 	}
 
@@ -172,25 +179,6 @@ func (inv Inventory) Dimensions() (dx, dy int) {
 	}
 	slotWidth, slotHeight := inv.itemSlots[0].Dimensions()
 	return slotWidth * inv.ColCount, slotHeight * inv.RowCount
-}
-
-type InventoryItem struct {
-	Instance item.ItemInstance
-	Def      item.ItemDef
-	Quantity int
-}
-
-func (i InventoryItem) Draw(screen *ebiten.Image, x, y float64) {
-	tileSize := int(config.TileSize * config.UIScale)
-	rendering.DrawImage(screen, i.Def.GetTileImg(), x, y, config.UIScale)
-
-	if i.Quantity > 1 {
-		qS := fmt.Sprintf("%v", i.Quantity)
-		qDx, _, _ := text.GetStringSize(qS, config.DefaultFont)
-		qX := int(x) + tileSize - qDx - 3
-		qY := int(y) + tileSize - 5
-		text.DrawOutlinedText(screen, fmt.Sprintf("%v", i.Quantity), config.DefaultFont, qX, qY, color.Black, color.White, 0, 0)
-	}
 }
 
 func (inv *Inventory) Draw(screen *ebiten.Image, drawX, drawY float64, om *overlay.OverlayManager) {
@@ -226,8 +214,11 @@ func (inv *Inventory) Update() {
 
 func (inv *Inventory) TotalWeight() int {
 	var total float64
-	for _, invItem := range inv.Items {
-		total += invItem.Def.GetWeight() * float64(invItem.Quantity)
+	for _, itemSlot := range inv.itemSlots {
+		if itemSlot.Item == nil {
+			continue
+		}
+		total += itemSlot.Item.Def.GetWeight() * float64(itemSlot.Item.Quantity)
 	}
 	return int(total)
 }

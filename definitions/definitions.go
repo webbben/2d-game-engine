@@ -1,6 +1,8 @@
 package definitions
 
-import "github.com/webbben/2d-game-engine/item"
+import (
+	"github.com/webbben/2d-game-engine/item"
+)
 
 type DefinitionManager struct {
 	ItemDefs map[string]item.ItemDef
@@ -28,4 +30,17 @@ func (def *DefinitionManager) GetItemDef(defID string) item.ItemDef {
 		panic("item def not found")
 	}
 	return itemDef
+}
+
+func (def *DefinitionManager) NewInventoryItem(defID string, quantity int) item.InventoryItem {
+	itemDef := def.GetItemDef(defID)
+
+	return item.InventoryItem{
+		Instance: item.ItemInstance{
+			DefID:      defID,
+			Durability: itemDef.GetMaxDurability(),
+		},
+		Def:      itemDef,
+		Quantity: quantity,
+	}
 }

@@ -23,7 +23,7 @@ type ItemSlot struct {
 
 	selectedBorderFader rendering.BounceFader
 
-	Item *InventoryItem
+	Item *item.InventoryItem
 
 	Enabled    bool
 	IsSelected bool
@@ -31,12 +31,16 @@ type ItemSlot struct {
 
 	tooltip      string
 	hoverTooltip ui.HoverTooltip
+
+	allowItemDefs []string // if set, only items with these def IDs will be allowed in this slot
 }
 
 type ItemSlotParams struct {
 	ItemSlotTiles ItemSlotTiles
 	Enabled       bool
 	Tooltip       string
+
+	AllowedItemDefs []string // if set, this item slot will only allow these item defs
 }
 
 func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) *ItemSlot {
@@ -62,6 +66,7 @@ func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) *
 		Enabled:             params.Enabled,
 		selectedBorderFader: rendering.NewBounceFader(0.5, 0.5, 0.8, 0.1),
 		hoverWindowParams:   hoverWindowParams,
+		allowItemDefs:       params.AllowedItemDefs,
 	}
 
 	if params.Tooltip != "" {
@@ -72,6 +77,18 @@ func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) *
 	}
 
 	return &itemSlot
+}
+
+func (is ItemSlot) CanTakeItemID(defID string) bool {
+	if len(is.allowItemDefs) == 0 {
+		return true
+	}
+	for _, id := range is.allowItemDefs {
+		if id == defID {
+			return true
+		}
+	}
+	return false
 }
 
 func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.ItemDef, quantity int) {
@@ -87,7 +104,10 @@ func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.It
 	if quantity > 1 && !itemInfo.IsGroupable() {
 		panic("tried to add multiple of a non-groupable item to an item slot")
 	}
-	is.Item = &InventoryItem{
+	if !is.CanTakeItemID(itemInstance.DefID) {
+		panic("item slot can't take this item")
+	}
+	is.Item = &item.InventoryItem{
 		Instance: *itemInstance,
 		Def:      itemInfo,
 		Quantity: quantity,

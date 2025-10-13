@@ -71,18 +71,16 @@ to quickly create a Cobra application.`,
 
 		LoadItems(gameState)
 
-		gameState.PlayerMenu.InventoryPage.PlayerInventory.AddItems([]item.ItemInstance{
-			{
-				DefID:      "longsword_01",
-				Durability: 100,
-			},
-			{
-				DefID: "potion_herculean_strength",
-			},
-			{
-				DefID: "potion_herculean_strength",
-			},
-		})
+		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("longsword_01", 1))
+		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("potion_herculean_strength", 2))
+		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("currency_value_1", 4))
+		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("currency_value_10", 6))
+		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("currency_value_100", 1))
+		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("currency_value_1000", 1))
+
+		fmt.Println("player inventory:", gameState.Player.InventoryItems)
+
+		gameState.PlayerMenu.InventoryPage.SyncPlayerItems()
 
 		if err := gameState.RunGame(); err != nil {
 			panic(err)
@@ -123,9 +121,9 @@ func setupGameState() *game.Game {
 			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_stone_01_B.mp3",
 		},
 	})
-	p := player.Player{
-		Entity: &playerEnt,
-	}
+
+	p := player.NewPlayer(g.DefinitionManager)
+	p.Entity = &playerEnt
 
 	g.MapInfo.AddPlayerToMap(&p, config.TileSize*5, config.TileSize*5)
 
@@ -308,6 +306,72 @@ func LoadItems(g *game.Game) {
 			TileImgIndex:         129,
 			Groupable:            true,
 			Consumable:           true,
+		},
+		&item.ItemBase{
+			ID:                   "currency_value_1",
+			Name:                 "Aes",
+			Description:          "A Roman bronze coin",
+			Value:                1,
+			Weight:               0.05,
+			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TileImgIndex:         64,
+			Groupable:            true,
+			Currency:             true,
+		},
+		&item.ItemBase{
+			ID:                   "currency_value_5",
+			Name:                 "Dupondius",
+			Description:          "A Roman brass coin",
+			Value:                5,
+			Weight:               0.05,
+			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TileImgIndex:         65,
+			Groupable:            true,
+			Currency:             true,
+		},
+		&item.ItemBase{
+			ID:                   "currency_value_10",
+			Name:                 "Sestertius",
+			Description:          "A Roman brass coin",
+			Value:                10,
+			Weight:               0.05,
+			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TileImgIndex:         66,
+			Groupable:            true,
+			Currency:             true,
+		},
+		&item.ItemBase{
+			ID:                   "currency_value_50",
+			Name:                 "Quinarius",
+			Description:          "A Roman silver coin",
+			Value:                50,
+			Weight:               0.05,
+			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TileImgIndex:         67,
+			Groupable:            true,
+			Currency:             true,
+		},
+		&item.ItemBase{
+			ID:                   "currency_value_100",
+			Name:                 "Denarius",
+			Description:          "A Roman silver coin",
+			Value:                100,
+			Weight:               0.05,
+			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TileImgIndex:         68,
+			Groupable:            true,
+			Currency:             true,
+		},
+		&item.ItemBase{
+			ID:                   "currency_value_1000",
+			Name:                 "Aureus",
+			Description:          "A Roman gold coin",
+			Value:                1000,
+			Weight:               0.05,
+			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TileImgIndex:         69,
+			Groupable:            true,
+			Currency:             true,
 		},
 	}
 

@@ -1,20 +1,17 @@
 package inventory
 
 import (
-	"fmt"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/item"
 )
 
 type ItemMover struct {
-	carryItem     *InventoryItem // the item that is currently being carried
-	dropableSlots []*ItemSlot    // item slots that an item can be dropped into
-	itemImg       *ebiten.Image  // image of the item as its being carried
+	carryItem     *item.InventoryItem // the item that is currently being carried
+	dropableSlots []*ItemSlot         // item slots that an item can be dropped into
+	itemImg       *ebiten.Image       // image of the item as its being carried
 }
 
 func NewItemMover(itemSlots []*ItemSlot) ItemMover {
@@ -23,13 +20,13 @@ func NewItemMover(itemSlots []*ItemSlot) ItemMover {
 	}
 }
 
-func (im *ItemMover) pickupItem(itemToCarry *InventoryItem, amount int) bool {
+func (im *ItemMover) pickupItem(itemToCarry *item.InventoryItem, amount int) bool {
 	if im.carryItem != nil {
 		// already carrying an item
 		return false
 	}
 
-	im.carryItem = &InventoryItem{
+	im.carryItem = &item.InventoryItem{
 		Instance: itemToCarry.Instance,
 		Def:      itemToCarry.Def,
 		Quantity: amount,
@@ -73,7 +70,6 @@ func (im *ItemMover) Update() {
 			if slot.mouseBehavior.LeftClick.ClickReleased {
 				// the slot has been clicked!
 				if im.pickupItem(slot.Item, slot.Item.Quantity) {
-					logz.Println(slot.Item.Def.GetName(), "picked up item")
 					// item was successfully picked up
 					// clear item slot of its item
 					slot.Clear()
@@ -117,52 +113,55 @@ func (im *ItemMover) handleItemPlacement() {
 		if slot.mouseBehavior.LeftClick.ClickReleased {
 			// first, detect if this is a double click; if so, we should gather all of this item, rather than placing
 			if slot.Item == nil && slot.mouseBehavior.LeftClick.DoubleClicked() {
-				fmt.Println("double click")
 				// gather all of this item
 				im.gatherAllOfItem(im.carryItem.Def)
 				return
 			}
 
 			// placing all of the item
-			// check if the slot is empty
-			if slot.Item == nil {
-				// slot is empty, we can put this item here
-				slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, im.carryItem.Quantity)
-				im.carryItem = nil
-				return
-			}
-
-			// check if slot has the same item type (and is groupable)
-			if slot.Item.Def.GetID() == im.carryItem.Instance.DefID {
-				if im.carryItem.Def.IsGroupable() && slot.Item.Def.IsGroupable() {
-					// found a matching groupable item
-					slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, im.carryItem.Quantity+slot.Item.Quantity)
+			if slot.CanTakeItemID(im.carryItem.Instance.DefID) {
+				// check if the slot is empty
+				if slot.Item == nil {
+					// slot is empty, we can put this item here
+					slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, im.carryItem.Quantity)
 					im.carryItem = nil
 					return
+				}
+
+				// check if slot has the same item type (and is groupable)
+				if slot.Item.Def.GetID() == im.carryItem.Instance.DefID {
+					if im.carryItem.Def.IsGroupable() && slot.Item.Def.IsGroupable() {
+						// found a matching groupable item
+						slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, im.carryItem.Quantity+slot.Item.Quantity)
+						im.carryItem = nil
+						return
+					}
 				}
 			}
 		} else if slot.mouseBehavior.RightClick.ClickReleased {
 			// placing single item
-			if slot.Item == nil {
-				slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, 1)
-				im.carryItem.Quantity--
-				if im.carryItem.Quantity == 0 {
-					im.carryItem = nil
-				} else {
-					im.MakeItemImage()
-				}
-				return
-			}
-			// check if slot has the same item type (and is groupable)
-			if slot.Item.Def.GetID() == im.carryItem.Instance.DefID {
-				if im.carryItem.Def.IsGroupable() && slot.Item.Def.IsGroupable() {
-					// found a matching groupable item
-					slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, slot.Item.Quantity+1)
+			if slot.CanTakeItemID(im.carryItem.Instance.DefID) {
+				if slot.Item == nil {
+					slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, 1)
 					im.carryItem.Quantity--
 					if im.carryItem.Quantity == 0 {
 						im.carryItem = nil
+					} else {
+						im.MakeItemImage()
 					}
 					return
+				}
+				// check if slot has the same item type (and is groupable)
+				if slot.Item.Def.GetID() == im.carryItem.Instance.DefID {
+					if im.carryItem.Def.IsGroupable() && slot.Item.Def.IsGroupable() {
+						// found a matching groupable item
+						slot.SetContent(&im.carryItem.Instance, im.carryItem.Def, slot.Item.Quantity+1)
+						im.carryItem.Quantity--
+						if im.carryItem.Quantity == 0 {
+							im.carryItem = nil
+						}
+						return
+					}
 				}
 			}
 		}

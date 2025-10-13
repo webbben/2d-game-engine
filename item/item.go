@@ -35,6 +35,8 @@ type ItemDef interface {
 	IsConsumable() bool
 	// if true, this item has no specific use or utility; it just exists in your inventory and may have value or weight
 	IsMiscItem() bool
+	// if true, this item is a piece of currency (gold, coins, etc) used in transactions
+	IsCurrencyItem() bool
 	// determines if this item can be equiped
 	IsEquipable() bool
 
@@ -61,6 +63,7 @@ type ItemBase struct {
 	Ammunition bool
 	Consumable bool
 	MiscItem   bool
+	Currency   bool
 
 	TilesetSourceTileImg      string // tileset where tile image is found
 	TileImgIndex              int    // index of tile image in tileset
@@ -101,6 +104,9 @@ func (ib ItemBase) Validate() {
 		i++
 	}
 	if ib.MiscItem {
+		i++
+	}
+	if ib.Currency {
 		i++
 	}
 	if i == 0 {
@@ -166,6 +172,9 @@ func (ib ItemBase) IsConsumable() bool {
 }
 func (ib ItemBase) IsMiscItem() bool {
 	return ib.MiscItem
+}
+func (ib ItemBase) IsCurrencyItem() bool {
+	return ib.Currency
 }
 func (ib ItemBase) IsEquipable() bool {
 	return ib.Armor || ib.Weapon || ib.Accessory || ib.Ammunition
