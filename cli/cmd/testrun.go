@@ -23,6 +23,7 @@ import (
 	"github.com/webbben/2d-game-engine/npc"
 	"github.com/webbben/2d-game-engine/player"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
+	"github.com/webbben/2d-game-engine/trade"
 )
 
 // testrunCmd represents the testrun command
@@ -81,6 +82,13 @@ to quickly create a Cobra application.`,
 		fmt.Println("player inventory:", gameState.Player.InventoryItems)
 
 		gameState.PlayerMenu.InventoryPage.SyncPlayerItems()
+
+		shopKeeperInventory := make([]*item.InventoryItem, 10)
+		sword := gameState.DefinitionManager.NewInventoryItem("longsword_01", 1)
+		shopKeeperInventory[0] = &sword
+
+		gameState.TradeScreen.SyncPlayerInventory()
+		gameState.TradeScreen.SetShopkeeperItems(shopKeeperInventory)
 
 		if err := gameState.RunGame(); err != nil {
 			panic(err)
@@ -159,6 +167,7 @@ func setupGameState() *game.Game {
 	addCustomKeyBindings(g)
 
 	g.PlayerMenu = GetPlayerMenu(g.Player, g.DefinitionManager)
+	g.TradeScreen = GetTradeScreen(g.Player, g.DefinitionManager)
 
 	return g
 }
@@ -178,6 +187,12 @@ func addCustomKeyBindings(g *game.Game) {
 			fmt.Println("toggle player menu")
 			showPlayerMenu := !gg.ShowPlayerMenu
 			gg.ShowPlayerMenu = showPlayerMenu
+		}()
+	})
+	g.SetGlobalKeyBinding(ebiten.Key0, func(gg *game.Game) {
+		go func() {
+			fmt.Println("toggle trade screen")
+			gg.ShowTradeScreen = !gg.ShowTradeScreen
 		}()
 	})
 
@@ -212,6 +227,37 @@ func GetPlayerMenu(p *player.Player, defMgr *definitions.DefinitionManager) play
 	pm.Load(p, defMgr, invParams)
 
 	return pm
+}
+
+func GetTradeScreen(p *player.Player, defMgr *definitions.DefinitionManager) trade.TradeScreen {
+	invParams := inventory.InventoryParams{
+		ItemSlotTilesetSource:    "assets/tiled/tilesets/ui-components.tsj",
+		SlotEnabledTileID:        0,
+		SlotDisabledTileID:       1,
+		SlotEquipedBorderTileID:  3,
+		SlotSelectedBorderTileID: 4,
+		HoverWindowParams: ui.TextWindowParams{
+			TilesetSource:   "assets/tiled/tilesets/boxes/boxes.tsj",
+			OriginTileIndex: 20,
+		},
+		RowCount:          10,
+		ColCount:          9,
+		EnabledSlotsCount: 18,
+	}
+	shopKeeperInvParams := invParams
+	shopKeeperInvParams.EnabledSlotsCount = 90
+
+	ts := trade.NewTradeScreen(trade.TradeScreenParams{
+		BoxTilesetSrc:             "assets/tiled/tilesets/boxes/boxes.tsj",
+		BoxTilesetOrigin:          16,
+		BoxTitleOrigin:            111,
+		ShopkeeperInventoryParams: shopKeeperInvParams,
+		PlayerInventoryParams:     invParams,
+		TextBoxTilesetSrc:         "assets/tiled/tilesets/boxes/boxes.tsj",
+		TextBoxOrigin:             135,
+	}, defMgr, p)
+
+	return ts
 }
 
 func GetDialog() dialog.Dialog {

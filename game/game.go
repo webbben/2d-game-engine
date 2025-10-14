@@ -15,6 +15,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/player"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
+	"github.com/webbben/2d-game-engine/trade"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -25,9 +26,11 @@ type Game struct {
 	Player  *player.Player // the player
 	Camera  camera.Camera  // the camera/viewport
 
-	Dialog         *dialog.Dialog // if set, a dialog is shown
-	PlayerMenu     playermenu.PlayerMenu
-	ShowPlayerMenu bool
+	Dialog          *dialog.Dialog // if set, a dialog is shown
+	PlayerMenu      playermenu.PlayerMenu
+	ShowPlayerMenu  bool
+	TradeScreen     trade.TradeScreen // screen for handling trades
+	ShowTradeScreen bool
 
 	GlobalKeyBindings map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
 	TestDataMap       map[string]any               // a general purpose map; used for testing in the update hook functions

@@ -42,7 +42,7 @@ func NewBoxTitle(tilesetSrc string, originIndex int, titleString string, f font.
 	tileSize := int(config.TileSize * config.UIScale)
 	// 2 edges, the title width
 	titleWidth, _, _ := text.GetStringSize(titleString, f)
-	titleTileWidth := (titleWidth + tileSize) / tileSize
+	titleTileWidth := (titleWidth + (tileSize * 3 / 2)) / tileSize
 	width := tileSize * (2 + titleTileWidth)
 	height := tileSize * 2
 

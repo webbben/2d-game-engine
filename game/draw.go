@@ -34,6 +34,8 @@ func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {
 		g.Dialog.Draw(screen)
 	} else if g.ShowPlayerMenu {
 		g.PlayerMenu.Draw(screen, om)
+	} else if g.ShowTradeScreen {
+		g.TradeScreen.Draw(screen, om)
 	}
 }
 

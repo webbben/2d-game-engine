@@ -88,3 +88,27 @@ func (p *Player) AddItemToInventory(invItem item.InventoryItem) bool {
 
 	return false
 }
+
+func (p Player) CountMoney() int {
+	sum := 0
+	for _, coinItem := range p.CoinPurse {
+		if coinItem == nil {
+			continue
+		}
+		if coinItem.Def.IsCurrencyItem() {
+			sum += coinItem.Def.GetValue() * coinItem.Quantity
+		}
+	}
+
+	// also check for coins not in coin purse
+	for _, coinItem := range p.InventoryItems {
+		if coinItem == nil {
+			continue
+		}
+		if coinItem.Def.IsCurrencyItem() {
+			sum += coinItem.Def.GetValue() * coinItem.Quantity
+		}
+	}
+
+	return sum
+}
