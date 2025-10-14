@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/model"
+	"golang.org/x/text/message"
 )
 
 func EuclideanDist(x1, y1, x2, y2 float64) float64 {
@@ -57,4 +58,9 @@ func RemoveIndexUnordered[T any](s []T, i int) []T {
 // Apparently somewhat slow since it involves moving all the elements.
 func RemoveIndex[T any](s []T, i int) []T {
 	return append(s[:i], s[i+1:]...)
+}
+
+func ConvertIntToCommaString(n int) string {
+	p := message.NewPrinter(message.MatchLanguage("en"))
+	return p.Sprintf("%d", n)
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
@@ -13,7 +14,6 @@ import (
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/player"
-	"golang.org/x/text/message"
 )
 
 type TradeScreen struct {
@@ -32,8 +32,8 @@ type TradeScreen struct {
 	playerInventory                inventory.Inventory
 	playerInvX, playerInvY         int
 
-	boughtItems []tradedItem
-	soldItems   []tradedItem
+	boughtItems []tradeItem
+	soldItems   []tradeItem
 
 	playerGoldCount                      ui.TextBox
 	playerGoldLabelX, playerGoldLabelY   int
@@ -50,7 +50,7 @@ type TradeScreen struct {
 	itemTransfer inventory.ItemTransfer
 }
 
-type tradedItem struct {
+type tradeItem struct {
 	slot    *inventory.ItemSlot // slot the item is in
 	invItem item.InventoryItem  // item type and amount traded
 }
@@ -97,10 +97,10 @@ func NewTradeScreen(params TradeScreenParams, defMgr *definitions.DefinitionMana
 
 	// gold counters
 	goldIcon := tiled.GetTileImage(params.PlayerInventoryParams.ItemSlotTilesetSource, 194)
-	ts.playerGoldCount = ui.NewTextBox("500", params.TextBoxTilesetSrc, params.TextBoxOrigin, config.DefaultFont, goldIcon, &ui.TextBoxOptions{
+	ts.playerGoldCount = ui.NewTextBox("0", params.TextBoxTilesetSrc, params.TextBoxOrigin, config.DefaultFont, goldIcon, &ui.TextBoxOptions{
 		SetWidthPx: tileSize * 4,
 	})
-	ts.transactionGoldCount = ui.NewTextBox("500", params.TextBoxTilesetSrc, params.TextBoxOrigin, config.DefaultFont, goldIcon, &ui.TextBoxOptions{
+	ts.transactionGoldCount = ui.NewTextBox("0", params.TextBoxTilesetSrc, params.TextBoxOrigin, config.DefaultFont, goldIcon, &ui.TextBoxOptions{
 		SetWidthPx:       tileSize * 4,
 		HighlightOnHover: true,
 	})
@@ -175,6 +175,16 @@ func (ts *TradeScreen) Update() {
 	transferResult := ts.itemTransfer.Update()
 	if transferResult.TransferAttemptOccurred {
 		ts.handleItemTrade(transferResult)
+		// recalculate transaction price
+		totalBought := 0
+		for _, tradedItem := range ts.boughtItems {
+			totalBought += tradedItem.invItem.Def.GetValue() * tradedItem.invItem.Quantity
+		}
+		totalSold := 0
+		for _, tradedItem := range ts.soldItems {
+			totalSold += tradedItem.invItem.Def.GetValue() * tradedItem.invItem.Quantity
+		}
+		ts.transactionGoldCount.SetText(general_util.ConvertIntToCommaString(totalSold - totalBought))
 	}
 
 	ts.acceptButton.Update()
@@ -212,7 +222,7 @@ func (ts *TradeScreen) handleItemTrade(transferResult inventory.ItemTransferResu
 				}
 			}
 			if !added {
-				ts.boughtItems = append(ts.boughtItems, tradedItem{
+				ts.boughtItems = append(ts.boughtItems, tradeItem{
 					slot:    transferResult.TransferedTo,
 					invItem: transferResult.TransferedItem,
 				})
@@ -247,7 +257,7 @@ func (ts *TradeScreen) handleItemTrade(transferResult inventory.ItemTransferResu
 				}
 			}
 			if !added {
-				ts.soldItems = append(ts.soldItems, tradedItem{
+				ts.soldItems = append(ts.soldItems, tradeItem{
 					slot:    transferResult.TransferedTo,
 					invItem: transferResult.TransferedItem,
 				})
@@ -262,6 +272,5 @@ func (ts *TradeScreen) SyncPlayerInventory() {
 	ts.playerInventory.SetItemSlots(ts.playerRef.InventoryItems)
 
 	moneyCount := ts.playerRef.CountMoney()
-	p := message.NewPrinter(message.MatchLanguage("en"))
-	ts.playerGoldCount.SetText(p.Sprintf("%d", moneyCount))
+	ts.playerGoldCount.SetText(general_util.ConvertIntToCommaString(moneyCount))
 }
