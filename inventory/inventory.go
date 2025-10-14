@@ -3,6 +3,7 @@ package inventory
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/item"
@@ -31,6 +32,22 @@ type Inventory struct {
 
 func (inv Inventory) GetItemSlots() []*ItemSlot {
 	return inv.itemSlots
+}
+
+func (inv Inventory) GetInventoryItems() []*item.InventoryItem {
+	invItems := []*item.InventoryItem{}
+	for _, slot := range inv.itemSlots {
+		if slot.Item == nil {
+			invItems = append(invItems, nil)
+		} else {
+			invItems = append(invItems, &item.InventoryItem{
+				Instance: slot.Item.Instance,
+				Def:      slot.Item.Def,
+				Quantity: slot.Item.Quantity,
+			})
+		}
+	}
+	return invItems
 }
 
 func (inv *Inventory) ClearItemSlots() {
@@ -108,13 +125,11 @@ func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams)
 	return inv
 }
 
-// sets all item slots; a nil spot represents an empty item slot
+// sets all item slots; a nil spot represents an empty item slot.
+// items can be less than the actual total slots number, since some slots may be disabled.
 func (inv *Inventory) SetItemSlots(items []*item.InventoryItem) {
 	if len(items) > len(inv.itemSlots) {
-		panic("trying to set more items than there are item slots")
-	}
-	if len(items) > inv.EnabledSlotsCount {
-		panic("trying to set more items than there are enabled item slots")
+		logz.Panicf("trying to set more items than there are item slots. slots: %v items: %v", len(inv.itemSlots), len(items))
 	}
 
 	inv.ClearItemSlots()
@@ -123,6 +138,11 @@ func (inv *Inventory) SetItemSlots(items []*item.InventoryItem) {
 		if invItem == nil {
 			inv.itemSlots[i].Clear()
 		} else {
+			invItem.Validate()
+			if invItem.Quantity == 0 {
+				logz.Println(invItem.Instance.DefID)
+				panic("trying to set an item that has 0 quantity")
+			}
 			inv.itemSlots[i].SetContent(&invItem.Instance, invItem.Def, invItem.Quantity)
 		}
 	}

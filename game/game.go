@@ -55,6 +55,12 @@ type Game struct {
 	DefinitionManager *definitions.DefinitionManager
 }
 
+func (g *Game) SetupTradeSession(shopkeeperID string) {
+	shopkeeper := g.DefinitionManager.GetShopkeeper(shopkeeperID)
+	g.TradeScreen.SetupTradeSession(shopkeeper)
+	g.ShowTradeScreen = true
+}
+
 type UpdateHooks struct {
 	UpdateMapHook func(*Game)
 }

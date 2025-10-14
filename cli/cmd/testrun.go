@@ -83,12 +83,10 @@ to quickly create a Cobra application.`,
 
 		gameState.PlayerMenu.InventoryPage.SyncPlayerItems()
 
-		shopKeeperInventory := make([]*item.InventoryItem, 10)
-		sword := gameState.DefinitionManager.NewInventoryItem("longsword_01", 1)
-		shopKeeperInventory[0] = &sword
-
-		gameState.TradeScreen.SyncPlayerInventory()
-		gameState.TradeScreen.SetShopkeeperItems(shopKeeperInventory)
+		shopKeeperInventory := []item.InventoryItem{}
+		shopKeeperInventory = append(shopKeeperInventory, gameState.DefinitionManager.NewInventoryItem("longsword_01", 1))
+		shopkeeper := definitions.NewShopKeeper(1200, "Aurelius' Tradehouse", shopKeeperInventory)
+		gameState.DefinitionManager.LoadShopkeeper("aurelius_tradehouse", shopkeeper)
 
 		if err := gameState.RunGame(); err != nil {
 			panic(err)
@@ -186,13 +184,16 @@ func addCustomKeyBindings(g *game.Game) {
 		go func() {
 			fmt.Println("toggle player menu")
 			showPlayerMenu := !gg.ShowPlayerMenu
+			if showPlayerMenu {
+				gg.PlayerMenu.InventoryPage.SyncPlayerItems()
+			}
 			gg.ShowPlayerMenu = showPlayerMenu
 		}()
 	})
 	g.SetGlobalKeyBinding(ebiten.Key0, func(gg *game.Game) {
 		go func() {
 			fmt.Println("toggle trade screen")
-			gg.ShowTradeScreen = !gg.ShowTradeScreen
+			g.SetupTradeSession("aurelius_tradehouse")
 		}()
 	})
 

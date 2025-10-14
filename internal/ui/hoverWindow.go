@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 )
@@ -47,5 +48,15 @@ func (hw *HoverWindow) Draw(om *overlay.OverlayManager) {
 
 	// draw next to the mouse
 	mouseX, mouseY := ebiten.CursorPosition()
-	om.AddOverlay(hw.placeHolderImg, float64(mouseX+15), float64(mouseY+15))
+	// make sure the window doesn't go off screen
+	x := mouseX + 15
+	y := mouseY + 15
+	dx, dy := hw.Dimensions()
+	if x+dx > display.SCREEN_WIDTH {
+		x = mouseX - 15 - dx
+	}
+	if y+dy > display.SCREEN_HEIGHT {
+		y = mouseY - 15 - dy
+	}
+	om.AddOverlay(hw.placeHolderImg, float64(x), float64(y))
 }

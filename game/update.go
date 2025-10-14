@@ -42,6 +42,9 @@ func (g *Game) worldUpdates() {
 		g.PlayerMenu.Update()
 	} else if g.ShowTradeScreen {
 		g.TradeScreen.Update()
+		if g.TradeScreen.Exit {
+			g.ShowTradeScreen = false
+		}
 	} else {
 		// handle player and npc updates
 		g.Player.Update()

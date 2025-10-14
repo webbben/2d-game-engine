@@ -17,8 +17,10 @@ import (
 )
 
 type TradeScreen struct {
-	defMgr    *definitions.DefinitionManager
-	playerRef *player.Player
+	Exit       bool // once set, trading will end
+	defMgr     *definitions.DefinitionManager
+	playerRef  *player.Player
+	shopkeeper *definitions.Shopkeeper
 
 	mainBox                     ui.BoxDef
 	mainBoxImg                  *ebiten.Image
@@ -112,15 +114,42 @@ func NewTradeScreen(params TradeScreenParams, defMgr *definitions.DefinitionMana
 	return ts
 }
 
-func (ts *TradeScreen) SetShopkeeperItems(invItems []*item.InventoryItem) {
-	ts.shopkeeperInventory.SetItemSlots(invItems)
+func (ts *TradeScreen) loadShopkeeper(sk *definitions.Shopkeeper) {
+	ts.shopkeeper = sk
+	ts.shopkeeperInventory.SetItemSlots(sk.ShopInventory)
 }
 
-func (ts *TradeScreen) SetPlayerItems(invItems []*item.InventoryItem) {
-	ts.playerInventory.SetItemSlots(invItems)
+// does necessary preparation for a trade session (loads shopkeeper and items, syncs player items, etc)
+// must be called before beginning trade
+func (ts *TradeScreen) SetupTradeSession(shopkeeper *definitions.Shopkeeper) {
+	if ts.playerRef == nil {
+		panic("no player ref!")
+	}
+
+	// ensure any previous trade session state is reset
+	for _, slot := range ts.playerInventory.GetItemSlots() {
+		slot.IsSelected = false
+	}
+	for _, slot := range ts.shopkeeperInventory.GetItemSlots() {
+		slot.IsSelected = false
+	}
+	ts.soldItems = make([]tradeItem, 0)
+	ts.boughtItems = make([]tradeItem, 0)
+
+	ts.transactionGoldCount.SetText("0")
+
+	// setup inventories
+	ts.loadShopkeeper(shopkeeper)
+	ts.loadPlayerInventory()
+
+	ts.Exit = false
 }
 
 func (ts *TradeScreen) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
+	if ts.Exit {
+		return
+	}
+
 	tileSize := int(config.TileSize * config.UIScale)
 	// draw main box
 	ts.mainBoxX = (display.SCREEN_WIDTH / 2) - (ts.mainBoxWidth / 2)
@@ -169,6 +198,10 @@ func (ts *TradeScreen) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 }
 
 func (ts *TradeScreen) Update() {
+	if ts.Exit {
+		return
+	}
+
 	ts.shopkeeperInventory.Update()
 	ts.playerInventory.Update()
 
@@ -176,19 +209,20 @@ func (ts *TradeScreen) Update() {
 	if transferResult.TransferAttemptOccurred {
 		ts.handleItemTrade(transferResult)
 		// recalculate transaction price
-		totalBought := 0
-		for _, tradedItem := range ts.boughtItems {
-			totalBought += tradedItem.invItem.Def.GetValue() * tradedItem.invItem.Quantity
-		}
-		totalSold := 0
-		for _, tradedItem := range ts.soldItems {
-			totalSold += tradedItem.invItem.Def.GetValue() * tradedItem.invItem.Quantity
-		}
-		ts.transactionGoldCount.SetText(general_util.ConvertIntToCommaString(totalSold - totalBought))
+		transactionAmount := ts.calculateTransaction()
+		ts.transactionGoldCount.SetText(general_util.ConvertIntToCommaString(transactionAmount))
 	}
 
-	ts.acceptButton.Update()
-	ts.cancelButton.Update()
+	acceptResult := ts.acceptButton.Update()
+	if acceptResult.Clicked {
+		ts.acceptTransaction()
+		return
+	}
+	cancelResult := ts.cancelButton.Update()
+	if cancelResult.Clicked {
+		ts.cancelTransaction()
+		return
+	}
 }
 
 func (ts *TradeScreen) handleItemTrade(transferResult inventory.ItemTransferResult) {
@@ -267,10 +301,60 @@ func (ts *TradeScreen) handleItemTrade(transferResult inventory.ItemTransferResu
 	}
 }
 
-func (ts *TradeScreen) SyncPlayerInventory() {
+func (ts TradeScreen) calculateTransaction() int {
+	totalBought := 0
+	for _, tradedItem := range ts.boughtItems {
+		totalBought += tradedItem.invItem.Def.GetValue() * tradedItem.invItem.Quantity
+	}
+	totalSold := 0
+	for _, tradedItem := range ts.soldItems {
+		totalSold += tradedItem.invItem.Def.GetValue() * tradedItem.invItem.Quantity
+	}
+	return totalSold - totalBought
+}
+
+func (ts *TradeScreen) loadPlayerInventory() {
 	// set inventory items
 	ts.playerInventory.SetItemSlots(ts.playerRef.InventoryItems)
 
 	moneyCount := ts.playerRef.CountMoney()
 	ts.playerGoldCount.SetText(general_util.ConvertIntToCommaString(moneyCount))
+}
+
+func (ts *TradeScreen) acceptTransaction() {
+	transactionAmount := ts.calculateTransaction()
+
+	if transactionAmount > 0 {
+		// player earns money; add to coin purse
+		ts.playerRef.EarnMoney(transactionAmount)
+	} else if transactionAmount < 0 {
+		// player spends money; take it out of their coin purse
+		ts.playerRef.SpendMoney(-transactionAmount)
+	}
+
+	// // remove bought and sold items from their respective inventories
+	// for _, boughtItem := range ts.boughtItems {
+	// 	ts.playerRef.AddItemToInventory(boughtItem.invItem)
+	// 	success, remaining := item.RemoveItemFromInventory(boughtItem.invItem, ts.shopKeeperItems)
+	// 	if !success {
+	// 		logz.Panicf("failed to remove items from shopkeeper inventory: %s", remaining.String())
+	// 	}
+	// }
+	// for _, soldItem := range ts.soldItems {
+	// 	success, remaining := ts.playerRef.RemoveItemFromInventory(soldItem.invItem)
+	// 	if !success {
+	// 		logz.Panicf("failed to remove items from player inventory: %s", remaining.String())
+	// 	}
+	// }
+
+	// update player and shopkeeper inventories to match inventories in this trade screen
+	ts.playerRef.SetInventoryItems(ts.playerInventory.GetInventoryItems())
+	ts.shopkeeper.SetShopInventory(ts.shopkeeperInventory.GetInventoryItems())
+
+	ts.Exit = true
+}
+
+func (ts *TradeScreen) cancelTransaction() {
+	// we can just end the trade session, since the items should be automatically reset if the trade is started again later
+	ts.Exit = true
 }

@@ -17,6 +17,8 @@ import (
 
 // information about the current room the player is in
 type MapInfo struct {
+	gameRef *Game
+
 	ID          string
 	DisplayName string // the name of the map shown to the player
 	Loaded      bool   // flag indicating if this map has been loaded
@@ -90,6 +92,7 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 	}
 	g.MapInfo.Map = m
 	g.MapInfo.NPCManager.mapRef = g.MapInfo.Map
+	g.MapInfo.gameRef = g
 
 	lightProps := []tiled.LightProps{}
 
@@ -404,4 +407,8 @@ func (mi MapInfo) GetPlayerRect() model.Rect {
 		panic("player ref is nil")
 	}
 	return mi.PlayerRef.Entity.CollisionRect()
+}
+
+func (mi *MapInfo) StartTradeSession(shopkeeperID string) {
+	mi.gameRef.SetupTradeSession(shopkeeperID)
 }
