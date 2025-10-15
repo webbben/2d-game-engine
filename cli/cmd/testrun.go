@@ -289,6 +289,10 @@ func GetDialog() dialog.Dialog {
 			Text: "The Empire spans the world over - they say all the peoples from the foggy isles of Britain to the Nile of Egypt all are under Imperial rule.",
 		},
 	})
+	rootTopic.SubTopics = append(rootTopic.SubTopics, dialog.Topic{
+		TopicText:    "Trade",
+		ShopkeeperID: "aurelius_tradehouse",
+	})
 
 	jokeTopic := dialog.Topic{
 		TopicText: "Tell me a joke",

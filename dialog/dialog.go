@@ -27,9 +27,10 @@ type Dialog struct {
 	BoxTilesetSource     string // path to the tileset for the dialog box tiles
 	BoxOriginTileIndex   int    // index of top left tile for this box in the tileset
 	TextFont             Font
-	init                 bool // flag to indicate if this Dialog's data has been loaded and is ready to render
-	Exit                 bool // flag to indicate dialog has exited. cuts off dialog updates and draws.
-	SuppressGoodbyeTopic bool // if set, the "Goodbye" exit sub-topic won't be shown for the root topic
+	init                 bool   // flag to indicate if this Dialog's data has been loaded and is ready to render
+	Exit                 bool   // flag to indicate dialog has exited. cuts off dialog updates and draws.
+	ShopkeeperID         string // if set, this dialog will exit and tell the game to launch the given shopkeeper trader session
+	SuppressGoodbyeTopic bool   // if set, the "Goodbye" exit sub-topic won't be shown for the root topic
 
 	// main text box
 

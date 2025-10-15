@@ -54,6 +54,8 @@ type Topic struct {
 	ShowTextImmediately bool // if true, text will display immediately instead of the via a typing animation
 
 	button *button.Button // a button for this topic, if it's a subtopic
+
+	ShopkeeperID string // if set, this topic will launch a trading session with the set shopkeeper ID
 }
 
 func (d *Dialog) setCurrentTextBranch(textBranch TextBranch) {
@@ -101,6 +103,13 @@ func (d *Dialog) setTopic(t Topic, isReturning bool, eventBus *pubsub.EventBus) 
 
 	if !d.init {
 		panic("dialog must be initialized before setting a topic. otherwise, lineWriter won't exist.")
+	}
+
+	// if a shopkeeper ID is set, end dialog and prepare to launch trading session
+	if t.ShopkeeperID != "" {
+		d.ShopkeeperID = t.ShopkeeperID
+		d.EndDialog(eventBus)
+		return
 	}
 
 	// if we are going from a topic to a sub-topic, set the parent topic relationship is set
