@@ -6,11 +6,12 @@ import (
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
+	"github.com/webbben/2d-game-engine/internal/ui/box"
 	"golang.org/x/image/font"
 )
 
 type TextBox struct {
-	box              BoxDef
+	box              box.Box
 	boxImage         *ebiten.Image
 	icon             *ebiten.Image
 	highlightOnHover bool
@@ -40,7 +41,7 @@ func NewTextBox(s string, tilesetSrc string, originIndex int, f font.Face, icon 
 	}
 
 	textBox := TextBox{
-		box:              NewBox(tilesetSrc, originIndex),
+		box:              box.NewBox(tilesetSrc, originIndex),
 		highlightOnHover: ops.HighlightOnHover,
 		icon:             icon,
 		options:          *ops,

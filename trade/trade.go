@@ -11,6 +11,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/internal/ui"
+	"github.com/webbben/2d-game-engine/internal/ui/box"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/player"
@@ -22,7 +23,7 @@ type TradeScreen struct {
 	playerRef  *player.Player
 	shopkeeper *definitions.Shopkeeper
 
-	mainBox                     ui.BoxDef
+	mainBox                     box.Box
 	mainBoxImg                  *ebiten.Image
 	mainBoxX, mainBoxY          int
 	mainBoxWidth, mainBoxHeight int
@@ -81,7 +82,7 @@ func NewTradeScreen(params TradeScreenParams, defMgr *definitions.DefinitionMana
 	}
 
 	// main box
-	ts.mainBox = ui.NewBox(params.BoxTilesetSrc, params.BoxTilesetOrigin)
+	ts.mainBox = box.NewBox(params.BoxTilesetSrc, params.BoxTilesetOrigin)
 	ts.mainBoxWidth = display.SCREEN_WIDTH * 3 / 4
 	ts.mainBoxHeight = (display.SCREEN_HEIGHT * 2 / 3)
 	ts.mainBoxWidth -= ts.mainBoxWidth % tileSize

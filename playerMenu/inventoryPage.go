@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/internal/ui"
+	"github.com/webbben/2d-game-engine/internal/ui/box"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/player"
@@ -141,7 +142,7 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 		HighlightOnHover: true,
 	})
 
-	coinPurseBox := ui.NewBox(config.DefaultUIBox.TilesetSrc, config.DefaultUIBox.OriginIndex)
+	coinPurseBox := box.NewBox(config.DefaultUIBox.TilesetSrc, config.DefaultUIBox.OriginIndex)
 	ip.coinPurseBox = coinPurseBox.BuildBoxImage(tileSize*4, tileSize*3)
 	coinPurseInvParams := inventoryParams
 	coinPurseInvParams.RowCount = 2

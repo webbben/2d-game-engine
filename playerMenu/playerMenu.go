@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/ui"
+	"github.com/webbben/2d-game-engine/internal/ui/box"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/player"
 )
@@ -20,7 +21,7 @@ type PlayerMenu struct {
 
 	playerRef *player.Player
 
-	ui.BoxDef
+	box.Box
 	BoxTilesetSource    string
 	BoxOriginIndex      int // index of the top left tile of this box in the tileset
 	BoxTitleOriginIndex int // index of the top left of the box title
@@ -51,8 +52,8 @@ func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.Definit
 	}
 	pm.playerRef = playerRef
 
-	pm.BoxDef = ui.NewBox(pm.BoxTilesetSource, pm.BoxOriginIndex)
-	tileSize := pm.BoxDef.TileSize()
+	pm.Box = box.NewBox(pm.BoxTilesetSource, pm.BoxOriginIndex)
+	tileSize := pm.Box.TileSize()
 
 	// determine full size of player menu
 	pm.width = display.SCREEN_WIDTH * 2 / 3
@@ -109,7 +110,7 @@ func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.Definit
 	pm.mainContentBoxWidth = pm.width
 
 	// generate box image for main content area
-	pm.boxImage = pm.BoxDef.BuildBoxImage(pm.mainContentBoxWidth, pm.mainContentBoxHeight)
+	pm.boxImage = pm.Box.BuildBoxImage(pm.mainContentBoxWidth, pm.mainContentBoxHeight)
 
 	longestTitle := ""
 	longestTitleWidth := 0
@@ -135,7 +136,7 @@ func (pm *PlayerMenu) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 	if !pm.init {
 		panic("player menu drawing before being initialized")
 	}
-	tileSize := pm.BoxDef.TileSize()
+	tileSize := pm.Box.TileSize()
 
 	// menu box
 	rendering.DrawImage(screen, pm.boxImage, float64(pm.boxX), float64(pm.boxY), 0)

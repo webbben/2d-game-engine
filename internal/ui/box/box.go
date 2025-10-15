@@ -1,4 +1,4 @@
-package ui
+package box
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
@@ -8,27 +8,27 @@ import (
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
 
-type BoxDef struct {
+type Box struct {
 	tiles    []*ebiten.Image
 	Unscaled bool // if set to true, this box will not use the global UI scaling
 }
 
 // the real size of the tiles used in this box. applies any global scaling.
-func (bd BoxDef) TileSize() int {
-	if len(bd.tiles) == 0 {
+func (b Box) TileSize() int {
+	if len(b.tiles) == 0 {
 		panic("called tilesize before tiles were created")
 	}
 
-	dx := bd.tiles[0].Bounds().Dx()
+	dx := b.tiles[0].Bounds().Dx()
 
-	if bd.Unscaled {
+	if b.Unscaled {
 		return dx
 	}
 	return int(float64(dx) * config.UIScale)
 }
 
-func NewBox(tilesetSource string, originTileIndex int) BoxDef {
-	box := BoxDef{}
+func NewBox(tilesetSource string, originTileIndex int) Box {
+	box := Box{}
 
 	tileset, err := tiled.LoadTileset(tilesetSource)
 	if err != nil {
@@ -49,7 +49,7 @@ func NewBox(tilesetSource string, originTileIndex int) BoxDef {
 	return box
 }
 
-func (b *BoxDef) BuildBoxImage(widthPx, heightPx int) *ebiten.Image {
+func (b *Box) BuildBoxImage(widthPx, heightPx int) *ebiten.Image {
 	if widthPx <= 0 || heightPx <= 0 {
 		logz.Panicf("box dimensions must be positive and greater than zero. dx: %v dy: %v", widthPx, heightPx)
 	}

@@ -10,7 +10,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/internal/text"
-	"github.com/webbben/2d-game-engine/internal/ui"
+	"github.com/webbben/2d-game-engine/internal/ui/box"
 	"golang.org/x/image/font"
 )
 
@@ -23,7 +23,7 @@ type Dialog struct {
 	ID                   string
 	NPCID                string
 	EntID                string
-	ui.BoxDef                   // definition of the tiles that build this box
+	box.Box                     // definition of the tiles that build this box
 	BoxTilesetSource     string // path to the tileset for the dialog box tiles
 	BoxOriginTileIndex   int    // index of top left tile for this box in the tileset
 	TextFont             Font
@@ -70,7 +70,7 @@ func (d *Dialog) initialize(eventBus *pubsub.EventBus) {
 	})
 
 	// get box tiles
-	d.BoxDef = ui.NewBox(d.BoxTilesetSource, d.BoxOriginTileIndex)
+	d.Box = box.NewBox(d.BoxTilesetSource, d.BoxOriginTileIndex)
 
 	// build box image
 	d.buildBoxImage()
@@ -167,7 +167,7 @@ func ConvertStringToLines(s string, f font.Face, lineWidthPx int) []string {
 
 func (d *Dialog) buildBoxImage() {
 	// determine box size
-	tileSize := d.BoxDef.TileSize()
+	tileSize := d.Box.TileSize()
 	d.width = display.SCREEN_WIDTH
 	d.width -= d.width % tileSize // round it to the size of the box tile
 
@@ -186,6 +186,6 @@ func (d *Dialog) buildBoxImage() {
 	d.height = display.SCREEN_HEIGHT / 4
 	d.height -= d.height % tileSize
 
-	d.boxImage = d.BoxDef.BuildBoxImage(d.width, d.height)
-	d.topicBoxImage = d.BoxDef.BuildBoxImage(d.topicBoxWidth, d.topicBoxHeight)
+	d.boxImage = d.Box.BuildBoxImage(d.width, d.height)
+	d.topicBoxImage = d.Box.BuildBoxImage(d.topicBoxWidth, d.topicBoxHeight)
 }

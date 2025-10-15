@@ -27,7 +27,7 @@ func (d *Dialog) Draw(screen *ebiten.Image) {
 	}
 
 	// draw main dialog box content
-	tileSize := d.BoxDef.TileSize()
+	tileSize := d.Box.TileSize()
 	lineWriterLastY := d.lineWriter.Draw(screen, int(d.x)+tileSize, int(d.y)+(tileSize/2))
 	// show text branch options if applicable
 	if d.currentTopic.status == topic_status_awaitOption {
