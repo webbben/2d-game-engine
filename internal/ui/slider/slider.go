@@ -1,4 +1,4 @@
-package ui
+package slider
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
