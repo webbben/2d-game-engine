@@ -3,6 +3,7 @@ package trade
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/general_util"
@@ -15,7 +16,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/textbox"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/item"
-	"github.com/webbben/2d-game-engine/player"
 )
 
 type TradeScreen struct {

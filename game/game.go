@@ -6,6 +6,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/dialog"
+	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/camera"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
@@ -13,7 +14,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/internal/tiled"
-	"github.com/webbben/2d-game-engine/player"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
 	"github.com/webbben/2d-game-engine/trade"
 

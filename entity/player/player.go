@@ -6,9 +6,9 @@ import (
 
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity"
+	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/item"
-	"github.com/webbben/2d-game-engine/npc"
 )
 
 type Player struct {

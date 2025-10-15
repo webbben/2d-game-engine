@@ -11,6 +11,8 @@ import (
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity"
+	"github.com/webbben/2d-game-engine/entity/npc"
+	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/config"
@@ -20,8 +22,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/item"
-	"github.com/webbben/2d-game-engine/npc"
-	"github.com/webbben/2d-game-engine/player"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
 	"github.com/webbben/2d-game-engine/trade"
 )

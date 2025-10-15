@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/entity/npc"
+	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/lights"
@@ -11,9 +13,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/internal/tiled"
-	"github.com/webbben/2d-game-engine/npc"
 	"github.com/webbben/2d-game-engine/object"
-	"github.com/webbben/2d-game-engine/player"
 )
 
 // information about the current room the player is in

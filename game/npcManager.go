@@ -5,10 +5,10 @@ import (
 	"slices"
 	"time"
 
+	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
-	"github.com/webbben/2d-game-engine/npc"
 )
 
 func (nm *NPCManager) getNPCByID(id string) *npc.NPC {
