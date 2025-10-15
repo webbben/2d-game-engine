@@ -17,6 +17,16 @@ type NPC struct {
 	TaskMGMT
 	OnUpdateFn func(n *NPC)
 	World      WorldContext
+
+	DialogID string
+}
+
+func (n *NPC) Activate() {
+	if n.DialogID != "" {
+		n.World.StartDialog(n.DialogID)
+		return
+	}
+	logz.Println(n.DisplayName, "nothing happened on activation")
 }
 
 // used for renderables sorting
@@ -26,6 +36,7 @@ func (n NPC) Y() float64 {
 
 type WorldContext interface {
 	FindNPCAtPosition(c model.Coords) (NPC, bool)
+	StartDialog(dialogID string)
 }
 
 // Create new NPC from the given NPC struct. Ensures essential data is set.

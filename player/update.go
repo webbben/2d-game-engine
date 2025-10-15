@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
@@ -18,7 +19,23 @@ func (p Player) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 func (p *Player) Update() {
 	p.handleMovement()
 
+	p.handleActivations()
+
 	p.Entity.Update()
+}
+
+func (p *Player) handleActivations() {
+	nearbyNPCs := p.World.GetNearbyNPCs(p.Entity.X, p.Entity.X, config.TileSize*config.GameScale*1.5)
+
+	for _, n := range nearbyNPCs {
+		if n == nil {
+			panic("npc is nil?")
+		}
+		if n.Entity.MouseBehavior.LeftClick.ClickReleased {
+			n.Activate()
+			return
+		}
+	}
 }
 
 func (p *Player) handleMovement() {

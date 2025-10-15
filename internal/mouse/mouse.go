@@ -51,8 +51,10 @@ func (mouseBehavior *MouseBehavior) Update(drawX, drawY int, boxWidth, boxHeight
 
 	// adjust to game scale if in world
 	if scaleForGameWorld {
-		boxWidth *= int(config.GameScale)
-		boxHeight *= int(config.GameScale)
+		boxWidth = int(float64(boxWidth) * config.GameScale)
+		boxHeight = int(float64(boxHeight) * config.GameScale)
+		drawX = int(float64(drawX) * config.GameScale)
+		drawY = int(float64(drawY) * config.GameScale)
 	}
 
 	// detect hovering

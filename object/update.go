@@ -2,8 +2,6 @@ package object
 
 import (
 	"log"
-
-	"github.com/webbben/2d-game-engine/internal/config"
 )
 
 type ObjectUpdateResult struct {
@@ -40,6 +38,6 @@ func (obj *Object) Update() ObjectUpdateResult {
 }
 
 func (obj *Object) Draw(offsetX, offsetY float64) {
-	obj.DrawX = (obj.X - offsetX) * config.GameScale
-	obj.DrawY = (obj.Y - offsetY) * config.GameScale
+	obj.DrawX = (obj.X - offsetX)
+	obj.DrawY = (obj.Y - offsetY)
 }

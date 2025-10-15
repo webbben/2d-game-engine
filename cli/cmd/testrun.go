@@ -88,12 +88,11 @@ to quickly create a Cobra application.`,
 		shopkeeper := definitions.NewShopKeeper(1200, "Aurelius' Tradehouse", shopKeeperInventory)
 		gameState.DefinitionManager.LoadShopkeeper("aurelius_tradehouse", shopkeeper)
 
+		gameState.DefinitionManager.LoadDialog("dialog1", GetDialog())
+
 		if err := gameState.RunGame(); err != nil {
 			panic(err)
 		}
-		// if err := ebiten.RunGame(game); err != nil {
-		// 	panic(err)
-		// }
 	},
 }
 
@@ -139,7 +138,7 @@ func setupGameState() *game.Game {
 		log.Fatal(err)
 	}
 
-	for i := 0; i < 0; i++ {
+	for i := 0; i < 1; i++ {
 		npcEnt := legionaryEnt.Duplicate()
 		npcEnt.DisplayName = fmt.Sprintf("NPC_%v", i)
 		err = npcEnt.Load()
@@ -151,6 +150,7 @@ func setupGameState() *game.Game {
 			NPCInfo: npc.NPCInfo{
 				DisplayName: npcEnt.DisplayName,
 			},
+			DialogID: "dialog1",
 		})
 
 		n.SetFollowTask(&playerEnt, 0)

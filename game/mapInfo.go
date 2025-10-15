@@ -5,6 +5,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
@@ -205,6 +206,8 @@ func (mi *MapInfo) AddPlayerToMap(p *player.Player, x, y float64) {
 	mi.PlayerRef = p
 	p.Entity.World = mi
 	p.Entity.SetPositionPx(x, y)
+
+	p.World = mi
 }
 
 // the official way to add an NPC to a map
@@ -411,4 +414,26 @@ func (mi MapInfo) GetPlayerRect() model.Rect {
 
 func (mi *MapInfo) StartTradeSession(shopkeeperID string) {
 	mi.gameRef.SetupTradeSession(shopkeeperID)
+}
+
+func (mi *MapInfo) StartDialog(dialogID string) {
+	mi.gameRef.StartDialog(dialogID)
+}
+
+func (mi *MapInfo) GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC {
+	npcs := []*npc.NPC{}
+
+	for _, n := range mi.NPCManager.NPCs {
+		dist := general_util.EuclideanDist(
+			n.Entity.X,
+			n.Entity.Y,
+			posX,
+			posY,
+		)
+		if dist <= radius {
+			npcs = append(npcs, n)
+		}
+	}
+
+	return npcs
 }

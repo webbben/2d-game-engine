@@ -61,6 +61,11 @@ func (g *Game) SetupTradeSession(shopkeeperID string) {
 	g.ShowTradeScreen = true
 }
 
+func (g *Game) StartDialog(dialogID string) {
+	d := g.DefinitionManager.GetDialog(dialogID)
+	g.Dialog = &d
+}
+
 type UpdateHooks struct {
 	UpdateMapHook func(*Game)
 }

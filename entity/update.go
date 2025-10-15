@@ -7,7 +7,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/rendering"
 )
 
-func (e Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
+func (e *Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	if !e.Loaded {
 		return
 	}
@@ -17,6 +17,8 @@ func (e Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
 
 	op := &ebiten.DrawImageOptions{}
 	drawX, drawY := e.DrawPos(offsetX, offsetY)
+	e.Position.drawX = drawX
+	e.Position.drawY = drawY
 	op.GeoM.Translate(drawX, drawY)
 	op.GeoM.Scale(config.GameScale, config.GameScale)
 	screen.DrawImage(e.CurrentFrame, op)
@@ -46,6 +48,9 @@ func (e Entity) ExtentPos(offsetX, offsetY float64) (extentX, extentY float64) {
 }
 
 func (e *Entity) Update() {
+	bounds := e.CurrentFrame.Bounds()
+	e.MouseBehavior.Update(int(e.Position.drawX), int(e.Position.drawY), bounds.Dx(), bounds.Dy(), true)
+
 	if !e.Movement.IsMoving {
 		if len(e.Movement.TargetPath) > 0 {
 			e.trySetNextTargetPath()

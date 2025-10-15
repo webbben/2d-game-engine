@@ -6,7 +6,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-func (n NPC) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
+func (n *NPC) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 	if n.Entity == nil {
 		panic("tried to draw NPC that doesn't have an entity!")
 	}

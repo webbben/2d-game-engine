@@ -15,6 +15,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
 
@@ -37,6 +38,7 @@ type Entity struct {
 	AnimationFrameMap   map[string]*ebiten.Image `json:"-"`
 	AnimationFrameCount map[string]int           `json:"-"`
 	Position
+	MouseBehavior mouse.MouseBehavior
 
 	width float64 // used for collision rect
 
@@ -92,7 +94,6 @@ type WorldContext interface {
 	Collides(r model.Rect, excludeEntityId string, rectBased bool) model.CollisionResult
 	FindPath(start, goal model.Coords) ([]model.Coords, bool)
 	MapDimensions() (width int, height int)
-	StartTradeSession(shopkeeperID string)
 }
 
 // Create an entity by opening an entity's definition JSON
@@ -144,6 +145,7 @@ type EntityInfo struct {
 
 type Position struct {
 	X, Y             float64      `json:"-"` // the exact position the entity is at on the map
+	drawX, drawY     float64      `json:"-"` // the actual position on the screen where the entity would be drawn
 	TargetX, TargetY float64      `json:"-"` // the target position the entity is moving to
 	TilePos          model.Coords `json:"-"` // the tile the entity is technically inside of
 }

@@ -1,6 +1,7 @@
 package definitions
 
 import (
+	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/item"
 )
@@ -8,12 +9,14 @@ import (
 type DefinitionManager struct {
 	ItemDefs    map[string]item.ItemDef
 	Shopkeepers map[string]*Shopkeeper
+	Dialogs     map[string]dialog.Dialog
 }
 
 func NewDefinitionManager() *DefinitionManager {
 	def := DefinitionManager{
 		ItemDefs:    make(map[string]item.ItemDef),
 		Shopkeepers: make(map[string]*Shopkeeper),
+		Dialogs:     make(map[string]dialog.Dialog),
 	}
 	return &def
 }
@@ -68,4 +71,16 @@ func (def DefinitionManager) GetShopkeeper(shopkeeperID string) *Shopkeeper {
 		logz.Panicf("shopkeeperID not found in defintionManager: %s", shopkeeperID)
 	}
 	return shopkeeper
+}
+
+func (def *DefinitionManager) LoadDialog(dialogID string, d dialog.Dialog) {
+	def.Dialogs[dialogID] = d
+}
+
+func (def DefinitionManager) GetDialog(dialogID string) dialog.Dialog {
+	d, exists := def.Dialogs[dialogID]
+	if !exists {
+		logz.Panicf("dialogID not found in defMgr: %s", dialogID)
+	}
+	return d
 }

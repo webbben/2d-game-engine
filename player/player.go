@@ -8,6 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/item"
+	"github.com/webbben/2d-game-engine/npc"
 )
 
 type Player struct {
@@ -27,6 +28,12 @@ type Player struct {
 	EquipedAuxiliary *item.InventoryItem
 
 	defMgr *definitions.DefinitionManager
+
+	World WorldContext
+}
+
+type WorldContext interface {
+	GetNearbyNPCs(x, y, radius float64) []*npc.NPC
 }
 
 // needed for sorting renderables
