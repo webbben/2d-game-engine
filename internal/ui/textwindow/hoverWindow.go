@@ -1,4 +1,4 @@
-package ui
+package textwindow
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"

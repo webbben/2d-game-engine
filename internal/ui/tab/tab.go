@@ -1,4 +1,4 @@
-package ui
+package tab
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
@@ -8,6 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/tiled"
+	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
 )
 
 type Tab struct {
@@ -17,7 +18,7 @@ type Tab struct {
 	ImgTileId     int // tile ID of tile in the source tileset
 	img           *ebiten.Image
 	mouseBehavior mouse.MouseBehavior
-	hoverTooltip  HoverTooltip
+	hoverTooltip  textwindow.HoverTooltip
 	Active        bool // flag indicating if this tag is active or not
 }
 
@@ -54,7 +55,7 @@ func NewTabControl(sourceTileset string, tabs []Tab) TabControl {
 		panic("no default tooltip box tileset src set. currently it is required to be globally set for using tab controls.")
 	}
 	for i, tab := range tabs {
-		tabs[i].hoverTooltip = NewHoverTooltip(tab.DisplayName, config.DefaultTooltipBox.TilesetSrc, config.DefaultTooltipBox.OriginIndex, 1000, -10, -10)
+		tabs[i].hoverTooltip = textwindow.NewHoverTooltip(tab.DisplayName, config.DefaultTooltipBox.TilesetSrc, config.DefaultTooltipBox.OriginIndex, 1000, -10, -10)
 	}
 
 	tabControl := TabControl{

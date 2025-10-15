@@ -1,4 +1,4 @@
-package ui
+package textwindow
 
 import (
 	"time"
@@ -7,10 +7,11 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/overlay"
+	"github.com/webbben/2d-game-engine/internal/ui/textbox"
 )
 
 type HoverTooltip struct {
-	textBox TextBox
+	textBox textbox.TextBox
 	mouse.MouseBehavior
 	mouseOffsetX, mouseOffsetY int
 	msDelay                    int
@@ -22,7 +23,7 @@ func NewHoverTooltip(s string, tilesetSrc string, originIndex int, msDelay int, 
 	}
 
 	hoverTooltip := HoverTooltip{
-		textBox:      NewTextBox(s, tilesetSrc, originIndex, config.DefaultFont, nil, nil),
+		textBox:      textbox.NewTextBox(s, tilesetSrc, originIndex, config.DefaultFont, nil, nil),
 		mouseOffsetX: mouseOffsetX,
 		mouseOffsetY: mouseOffsetY,
 		msDelay:      msDelay,

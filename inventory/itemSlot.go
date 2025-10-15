@@ -8,7 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/tiled"
-	"github.com/webbben/2d-game-engine/internal/ui"
+	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
 	"github.com/webbben/2d-game-engine/item"
 )
 
@@ -16,8 +16,8 @@ type ItemSlot struct {
 	init              bool
 	x, y              int
 	mouseBehavior     mouse.MouseBehavior
-	hoverWindow       ui.HoverWindow
-	hoverWindowParams ui.TextWindowParams // since we have to recalculate the hover window when text changes, save the params
+	hoverWindow       textwindow.HoverWindow
+	hoverWindowParams textwindow.TextWindowParams // since we have to recalculate the hover window when text changes, save the params
 
 	itemSlotTiles ItemSlotTiles
 
@@ -30,7 +30,7 @@ type ItemSlot struct {
 	IsEquiped  bool
 
 	tooltip      string
-	hoverTooltip ui.HoverTooltip
+	hoverTooltip textwindow.HoverTooltip
 
 	allowedItemTypes []string // each item type in this array will be allowed; if nothing is set here, all items are allowed
 }
@@ -42,7 +42,7 @@ type ItemSlotParams struct {
 	AllowedItemTypes []string // each item type in this array will be allowed; if nothing is set here, all items are allowed
 }
 
-func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) *ItemSlot {
+func NewItemSlot(params ItemSlotParams, hoverWindowParams textwindow.TextWindowParams) *ItemSlot {
 	if params.ItemSlotTiles.EnabledTile == nil {
 		panic("EnabledImage is nil")
 	}
@@ -71,7 +71,7 @@ func NewItemSlot(params ItemSlotParams, hoverWindowParams ui.TextWindowParams) *
 	if params.Tooltip != "" {
 		tooltipTileset := config.DefaultTooltipBox.TilesetSrc
 		tooltipOrigin := config.DefaultTooltipBox.OriginIndex
-		itemSlot.hoverTooltip = ui.NewHoverTooltip(params.Tooltip, tooltipTileset, tooltipOrigin, 1000, -10, -10)
+		itemSlot.hoverTooltip = textwindow.NewHoverTooltip(params.Tooltip, tooltipTileset, tooltipOrigin, 1000, -10, -10)
 		itemSlot.tooltip = params.Tooltip
 	}
 
@@ -114,7 +114,7 @@ func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.It
 
 	// when an item is set, calculate the hover window
 	// we have to do this on setting the item, since the text content may determine the actual size of the hover window.
-	is.hoverWindow = ui.NewHoverWindow(itemInfo.GetName(), itemInfo.GetDescription(), is.hoverWindowParams)
+	is.hoverWindow = textwindow.NewHoverWindow(itemInfo.GetName(), itemInfo.GetDescription(), is.hoverWindowParams)
 }
 
 func (is *ItemSlot) Clear() {

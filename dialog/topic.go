@@ -3,7 +3,7 @@ package dialog
 import (
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
-	"github.com/webbben/2d-game-engine/internal/ui"
+	"github.com/webbben/2d-game-engine/internal/ui/button"
 )
 
 type topicStatus string
@@ -53,7 +53,7 @@ type Topic struct {
 
 	ShowTextImmediately bool // if true, text will display immediately instead of the via a typing animation
 
-	button *ui.Button // a button for this topic, if it's a subtopic
+	button *button.Button // a button for this topic, if it's a subtopic
 }
 
 func (d *Dialog) setCurrentTextBranch(textBranch TextBranch) {
@@ -65,7 +65,7 @@ func (d *Dialog) setCurrentTextBranch(textBranch TextBranch) {
 
 	for i := range d.currentTopic.currentTextBranch.Options {
 		op := d.currentTopic.currentTextBranch.Options[i]
-		d.currentTopic.currentTextBranch.Options[i].button = ui.NewButton(op.OptionText, nil, 0, 0)
+		d.currentTopic.currentTextBranch.Options[i].button = button.NewButton(op.OptionText, nil, 0, 0)
 	}
 
 	d.currentTopic.status = topic_status_showingMainText
@@ -91,7 +91,7 @@ type TextBranch struct {
 	// if there are no options for a text branch, that effectively ends the entire text branch "conversation".
 	Options []TextBranch
 
-	button *ui.Button
+	button *button.Button
 }
 
 func (d *Dialog) setTopic(t Topic, isReturning bool, eventBus *pubsub.EventBus) {
@@ -118,7 +118,7 @@ func (d *Dialog) setTopic(t Topic, isReturning bool, eventBus *pubsub.EventBus) 
 		buttonWidth := d.topicBoxWidth - tileSize
 		subtopic := d.currentTopic.SubTopics[i]
 
-		d.currentTopic.SubTopics[i].button = ui.NewButton(subtopic.TopicText, nil, buttonWidth, buttonHeight)
+		d.currentTopic.SubTopics[i].button = button.NewButton(subtopic.TopicText, nil, buttonWidth, buttonHeight)
 	}
 
 	if isReturning {

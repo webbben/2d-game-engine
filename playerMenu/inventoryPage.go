@@ -8,8 +8,8 @@ import (
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/tiled"
-	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/internal/ui/box"
+	"github.com/webbben/2d-game-engine/internal/ui/textbox"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/player"
@@ -39,7 +39,7 @@ type InventoryPage struct {
 
 	goldCountX, goldCountY          float64
 	goldCountWidth, goldCountHeight int
-	goldCount                       ui.TextBox // displays the amount gold in the inventory
+	goldCount                       textbox.TextBox // displays the amount gold in the inventory
 	goldCountMouse                  mouse.MouseBehavior
 
 	coinPurseX, coinPurseY float64
@@ -137,7 +137,7 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 
 	// gold counter and coin purse set up
 	goldIcon := tiled.GetTileImage(inventoryParams.ItemSlotTilesetSource, 194)
-	ip.goldCount = ui.NewTextBox("25", inventoryParams.HoverWindowParams.TilesetSource, 135, config.DefaultFont, goldIcon, &ui.TextBoxOptions{
+	ip.goldCount = textbox.NewTextBox("25", inventoryParams.HoverWindowParams.TilesetSource, 135, config.DefaultFont, goldIcon, &textbox.TextBoxOptions{
 		SetWidthPx:       tileSize * 4,
 		HighlightOnHover: true,
 	})

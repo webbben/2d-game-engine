@@ -1,4 +1,4 @@
-package ui
+package button
 
 import (
 	"image/color"

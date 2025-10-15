@@ -10,8 +10,9 @@ import (
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/tiled"
-	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/internal/ui/box"
+	"github.com/webbben/2d-game-engine/internal/ui/button"
+	"github.com/webbben/2d-game-engine/internal/ui/textbox"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/player"
@@ -28,7 +29,7 @@ type TradeScreen struct {
 	mainBoxX, mainBoxY          int
 	mainBoxWidth, mainBoxHeight int
 
-	boxTitle ui.BoxTitle
+	boxTitle box.BoxTitle
 
 	shopkeeperInventory            inventory.Inventory
 	shopkeeperInvX, shopkeeperInvY int
@@ -38,16 +39,16 @@ type TradeScreen struct {
 	boughtItems []tradeItem
 	soldItems   []tradeItem
 
-	playerGoldCount                      ui.TextBox
+	playerGoldCount                      textbox.TextBox
 	playerGoldLabelX, playerGoldLabelY   int
 	playerGoldCountX, playerGoldCountY   int
-	transactionGoldCount                 ui.TextBox
+	transactionGoldCount                 textbox.TextBox
 	transactionLabelX, transactionLabelY int
 	transactionX, transactionY           int
 
-	acceptButton     *ui.Button
+	acceptButton     *button.Button
 	acceptX, acceptY int
-	cancelButton     *ui.Button
+	cancelButton     *button.Button
 	cancelX, cancelY int
 
 	itemTransfer inventory.ItemTransfer
@@ -90,7 +91,7 @@ func NewTradeScreen(params TradeScreenParams, defMgr *definitions.DefinitionMana
 	ts.mainBoxImg = ts.mainBox.BuildBoxImage(ts.mainBoxWidth, ts.mainBoxHeight)
 
 	// main box title
-	ts.boxTitle = ui.NewBoxTitle(params.BoxTilesetSrc, params.BoxTitleOrigin, " Aurelius' Tradehouse ", config.DefaultTitleFont)
+	ts.boxTitle = box.NewBoxTitle(params.BoxTilesetSrc, params.BoxTitleOrigin, " Aurelius' Tradehouse ", config.DefaultTitleFont)
 
 	// build inventories
 	ts.shopkeeperInventory = inventory.NewInventory(defMgr, params.ShopkeeperInventoryParams)
@@ -100,17 +101,17 @@ func NewTradeScreen(params TradeScreenParams, defMgr *definitions.DefinitionMana
 
 	// gold counters
 	goldIcon := tiled.GetTileImage(params.PlayerInventoryParams.ItemSlotTilesetSource, 194)
-	ts.playerGoldCount = ui.NewTextBox("0", params.TextBoxTilesetSrc, params.TextBoxOrigin, config.DefaultFont, goldIcon, &ui.TextBoxOptions{
+	ts.playerGoldCount = textbox.NewTextBox("0", params.TextBoxTilesetSrc, params.TextBoxOrigin, config.DefaultFont, goldIcon, &textbox.TextBoxOptions{
 		SetWidthPx: tileSize * 4,
 	})
-	ts.transactionGoldCount = ui.NewTextBox("0", params.TextBoxTilesetSrc, params.TextBoxOrigin, config.DefaultFont, goldIcon, &ui.TextBoxOptions{
+	ts.transactionGoldCount = textbox.NewTextBox("0", params.TextBoxTilesetSrc, params.TextBoxOrigin, config.DefaultFont, goldIcon, &textbox.TextBoxOptions{
 		SetWidthPx:       tileSize * 4,
 		HighlightOnHover: true,
 	})
 
 	// buttons
-	ts.acceptButton = ui.NewButton("Accept", config.DefaultFont, tileSize*2, tileSize)
-	ts.cancelButton = ui.NewButton("Cancel", config.DefaultFont, tileSize*2, tileSize)
+	ts.acceptButton = button.NewButton("Accept", config.DefaultFont, tileSize*2, tileSize)
+	ts.cancelButton = button.NewButton("Cancel", config.DefaultFont, tileSize*2, tileSize)
 
 	return ts
 }

@@ -5,7 +5,7 @@ import (
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/overlay"
-	"github.com/webbben/2d-game-engine/internal/ui"
+	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
 	"github.com/webbben/2d-game-engine/item"
 )
 
@@ -19,7 +19,7 @@ type Inventory struct {
 	slotEquipedBorderTileID  int    // tile id for the image of the border that signifies the slot is equiped
 	slotSelectedBorderTileID int    // tile id for the image of the border that signifies the slot is selected
 
-	hoverWindowParams ui.TextWindowParams
+	hoverWindowParams textwindow.TextWindowParams
 
 	RowCount          int // number of rows of item slots
 	ColCount          int // number of columns of item slots
@@ -67,7 +67,7 @@ type InventoryParams struct {
 	ColCount          int // number of columns of item slots
 	EnabledSlotsCount int // number of item slots that are enabled
 
-	HoverWindowParams ui.TextWindowParams
+	HoverWindowParams textwindow.TextWindowParams
 
 	AllowedItemTypes []string // if set, all slots in this inventory will only allow items in this list of item IDs
 }

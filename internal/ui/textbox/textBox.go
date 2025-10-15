@@ -1,4 +1,4 @@
-package ui
+package textbox
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"

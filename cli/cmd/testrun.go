@@ -17,7 +17,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/model"
-	"github.com/webbben/2d-game-engine/internal/ui"
+	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/npc"
@@ -216,7 +216,7 @@ func GetPlayerMenu(p *player.Player, defMgr *definitions.DefinitionManager) play
 		SlotDisabledTileID:       1,
 		SlotEquipedBorderTileID:  3,
 		SlotSelectedBorderTileID: 4,
-		HoverWindowParams: ui.TextWindowParams{
+		HoverWindowParams: textwindow.TextWindowParams{
 			TilesetSource:   "assets/tiled/tilesets/boxes/boxes.tsj",
 			OriginTileIndex: 20,
 		},
@@ -237,7 +237,7 @@ func GetTradeScreen(p *player.Player, defMgr *definitions.DefinitionManager) tra
 		SlotDisabledTileID:       1,
 		SlotEquipedBorderTileID:  3,
 		SlotSelectedBorderTileID: 4,
-		HoverWindowParams: ui.TextWindowParams{
+		HoverWindowParams: textwindow.TextWindowParams{
 			TilesetSource:   "assets/tiled/tilesets/boxes/boxes.tsj",
 			OriginTileIndex: 20,
 		},

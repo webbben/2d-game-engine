@@ -8,8 +8,8 @@ import (
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
-	"github.com/webbben/2d-game-engine/internal/ui"
 	"github.com/webbben/2d-game-engine/internal/ui/box"
+	"github.com/webbben/2d-game-engine/internal/ui/tab"
 	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/player"
 )
@@ -26,10 +26,10 @@ type PlayerMenu struct {
 	BoxOriginIndex      int // index of the top left tile of this box in the tileset
 	BoxTitleOriginIndex int // index of the top left of the box title
 	boxImage            *ebiten.Image
-	boxTitle            ui.BoxTitle
+	boxTitle            box.BoxTitle
 	boxX, boxY          int // position of the entire box containing the page content
 
-	pageTabs              ui.TabControl
+	pageTabs              tab.TabControl
 	PageTabsTilesetSource string // tileset for the tab control ui component
 	pageTabsX, pageTabsY  int
 
@@ -66,7 +66,7 @@ func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.Definit
 	pm.y = (display.SCREEN_HEIGHT - pm.height) / 2
 
 	// load menu tabs
-	pm.pageTabs = ui.NewTabControl(pm.PageTabsTilesetSource, []ui.Tab{
+	pm.pageTabs = tab.NewTabControl(pm.PageTabsTilesetSource, []tab.Tab{
 		{
 			ImgTileId:   64,
 			DisplayName: "Inventory",
@@ -122,7 +122,7 @@ func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.Definit
 		}
 	}
 
-	pm.boxTitle = ui.NewBoxTitle(pm.BoxTilesetSource, pm.BoxTitleOriginIndex, longestTitle, nil)
+	pm.boxTitle = box.NewBoxTitle(pm.BoxTilesetSource, pm.BoxTitleOriginIndex, longestTitle, nil)
 
 	// load each page
 	pm.mainContentActualWidth = pm.mainContentBoxWidth - (tileSize)
