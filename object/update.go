@@ -2,6 +2,11 @@ package object
 
 import (
 	"log"
+	"time"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/rendering"
 )
 
 type ObjectUpdateResult struct {
@@ -13,31 +18,83 @@ func (obj *Object) Update() ObjectUpdateResult {
 	result := ObjectUpdateResult{}
 	obj.MouseBehavior.Update(int(obj.DrawX), int(obj.DrawY), obj.Width, obj.Height, true)
 
-	if obj.Type == TYPE_DOOR {
-		switch obj.activateType {
-		case "click":
-			if obj.MouseBehavior.LeftClick.ClickReleased {
-				log.Println("going to room:", obj.Door.targetMapID)
-				obj.openSound.Play()
-				result.ChangeMapID = obj.Door.targetMapID
-				result.ChangeMapSpawnIndex = obj.Door.targetSpawnIndex
-			}
-		case "step":
-			if obj.WorldContext.GetPlayerRect().Intersects(obj.Rect) {
-				log.Println("going to room:", obj.Door.targetMapID)
-				obj.openSound.Play()
-				result.ChangeMapID = obj.Door.targetMapID
-				result.ChangeMapSpawnIndex = obj.Door.targetSpawnIndex
-			}
-		default:
-			panic("invalid activation type for door")
-		}
+	switch obj.Type {
+	case TYPE_DOOR:
+		obj.updateDoor(&result)
+	case TYPE_GATE:
+		obj.updateGate(&result)
 	}
 
 	return result
 }
 
-func (obj *Object) Draw(offsetX, offsetY float64) {
-	obj.DrawX = (obj.X - offsetX)
-	obj.DrawY = (obj.Y - offsetY)
+func (obj *Object) updateGate(result *ObjectUpdateResult) {
+	if obj.MouseBehavior.LeftClick.ClickReleased {
+		if !obj.Gate.changingState {
+			obj.Gate.changingState = true
+			obj.Gate.open = !obj.Gate.open
+		}
+	}
+
+	if obj.Gate.changingState {
+		if obj.nextFrame(obj.Gate.open) {
+			obj.Gate.changingState = false
+		}
+	}
+}
+
+func (obj *Object) nextFrame(forwards bool) (done bool) {
+	if time.Since(obj.animLastUpdate) < time.Millisecond*time.Duration(obj.animSpeedMs) {
+		return false
+	}
+	obj.animLastUpdate = time.Now()
+
+	if forwards {
+		if obj.imgFrameIndex == len(obj.imgFrames)-1 {
+			return true
+		}
+		obj.imgFrameIndex++
+	} else {
+		if obj.imgFrameIndex == 0 {
+			return true
+		}
+		obj.imgFrameIndex--
+	}
+
+	if obj.imgFrameIndex < 0 || obj.imgFrameIndex > len(obj.imgFrames)-1 {
+		panic("imgFrameIndex out of range")
+	}
+
+	return false
+}
+
+func (obj *Object) updateDoor(result *ObjectUpdateResult) {
+	switch obj.Door.activateType {
+	case "click":
+		if obj.MouseBehavior.LeftClick.ClickReleased {
+			log.Println("going to room:", obj.Door.targetMapID)
+			obj.Door.openSound.Play()
+			result.ChangeMapID = obj.Door.targetMapID
+			result.ChangeMapSpawnIndex = obj.Door.targetSpawnIndex
+		}
+	case "step":
+		if obj.World.GetPlayerRect().Intersects(obj.Rect) {
+			log.Println("going to room:", obj.Door.targetMapID)
+			obj.Door.openSound.Play()
+			result.ChangeMapID = obj.Door.targetMapID
+			result.ChangeMapSpawnIndex = obj.Door.targetSpawnIndex
+		}
+	default:
+		panic("invalid activation type for door")
+	}
+}
+
+func (obj *Object) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
+	obj.DrawX = (obj.xPos - offsetX)
+	obj.DrawY = (obj.yPos - offsetY)
+
+	if len(obj.imgFrames) > 0 {
+		// no idea why, but the Y position seems to be increased by the object's height...
+		rendering.DrawImage(screen, obj.imgFrames[obj.imgFrameIndex], obj.DrawX*config.GameScale, (obj.DrawY-float64(obj.Height))*config.GameScale, config.GameScale)
+	}
 }

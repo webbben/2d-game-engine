@@ -20,15 +20,16 @@ import (
 type MapInfo struct {
 	gameRef *Game
 
-	ID          string
-	DisplayName string // the name of the map shown to the player
-	Loaded      bool   // flag indicating if this map has been loaded
-	ReadyToPlay bool   // flag indicating if all loading steps are done, and this map is ready to show in the game
-	MapIsActive bool   // flag indicating if the map is actively being used (e.g. for rendering, updates, etc)
-	Map         tiled.Map
-	ImageMap    map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
-	PlayerRef   *player.Player
-	Objects     []*object.Object
+	ID           string
+	DisplayName  string // the name of the map shown to the player
+	Loaded       bool   // flag indicating if this map has been loaded
+	ReadyToPlay  bool   // flag indicating if all loading steps are done, and this map is ready to show in the game
+	MapIsActive  bool   // flag indicating if the map is actively being used (e.g. for rendering, updates, etc)
+	Map          tiled.Map
+	ImageMap     map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
+	PlayerRef    *player.Player
+	Objects      []*object.Object
+	LightObjects []*object.Object // if an object is a light, add it here so it can be included in the light drawing
 
 	sortedRenderables []sortedRenderable
 
@@ -95,30 +96,24 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 	g.MapInfo.NPCManager.mapRef = g.MapInfo.Map
 	g.MapInfo.gameRef = g
 
-	lightProps := []tiled.LightProps{}
-
 	// find all lights embedded in tiles
 	for _, tileset := range m.Tilesets {
 		for _, tile := range tileset.Tiles {
 			// determine if this is a light tile
 			tileType := tiled.GetTileType(tile)
 			if tileType == "LIGHT" {
-				tileProps := tiled.GetLightPropsFromTile(tile)
-				tileProps.TileID += tileset.FirstGID
-				lightProps = append(lightProps, tileProps)
-			}
-		}
-	}
+				lightProps := tiled.GetLightProps(tile.Properties)
+				gid := tile.ID + tileset.FirstGID
 
-	// find the positions of the tiles where the lights are set
-	for _, lightProp := range lightProps {
-		lightPositions := m.GetAllTilePositions(lightProp.TileID)
-		for _, pos := range lightPositions {
-			l := lights.NewLight(pos.X*config.TileSize+(config.TileSize/2), (pos.Y*config.TileSize)+lightProp.OffsetY+(config.TileSize/2), lightProp, nil)
-			g.MapInfo.Lights = append(g.MapInfo.Lights, &l)
-			fmt.Println("light")
-			fmt.Println("x:", l.X, "y:", l.Y)
-			fmt.Println("radius:", l.MinRadius, l.MaxRadius)
+				lightPositions := m.GetAllTilePositions(gid)
+				for _, pos := range lightPositions {
+					// center on the tile so the light doesn't show in the tile's top-left corner
+					x := (pos.X * config.TileSize) + (config.TileSize / 2)
+					y := (pos.Y * config.TileSize) + (config.TileSize / 2)
+					l := lights.NewLight(x, y, lightProps, nil)
+					g.MapInfo.Lights = append(g.MapInfo.Lights, &l)
+				}
+			}
 		}
 	}
 
@@ -126,7 +121,7 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 	for _, layer := range m.Layers {
 		if layer.Type == tiled.LAYER_TYPE_OBJECT {
 			for _, obj := range layer.Objects {
-				g.MapInfo.AddObjectToMap(obj)
+				g.MapInfo.AddObjectToMap(obj, m)
 			}
 		}
 	}
@@ -231,10 +226,13 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	mi.NPCs = append(mi.NPCs, n)
 }
 
-func (mi *MapInfo) AddObjectToMap(obj tiled.Object) {
-	o := object.LoadObject(obj)
-	o.WorldContext = mi
+func (mi *MapInfo) AddObjectToMap(obj tiled.Object, m tiled.Map) {
+	o := object.LoadObject(obj, m)
+	o.World = mi
 	mi.Objects = append(mi.Objects, o)
+	if o.Light.On {
+		mi.LightObjects = append(mi.LightObjects, o)
+	}
 }
 
 // detects if the given rect collides in the map.
@@ -385,7 +383,8 @@ func (mi *MapInfo) GetSpawnPosition(index int) (x, y float64, found bool) {
 	for _, obj := range mi.Objects {
 		if obj.Type == object.TYPE_SPAWN_POINT {
 			if obj.SpawnPoint.SpawnIndex == index {
-				return obj.X, obj.Y, true
+				x, y := obj.Pos()
+				return x, y, true
 			}
 		}
 	}

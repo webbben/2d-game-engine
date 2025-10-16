@@ -87,6 +87,7 @@ func (t *Tileset) LoadJSONData(mapAbsPath string) error {
 	// put the two initial values into this loaded one, and replace the original Tileset data
 	loaded.FirstGID = t.FirstGID
 	loaded.Source = t.Source
+	loaded.Loaded = true
 	*t = loaded
 
 	return nil
@@ -173,16 +174,16 @@ func (tileset *Tileset) GenerateTiles() error {
 //
 // This is for Tile properties, animations, etc, NOT for the tile image. Not all tiles will have a Tile.
 // Returns the Tile if found, and a boolean indicating if the tile was successfully found
-func (m Map) GetTileByGID(gid int) (Tile, bool) {
+func (m Map) GetTileByGID(gid int) (Tile, Tileset, bool) {
 	for _, tileset := range m.Tilesets {
 		localTileId := gid - tileset.FirstGID
 		for _, tile := range tileset.Tiles {
 			if tile.ID == localTileId {
-				return tile, true
+				return tile, tileset, true
 			}
 		}
 	}
-	return Tile{}, false
+	return Tile{}, Tileset{}, false
 }
 
 // given a gid for a tile, returns the coordinates for all places that this tile is placed in a map (in any tile layer).
@@ -229,7 +230,6 @@ func GetTileImage(tilesetSrc string, tileID int) *ebiten.Image {
 }
 
 type LightProps struct {
-	TileID            int
 	ColorPreset       string
 	GlowFactor        float64
 	InnerRadiusFactor float64
@@ -247,12 +247,10 @@ func GetTileType(tile Tile) string {
 	return ""
 }
 
-func GetLightPropsFromTile(tile Tile) LightProps {
-	props := LightProps{
-		TileID: tile.ID,
-	}
+func GetLightProps(p []Property) LightProps {
+	props := LightProps{}
 
-	for _, prop := range tile.Properties {
+	for _, prop := range p {
 		switch prop.Name {
 		case "light_color_preset":
 			props.ColorPreset = prop.GetStringValue()
@@ -288,4 +286,14 @@ func GetStringProperty(propName string, props []Property) (val string, found boo
 	}
 
 	return "", false
+}
+
+func GetIntProperty(propName string, props []Property) (val int, found bool) {
+	for _, prop := range props {
+		if prop.Name == propName {
+			return prop.GetIntValue(), true
+		}
+	}
+
+	return 0, false
 }

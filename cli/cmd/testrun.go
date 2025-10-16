@@ -102,7 +102,7 @@ func init() {
 
 func setupGameState() *game.Game {
 	g := game.NewGame(17)
-	err := g.SetupMap("village_surano", &game.OpenMapOptions{
+	err := g.SetupMap("prison_ship", &game.OpenMapOptions{
 		RunNPCManager:    true,
 		RegenerateImages: true,
 	})
@@ -130,7 +130,7 @@ func setupGameState() *game.Game {
 	p := player.NewPlayer(g.DefinitionManager)
 	p.Entity = &playerEnt
 
-	g.MapInfo.AddPlayerToMap(&p, config.TileSize*5, config.TileSize*5)
+	g.PlacePlayerAtSpawnPoint(&p, 0)
 
 	// make NPCs
 	legionaryEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_6ef9b0ec-8e34-4ebf-a9da-e04ef154e80b.json"))
@@ -138,7 +138,7 @@ func setupGameState() *game.Game {
 		log.Fatal(err)
 	}
 
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 0; i++ {
 		npcEnt := legionaryEnt.Duplicate()
 		npcEnt.DisplayName = fmt.Sprintf("NPC_%v", i)
 		err = npcEnt.Load()
@@ -424,6 +424,45 @@ func LoadItems(g *game.Game) {
 			Groupable:            true,
 			Currency:             true,
 		},
+		// &item.ArmorDef{
+		// 	ItemBase: item.ItemBase{
+		// 		ID:                   "legionary_helm",
+		// 		Name:                 "Legionary Helm",
+		// 		Description:          "A standard issue steel helmet for Roman legionaries.",
+		// 		Value:                250,
+		// 		Weight:               15,
+		// 		TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+		// 		TileImgIndex:         32,
+		// 		Armor:                true,
+		// 	},
+		// 	Protection: 10,
+		// },
+		// &item.ArmorDef{
+		// 	ItemBase: item.ItemBase{
+		// 		ID:                   "legionary_cuirass",
+		// 		Name:                 "Legionary Cuirass",
+		// 		Description:          "A set of Lorica Segmentata body armor, used by Roman legionaries.",
+		// 		Value:                700,
+		// 		Weight:               25,
+		// 		TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+		// 		TileImgIndex:         33,
+		// 		Armor:                true,
+		// 	},
+		// 	Protection: 18,
+		// },
+		// &item.ArmorDef{
+		// 	ItemBase: item.ItemBase{
+		// 		ID:                   "caligae_boots",
+		// 		Name:                 "Caligae",
+		// 		Description:          "A pair of caligae, heavy leather sandals commonly worn by Roman soldiers.",
+		// 		Value:                15,
+		// 		Weight:               4,
+		// 		TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+		// 		TileImgIndex:         33,
+		// 		Armor:                true,
+		// 	},
+		// 	Protection: 5,
+		// },
 	}
 
 	g.DefinitionManager.LoadItemDefs(itemDefs)

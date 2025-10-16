@@ -838,6 +838,33 @@
                 }]
         }, 
         {
+         "id":193,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":194,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":195,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
          "id":213,
          "properties":[
                 {
@@ -883,6 +910,42 @@
                 }]
         }, 
         {
+         "id":224,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":228,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":230,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"HALF_L"
+                }]
+        }, 
+        {
+         "id":235,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"HALF_R"
+                }]
+        }, 
+        {
          "id":245,
          "properties":[
                 {
@@ -898,6 +961,78 @@
                  "name":"COLLISION",
                  "type":"string",
                  "value":"HALF_R"
+                }]
+        }, 
+        {
+         "id":256,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":260,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":288,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":292,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":322,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":323,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":352,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
+                }]
+        }, 
+        {
+         "id":353,
+         "properties":[
+                {
+                 "name":"COLLISION",
+                 "type":"string",
+                 "value":"WHOLE"
                 }]
         }],
  "tilewidth":16,

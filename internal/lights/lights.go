@@ -188,7 +188,7 @@ func (l *Light) calculateNextRadius() {
 	l.currentRadius = ((maxRadius - minRadius) * float32(flickerPercent)) + minRadius
 }
 
-func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight LightColor, nightFx float32, offsetX, offsetY float64) {
+func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, objLights []*Light, daylight LightColor, nightFx float32, offsetX, offsetY float64) {
 	maxLights := 16
 
 	lightPositions := make([]float32, maxLights*2)        // X, Y
@@ -199,6 +199,23 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight Ligh
 	for i := range lights {
 		lights[i].calculateNextRadius()
 		l := lights[i]
+
+		// light position
+		lightPositions[i*2] = (l.X - float32(offsetX)) * float32(config.GameScale)
+		lightPositions[i*2+1] = (l.Y - float32(offsetY)) * float32(config.GameScale)
+
+		// light radius
+		lightRadii[i] = l.currentRadius
+		lightInnerRadiusFactors[i] = l.innerRadiusFactor
+
+		// light color
+		lightColors[i*3] = l.LightColor[0]
+		lightColors[i*3+1] = l.LightColor[1]
+		lightColors[i*3+2] = l.LightColor[2]
+	}
+	for i := range objLights {
+		objLights[i].calculateNextRadius()
+		l := objLights[i]
 
 		// light position
 		lightPositions[i*2] = (l.X - float32(offsetX)) * float32(config.GameScale)

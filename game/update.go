@@ -108,6 +108,10 @@ func (mi *MapInfo) updateSortedRenderables() {
 		mi.sortedRenderables = append(mi.sortedRenderables, mi.PlayerRef)
 	}
 
+	for _, obj := range mi.Objects {
+		mi.sortedRenderables = append(mi.sortedRenderables, obj)
+	}
+
 	sort.Slice(mi.sortedRenderables, func(i, j int) bool {
 		return mi.sortedRenderables[i].Y() < mi.sortedRenderables[j].Y()
 	})

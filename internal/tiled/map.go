@@ -75,7 +75,7 @@ func (m *Map) Load(regenerateImages bool) error {
 	// find all collision rects
 	for _, layer := range m.Layers {
 		for i, d := range layer.Data {
-			tile, found := m.GetTileByGID(d)
+			tile, _, found := m.GetTileByGID(d)
 			if !found {
 				continue
 			}
@@ -330,7 +330,7 @@ func (m *Map) CalculateCostMap() {
 		i := 0
 		for y := 0; y < layer.Height; y++ {
 			for x := 0; x < layer.Width; x++ {
-				tile, found := m.GetTileByGID(layer.Data[i])
+				tile, _, found := m.GetTileByGID(layer.Data[i])
 				if found {
 					for _, prop := range tile.Properties {
 						if prop.Name == "cost" {

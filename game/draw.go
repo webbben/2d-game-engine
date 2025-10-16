@@ -27,7 +27,13 @@ func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {
 	g.drawWorldScene(g.worldScene)
 
 	offsetX, offsetY := g.Camera.GetAbsPos()
-	lights.DrawMapLighting(screen, g.worldScene, g.MapInfo.Lights, g.daylightFader.GetCurrentColor(), g.daylightFader.GetDarknessFactor(), offsetX, offsetY)
+	objectLights := []*lights.Light{}
+	for _, lightObj := range g.MapInfo.LightObjects {
+		if lightObj.Light.On {
+			objectLights = append(objectLights, lightObj.Light.Light)
+		}
+	}
+	lights.DrawMapLighting(screen, g.worldScene, g.MapInfo.Lights, objectLights, g.daylightFader.GetCurrentColor(), g.daylightFader.GetDarknessFactor(), offsetX, offsetY)
 
 	// draw dialog
 	if g.Dialog != nil {
@@ -59,16 +65,12 @@ func (g *Game) drawWorldScene(screen *ebiten.Image) {
 		g.drawCollisions(screen, offsetX, offsetY)
 	}
 
-	// draw objects, entities, and the player in order of Y position (higher renders first)
+	// draw NPCs and the player in order of Y position (higher renders first)
 	for _, thing := range g.MapInfo.sortedRenderables {
 		if thing == nil {
 			continue
 		}
 		thing.Draw(screen, offsetX, offsetY)
-	}
-
-	for _, obj := range g.MapInfo.Objects {
-		obj.Draw(offsetX, offsetY)
 	}
 
 	// draw roof tops

@@ -48,10 +48,12 @@ type tileAnimation struct {
 
 type TileData struct {
 	lastFrameChange time.Time
-	CurrentFrame    *ebiten.Image
-	Frames          []tileAnimation
-	frameIndex      int
-	ID              int // the (non-global) ID of this tile - just the index starting from the top
+	// this is the image that is directly at this tile. if this tile has an animation, then
+	// the Frames field will also contain the tile's image as well as all the other tiles of the animation
+	CurrentFrame *ebiten.Image
+	Frames       []tileAnimation // if this tile has an animation, all the animation tiles (including this tile) will be here.
+	frameIndex   int
+	ID           int // the (non-global) ID of this tile - just the index starting from the top
 }
 
 // handles getting the frame to use when rendering (handles animations, etc)
@@ -205,6 +207,8 @@ type Tileset struct {
 
 	// game engine values
 	GeneratedImagesPath string
+
+	Loaded bool // set when JSON data has been loaded
 }
 
 // Tile represents individual tile properties within a tileset
