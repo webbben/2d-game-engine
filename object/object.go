@@ -4,7 +4,9 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/internal/audio"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
@@ -26,7 +28,9 @@ type Object struct {
 	xPos, yPos    float64 // logical position in the map
 	DrawX, DrawY  float64 // the actual position on the screen where this was last drawn - for things like click detection
 	Width, Height int
-	Rect          model.Rect
+	Rect          model.Rect // rect used for step detection (covers entire object)
+	CollisionRect model.Rect // rect used for collision (e.g. for gates, only covers bottom tiles)
+	Collidable    bool       // if set, game will check for collisions with this object
 
 	imgFrames      []*ebiten.Image
 	imgFrameIndex  int
@@ -49,6 +53,21 @@ type Object struct {
 	World WorldContext
 }
 
+func (obj Object) Collides(other model.Rect) model.IntersectionResult {
+	if !obj.Collidable {
+		return model.IntersectionResult{}
+	}
+	switch obj.Type {
+	case TYPE_GATE:
+		if obj.Gate.IsOpen() {
+			return model.IntersectionResult{}
+		}
+		return obj.CollisionRect.IntersectionArea(other)
+	default:
+		return obj.CollisionRect.IntersectionArea(other)
+	}
+}
+
 func (obj Object) Y() float64 {
 	return obj.yPos
 }
@@ -64,6 +83,7 @@ type Light struct {
 
 type WorldContext interface {
 	GetPlayerRect() model.Rect
+	GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC
 }
 
 type Door struct {
@@ -76,6 +96,10 @@ type Door struct {
 type Gate struct {
 	open          bool
 	changingState bool
+}
+
+func (g Gate) IsOpen() bool {
+	return g.open && !g.changingState
 }
 
 type SpawnPoint struct {
@@ -253,6 +277,15 @@ func (obj Object) validateDoorObject() {
 }
 
 func (obj *Object) loadGateObject(props []tiled.Property) {
+	// gates automatically have a collision rect at the bottom
+	obj.CollisionRect = model.Rect{
+		X: obj.xPos,
+		Y: obj.yPos + float64(obj.Height) - config.TileSize, // only TileSize height, from the bottom of the object
+		W: float64(obj.Width),
+		H: config.TileSize,
+	}
+	obj.Collidable = true
+
 	for _, prop := range props {
 		switch prop.Name {
 		case "gate_sound":

@@ -31,8 +31,10 @@ func (obj *Object) Update() ObjectUpdateResult {
 func (obj *Object) updateGate(result *ObjectUpdateResult) {
 	if obj.MouseBehavior.LeftClick.ClickReleased {
 		if !obj.Gate.changingState {
-			obj.Gate.changingState = true
-			obj.Gate.open = !obj.Gate.open
+			if !obj.World.GetPlayerRect().Intersects(obj.CollisionRect) && !obj.collidesWithNPC() {
+				obj.Gate.changingState = true
+				obj.Gate.open = !obj.Gate.open
+			}
 		}
 	}
 
@@ -41,6 +43,19 @@ func (obj *Object) updateGate(result *ObjectUpdateResult) {
 			obj.Gate.changingState = false
 		}
 	}
+}
+
+func (obj Object) collidesWithNPC() bool {
+	for _, n := range obj.World.GetNearbyNPCs(
+		obj.CollisionRect.X+(obj.CollisionRect.W/2), // use center of collision rect
+		obj.CollisionRect.Y+(obj.CollisionRect.H/2),
+		obj.CollisionRect.W+obj.CollisionRect.H,
+	) {
+		if obj.CollisionRect.Intersects(n.Entity.CollisionRect()) {
+			return true
+		}
+	}
+	return false
 }
 
 func (obj *Object) nextFrame(forwards bool) (done bool) {

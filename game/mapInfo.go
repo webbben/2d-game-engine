@@ -330,6 +330,14 @@ func (mi MapInfo) Collides(r model.Rect, excludeEntId string, rectBased bool) mo
 		}
 	}
 
+	// check for collidable objects (gates, etc)
+	for _, obj := range mi.Objects {
+		cr.Other = obj.Collides(r)
+		if cr.Other.Intersects {
+			return cr
+		}
+	}
+
 	cr.Assert()
 	return cr
 }
