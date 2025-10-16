@@ -22,6 +22,45 @@
                  "type":"string",
                  "value":"rand_lvl_00"
                 }]
+        }, 
+        {
+         "id":2,
+         "properties":[
+                {
+                 "name":"TYPE",
+                 "type":"string",
+                 "value":"LIGHT"
+                }, 
+                {
+                 "name":"light_color_preset",
+                 "type":"string",
+                 "value":"torch"
+                }, 
+                {
+                 "name":"light_flicker_interval",
+                 "type":"int",
+                 "value":80
+                }, 
+                {
+                 "name":"light_glow_factor",
+                 "type":"float",
+                 "value":0.15
+                }, 
+                {
+                 "name":"light_inner_radius_factor",
+                 "type":"float",
+                 "value":0.01
+                }, 
+                {
+                 "name":"light_offset_y",
+                 "type":"int",
+                 "value":4
+                }, 
+                {
+                 "name":"light_radius",
+                 "type":"int",
+                 "value":64
+                }]
         }],
  "tilewidth":16,
  "type":"tileset",

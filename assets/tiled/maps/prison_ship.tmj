@@ -93,7 +93,7 @@
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            0, 0, 0, 1029, 1029, 1029, 1029, 1029, 1029, 1029, 1029, 1029, 1029, 1029, 1029, 1029, 1029, 0, 0, 0],
          "height":40,
          "id":2,
          "name":"BUILDING_BASE",
@@ -468,6 +468,53 @@
                  "width":35.75,
                  "x":142,
                  "y":288
+                }, 
+                {
+                 "gid":3074,
+                 "height":32,
+                 "id":16,
+                 "name":"",
+                 "properties":[
+                        {
+                         "name":"TYPE",
+                         "type":"string",
+                         "value":"MISC"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":168.75,
+                 "y":607
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }, 
+        {
+         "draworder":"topdown",
+         "id":9,
+         "name":"Object Layer 2",
+         "objects":[
+                {
+                 "gid":3075,
+                 "height":32,
+                 "id":18,
+                 "name":"",
+                 "properties":[
+                        {
+                         "name":"z_offset",
+                         "type":"int",
+                         "value":8
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16,
+                 "x":170,
+                 "y":599.5
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -526,14 +573,14 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":9,
- "nextobjectid":14,
+ "nextlayerid":10,
+ "nextobjectid":19,
  "orientation":"orthogonal",
  "properties":[
         {
          "name":"DAYLIGHT",
          "type":"float",
-         "value":0
+         "value":0.2
         }, 
         {
          "name":"DisplayName",

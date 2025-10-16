@@ -42,6 +42,12 @@ func (m *Map) Load(regenerateImages bool) error {
 	if !found {
 		panic("Map required property not found: DisplayName. Be sure to set this as a custom property within Tiled.")
 	}
+	daylightFactor, found := GetFloatProperty("DAYLIGHT", m.Properties)
+	if found {
+		m.DaylightFactor = daylightFactor
+	} else {
+		m.DaylightFactor = 1 // default to full daylight influence (outdoors)
+	}
 
 	m.ID = id
 	m.DisplayName = displayName

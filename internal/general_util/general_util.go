@@ -19,6 +19,16 @@ func EuclideanDistCoords(pointA, pointB model.Coords) float64 {
 	return EuclideanDist(float64(pointA.X), float64(pointA.Y), float64(pointB.X), float64(pointB.Y))
 }
 
+// calculates euclidean distance based on the center of the given rects.
+// gives a more "real" distance compared to getting distance of the top left corner of, say, two entities
+func EuclideanDistCenter(r1, r2 model.Rect) float64 {
+	r1.X += r1.W / 2
+	r1.Y += r1.H / 2
+	r2.X += r2.W / 2
+	r2.Y += r2.H / 2
+	return EuclideanDist(r1.X, r1.Y, r2.X, r2.Y)
+}
+
 func RandInt(min, max int) int {
 	return rand.Intn(max-min+1) + min
 }

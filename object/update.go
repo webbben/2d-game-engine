@@ -6,6 +6,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 )
 
@@ -29,11 +30,18 @@ func (obj *Object) Update() ObjectUpdateResult {
 }
 
 func (obj *Object) updateGate(result *ObjectUpdateResult) {
-	if obj.MouseBehavior.LeftClick.ClickReleased {
+	obj.PlayerHovering = false
+
+	if obj.MouseBehavior.LeftClick.ClickReleased || obj.MouseBehavior.IsHovering {
 		if !obj.Gate.changingState {
-			if !obj.World.GetPlayerRect().Intersects(obj.CollisionRect) && !obj.collidesWithNPC() {
-				obj.Gate.changingState = true
-				obj.Gate.open = !obj.Gate.open
+			if general_util.EuclideanDistCenter(obj.World.GetPlayerRect(), obj.CollisionRect) < config.TileSize*2 {
+				obj.PlayerHovering = true
+				if obj.MouseBehavior.LeftClick.ClickReleased {
+					if !obj.World.GetPlayerRect().Intersects(obj.CollisionRect) && !obj.collidesWithNPC() {
+						obj.Gate.changingState = true
+						obj.Gate.open = !obj.Gate.open
+					}
+				}
 			}
 		}
 	}
@@ -109,7 +117,10 @@ func (obj *Object) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 	obj.DrawY = (obj.yPos - offsetY)
 
 	if len(obj.imgFrames) > 0 {
-		// no idea why, but the Y position seems to be increased by the object's height...
-		rendering.DrawImage(screen, obj.imgFrames[obj.imgFrameIndex], obj.DrawX*config.GameScale, obj.DrawY*config.GameScale, config.GameScale)
+		ops := ebiten.DrawImageOptions{}
+		if obj.PlayerHovering {
+			ops.ColorScale.Scale(1.2, 1.2, 1.2, 1)
+		}
+		rendering.DrawImageWithOps(screen, obj.imgFrames[obj.imgFrameIndex], obj.DrawX*config.GameScale, obj.DrawY*config.GameScale, config.GameScale, &ops)
 	}
 }

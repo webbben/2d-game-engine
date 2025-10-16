@@ -86,14 +86,19 @@
                  "value":"torch"
                 }, 
                 {
+                 "name":"light_flicker_interval",
+                 "type":"int",
+                 "value":150
+                }, 
+                {
                  "name":"light_glow_factor",
                  "type":"float",
-                 "value":0.2
+                 "value":0.15
                 }, 
                 {
                  "name":"light_inner_radius_factor",
                  "type":"float",
-                 "value":0.1
+                 "value":0.01
                 }, 
                 {
                  "name":"light_offset_y",
@@ -103,7 +108,7 @@
                 {
                  "name":"light_radius",
                  "type":"int",
-                 "value":48
+                 "value":128
                 }]
         }, 
         {

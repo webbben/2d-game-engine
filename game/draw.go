@@ -33,6 +33,7 @@ func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {
 			objectLights = append(objectLights, lightObj.Light.Light)
 		}
 	}
+	g.daylightFader.SetOverallFactor(float32(g.MapInfo.Map.DaylightFactor))
 	lights.DrawMapLighting(screen, g.worldScene, g.MapInfo.Lights, objectLights, g.daylightFader.GetCurrentColor(), g.daylightFader.GetDarknessFactor(), offsetX, offsetY)
 
 	// draw dialog

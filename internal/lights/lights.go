@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"math/rand"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -46,6 +47,10 @@ func (l LightColor) Equals(lc LightColor) bool {
 	return l[0] == lc[0] && l[1] == lc[1] && l[2] == lc[2]
 }
 
+func (l LightColor) Scale(factor float32) LightColor {
+	return LightColor{l[0] * factor, l[1] * factor, l[2] * factor}
+}
+
 type LightFader struct {
 	TargetColor           LightColor
 	currentColor          LightColor
@@ -54,14 +59,20 @@ type LightFader struct {
 	changeFactor          float32
 	changeInterval        time.Duration
 	lastChange            time.Time
+
+	overallFactor float32 // this factor influences all light colors; used for eliminating light or increasing its strength
 }
 
 func (l LightFader) GetCurrentColor() LightColor {
-	return l.currentColor
+	return l.currentColor.Scale(l.overallFactor)
 }
 
 func (l LightFader) GetDarknessFactor() float32 {
-	return l.currentDarknessFactor
+	return l.currentDarknessFactor * l.overallFactor
+}
+
+func (l *LightFader) SetOverallFactor(val float32) {
+	l.overallFactor = val
 }
 
 func NewLightFader(initialColor LightColor, initialDarknessFactor float32, changeFactor float32, changeInterval time.Duration) LightFader {
@@ -80,6 +91,7 @@ func NewLightFader(initialColor LightColor, initialDarknessFactor float32, chang
 		changeInterval:        changeInterval,
 		currentDarknessFactor: initialDarknessFactor,
 		TargetDarknessFactor:  initialDarknessFactor,
+		overallFactor:         1,
 	}
 
 	return lf
@@ -157,13 +169,21 @@ func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Lig
 		lightProp.InnerRadiusFactor = 0.5
 	}
 
+	if lightProp.FlickerInterval < 50 {
+		lightProp.FlickerInterval = 50
+	}
+
+	// randomize initial flicker progress so that all lights aren't too synchronized
+	flickerProgress := rand.Intn(lightProp.FlickerInterval)
+
 	return Light{
 		X:                   float32(x),
 		Y:                   float32(y + lightProp.OffsetY),
 		MinRadius:           float32(lightProp.Radius),
 		MaxRadius:           float32(lightProp.Radius) + (float32(lightProp.Radius) * float32(lightProp.GlowFactor)),
 		LightColor:          lightColor,
-		FlickerTickInterval: 50,
+		FlickerTickInterval: lightProp.FlickerInterval,
+		flickerProgress:     flickerProgress,
 		innerRadiusFactor:   float32(lightProp.InnerRadiusFactor),
 	}
 }

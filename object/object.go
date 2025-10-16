@@ -5,6 +5,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/entity/npc"
+	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/lights"
@@ -20,12 +21,14 @@ const (
 	TYPE_SPAWN_POINT = "SPAWN_POINT"
 	TYPE_LIGHT       = "LIGHT"     // lights can be embedded in objects too
 	TYPE_CONTAINER   = "CONTAINER" // TODO
+	TYPE_MISC        = "MISC"      // general purpose; just takes up space
 )
 
 type Object struct {
 	Name          string
 	Type          string
 	xPos, yPos    float64 // logical position in the map
+	zOffset       int     // for influencing render order
 	DrawX, DrawY  float64 // the actual position on the screen where this was last drawn - for things like click detection
 	Width, Height int
 	Rect          model.Rect // rect used for step detection (covers entire object)
@@ -51,6 +54,8 @@ type Object struct {
 	SpawnPoint SpawnPoint
 
 	World WorldContext
+
+	PlayerHovering bool
 }
 
 func (obj Object) Collides(other model.Rect) model.IntersectionResult {
@@ -69,7 +74,7 @@ func (obj Object) Collides(other model.Rect) model.IntersectionResult {
 }
 
 func (obj Object) Y() float64 {
-	return obj.yPos
+	return obj.yPos + float64(obj.zOffset)
 }
 
 func (obj Object) Pos() (x, y float64) {
@@ -83,6 +88,7 @@ type Light struct {
 
 type WorldContext interface {
 	GetPlayerRect() model.Rect
+	GetPlayer() *player.Player
 	GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC
 }
 
@@ -128,10 +134,16 @@ func LoadObject(obj tiled.Object, m tiled.Map) *Object {
 	// this is because sometimes the properties might be set at the tile level
 	allProps = append(allProps, obj.Properties...)
 	if obj.GID != 0 {
-		tile, tileset, tileFound := m.GetTileByGID(obj.GID)
+		tile, tileset, found := m.GetTileByGID(obj.GID)
 
-		if tileFound {
+		if found {
 			allProps = append(allProps, tile.Properties...)
+		} else {
+			// try to get the tileset still, since we need it for loading tile data
+			tileset, found = m.FindTilesetForGID(obj.GID)
+			if !found {
+				panic("failed to find tileset for object's tile!")
+			}
 		}
 
 		// Weird bug/inconsistency issue that originates in Tiled:
@@ -149,16 +161,11 @@ func LoadObject(obj tiled.Object, m tiled.Map) *Object {
 	}
 
 	// get the type first - so we know what values to parse out
-	for _, prop := range allProps {
-		if prop.Name == "TYPE" {
-			o.Type = resolveObjectType(prop.GetStringValue())
-			break
-		}
-	}
-	if o.Type == "" {
-		// no type found - perhaps the type is set in an embedded tile?
+	objType, found := tiled.GetStringProperty("TYPE", allProps)
+	if !found {
 		panic("no object type property found")
 	}
+	o.Type = objType
 
 	// load data for specific object type
 	switch o.Type {
@@ -171,10 +178,14 @@ func LoadObject(obj tiled.Object, m tiled.Map) *Object {
 	case TYPE_LIGHT:
 		o.loadLightObject(allProps)
 	case TYPE_CONTAINER:
-		// TODO
+		o.addDefaultCollision()
+	case TYPE_MISC:
+		o.addDefaultCollision()
 	default:
 		panic("object type invalid")
 	}
+
+	o.loadGlobal(allProps)
 
 	if o.Type == TYPE_DOOR {
 		o.validateDoorObject()
@@ -184,6 +195,13 @@ func LoadObject(obj tiled.Object, m tiled.Map) *Object {
 	}
 
 	return &o
+}
+
+func (obj *Object) loadGlobal(props []tiled.Property) {
+	zOffset, found := tiled.GetIntProperty("z_offset", props)
+	if found {
+		obj.zOffset = zOffset
+	}
 }
 
 func (obj *Object) loadLightObject(props []tiled.Property) {
@@ -277,14 +295,7 @@ func (obj Object) validateDoorObject() {
 }
 
 func (obj *Object) loadGateObject(props []tiled.Property) {
-	// gates automatically have a collision rect at the bottom
-	obj.CollisionRect = model.Rect{
-		X: obj.xPos,
-		Y: obj.yPos + float64(obj.Height) - config.TileSize, // only TileSize height, from the bottom of the object
-		W: float64(obj.Width),
-		H: config.TileSize,
-	}
-	obj.Collidable = true
+	obj.addDefaultCollision()
 
 	for _, prop := range props {
 		switch prop.Name {
@@ -300,6 +311,16 @@ func (obj *Object) loadGateObject(props []tiled.Property) {
 			}
 		}
 	}
+}
+
+func (obj *Object) addDefaultCollision() {
+	obj.CollisionRect = model.Rect{
+		X: obj.xPos,
+		Y: obj.yPos + float64(obj.Height) - config.TileSize, // only TileSize height, from the bottom of the object
+		W: float64(obj.Width),
+		H: config.TileSize,
+	}
+	obj.Collidable = true
 }
 
 func (obj *Object) loadDoorObject(props []tiled.Property) {
@@ -349,6 +370,8 @@ func resolveObjectType(objType string) string {
 		return TYPE_LIGHT
 	case TYPE_CONTAINER:
 		return TYPE_CONTAINER
+	case TYPE_MISC:
+		return TYPE_MISC
 	default:
 		panic("object type doesn't exist: " + objType)
 	}

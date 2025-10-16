@@ -101,7 +101,7 @@ func init() {
 }
 
 func setupGameState() *game.Game {
-	g := game.NewGame(12)
+	g := game.NewGame(0)
 	err := g.SetupMap("prison_ship", &game.OpenMapOptions{
 		RunNPCManager:    true,
 		RegenerateImages: true,

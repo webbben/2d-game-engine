@@ -2,6 +2,7 @@ package tiled
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -33,8 +34,12 @@ type Map struct {
 	CompressionLevel int        `json:"compressionlevel,omitempty"`
 
 	// game engine data - not from Tiled
+	// Properties Ben adds in the Tiled map
+
 	ID             string
 	DisplayName    string
+	DaylightFactor float64
+
 	TileImageMap   map[int]TileData // a map of gid to tile image data
 	CostMap        [][]int          // each tile's cost (used for path finding and collisions)
 	CollisionRects [][]CollisionRect
@@ -209,6 +214,22 @@ type Tileset struct {
 	GeneratedImagesPath string
 
 	Loaded bool // set when JSON data has been loaded
+}
+
+// validates a (loaded) tileset to ensure all expected data was loaded
+func (t Tileset) validate() {
+	if !t.Loaded {
+		panic("validate: tileset is not loaded yet")
+	}
+	if t.Name == "" {
+		panic("tileset name is emtpy")
+	}
+	if t.Source == "" {
+		panic("tileset source is empty")
+	}
+	if filepath.Ext(t.Source) != ".tsj" {
+		panic("tileset source is missing .tsj extension: " + t.Source)
+	}
 }
 
 // Tile represents individual tile properties within a tileset

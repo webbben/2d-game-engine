@@ -53,20 +53,29 @@ func (t *Tileset) LoadJSONData(mapAbsPath string) error {
 	// 1. FirstGID
 	// 2. Source
 
+	if mapAbsPath != "" {
+		if filepath.Ext(mapAbsPath) != ".tmj" {
+			panic("invalid absolute map path; file doesn't end with .tmj: " + mapAbsPath)
+		}
+	}
+
 	// if the path is not absolute, follow the relative path starting from the map file's absolute path
 	if !filepath.IsAbs(t.Source) {
 		if mapAbsPath == "" {
 			// if no map path is passed, then we don't need to do any back-tracking. just use t.Source.
-			fmt.Println("absPath is empty")
 			p, err := filepath.Abs(t.Source)
 			if err != nil {
-				return err
+				return fmt.Errorf("error while getting absolute path of tileset source: %w. tileset source: %s", err, t.Source)
 			}
 			t.Source = p
 		} else {
 			mapAbsPath = filepath.Dir(mapAbsPath)
 			t.Source = filepath.Clean(filepath.Join(mapAbsPath, t.Source))
 		}
+	}
+
+	if filepath.Ext(t.Source) != ".tsj" {
+		logz.Panicf("tileset source does not have a .tsj extension. Is it invalid? %s", t.Source)
 	}
 
 	var loaded Tileset
@@ -89,6 +98,8 @@ func (t *Tileset) LoadJSONData(mapAbsPath string) error {
 	loaded.Source = t.Source
 	loaded.Loaded = true
 	*t = loaded
+
+	t.validate()
 
 	return nil
 }
@@ -176,6 +187,9 @@ func (tileset *Tileset) GenerateTiles() error {
 // Returns the Tile if found, and a boolean indicating if the tile was successfully found
 func (m Map) GetTileByGID(gid int) (Tile, Tileset, bool) {
 	for _, tileset := range m.Tilesets {
+		if !tileset.Loaded {
+			panic("tried to get tile from tileset before tileset was loaded!")
+		}
 		localTileId := gid - tileset.FirstGID
 		for _, tile := range tileset.Tiles {
 			if tile.ID == localTileId {
@@ -184,6 +198,20 @@ func (m Map) GetTileByGID(gid int) (Tile, Tileset, bool) {
 		}
 	}
 	return Tile{}, Tileset{}, false
+}
+
+// tries to find a tileset that has the correct ID range for the given GID
+func (m Map) FindTilesetForGID(gid int) (Tileset, bool) {
+	for _, tileset := range m.Tilesets {
+		if !tileset.Loaded {
+			panic("tried to get tileset for GID before tileset was loaded!")
+		}
+		if tileset.FirstGID >= gid && gid < tileset.FirstGID+tileset.TileCount {
+			return tileset, true
+		}
+	}
+
+	return Tileset{}, false
 }
 
 // given a gid for a tile, returns the coordinates for all places that this tile is placed in a map (in any tile layer).
@@ -235,6 +263,7 @@ type LightProps struct {
 	InnerRadiusFactor float64
 	OffsetY           int
 	Radius            int
+	FlickerInterval   int
 }
 
 func GetTileType(tile Tile) string {
@@ -262,6 +291,8 @@ func GetLightProps(p []Property) LightProps {
 			props.Radius = prop.GetIntValue()
 		case "light_inner_radius_factor":
 			props.InnerRadiusFactor = prop.GetFloatValue()
+		case "light_flicker_interval":
+			props.FlickerInterval = prop.GetIntValue()
 		}
 	}
 
@@ -286,6 +317,16 @@ func GetStringProperty(propName string, props []Property) (val string, found boo
 	}
 
 	return "", false
+}
+
+func GetFloatProperty(propName string, props []Property) (val float64, found bool) {
+	for _, prop := range props {
+		if prop.Name == propName {
+			return prop.GetFloatValue(), true
+		}
+	}
+
+	return 0, false
 }
 
 func GetIntProperty(propName string, props []Property) (val int, found bool) {

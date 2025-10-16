@@ -444,3 +444,7 @@ func (mi *MapInfo) GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC {
 
 	return npcs
 }
+
+func (mi *MapInfo) GetPlayer() *player.Player {
+	return mi.PlayerRef
+}
