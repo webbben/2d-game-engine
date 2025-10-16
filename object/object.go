@@ -110,6 +110,16 @@ func LoadObject(obj tiled.Object, m tiled.Map) *Object {
 			allProps = append(allProps, tile.Properties...)
 		}
 
+		// Weird bug/inconsistency issue that originates in Tiled:
+		// https://discourse.mapeditor.org/t/objects-are-shown-at-the-wrong-position-in-tiled-map/1166
+		// https://github.com/mapeditor/tiled/issues/91
+		// TLDR: when an image is embedded in an object, the object's origin position is the bottom left instead of top left...
+		// workaround is to subtract the height from the y position when an image is embedded
+		o.yPos -= float64(o.Height)
+		if o.yPos < 0 {
+			panic("object y is negative! is this related to the image object y position bug?")
+		}
+
 		// also, since there is a tile embedded, load all tile-related info, including tile frames
 		o.loadTileData(obj.GID, tile.Properties, tileset, m)
 	}
@@ -177,6 +187,8 @@ func (obj *Object) loadTileData(tileGID int, tileProps []tiled.Property, tileset
 		panic("tile attached to object, but tile not found in map's TileImageMap")
 	}
 	obj.imgFrames = append(obj.imgFrames, tileImg.CurrentFrame)
+
+	obj.animSpeedMs = 100
 
 	if len(tileProps) == 0 {
 		return

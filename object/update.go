@@ -95,6 +95,6 @@ func (obj *Object) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 
 	if len(obj.imgFrames) > 0 {
 		// no idea why, but the Y position seems to be increased by the object's height...
-		rendering.DrawImage(screen, obj.imgFrames[obj.imgFrameIndex], obj.DrawX*config.GameScale, (obj.DrawY-float64(obj.Height))*config.GameScale, config.GameScale)
+		rendering.DrawImage(screen, obj.imgFrames[obj.imgFrameIndex], obj.DrawX*config.GameScale, obj.DrawY*config.GameScale, config.GameScale)
 	}
 }
