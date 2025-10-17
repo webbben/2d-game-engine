@@ -144,7 +144,12 @@ type Light struct {
 
 	// the "inner radius" is a percentage of the light's radius that is at full brightness. Outside of this radius, brightness starts fading out.
 	// this should be a decimal value in the range (0, 1), but typically somewhere around 0.5
-	innerRadiusFactor   float32
+	innerRadiusFactor float32
+
+	// the "core radius" is a percentage of the light's radius that is at extra high brightness, and represents the area close to the flame.
+	// should not be too big, and must be less than the inner radius (if defined).
+	coreRadiusFactor float32
+
 	FlickerTickInterval int
 	LightColor          LightColor
 
@@ -171,9 +176,6 @@ func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Lig
 	if lightProp.InnerRadiusFactor < 0 || lightProp.InnerRadiusFactor >= 1 {
 		logz.Panicf("inner radius factor must be positive and < 1. got: %v", lightProp.InnerRadiusFactor)
 	}
-	// if lightProp.InnerRadiusFactor == 0 {
-	// 	lightProp.InnerRadiusFactor = 0.5
-	// }
 
 	if lightProp.FlickerInterval < 50 {
 		lightProp.FlickerInterval = 50
@@ -185,7 +187,13 @@ func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Lig
 	if lightProp.MaxBrightness == 0 {
 		lightProp.MaxBrightness = 0.8
 	}
-	fmt.Println("max brightness:", lightProp.MaxBrightness)
+
+	if lightProp.CoreRadiusFactor < 0 || lightProp.CoreRadiusFactor >= 1 {
+		logz.Panicf("core radius factor must be positive and < 1. got: %v", lightProp.CoreRadiusFactor)
+	}
+	if lightProp.InnerRadiusFactor > 0 && lightProp.CoreRadiusFactor >= lightProp.InnerRadiusFactor {
+		panic("if an inner radius is defined, the core radius must be smaller than it")
+	}
 
 	// randomize initial flicker progress so that all lights aren't too synchronized
 	flickerProgress := rand.Intn(lightProp.FlickerInterval)
@@ -199,6 +207,7 @@ func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Lig
 		FlickerTickInterval: lightProp.FlickerInterval,
 		flickerProgress:     flickerProgress,
 		innerRadiusFactor:   float32(lightProp.InnerRadiusFactor),
+		coreRadiusFactor:    float32(lightProp.CoreRadiusFactor),
 		maxBrightness:       float32(lightProp.MaxBrightness),
 	}
 }
@@ -229,10 +238,12 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, objLights []*
 	lightPositions := make([]float32, maxLights*2)        // X, Y
 	lightRadii := make([]float32, maxLights)              // radius
 	lightInnerRadiusFactors := make([]float32, maxLights) // inner radius factors
+	lightCoreRadiusFactors := make([]float32, maxLights)  // core radius factors
 	lightMaxBrightness := make([]float32, maxLights)      // max brightness at center of light
 	lightColors := make([]float32, maxLights*3)           // R, G, B
 
-	for i := range lights {
+	i := 0
+	for range lights {
 		lights[i].calculateNextRadius()
 		l := lights[i]
 
@@ -243,23 +254,7 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, objLights []*
 		// light radius
 		lightRadii[i] = l.currentRadius
 		lightInnerRadiusFactors[i] = l.innerRadiusFactor
-
-		// light color
-		lightColors[i*3] = l.LightColor[0]
-		lightColors[i*3+1] = l.LightColor[1]
-		lightColors[i*3+2] = l.LightColor[2]
-	}
-	for i := range objLights {
-		objLights[i].calculateNextRadius()
-		l := objLights[i]
-
-		// light position
-		lightPositions[i*2] = (l.X - float32(offsetX)) * float32(config.GameScale)
-		lightPositions[i*2+1] = (l.Y - float32(offsetY)) * float32(config.GameScale)
-
-		// light radius
-		lightRadii[i] = l.currentRadius
-		lightInnerRadiusFactors[i] = l.innerRadiusFactor
+		lightCoreRadiusFactors[i] = l.coreRadiusFactor
 
 		// brightness
 		lightMaxBrightness[i] = l.maxBrightness
@@ -268,6 +263,40 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, objLights []*
 		lightColors[i*3] = l.LightColor[0]
 		lightColors[i*3+1] = l.LightColor[1]
 		lightColors[i*3+2] = l.LightColor[2]
+
+		i++
+	}
+
+	j := 0
+	for range objLights {
+		objLights[i].calculateNextRadius()
+		l := objLights[j]
+
+		// light position
+		lightPositions[i*2] = (l.X - float32(offsetX)) * float32(config.GameScale)
+		lightPositions[i*2+1] = (l.Y - float32(offsetY)) * float32(config.GameScale)
+
+		// light radius
+		lightRadii[i] = l.currentRadius
+		lightInnerRadiusFactors[i] = l.innerRadiusFactor
+		lightCoreRadiusFactors[i] = l.coreRadiusFactor
+
+		// brightness
+		lightMaxBrightness[i] = l.maxBrightness
+
+		// light color
+		lightColors[i*3] = l.LightColor[0]
+		lightColors[i*3+1] = l.LightColor[1]
+		lightColors[i*3+2] = l.LightColor[2]
+
+		i++
+		j++ // for iterating object lights array
+	}
+
+	maxBrightness := 0.5 + (0.5 * (1 - min(1, nightFx)))
+
+	if maxBrightness == 0 {
+		panic("max brightness is somehow zero!")
 	}
 
 	op := &ebiten.DrawRectShaderOptions{}
@@ -276,10 +305,12 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, objLights []*
 		"LightPositions":          lightPositions,
 		"LightRadii":              lightRadii,
 		"LightInnerRadiusFactors": lightInnerRadiusFactors,
+		"LightCoreRadiusFactors":  lightCoreRadiusFactors,
 		"LightMaxBrightness":      lightMaxBrightness,
 		"LightColors":             lightColors,
 		"NightTint":               daylight,
 		"ExtraDarken":             nightFx,
+		"MaxBrightness":           maxBrightness,
 	}
 	screen.DrawRectShader(display.SCREEN_WIDTH, display.SCREEN_HEIGHT, lightShader, op)
 }

@@ -324,12 +324,26 @@ func (e *Entity) updateMovement() {
 		e.Movement.AnimationFrame = (e.Movement.AnimationFrame + 1) % frameCount
 		e.Movement.AnimationTimer = 0
 	}
-	if e.IsPlayer {
-		e.footstepSFX.TicksUntilNextPlay--
-		if e.footstepSFX.TicksUntilNextPlay <= 0 {
-			e.footstepSFX.StepDefault()
+	e.footstepSFX.TicksUntilNextPlay--
+	if e.footstepSFX.TicksUntilNextPlay <= 0 {
+		groundMaterial := e.World.GetGroundMaterial(e.TilePos.X, e.TilePos.Y)
+		switch groundMaterial {
+		case "wood":
+			e.footstepSFX.StepWood()
+		case "stone":
+			e.footstepSFX.StepStone()
+		case "grass":
+			e.footstepSFX.StepGrass()
+		case "tile":
+			e.footstepSFX.StepStone() // TODO add new category for tile material?
+		case "":
+			e.footstepSFX.StepDefault() // if no string found, use default
+		default:
+			// if we don't have the string registered (and it's not an empty string) then error
+			panic("ground material not recognized: " + groundMaterial)
 		}
 	}
+
 }
 
 func moveTowards(pos, target model.Vec2, speed float64) model.Vec2 {

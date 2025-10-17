@@ -13,6 +13,11 @@
          "id":0,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -21,6 +26,11 @@
         {
          "id":1,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -31,6 +41,11 @@
          "id":2,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -39,6 +54,11 @@
         {
          "id":3,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -49,6 +69,11 @@
          "id":4,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -58,14 +83,51 @@
          "id":5,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
                 }]
         }, 
         {
+         "id":6,
+         "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"dirt"
+                }]
+        }, 
+        {
+         "id":7,
+         "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"dirt"
+                }]
+        }, 
+        {
+         "id":8,
+         "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"dirt"
+                }]
+        }, 
+        {
          "id":32,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -76,6 +138,11 @@
          "id":33,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -84,6 +151,11 @@
         {
          "id":34,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -94,6 +166,11 @@
          "id":35,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -102,6 +179,11 @@
         {
          "id":36,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -112,14 +194,51 @@
          "id":37,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
                 }]
         }, 
         {
+         "id":38,
+         "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"dirt"
+                }]
+        }, 
+        {
+         "id":39,
+         "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"dirt"
+                }]
+        }, 
+        {
+         "id":40,
+         "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"dirt"
+                }]
+        }, 
+        {
          "id":64,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -130,6 +249,11 @@
          "id":65,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -138,6 +262,11 @@
         {
          "id":66,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -148,6 +277,11 @@
          "id":67,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -156,6 +290,11 @@
         {
          "id":68,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -166,14 +305,51 @@
          "id":69,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
                 }]
         }, 
         {
+         "id":70,
+         "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"dirt"
+                }]
+        }, 
+        {
+         "id":71,
+         "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"dirt"
+                }]
+        }, 
+        {
+         "id":72,
+         "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"dirt"
+                }]
+        }, 
+        {
          "id":96,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -184,6 +360,11 @@
          "id":97,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -192,6 +373,11 @@
         {
          "id":98,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -202,6 +388,11 @@
          "id":99,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -210,6 +401,11 @@
         {
          "id":100,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -220,6 +416,11 @@
          "id":101,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -228,6 +429,11 @@
         {
          "id":128,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -238,6 +444,11 @@
          "id":129,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -246,6 +457,11 @@
         {
          "id":130,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -256,6 +472,11 @@
          "id":131,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -264,6 +485,11 @@
         {
          "id":132,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -274,6 +500,11 @@
          "id":133,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -282,6 +513,11 @@
         {
          "id":160,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -292,6 +528,11 @@
          "id":161,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -300,6 +541,11 @@
         {
          "id":162,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -310,6 +556,11 @@
          "id":163,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -318,6 +569,11 @@
         {
          "id":164,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -328,6 +584,11 @@
          "id":165,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -336,6 +597,11 @@
         {
          "id":192,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -346,6 +612,11 @@
          "id":193,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -354,6 +625,11 @@
         {
          "id":194,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -364,6 +640,11 @@
          "id":195,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -372,6 +653,11 @@
         {
          "id":224,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -382,6 +668,11 @@
          "id":225,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
@@ -390,6 +681,11 @@
         {
          "id":226,
          "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
                 {
                  "name":"ROAD",
                  "type":"bool",
@@ -400,9 +696,32 @@
          "id":227,
          "properties":[
                 {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"stone"
+                }, 
+                {
                  "name":"ROAD",
                  "type":"bool",
                  "value":true
+                }]
+        }, 
+        {
+         "id":288,
+         "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"grass"
+                }]
+        }, 
+        {
+         "id":289,
+         "properties":[
+                {
+                 "name":"MATERIAL",
+                 "type":"string",
+                 "value":"dirt"
                 }]
         }],
  "tilewidth":16,

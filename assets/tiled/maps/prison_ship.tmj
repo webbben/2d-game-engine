@@ -424,6 +424,11 @@
                          "name":"TYPE",
                          "type":"string",
                          "value":"GATE"
+                        }, 
+                        {
+                         "name":"z_offset",
+                         "type":"int",
+                         "value":8
                         }],
                  "rotation":0,
                  "type":"",
@@ -523,9 +528,51 @@
                          "value":0.2
                         }, 
                         {
-                         "name":"light_offset_y",
+                         "name":"light_radius",
                          "type":"int",
-                         "value":4
+                         "value":128
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":3.5,
+                 "x":158,
+                 "y":574
+                }, 
+                {
+                 "height":3.5,
+                 "id":20,
+                 "name":"",
+                 "properties":[
+                        {
+                         "name":"TYPE",
+                         "type":"string",
+                         "value":"LIGHT"
+                        }, 
+                        {
+                         "name":"light_color_preset",
+                         "type":"string",
+                         "value":"torch"
+                        }, 
+                        {
+                         "name":"light_flicker_interval",
+                         "type":"int",
+                         "value":80
+                        }, 
+                        {
+                         "name":"light_glow_factor",
+                         "type":"float",
+                         "value":0
+                        }, 
+                        {
+                         "name":"light_inner_radius_factor",
+                         "type":"float",
+                         "value":0
+                        }, 
+                        {
+                         "name":"light_max_brightness",
+                         "type":"float",
+                         "value":0.2
                         }, 
                         {
                          "name":"light_radius",
@@ -536,8 +583,102 @@
                  "type":"",
                  "visible":true,
                  "width":3.5,
-                 "x":104.5,
-                 "y":601.5
+                 "x":158.916666666667,
+                 "y":369.416666666667
+                }, 
+                {
+                 "height":3.5,
+                 "id":21,
+                 "name":"",
+                 "properties":[
+                        {
+                         "name":"TYPE",
+                         "type":"string",
+                         "value":"LIGHT"
+                        }, 
+                        {
+                         "name":"light_color_preset",
+                         "type":"string",
+                         "value":"torch"
+                        }, 
+                        {
+                         "name":"light_flicker_interval",
+                         "type":"int",
+                         "value":150
+                        }, 
+                        {
+                         "name":"light_glow_factor",
+                         "type":"float",
+                         "value":0.1
+                        }, 
+                        {
+                         "name":"light_inner_radius_factor",
+                         "type":"float",
+                         "value":0
+                        }, 
+                        {
+                         "name":"light_max_brightness",
+                         "type":"float",
+                         "value":0.5
+                        }, 
+                        {
+                         "name":"light_radius",
+                         "type":"int",
+                         "value":80
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":3.5,
+                 "x":110.25,
+                 "y":317.916666666667
+                }, 
+                {
+                 "height":3.5,
+                 "id":22,
+                 "name":"",
+                 "properties":[
+                        {
+                         "name":"TYPE",
+                         "type":"string",
+                         "value":"LIGHT"
+                        }, 
+                        {
+                         "name":"light_color_preset",
+                         "type":"string",
+                         "value":"torch"
+                        }, 
+                        {
+                         "name":"light_flicker_interval",
+                         "type":"int",
+                         "value":150
+                        }, 
+                        {
+                         "name":"light_glow_factor",
+                         "type":"float",
+                         "value":0.1
+                        }, 
+                        {
+                         "name":"light_inner_radius_factor",
+                         "type":"float",
+                         "value":0
+                        }, 
+                        {
+                         "name":"light_max_brightness",
+                         "type":"float",
+                         "value":0.5
+                        }, 
+                        {
+                         "name":"light_radius",
+                         "type":"int",
+                         "value":80
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":3.5,
+                 "x":221.916666666667,
+                 "y":320.583333333333
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -626,7 +767,7 @@
          "y":0
         }],
  "nextlayerid":10,
- "nextobjectid":20,
+ "nextobjectid":23,
  "orientation":"orthogonal",
  "properties":[
         {

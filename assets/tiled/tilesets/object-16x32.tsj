@@ -37,24 +37,29 @@
                  "value":"torch"
                 }, 
                 {
+                 "name":"light_core_radius",
+                 "type":"float",
+                 "value":0.05
+                }, 
+                {
                  "name":"light_flicker_interval",
                  "type":"int",
-                 "value":80
+                 "value":50
                 }, 
                 {
                  "name":"light_glow_factor",
                  "type":"float",
-                 "value":0.15
+                 "value":0.05
                 }, 
                 {
                  "name":"light_inner_radius_factor",
                  "type":"float",
-                 "value":0.5
+                 "value":0
                 }, 
                 {
                  "name":"light_max_brightness",
                  "type":"float",
-                 "value":0.8
+                 "value":0.6
                 }, 
                 {
                  "name":"light_offset_y",

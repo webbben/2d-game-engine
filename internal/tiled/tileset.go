@@ -265,6 +265,7 @@ type LightProps struct {
 	Radius            int
 	FlickerInterval   int
 	MaxBrightness     float64
+	CoreRadiusFactor  float64
 }
 
 func GetTileType(tile Tile) string {
@@ -296,6 +297,8 @@ func GetLightProps(p []Property) LightProps {
 			props.FlickerInterval = prop.GetIntValue()
 		case "light_max_brightness":
 			props.MaxBrightness = prop.GetFloatValue()
+		case "light_core_radius":
+			props.CoreRadiusFactor = prop.GetFloatValue()
 		}
 	}
 

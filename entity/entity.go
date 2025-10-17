@@ -94,6 +94,7 @@ type WorldContext interface {
 	Collides(r model.Rect, excludeEntityId string, rectBased bool) model.CollisionResult
 	FindPath(start, goal model.Coords) ([]model.Coords, bool)
 	MapDimensions() (width int, height int)
+	GetGroundMaterial(tileX, tileY int) string
 }
 
 // Create an entity by opening an entity's definition JSON

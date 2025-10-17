@@ -77,23 +77,34 @@ func (m *Map) Load(regenerateImages bool) error {
 	for i := range m.Height {
 		m.CollisionRects[i] = make([]CollisionRect, m.Width)
 	}
+	m.GroundMaterial = make([][]string, m.Height)
+	for i := range m.Height {
+		m.GroundMaterial[i] = make([]string, m.Width)
+	}
 
-	// find all collision rects
+	// find all information embedded in tile properties in layers:
+	// - collision rects
+	// - material types
 	for _, layer := range m.Layers {
 		for i, d := range layer.Data {
 			tile, _, found := m.GetTileByGID(d)
 			if !found {
 				continue
 			}
-			collisionVal, found := GetStringProperty("COLLISION", tile.Properties)
-			if !found {
-				continue
-			}
-
 			x := i % layer.Width
 			y := i / layer.Width
-			cr := NewCollisionRect(collisionVal)
-			m.CollisionRects[y][x] = cr
+
+			// collision rects
+			collisionVal, found := GetStringProperty("COLLISION", tile.Properties)
+			if found {
+				cr := NewCollisionRect(collisionVal)
+				m.CollisionRects[y][x] = cr
+			}
+			// ground material
+			materialVal, found := GetStringProperty("MATERIAL", tile.Properties)
+			if found {
+				m.GroundMaterial[y][x] = materialVal
+			}
 		}
 	}
 

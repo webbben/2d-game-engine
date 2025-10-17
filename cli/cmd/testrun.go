@@ -125,6 +125,14 @@ func setupGameState() *game.Game {
 			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_stone_01_A.mp3",
 			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_stone_01_B.mp3",
 		},
+		StepWoodSrc: []string{
+			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_wood_01_A.mp3",
+			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_wood_01_B.mp3",
+		},
+		StepGrassSrc: []string{
+			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_grass_01_A.mp3",
+			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_grass_01_B.mp3",
+		},
 	})
 
 	p := player.NewPlayer(g.DefinitionManager)

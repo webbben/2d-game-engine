@@ -20,20 +20,20 @@ import (
 type MapInfo struct {
 	gameRef *Game
 
-	ID           string
-	DisplayName  string // the name of the map shown to the player
-	Loaded       bool   // flag indicating if this map has been loaded
-	ReadyToPlay  bool   // flag indicating if all loading steps are done, and this map is ready to show in the game
-	MapIsActive  bool   // flag indicating if the map is actively being used (e.g. for rendering, updates, etc)
-	Map          tiled.Map
-	ImageMap     map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
-	PlayerRef    *player.Player
-	Objects      []*object.Object
-	LightObjects []*object.Object // if an object is a light, add it here so it can be included in the light drawing
+	ID          string
+	DisplayName string // the name of the map shown to the player
+	Loaded      bool   // flag indicating if this map has been loaded
+	ReadyToPlay bool   // flag indicating if all loading steps are done, and this map is ready to show in the game
+	MapIsActive bool   // flag indicating if the map is actively being used (e.g. for rendering, updates, etc)
+	Map         tiled.Map
+	ImageMap    map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
+	PlayerRef   *player.Player
+	Objects     []*object.Object
 
 	sortedRenderables []sortedRenderable
 
-	Lights []*lights.Light
+	Lights       []*lights.Light  // permanent lights that are not controlled by an object
+	LightObjects []*object.Object // lights controlled by an object
 
 	NPCManager
 }
@@ -112,6 +112,7 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 					y := (pos.Y * config.TileSize) + (config.TileSize / 2)
 					l := lights.NewLight(x, y, lightProps, nil)
 					g.MapInfo.Lights = append(g.MapInfo.Lights, &l)
+					fmt.Printf("light found at x: %v y: %v\n", x, y)
 				}
 			}
 		}
@@ -447,4 +448,15 @@ func (mi *MapInfo) GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC {
 
 func (mi *MapInfo) GetPlayer() *player.Player {
 	return mi.PlayerRef
+}
+
+func (mi *MapInfo) GetGroundMaterial(tileX, tileY int) string {
+	if tileY < 0 || tileY >= len(mi.Map.GroundMaterial) {
+		panic("tileY outside of bounds of ground material matrix")
+	}
+	if tileX < 0 || tileX >= len(mi.Map.GroundMaterial[0]) {
+		panic("tileX outside of bounds of ground material matrix")
+	}
+
+	return mi.Map.GroundMaterial[tileY][tileX]
 }

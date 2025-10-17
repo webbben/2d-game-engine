@@ -40,9 +40,29 @@
                  "value":"torch"
                 }, 
                 {
+                 "name":"light_core_radius",
+                 "type":"float",
+                 "value":0.1
+                }, 
+                {
+                 "name":"light_flicker_interval",
+                 "type":"int",
+                 "value":100
+                }, 
+                {
                  "name":"light_glow_factor",
                  "type":"float",
-                 "value":0.2
+                 "value":0.1
+                }, 
+                {
+                 "name":"light_inner_radius_factor",
+                 "type":"float",
+                 "value":0
+                }, 
+                {
+                 "name":"light_max_brightness",
+                 "type":"float",
+                 "value":0.7
                 }, 
                 {
                  "name":"light_offset_y",
@@ -52,7 +72,7 @@
                 {
                  "name":"light_radius",
                  "type":"int",
-                 "value":32
+                 "value":64
                 }]
         }, 
         {
@@ -86,6 +106,11 @@
                  "value":"torch"
                 }, 
                 {
+                 "name":"light_core_radius",
+                 "type":"float",
+                 "value":0.1
+                }, 
+                {
                  "name":"light_flicker_interval",
                  "type":"int",
                  "value":150
@@ -98,7 +123,12 @@
                 {
                  "name":"light_inner_radius_factor",
                  "type":"float",
-                 "value":0.4
+                 "value":0
+                }, 
+                {
+                 "name":"light_max_brightness",
+                 "type":"float",
+                 "value":0.6
                 }, 
                 {
                  "name":"light_offset_y",
@@ -108,7 +138,7 @@
                 {
                  "name":"light_radius",
                  "type":"int",
-                 "value":128
+                 "value":64
                 }]
         }, 
         {
@@ -286,14 +316,29 @@
                  "value":"torch"
                 }, 
                 {
+                 "name":"light_core_radius",
+                 "type":"float",
+                 "value":0.1
+                }, 
+                {
+                 "name":"light_flicker_interval",
+                 "type":"int",
+                 "value":100
+                }, 
+                {
                  "name":"light_glow_factor",
                  "type":"float",
-                 "value":0.2
+                 "value":0.1
                 }, 
                 {
                  "name":"light_inner_radius_factor",
                  "type":"float",
-                 "value":0.3
+                 "value":0
+                }, 
+                {
+                 "name":"light_max_brightness",
+                 "type":"float",
+                 "value":0.7
                 }, 
                 {
                  "name":"light_offset_y",
@@ -303,7 +348,7 @@
                 {
                  "name":"light_radius",
                  "type":"int",
-                 "value":32
+                 "value":48
                 }]
         }, 
         {

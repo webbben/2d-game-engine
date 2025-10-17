@@ -4,10 +4,13 @@ package main
 var LightPositions [16]vec2
 var LightRadii     [16]float
 var LightInnerRadiusFactors [16]float
+var LightCoreRadiusFactors [16]float
 var LightMaxBrightness [16]float
 var LightColors    [16]vec3
 var NightTint vec3
 var ExtraDarken float
+var MaxBrightness float // overall max brightness, when not influenced by light cores
+
 
 func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
     col := imageSrc0At(srcPos)
@@ -44,27 +47,36 @@ func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
         }
 
         // --- Add a bright core at the center ---
-        coreRadius := innerRadius * 0.05
-        strengthFactor := maxBrightness * 2.0
-        core := exp(-pow(dist / coreRadius, 2.0)) * strengthFactor
-        // the 2.0 here is for a "gaussian" falloff
+        core := 0.0
+        coreRadius := LightRadii[i] * LightCoreRadiusFactors[i]
+        if coreRadius > 0.0 {
+            strengthFactor := maxBrightness * 2.0
+            core = exp(-pow(dist / coreRadius, 2.0)) * strengthFactor
+            // the 2.0 here is for a "gaussian" falloff
+        }
 
         total += (att + core) * LightColors[i]
 
-        if dist < closestLightDist {
+        if core > 0.0 && dist < closestLightDist {
             closestLightDist = dist
             closestCoreRadius = coreRadius
         }
     }
 
-    maxTotal := 1.0
-    centerMaxTotal := 1.8
-    smoothRange := closestCoreRadius * 2 // distance over which brightness fades to normal
+    if closestCoreRadius == 0.0 {
+        // no light cores affecting this pixel, use normal max
+        total = clamp(total, 0.0, MaxBrightness)
+    } else {
+        // adjust max brightness based on distance to closest core
+        maxTotal := 1.0
+        centerMaxTotal := 1.8
+        smoothRange := closestCoreRadius * 2 // distance over which brightness fades to normal
 
-    // smoothstep: returns 0 at x<=0, 1 at x>=1
-    t := clamp(closestLightDist / smoothRange, 0.0, 1.0)
-    maxTotal = mix(centerMaxTotal, 1.0, t)
-    total = clamp(total, 0.0, maxTotal)
+        // smoothstep from centerMaxTotal to MaxBrightness based on distance to core
+        t := clamp(closestLightDist / smoothRange, 0.0, 1.0)
+        maxTotal = mix(centerMaxTotal, MaxBrightness, t)
+        total = clamp(total, 0.0, maxTotal)
+    }
 
     // blend between night tint and normal color based on total light
     dark := col.rgb * NightTint
