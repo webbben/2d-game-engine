@@ -4,23 +4,28 @@ package main
 var LightPositions [16]vec2
 var LightRadii     [16]float
 var LightInnerRadiusFactors [16]float
+var LightMaxBrightness [16]float
 var LightColors    [16]vec3
 var NightTint vec3
 var ExtraDarken float
 
 func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
-    maxBrightness := 0.8 // TODO make this a uniform
-
     col := imageSrc0At(srcPos)
     if col.a == 0 {
         return vec4(0)
     }
+    closestLightDist := 10000.0
+    closestCoreRadius := 0.0
     pix := dstPos.xy
     // Accumulate light contributions in one pass
     total := vec3(0, 0, 0)
     for i := 0; i < 16; i++ {
         if LightRadii[i] <= 0.0 {
             break // once a zero is hit, we are at the end of the lights
+        }
+        maxBrightness := LightMaxBrightness[i]
+        if maxBrightness <= 0.0 {
+            continue // skip lights with no brightness
         }
 
         outerRadius := LightRadii[i]
@@ -38,11 +43,30 @@ func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
             att = 0.0
         }
 
-        total += att * LightColors[i]
+        // --- Add a bright core at the center ---
+        coreRadius := innerRadius * 0.05
+        strengthFactor := maxBrightness * 2.0
+        core := exp(-pow(dist / coreRadius, 2.0)) * strengthFactor
+        // the 2.0 here is for a "gaussian" falloff
+
+        total += (att + core) * LightColors[i]
+
+        if dist < closestLightDist {
+            closestLightDist = dist
+            closestCoreRadius = coreRadius
+        }
     }
 
+    maxTotal := 1.0
+    centerMaxTotal := 1.8
+    smoothRange := closestCoreRadius * 2 // distance over which brightness fades to normal
+
+    // smoothstep: returns 0 at x<=0, 1 at x>=1
+    t := clamp(closestLightDist / smoothRange, 0.0, 1.0)
+    maxTotal = mix(centerMaxTotal, 1.0, t)
+    total = clamp(total, 0.0, maxTotal)
+
     // blend between night tint and normal color based on total light
-    total = clamp(total, 0.0, 1.0)
     dark := col.rgb * NightTint
 
     if ExtraDarken > 0.0 {

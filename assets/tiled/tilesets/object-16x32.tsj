@@ -49,7 +49,12 @@
                 {
                  "name":"light_inner_radius_factor",
                  "type":"float",
-                 "value":0.01
+                 "value":0.5
+                }, 
+                {
+                 "name":"light_max_brightness",
+                 "type":"float",
+                 "value":0.8
                 }, 
                 {
                  "name":"light_offset_y",

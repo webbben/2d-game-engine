@@ -19,14 +19,33 @@ func (obj *Object) Update() ObjectUpdateResult {
 	result := ObjectUpdateResult{}
 	obj.MouseBehavior.Update(int(obj.DrawX), int(obj.DrawY), obj.Width, obj.Height, true)
 
+	if len(obj.tileData.Frames) > 1 {
+		obj.tileData.UpdateFrame()
+	}
+
 	switch obj.Type {
 	case TYPE_DOOR:
 		obj.updateDoor(&result)
 	case TYPE_GATE:
 		obj.updateGate(&result)
+	case TYPE_LIGHT:
+		obj.updateLight(&result)
 	}
 
 	return result
+}
+
+func (obj *Object) updateLight(result *ObjectUpdateResult) {
+	obj.PlayerHovering = false
+	if obj.MouseBehavior.LeftClick.ClickReleased || obj.MouseBehavior.IsHovering {
+		if general_util.EuclideanDistCenter(obj.World.GetPlayerRect(), obj.GetRect()) < config.TileSize*2 {
+			obj.PlayerHovering = true
+			if obj.MouseBehavior.LeftClick.ClickReleased {
+				obj.Light.On = !obj.Light.On
+			}
+		}
+
+	}
 }
 
 func (obj *Object) updateGate(result *ObjectUpdateResult) {
@@ -121,6 +140,10 @@ func (obj *Object) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 		if obj.PlayerHovering {
 			ops.ColorScale.Scale(1.2, 1.2, 1.2, 1)
 		}
-		rendering.DrawImageWithOps(screen, obj.imgFrames[obj.imgFrameIndex], obj.DrawX*config.GameScale, obj.DrawY*config.GameScale, config.GameScale, &ops)
+		img := obj.tileData.CurrentFrame
+		if obj.imgFrameIndex > 0 {
+			img = obj.imgFrames[obj.imgFrameIndex]
+		}
+		rendering.DrawImageWithOps(screen, img, obj.DrawX*config.GameScale, obj.DrawY*config.GameScale, config.GameScale, &ops)
 	}
 }

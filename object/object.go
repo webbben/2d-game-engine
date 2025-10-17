@@ -35,6 +35,9 @@ type Object struct {
 	CollisionRect model.Rect // rect used for collision (e.g. for gates, only covers bottom tiles)
 	Collidable    bool       // if set, game will check for collisions with this object
 
+	tileData tiled.TileData // data of a tile embedded in this object
+
+	// frames for a "nextTile" animation when changing state. can go forward and backwards
 	imgFrames      []*ebiten.Image
 	imgFrameIndex  int
 	animSpeedMs    int
@@ -56,6 +59,18 @@ type Object struct {
 	World WorldContext
 
 	PlayerHovering bool
+}
+
+func (obj Object) GetRect() model.Rect {
+	if obj.Collidable {
+		return obj.CollisionRect
+	}
+	return model.Rect{
+		X: obj.xPos,
+		Y: obj.yPos,
+		W: float64(obj.Width),
+		H: float64(obj.Height),
+	}
 }
 
 func (obj Object) Collides(other model.Rect) model.IntersectionResult {
@@ -224,17 +239,20 @@ func (obj *Object) loadTileData(tileGID int, tileProps []tiled.Property, tileset
 		}
 	}
 
-	tileImg, exists := m.TileImageMap[tileGID]
+	tileData, exists := m.TileImageMap[tileGID]
 	if !exists {
 		panic("tile attached to object, but tile not found in map's TileImageMap")
 	}
-	obj.imgFrames = append(obj.imgFrames, tileImg.CurrentFrame)
+	obj.imgFrames = append(obj.imgFrames, tileData.CurrentFrame)
 
-	obj.animSpeedMs = 100
+	// also link the tileData itself, in case it contains a base animation for the tile
+	obj.tileData = tileData
 
 	if len(tileProps) == 0 {
 		return
 	}
+
+	obj.animSpeedMs = 100 // animation speed for the change-state animation
 
 	// attached tile has properties
 	// if this tile has a "nextTile" property, that means there is a state change animation

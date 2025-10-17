@@ -484,8 +484,60 @@
                  "type":"",
                  "visible":true,
                  "width":16,
-                 "x":168.75,
-                 "y":607
+                 "x":208,
+                 "y":607.5
+                }, 
+                {
+                 "height":3.5,
+                 "id":19,
+                 "name":"",
+                 "properties":[
+                        {
+                         "name":"TYPE",
+                         "type":"string",
+                         "value":"LIGHT"
+                        }, 
+                        {
+                         "name":"light_color_preset",
+                         "type":"string",
+                         "value":"torch"
+                        }, 
+                        {
+                         "name":"light_flicker_interval",
+                         "type":"int",
+                         "value":80
+                        }, 
+                        {
+                         "name":"light_glow_factor",
+                         "type":"float",
+                         "value":0
+                        }, 
+                        {
+                         "name":"light_inner_radius_factor",
+                         "type":"float",
+                         "value":0
+                        }, 
+                        {
+                         "name":"light_max_brightness",
+                         "type":"float",
+                         "value":0.2
+                        }, 
+                        {
+                         "name":"light_offset_y",
+                         "type":"int",
+                         "value":4
+                        }, 
+                        {
+                         "name":"light_radius",
+                         "type":"int",
+                         "value":128
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":3.5,
+                 "x":104.5,
+                 "y":601.5
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -513,8 +565,8 @@
                  "type":"",
                  "visible":true,
                  "width":16,
-                 "x":170,
-                 "y":599.5
+                 "x":209.25,
+                 "y":600
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -574,13 +626,13 @@
          "y":0
         }],
  "nextlayerid":10,
- "nextobjectid":19,
+ "nextobjectid":20,
  "orientation":"orthogonal",
  "properties":[
         {
          "name":"DAYLIGHT",
          "type":"float",
-         "value":0.2
+         "value":0
         }, 
         {
          "name":"DisplayName",

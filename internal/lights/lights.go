@@ -4,13 +4,13 @@ import (
 	_ "embed"
 	"fmt"
 	"image/color"
-	"log"
 	"math/rand"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
 
@@ -148,6 +148,10 @@ type Light struct {
 	FlickerTickInterval int
 	LightColor          LightColor
 
+	// a value between 0 and 1 which is the percent brightness. lower this value for a dimmer light.
+	// defaults to 0.8
+	maxBrightness float32
+
 	flickerProgress int
 	glowing         bool
 	currentRadius   float32
@@ -164,14 +168,24 @@ func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Lig
 		lightColor = *customLight
 	}
 
-	if lightProp.InnerRadiusFactor <= 0 || lightProp.InnerRadiusFactor >= 1 {
-		log.Println("NewLight: given innerRadiusFactor was invalid; using default value of 0.5")
-		lightProp.InnerRadiusFactor = 0.5
+	if lightProp.InnerRadiusFactor < 0 || lightProp.InnerRadiusFactor >= 1 {
+		logz.Panicf("inner radius factor must be positive and < 1. got: %v", lightProp.InnerRadiusFactor)
 	}
+	// if lightProp.InnerRadiusFactor == 0 {
+	// 	lightProp.InnerRadiusFactor = 0.5
+	// }
 
 	if lightProp.FlickerInterval < 50 {
 		lightProp.FlickerInterval = 50
 	}
+
+	if lightProp.MaxBrightness < 0 {
+		panic("tried creating light with negative max brightness")
+	}
+	if lightProp.MaxBrightness == 0 {
+		lightProp.MaxBrightness = 0.8
+	}
+	fmt.Println("max brightness:", lightProp.MaxBrightness)
 
 	// randomize initial flicker progress so that all lights aren't too synchronized
 	flickerProgress := rand.Intn(lightProp.FlickerInterval)
@@ -185,6 +199,7 @@ func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Lig
 		FlickerTickInterval: lightProp.FlickerInterval,
 		flickerProgress:     flickerProgress,
 		innerRadiusFactor:   float32(lightProp.InnerRadiusFactor),
+		maxBrightness:       float32(lightProp.MaxBrightness),
 	}
 }
 
@@ -214,6 +229,7 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, objLights []*
 	lightPositions := make([]float32, maxLights*2)        // X, Y
 	lightRadii := make([]float32, maxLights)              // radius
 	lightInnerRadiusFactors := make([]float32, maxLights) // inner radius factors
+	lightMaxBrightness := make([]float32, maxLights)      // max brightness at center of light
 	lightColors := make([]float32, maxLights*3)           // R, G, B
 
 	for i := range lights {
@@ -245,6 +261,9 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, objLights []*
 		lightRadii[i] = l.currentRadius
 		lightInnerRadiusFactors[i] = l.innerRadiusFactor
 
+		// brightness
+		lightMaxBrightness[i] = l.maxBrightness
+
 		// light color
 		lightColors[i*3] = l.LightColor[0]
 		lightColors[i*3+1] = l.LightColor[1]
@@ -257,6 +276,7 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, objLights []*
 		"LightPositions":          lightPositions,
 		"LightRadii":              lightRadii,
 		"LightInnerRadiusFactors": lightInnerRadiusFactors,
+		"LightMaxBrightness":      lightMaxBrightness,
 		"LightColors":             lightColors,
 		"NightTint":               daylight,
 		"ExtraDarken":             nightFx,
