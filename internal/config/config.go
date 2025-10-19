@@ -44,7 +44,8 @@ var (
 	DefaultTooltipBox DefaultBox
 	DefaultUIBox      DefaultBox // default box used for UI menus (e.g. the player's inventory menu, etc). required.
 
-	GameDataPathOverride string = "" // set this to customize game data root directory location
+	GameDataPathOverride  string = ""   // set this to customize game data root directory location
+	GameDataDirectoryName string = "2d" // set this to customize name of game engine data directory
 )
 
 const (

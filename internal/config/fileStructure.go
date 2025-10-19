@@ -14,20 +14,15 @@ Here is the file structure for game data:
 
 ├── assets
 │   ├── audio
-│   │   ├── music
-│   │   └── sfx
+│   │   ├── music  // songs and bgm
+│   │   └── sfx    // short sound effects (weapon strikes, footsteps, etc)
 │   └── fonts
-├── generated
-│   └── tiles
+├── generated      // all files that are generated during runtime
+│   └── tiles      // individual tile images generated from tilesets
 └── tiled
-    ├── maps
-    └── tilesets
-
+    ├── maps       // maps where the player or other entities can load into
+    └── tilesets   // tilesets used by maps, entities, UI components, etc
 */
-
-const (
-	game_dir = "2d_game_engine"
-)
 
 func FileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
@@ -42,7 +37,7 @@ func GameDataRootPath() string {
 	if err != nil {
 		panic(err)
 	}
-	return filepath.Join(homePath, game_dir)
+	return filepath.Join(homePath, GameDataDirectoryName)
 }
 
 func InitFileStructure() error {
