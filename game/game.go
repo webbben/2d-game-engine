@@ -13,7 +13,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
-	"github.com/webbben/2d-game-engine/internal/tiled"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
 	"github.com/webbben/2d-game-engine/trade"
 
@@ -73,7 +72,7 @@ type UpdateHooks struct {
 // run startup functions to prepare the game to play.
 // only need to call once, at the beginning.
 func InitialStartUp() error {
-	err := tiled.InitFileStructure()
+	err := config.InitFileStructure()
 	if err != nil {
 		return err
 	}

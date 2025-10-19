@@ -12,40 +12,15 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
 
-var tilePath = filepath.Join(config.GameAssetsPath(), "tiles")
-
-func InitFileStructure() error {
-	if !general_util.FileExists(config.GameAssetsPath()) {
-		err := os.MkdirAll(config.GameAssetsPath(), os.ModePerm)
-		if err != nil {
-			return fmt.Errorf("error while creating game assets path: %w", err)
-		}
-	}
-
-	// tiles
-	// remove all existing tiles on startup, to ensure that all tiles are up to date with source data
-	if general_util.FileExists(tilePath) {
-		logz.Println("SYSTEM", "deleting all existing generated tiles from previous runs")
-		os.RemoveAll(tilePath)
-	}
-	err := os.MkdirAll(tilePath, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("error while creating image tile path: %w", err)
-	}
-
-	return nil
-}
-
 func TilesetExists(tilesetName string) bool {
-	return general_util.FileExists(filepath.Join(tilePath, tilesetName))
+	return config.FileExists(config.ResolveTilePath(tilesetName))
 }
 
-// load the tileset data from it's JSON file. The JSON file should be defined in the Tileset already, at t.Source (this is how the data is saved in Tiled maps).
+// load the tileset data from it's JSON file. The JSON file path should be defined in the Tileset already, at t.Source (this is how the data is saved in Tiled maps).
 // If loading the tileset from a map file, pass the absolute path of the map file.  This is because t.Source specifies a relative path to the source image.
 // So, we need to be able to construct the absolute path to that file.
 func (t *Tileset) LoadJSONData(mapAbsPath string) error {
@@ -62,12 +37,9 @@ func (t *Tileset) LoadJSONData(mapAbsPath string) error {
 	// if the path is not absolute, follow the relative path starting from the map file's absolute path
 	if !filepath.IsAbs(t.Source) {
 		if mapAbsPath == "" {
-			// if no map path is passed, then we don't need to do any back-tracking. just use t.Source.
-			p, err := filepath.Abs(t.Source)
-			if err != nil {
-				return fmt.Errorf("error while getting absolute path of tileset source: %w. tileset source: %s", err, t.Source)
-			}
-			t.Source = p
+			// if no map path is passed, then we are not loading a relative path from a tiled map file
+			// resolve the full path as usual for a tileset
+			t.Source = config.ResolveTilesetPath(t.Source)
 		} else {
 			mapAbsPath = filepath.Dir(mapAbsPath)
 			t.Source = filepath.Clean(filepath.Join(mapAbsPath, t.Source))
@@ -81,7 +53,7 @@ func (t *Tileset) LoadJSONData(mapAbsPath string) error {
 	var loaded Tileset
 	bytes, err := os.ReadFile(t.Source)
 	if err != nil {
-		return fmt.Errorf("failed to read source JSON file: %w", err)
+		return fmt.Errorf("failed to read source JSON file: %w (mapAbsPath=%s)", err, mapAbsPath)
 	}
 	err = json.Unmarshal(bytes, &loaded)
 	if err != nil {
@@ -138,10 +110,10 @@ func (tileset *Tileset) GenerateTiles() error {
 	imgWidth := bounds.Dx()
 	imgHeight := bounds.Dy()
 
-	tilesetDir := filepath.Join(tilePath, tileset.Name)
+	tilesetDir := config.ResolveTilePath(tileset.Name)
 
 	// delete the directory and its contents if it already exists
-	if general_util.FileExists(tilesetDir) {
+	if config.FileExists(tilesetDir) {
 		os.RemoveAll(tilesetDir)
 	}
 
@@ -238,7 +210,8 @@ func (m Map) GetAllTilePositions(gid int) []model.Coords {
 }
 
 func (t Tileset) GetTileImage(id int) (*ebiten.Image, error) {
-	tileImg, _, err := ebitenutil.NewImageFromFile(filepath.Join(tilePath, t.Name, fmt.Sprintf("%v.png", id)))
+	tileDir := config.ResolveTilePath(t.Name)
+	tileImg, _, err := ebitenutil.NewImageFromFile(filepath.Join(tileDir, fmt.Sprintf("%v.png", id)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load tile image: %w", err)
 	}

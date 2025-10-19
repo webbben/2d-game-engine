@@ -3,12 +3,12 @@ package tiled
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 )
@@ -169,10 +169,10 @@ func (m *Map) Update() {
 
 func (m Map) DrawGroundLayers(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	if !m.Loaded {
-		log.Fatal("map not loaded! ensure map is loaded before drawing layers")
+		panic("map not loaded! ensure map is loaded before drawing layers")
 	}
 	if m.TileImageMap == nil {
-		log.Fatal("tileImageMap is nil! ensure the tile images are loaded into memory before drawing layers")
+		panic("tileImageMap is nil! ensure the tile images are loaded into memory before drawing layers")
 	}
 
 	// draw all tile layers except:
@@ -191,10 +191,10 @@ func (m Map) DrawGroundLayers(screen *ebiten.Image, offsetX float64, offsetY flo
 
 func (m Map) DrawRooftopLayer(screen *ebiten.Image, offsetX, offsetY float64) {
 	if !m.Loaded {
-		log.Fatal("map not loaded! ensure map is loaded before drawing layers")
+		panic("map not loaded! ensure map is loaded before drawing layers")
 	}
 	if m.TileImageMap == nil {
-		log.Fatal("tileImageMap is nil! ensure the tile images are loaded into memory before drawing layers")
+		panic("tileImageMap is nil! ensure the tile images are loaded into memory before drawing layers")
 	}
 
 	for _, layer := range m.Layers {
@@ -211,7 +211,7 @@ func (m Map) drawTileLayer(screen *ebiten.Image, offsetX, offsetY float64, layer
 	}
 
 	if len(layer.Data) != layer.Width*layer.Height {
-		log.Fatalf("the layer data array is not the correct size; size=%v, expected=%v", len(layer.Data), layer.Width*layer.Height)
+		logz.Panicf("the layer data array is not the correct size; size=%v, expected=%v", len(layer.Data), layer.Width*layer.Height)
 	}
 
 	// index of the tile in the layer's Data array
@@ -256,7 +256,7 @@ func (m Map) drawTileLayer(screen *ebiten.Image, offsetX, offsetY float64, layer
 					keys = append(keys, k)
 				}
 				fmt.Println(keys)
-				log.Fatalf("tile GID (%v) not found in TileImageMap; was there an error during tileset initialization?", tileGID)
+				logz.Panicf("tile GID (%v) not found in TileImageMap; was there an error during tileset initialization?", tileGID)
 			}
 
 			op := &ebiten.DrawImageOptions{}

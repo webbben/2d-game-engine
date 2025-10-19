@@ -117,6 +117,7 @@ type Door struct {
 type Gate struct {
 	open          bool
 	changingState bool
+	openSFX       *audio.Sound
 }
 
 func (g Gate) IsOpen() bool {
@@ -180,7 +181,7 @@ func LoadObject(obj tiled.Object, m tiled.Map) *Object {
 	if !found {
 		panic("no object type property found")
 	}
-	o.Type = objType
+	o.Type = resolveObjectType(objType)
 
 	// load data for specific object type
 	switch o.Type {
@@ -304,11 +305,11 @@ func (obj Object) validateDoorObject() {
 	case "click":
 	case "step":
 	default:
-		logz.Panicf("door: invalid activation type set: %s. check Tiled object definition.", obj.Door.activateType)
+		logz.Panicf("door [%s]: invalid activation type set: %s. check Tiled object definition.", obj.Name, obj.Door.activateType)
 	}
 
 	if obj.Door.openSound == nil {
-		panic("door: no openSound defined. check Tiled object definition.")
+		logz.Panicf("door [%s]: no openSound defined. check Tiled object definition.", obj.Name)
 	}
 }
 
@@ -317,17 +318,18 @@ func (obj *Object) loadGateObject(props []tiled.Property) {
 
 	for _, prop := range props {
 		switch prop.Name {
-		case "gate_sound":
+		case "SFX":
 			gateSound := prop.GetStringValue()
-			switch gateSound {
-			case "wood":
-				// TODO
-			case "metal":
-				// TODO
-			default:
-				logz.Panicf("loadGateProperty: gate sound value not recognized: %s", gateSound)
+			sound, err := audio.NewSound(gateSound, 0.5)
+			if err != nil {
+				logz.Panicf("failed to load gate sound: %s", err.Error())
 			}
+			obj.Gate.openSFX = &sound
 		}
+	}
+
+	if obj.Gate.openSFX == nil {
+		panic("no open SFX set for gate. make sure to set the 'SFX' property for this object in Tiled.")
 	}
 }
 
@@ -350,19 +352,13 @@ func (obj *Object) loadDoorObject(props []tiled.Property) {
 			obj.Door.targetSpawnIndex = prop.GetIntValue()
 		case "door_activate":
 			obj.Door.activateType = prop.GetStringValue()
-		case "door_sound":
+		case "SFX":
 			doorSound := prop.GetStringValue()
-			switch doorSound {
-			case "wood":
-				// TODO work out a system for defining these default door sounds
-				sound, err := audio.LoadSound("/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/door/open_door_01.mp3", 0.5)
-				if err != nil {
-					panic("failed to load door sound:" + err.Error())
-				}
-				obj.Door.openSound = &sound
-			default:
-				panic("door_sound value not found:" + doorSound)
+			sound, err := audio.NewSound(doorSound, 0.5)
+			if err != nil {
+				panic("failed to load door sound:" + err.Error())
 			}
+			obj.Door.openSound = &sound
 		}
 	}
 }

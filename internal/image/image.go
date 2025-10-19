@@ -4,12 +4,12 @@ import (
 	"errors"
 	"image"
 	"image/color"
-	"log"
 	"math"
 	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/webbben/2d-game-engine/internal/config"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 )
@@ -23,16 +23,17 @@ func LoadImage(imagePath string) (*ebiten.Image, error) {
 	return img, nil
 }
 
-func LoadFont(path string, size float64, dpi float64) font.Face {
-	fontFile, err := os.ReadFile(path)
+func LoadFont(relPath string, size float64, dpi float64) font.Face {
+	fullPath := config.ResolveFontPath(relPath)
+	fontFile, err := os.ReadFile(fullPath)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// parse font file
 	ttf, err := opentype.Parse(fontFile)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// default font settings
@@ -51,7 +52,7 @@ func LoadFont(path string, size float64, dpi float64) font.Face {
 	// create font face
 	customFont, err := opentype.NewFace(ttf, op)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	return customFont
 }

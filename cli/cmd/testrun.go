@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/spf13/cobra"
@@ -48,23 +46,23 @@ to quickly create a Cobra application.`,
 		//config.HourSpeed = time.Second * 20
 		//config.ShowCollisions = true
 
-		config.MapPathOverride = "/Users/benwebb/dev/personal/2d-game-engine/assets/tiled/maps"
+		config.GameDataPathOverride = "/Users/benwebb/dev/personal/ancient-rome"
 
-		config.DefaultFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 22, 0)
-		config.DefaultTitleFont = image.LoadFont("assets/fonts/ashlander-pixel.ttf", 28, 0)
+		config.DefaultFont = image.LoadFont("ashlander-pixel.ttf", 22, 0)
+		config.DefaultTitleFont = image.LoadFont("ashlander-pixel.ttf", 28, 0)
 
 		config.DefaultTooltipBox = config.DefaultBox{
-			TilesetSrc:  "assets/tiled/tilesets/boxes/boxes.tsj",
+			TilesetSrc:  "boxes/boxes.tsj",
 			OriginIndex: 132,
 		}
 		config.DefaultUIBox = config.DefaultBox{
-			TilesetSrc:  "assets/tiled/tilesets/boxes/boxes.tsj",
+			TilesetSrc:  "boxes/boxes.tsj",
 			OriginIndex: 16,
 		}
 
 		err := game.InitialStartUp()
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 
 		// get our testrun game state
@@ -101,58 +99,58 @@ func init() {
 }
 
 func setupGameState() *game.Game {
-	g := game.NewGame(0)
+	g := game.NewGame(10)
 	err := g.SetupMap("prison_ship", &game.OpenMapOptions{
 		RunNPCManager:    true,
 		RegenerateImages: true,
 	})
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
+	}
+
+	footstepSFX := entity.AudioProps{
+		FootstepSFX: audio.FootstepSFX{
+			StepDefaultSrc: []string{
+				"sfx/footsteps/footstep_stone_01_A.mp3",
+				"sfx/footsteps/footstep_stone_01_B.mp3",
+			},
+			StepWoodSrc: []string{
+				"sfx/footsteps/footstep_wood_01_A.mp3",
+				"sfx/footsteps/footstep_wood_01_B.mp3",
+			},
+			StepGrassSrc: []string{
+				"sfx/footsteps/footstep_grass_01_A.mp3",
+				"sfx/footsteps/footstep_grass_01_B.mp3",
+			},
+		},
 	}
 
 	// make the player
-	playerEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_750fde30-4e5a-41ce-96e3-0105e0064a4d.json"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	playerEnt.IsPlayer = true
-	err = playerEnt.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-	playerEnt.LoadFootstepSFX(audio.FootstepSFX{
-		StepDefaultSrc: []string{
-			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_stone_01_A.mp3",
-			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_stone_01_B.mp3",
-		},
-		StepWoodSrc: []string{
-			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_wood_01_A.mp3",
-			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_wood_01_B.mp3",
-		},
-		StepGrassSrc: []string{
-			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_grass_01_A.mp3",
-			"/Users/benwebb/dev/personal/ancient-rome/assets/audio/sfx/footsteps/footstep_grass_01_B.mp3",
-		},
-	})
+	playerEnt := entity.NewEntity(entity.GeneralProps{
+		DisplayName:     "Caius Cosades",
+		FrameTilesetSrc: "entities/sdv_npc_alex.tsj",
+		IsPlayer:        true,
+	}, entity.MovementProps{
+		WalkSpeed: 0,
+	}, footstepSFX)
 
-	p := player.NewPlayer(g.DefinitionManager)
-	p.Entity = &playerEnt
+	playerEnt.Load()
+
+	p := player.NewPlayer(g.DefinitionManager, &playerEnt)
 
 	g.PlacePlayerAtSpawnPoint(&p, 0)
 
-	// make NPCs
-	legionaryEnt, err := entity.OpenEntity(filepath.Join(config.GameDefsPath(), "ent", "ent_6ef9b0ec-8e34-4ebf-a9da-e04ef154e80b.json"))
-	if err != nil {
-		log.Fatal(err)
-	}
+	legionaryEnt := entity.NewEntity(entity.GeneralProps{
+		DisplayName:     "Legionary",
+		FrameTilesetSrc: "entities/legionary1.tsj",
+	}, entity.MovementProps{
+		WalkSpeed: 0,
+	}, footstepSFX)
 
 	for i := 0; i < 0; i++ {
 		npcEnt := legionaryEnt.Duplicate()
 		npcEnt.DisplayName = fmt.Sprintf("NPC_%v", i)
-		err = npcEnt.Load()
-		if err != nil {
-			log.Fatal(err)
-		}
+		npcEnt.Load()
 		n := npc.New(npc.NPC{
 			Entity: &npcEnt,
 			NPCInfo: npc.NPCInfo{
@@ -212,20 +210,20 @@ func addCustomKeyBindings(g *game.Game) {
 
 func GetPlayerMenu(p *player.Player, defMgr *definitions.DefinitionManager) playermenu.PlayerMenu {
 	pm := playermenu.PlayerMenu{
-		BoxTilesetSource:      "assets/tiled/tilesets/boxes/boxes.tsj",
-		PageTabsTilesetSource: "assets/tiled/tilesets/ui-components.tsj",
+		BoxTilesetSource:      "boxes/boxes.tsj",
+		PageTabsTilesetSource: "ui/ui-components.tsj",
 		BoxOriginIndex:        16,
 		BoxTitleOriginIndex:   111,
 	}
 
 	invParams := inventory.InventoryParams{
-		ItemSlotTilesetSource:    "assets/tiled/tilesets/ui-components.tsj",
+		ItemSlotTilesetSource:    "ui/ui-components.tsj",
 		SlotEnabledTileID:        0,
 		SlotDisabledTileID:       1,
 		SlotEquipedBorderTileID:  3,
 		SlotSelectedBorderTileID: 4,
 		HoverWindowParams: textwindow.TextWindowParams{
-			TilesetSource:   "assets/tiled/tilesets/boxes/boxes.tsj",
+			TilesetSource:   "boxes/boxes.tsj",
 			OriginTileIndex: 20,
 		},
 		RowCount:          10,
@@ -240,13 +238,13 @@ func GetPlayerMenu(p *player.Player, defMgr *definitions.DefinitionManager) play
 
 func GetTradeScreen(p *player.Player, defMgr *definitions.DefinitionManager) trade.TradeScreen {
 	invParams := inventory.InventoryParams{
-		ItemSlotTilesetSource:    "assets/tiled/tilesets/ui-components.tsj",
+		ItemSlotTilesetSource:    "ui/ui-components.tsj",
 		SlotEnabledTileID:        0,
 		SlotDisabledTileID:       1,
 		SlotEquipedBorderTileID:  3,
 		SlotSelectedBorderTileID: 4,
 		HoverWindowParams: textwindow.TextWindowParams{
-			TilesetSource:   "assets/tiled/tilesets/boxes/boxes.tsj",
+			TilesetSource:   "boxes/boxes.tsj",
 			OriginTileIndex: 20,
 		},
 		RowCount:          10,
@@ -257,12 +255,12 @@ func GetTradeScreen(p *player.Player, defMgr *definitions.DefinitionManager) tra
 	shopKeeperInvParams.EnabledSlotsCount = 90
 
 	ts := trade.NewTradeScreen(trade.TradeScreenParams{
-		BoxTilesetSrc:             "assets/tiled/tilesets/boxes/boxes.tsj",
+		BoxTilesetSrc:             "boxes/boxes.tsj",
 		BoxTilesetOrigin:          16,
 		BoxTitleOrigin:            111,
 		ShopkeeperInventoryParams: shopKeeperInvParams,
 		PlayerInventoryParams:     invParams,
-		TextBoxTilesetSrc:         "assets/tiled/tilesets/boxes/boxes.tsj",
+		TextBoxTilesetSrc:         "boxes/boxes.tsj",
 		TextBoxOrigin:             135,
 	}, defMgr, p)
 
@@ -271,10 +269,10 @@ func GetTradeScreen(p *player.Player, defMgr *definitions.DefinitionManager) tra
 
 func GetDialog() dialog.Dialog {
 	d := dialog.Dialog{
-		BoxTilesetSource:   "assets/tiled/tilesets/boxes/boxes.tsj",
+		BoxTilesetSource:   "boxes/boxes.tsj",
 		BoxOriginTileIndex: 16,
 		TextFont: dialog.Font{
-			Source: "assets/fonts/ashlander-pixel.ttf",
+			Source: "ashlander-pixel.ttf",
 		},
 		TopicsEnabled: true,
 	}
@@ -348,7 +346,7 @@ func LoadItems(g *game.Game) {
 				Value:                100,
 				Weight:               25,
 				MaxDurability:        250,
-				TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+				TilesetSourceTileImg: "items/items_01.tsj",
 				TileImgIndex:         0,
 				MiscItem:             true,
 			},
@@ -361,7 +359,7 @@ func LoadItems(g *game.Game) {
 			Description:          "This potion invigorates the drinker and gives him strength only matched by Hercules himself.",
 			Value:                200,
 			Weight:               3,
-			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TilesetSourceTileImg: "items/items_01.tsj",
 			TileImgIndex:         129,
 			Groupable:            true,
 			Consumable:           true,
@@ -372,7 +370,7 @@ func LoadItems(g *game.Game) {
 			Description:          "A Roman bronze coin",
 			Value:                1,
 			Weight:               0.05,
-			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TilesetSourceTileImg: "items/items_01.tsj",
 			TileImgIndex:         64,
 			Groupable:            true,
 			Currency:             true,
@@ -383,7 +381,7 @@ func LoadItems(g *game.Game) {
 			Description:          "A Roman brass coin",
 			Value:                5,
 			Weight:               0.05,
-			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TilesetSourceTileImg: "items/items_01.tsj",
 			TileImgIndex:         65,
 			Groupable:            true,
 			Currency:             true,
@@ -394,7 +392,7 @@ func LoadItems(g *game.Game) {
 			Description:          "A Roman brass coin",
 			Value:                10,
 			Weight:               0.05,
-			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TilesetSourceTileImg: "items/items_01.tsj",
 			TileImgIndex:         66,
 			Groupable:            true,
 			Currency:             true,
@@ -405,7 +403,7 @@ func LoadItems(g *game.Game) {
 			Description:          "A Roman silver coin",
 			Value:                50,
 			Weight:               0.05,
-			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TilesetSourceTileImg: "items/items_01.tsj",
 			TileImgIndex:         67,
 			Groupable:            true,
 			Currency:             true,
@@ -416,7 +414,7 @@ func LoadItems(g *game.Game) {
 			Description:          "A Roman silver coin",
 			Value:                100,
 			Weight:               0.05,
-			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TilesetSourceTileImg: "items/items_01.tsj",
 			TileImgIndex:         68,
 			Groupable:            true,
 			Currency:             true,
@@ -427,7 +425,7 @@ func LoadItems(g *game.Game) {
 			Description:          "A Roman gold coin",
 			Value:                1000,
 			Weight:               0.05,
-			TilesetSourceTileImg: "assets/tiled/tilesets/items_01.tsj",
+			TilesetSourceTileImg: "items/items_01.tsj",
 			TileImgIndex:         69,
 			Groupable:            true,
 			Currency:             true,

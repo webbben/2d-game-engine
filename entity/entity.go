@@ -2,7 +2,6 @@ package entity
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,7 +11,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/mouse"
@@ -97,6 +95,48 @@ type WorldContext interface {
 	GetGroundMaterial(tileX, tileY int) string
 }
 
+type MovementProps struct {
+	WalkSpeed float64
+}
+
+type AudioProps struct {
+	FootstepSFX audio.FootstepSFX
+}
+
+type GeneralProps struct {
+	DisplayName     string
+	IsPlayer        bool
+	FrameTilesetSrc string
+}
+
+func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
+	if general.FrameTilesetSrc == "" {
+		panic("no frame tileset src specified")
+	}
+	if general.DisplayName == "" {
+		panic("entity display name is empty")
+	}
+	if mv.WalkSpeed == 0 {
+		logz.Warnln("", "loaded entity does not have a walking speed; setting default value.")
+		mv.WalkSpeed = GetDefaultWalkSpeed()
+	}
+
+	ent := Entity{
+		FrameTilesetSources: []string{general.FrameTilesetSrc},
+		EntityInfo: EntityInfo{
+			IsPlayer: general.IsPlayer,
+		},
+		Movement: Movement{
+			WalkSpeed: mv.WalkSpeed,
+		},
+	}
+
+	// load sounds
+	ent.LoadFootstepSFX(ap.FootstepSFX)
+
+	return ent
+}
+
 // Create an entity by opening an entity's definition JSON
 func OpenEntity(source string) (Entity, error) {
 	data, err := os.ReadFile(source)
@@ -118,11 +158,8 @@ func OpenEntity(source string) (Entity, error) {
 }
 
 // load fully entity data into memory for rendering in a map
-func (e *Entity) Load() error {
-	err := e.loadAnimationFrames()
-	if err != nil {
-		return err
-	}
+func (e *Entity) Load() {
+	e.loadAnimationFrames()
 
 	// ensure first frame is set
 	e.Movement.Direction = 'D'
@@ -134,7 +171,6 @@ func (e *Entity) Load() error {
 	fmt.Println("width:", e.width)
 
 	e.Loaded = true
-	return nil
 }
 
 type EntityInfo struct {
@@ -181,29 +217,14 @@ type Movement struct {
 	SuggestedTargetPath []model.Coords `json:"-"` // a suggested path for this entity to consider merging into the target path
 }
 
-func (e Entity) SaveJSON() error {
-	if e.ID == "" {
-		e.ID = general_util.GenerateUUID()
-	}
-
-	data, err := json.MarshalIndent(e, "", "  ")
-	if err != nil {
-		return fmt.Errorf("error while marshalling entity JSON data: %w", err)
-	}
-	filename := fmt.Sprintf("ent_%s.json", e.ID)
-	path := filepath.Join(config.GameDefsPath(), "ent")
-	os.MkdirAll(path, os.ModePerm)
-	return os.WriteFile(filepath.Join(path, filename), data, os.ModePerm)
-}
-
-func (e *Entity) loadAnimationFrames() error {
+func (e *Entity) loadAnimationFrames() {
 	e.AnimationFrameMap = make(map[string]*ebiten.Image)
 	e.AnimationFrameCount = make(map[string]int)
 
 	for _, tilesetSource := range e.FrameTilesetSources {
 		t, err := tiled.LoadTileset(tilesetSource)
 		if err != nil {
-			return fmt.Errorf("error while loading tileset data: %w", err)
+			logz.Panicf("error while loading tileset data: %s", err.Error())
 		}
 
 		// find all the animation frames
@@ -219,7 +240,7 @@ func (e *Entity) loadAnimationFrames() error {
 				imagePath := filepath.Join(t.GeneratedImagesPath, fmt.Sprintf("%v.png", tile.ID))
 				img, _, err := ebitenutil.NewImageFromFile(imagePath)
 				if err != nil {
-					return err
+					logz.Panicf("error loading animation image: %s", err.Error())
 				}
 				// the "frame" property expects the following format:
 				// "animationName1:0,animationName2:x"
@@ -228,7 +249,7 @@ func (e *Entity) loadAnimationFrames() error {
 				for _, frame := range frameDefs {
 					vals := strings.Split(frame, ":")
 					if len(vals) != 2 {
-						return errors.New("frames property in tileset is malformed")
+						panic("frames property in tileset is malformed")
 					}
 					e.AnimationFrameMap[fmt.Sprintf("%s_%s", vals[0], vals[1])] = img
 
@@ -244,8 +265,6 @@ func (e *Entity) loadAnimationFrames() error {
 	}
 
 	// TODO add validation of loaded animation frames (e.g. verify there are no missing frames, verify frame counts, etc)
-
-	return nil
 }
 
 func (e Entity) getAnimationFrame(animationName string, frameNumber int) *ebiten.Image {

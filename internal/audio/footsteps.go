@@ -37,7 +37,7 @@ func (sfx *FootstepSFX) Load() {
 	}
 
 	for _, src := range sfx.StepDefaultSrc {
-		sound, err := LoadSound(src, sfx.Volume)
+		sound, err := NewSound(src, sfx.Volume)
 		if err != nil {
 			panic(fmt.Errorf("failed to load sound: %w", err))
 		}
@@ -45,7 +45,7 @@ func (sfx *FootstepSFX) Load() {
 	}
 
 	for _, src := range sfx.StepWoodSrc {
-		sound, err := LoadSound(src, sfx.Volume)
+		sound, err := NewSound(src, sfx.Volume)
 		if err != nil {
 			panic(fmt.Errorf("failed to load sound: %w", err))
 		}
@@ -53,7 +53,7 @@ func (sfx *FootstepSFX) Load() {
 	}
 
 	for _, src := range sfx.StepStoneSrc {
-		sound, err := LoadSound(src, sfx.Volume)
+		sound, err := NewSound(src, sfx.Volume)
 		if err != nil {
 			panic(fmt.Errorf("failed to load sound: %w", err))
 		}
@@ -61,7 +61,7 @@ func (sfx *FootstepSFX) Load() {
 	}
 
 	for _, src := range sfx.StepGrassSrc {
-		sound, err := LoadSound(src, sfx.Volume)
+		sound, err := NewSound(src, sfx.Volume)
 		if err != nil {
 			panic(fmt.Errorf("failed to load sound: %w", err))
 		}
@@ -69,7 +69,7 @@ func (sfx *FootstepSFX) Load() {
 	}
 
 	for _, src := range sfx.StepForestSrc {
-		sound, err := LoadSound(src, sfx.Volume)
+		sound, err := NewSound(src, sfx.Volume)
 		if err != nil {
 			panic(fmt.Errorf("failed to load sound: %w", err))
 		}
@@ -77,7 +77,7 @@ func (sfx *FootstepSFX) Load() {
 	}
 
 	for _, src := range sfx.StepSandSrc {
-		sound, err := LoadSound(src, sfx.Volume)
+		sound, err := NewSound(src, sfx.Volume)
 		if err != nil {
 			panic(fmt.Errorf("failed to load sound: %w", err))
 		}
@@ -85,7 +85,7 @@ func (sfx *FootstepSFX) Load() {
 	}
 
 	for _, src := range sfx.StepSnowSrc {
-		sound, err := LoadSound(src, sfx.Volume)
+		sound, err := NewSound(src, sfx.Volume)
 		if err != nil {
 			panic(fmt.Errorf("failed to load sound: %w", err))
 		}

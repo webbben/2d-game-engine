@@ -59,6 +59,10 @@ func (obj *Object) updateGate(result *ObjectUpdateResult) {
 					if !obj.World.GetPlayerRect().Intersects(obj.CollisionRect) && !obj.collidesWithNPC() {
 						obj.Gate.changingState = true
 						obj.Gate.open = !obj.Gate.open
+						if obj.Gate.openSFX == nil {
+							panic("gate has no open SFX set. make sure the 'SFX' property is set for this object in Tiled.")
+						}
+						obj.Gate.openSFX.Play()
 					}
 				}
 			}
@@ -135,15 +139,20 @@ func (obj *Object) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 	obj.DrawX = (obj.xPos - offsetX)
 	obj.DrawY = (obj.yPos - offsetY)
 
-	if len(obj.imgFrames) > 0 {
-		ops := ebiten.DrawImageOptions{}
-		if obj.PlayerHovering {
-			ops.ColorScale.Scale(1.2, 1.2, 1.2, 1)
-		}
-		img := obj.tileData.CurrentFrame
-		if obj.imgFrameIndex > 0 {
-			img = obj.imgFrames[obj.imgFrameIndex]
-		}
-		rendering.DrawImageWithOps(screen, img, obj.DrawX*config.GameScale, obj.DrawY*config.GameScale, config.GameScale, &ops)
+	drawX := obj.DrawX * config.GameScale // actually for drawing - the other one is for the mouse behavior
+	drawY := obj.DrawY * config.GameScale
+
+	if len(obj.imgFrames) == 0 {
+		return
 	}
+
+	img := obj.tileData.CurrentFrame
+	if obj.imgFrameIndex > 0 {
+		img = obj.imgFrames[obj.imgFrameIndex]
+	}
+	ops := ebiten.DrawImageOptions{}
+	if obj.PlayerHovering {
+		ops.ColorScale.Scale(1.2, 1.2, 1.2, 1)
+	}
+	rendering.DrawImageWithOps(screen, img, drawX, drawY, config.GameScale, &ops)
 }

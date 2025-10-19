@@ -41,11 +41,16 @@ func (p Player) Y() float64 {
 	return p.Entity.Y
 }
 
-func NewPlayer(defMgr *definitions.DefinitionManager) Player {
+func NewPlayer(defMgr *definitions.DefinitionManager, ent *entity.Entity) Player {
+	if ent == nil {
+		panic("player must have entity")
+	}
+
 	return Player{
 		InventoryItems: make([]*item.InventoryItem, 18),
 		CoinPurse:      make([]*item.InventoryItem, 6),
 		defMgr:         defMgr,
+		Entity:         ent,
 	}
 }
 

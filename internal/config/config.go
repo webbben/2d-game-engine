@@ -1,10 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"log"
-	"os"
-	"path/filepath"
 	"time"
 
 	"golang.org/x/image/font"
@@ -48,39 +44,9 @@ var (
 	DefaultTooltipBox DefaultBox
 	DefaultUIBox      DefaultBox // default box used for UI menus (e.g. the player's inventory menu, etc). required.
 
-	MapPathOverride string = "" // set this if you have a custom directory where maps are stored
+	GameDataPathOverride string = "" // set this to customize game data root directory location
 )
 
 const (
 	TileSize = 16
-
-	game_dir = "2d_game_engine"
 )
-
-func GameDataRootPath() string {
-	homePath, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return filepath.Join(homePath, game_dir)
-}
-
-func GameAssetsPath() string {
-	return filepath.Join(GameDataRootPath(), "assets")
-}
-
-func GameDefsPath() string {
-	return filepath.Join(GameDataRootPath(), "defs")
-}
-
-// given a map ID, returns the full path to the map's TMJ file for loading purposes.
-func ResolveMapPath(mapID string) string {
-	absPath := ""
-	if MapPathOverride != "" {
-		absPath = filepath.Join(MapPathOverride, fmt.Sprintf("%s.tmj", mapID))
-	} else {
-		absPath = filepath.Join(GameAssetsPath(), "maps", fmt.Sprintf("%s.tmj", mapID))
-	}
-
-	return absPath
-}
