@@ -227,6 +227,9 @@ func GetTileImage(tilesetSrc string, tileID int) *ebiten.Image {
 	if err != nil {
 		panic(err)
 	}
+	if img == nil {
+		panic("tile image is nil?")
+	}
 	return img
 }
 

@@ -21,8 +21,18 @@ type Button struct {
 
 	mouseBehavior mouse.MouseBehavior
 
+	buttonImg   *ebiten.Image
 	hoverBoxImg *ebiten.Image
 	textImg     *ebiten.Image
+}
+
+func NewImageButton(buttonText string, fontFace font.Face, img *ebiten.Image) *Button {
+	dx := img.Bounds().Dx()
+	dy := img.Bounds().Dy()
+	b := NewButton(buttonText, fontFace, dx, dy)
+	b.buttonImg = img
+
+	return b
 }
 
 func NewButton(buttonText string, fontFace font.Face, width, height int) *Button {
@@ -114,12 +124,21 @@ func (b *Button) Draw(screen *ebiten.Image, x, y int) {
 	// update internal position
 	b.x, b.y = x, y
 
-	// for now we are just doing clear buttons that highlight when hovered
-	dx, dy := rendering.CenterImageOnImage(b.hoverBoxImg, b.textImg)
-	rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
-
-	if b.mouseBehavior.IsHovering {
-		// show a highlight box
-		rendering.DrawImage(screen, b.hoverBoxImg, float64(x), float64(y), 0)
+	if b.buttonImg != nil {
+		// draw button image instead of highlight hover box
+		dx, dy := rendering.CenterImageOnImage(b.buttonImg, b.textImg)
+		rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
+		ops := ebiten.DrawImageOptions{}
+		if b.mouseBehavior.IsHovering {
+			ops.ColorScale.Scale(1.2, 1.2, 1.2, 1)
+		}
+		rendering.DrawImageWithOps(screen, b.buttonImg, float64(x), float64(y), 0, &ops)
+	} else {
+		// for clear buttons with no button image; we just show a highlight box
+		dx, dy := rendering.CenterImageOnImage(b.hoverBoxImg, b.textImg)
+		rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
+		if b.mouseBehavior.IsHovering {
+			rendering.DrawImage(screen, b.hoverBoxImg, float64(x), float64(y), 0)
+		}
 	}
 }

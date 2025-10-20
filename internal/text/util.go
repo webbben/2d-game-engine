@@ -68,6 +68,9 @@ func GetStringLinesHeight(s string, f font.Face, lineWidthPx int) int {
 }
 
 func GetStringSize(s string, f font.Face) (dx int, dy int, baseline int) {
+	if f == nil {
+		panic("tried to get string size with nil font")
+	}
 	bounds, advance := font.BoundString(f, s)
 	return advance.Round(), (bounds.Max.Y - bounds.Min.Y).Round(), -bounds.Min.Y.Round()
 }
@@ -93,6 +96,10 @@ func GetFontMetrics(f font.Face) (ascent int, descent int, height int) {
 //
 // descent: how much common "descenders" ("y", "g", "p", etc) tends to go below baseline
 func GetRealisticFontMetrics(f font.Face) (height int, descent int) {
+	if f == nil {
+		panic("tried to get font metrics of nil font")
+	}
+
 	heightLetters := []string{"A", "B", "C", "D", "X", "Y", "Z"}
 	// for height, get an average
 	for _, l := range heightLetters {

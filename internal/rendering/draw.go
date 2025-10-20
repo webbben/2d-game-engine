@@ -108,3 +108,16 @@ func ScaleImage(img *ebiten.Image, scale float64) *ebiten.Image {
 
 	return frame
 }
+
+func FlipHoriz(img *ebiten.Image) *ebiten.Image {
+	bounds := img.Bounds()
+	frame := ebiten.NewImage(bounds.Dx(), bounds.Dy())
+
+	ops := ebiten.DrawImageOptions{}
+	ops.GeoM.Scale(-1, 1)
+	ops.GeoM.Translate(float64(bounds.Dx()), 0)
+
+	frame.DrawImage(img, &ops)
+
+	return frame
+}
