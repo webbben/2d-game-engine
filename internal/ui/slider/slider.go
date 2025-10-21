@@ -14,24 +14,32 @@ type Slider struct {
 	sliderImg *ebiten.Image
 	ballImg   *ebiten.Image
 
-	minVal, maxVal float64
-	stepSize       float64
+	minVal, maxVal int
+	stepSize       int
+	numSteps       int
 	stepDistPx     int
 
-	x, y  int
-	ballX int // ball x (offset from slider x)
+	x, y         int
+	ballX        int // ball x (offset from slider x)
+	currentValue int
+
+	clickStarted bool
 
 	mouse.MouseBehavior
+}
+
+func (s Slider) GetValue() int {
+	return s.currentValue
 }
 
 type SliderParams struct {
 	TilesetSrc    string
 	TilesetOrigin int
-	TileWidth     int
-	MinVal        float64
-	MaxVal        float64
-	StepSize      float64
-	InitialValue  float64
+	TileWidth     int // number of tiles wide this slider should be
+	MinVal        int
+	MaxVal        int
+	StepSize      int
+	InitialValue  int
 }
 
 func NewSlider(params SliderParams) Slider {
@@ -49,6 +57,9 @@ func NewSlider(params SliderParams) Slider {
 	}
 	if params.InitialValue < params.MinVal || params.InitialValue > params.MaxVal {
 		panic("initial value is out of bounds of min & max")
+	}
+	if params.StepSize <= 0 {
+		panic("step size must be positive and non-zero")
 	}
 
 	tileset, err := tiled.LoadTileset(params.TilesetSrc)
@@ -95,33 +106,63 @@ func NewSlider(params SliderParams) Slider {
 			rendering.DrawImage(slider.sliderImg, slider.tiles[1], float64(tileSize*i), 0, config.UIScale)
 		}
 	}
-	slider.ballImg = slider.tiles[3]
+	slider.ballImg = rendering.ScaleImage(slider.tiles[3], config.UIScale)
 
 	// calculate slider movement distance
-	numSteps := int((slider.maxVal - slider.minVal) / slider.stepSize)
-	stepDistancePx := (params.TileWidth * tileSize) / numSteps
+	slider.numSteps = (slider.maxVal - slider.minVal) / slider.stepSize
+	stepDistancePx := ((params.TileWidth - 1) * tileSize) / slider.numSteps
 	slider.stepDistPx = stepDistancePx
+
+	slider.SetValue(params.InitialValue)
 
 	return slider
 }
 
 func (s *Slider) Update() {
 	tileSize := int(config.TileSize * config.UIScale)
-	bounds := s.ballImg.Bounds()
-	s.MouseBehavior.Update(s.x+s.ballX, s.y, bounds.Dx(), bounds.Dy(), false)
-	if s.MouseBehavior.LeftClick.ClickHolding {
+	// ballBounds := s.ballImg.Bounds()
+	sliderBounds := s.sliderImg.Bounds()
+	s.MouseBehavior.Update(s.x, s.y, sliderBounds.Dx(), sliderBounds.Dy(), false)
+
+	if s.MouseBehavior.LeftClick.ClickStart {
+		s.clickStarted = true
+	} else if (s.MouseBehavior.LeftClick.ClickHolding || s.MouseBehavior.LeftClickOutside.ClickHolding) && s.clickStarted {
 		// follow mouse x, as long as its within slider's bounds
 		mouseX, _ := ebiten.CursorPosition()
-		if mouseX < s.x {
-			s.ballX = 0
-		} else if mouseX > s.x+s.sliderImg.Bounds().Dx() {
-			s.ballX = s.sliderImg.Bounds().Dx() - tileSize
-		} else {
-			// mouse is somewhere inside the slider; calculate correct step position
-			step := (mouseX - s.x) / s.stepDistPx
-			s.ballX = step * s.stepDistPx
-		}
+
+		newValue := (mouseX - s.x - (tileSize / 2)) / s.stepDistPx
+		newValue += s.minVal
+		s.SetValue(newValue)
+	} else {
+		s.clickStarted = false
 	}
+}
+
+func (s *Slider) SetValue(val int) {
+	if val > s.maxVal {
+		val = s.maxVal
+	}
+	if val < s.minVal {
+		val = s.minVal
+	}
+
+	val -= val % s.stepSize
+
+	s.currentValue = val
+
+	step := (val - s.minVal) / s.stepSize
+	step = max(0, step)
+	step = min(step, s.numSteps)
+
+	// since the stepSize is an int, sometimes it can be slightly too short and you see a gap on the last position
+	// so, we calculate the last step position here
+	if step == s.numSteps {
+		s.ballX = s.sliderImg.Bounds().Dx() - int(config.TileSize*config.UIScale)
+		return
+	}
+
+	s.ballX = step * s.stepDistPx
+	s.ballX -= s.ballX % s.stepDistPx
 }
 
 func (s *Slider) Draw(screen *ebiten.Image, x, y float64) {

@@ -32,8 +32,14 @@ func DrawShadowText(screen *ebiten.Image, s string, f font.Face, x, y int, fg co
 // IMPORTANT: the "y" coordinate is actually the position **BELOW** where the text is drawn.
 // NOT the top left corner of the text image.
 func DrawText(screen *ebiten.Image, s string, f font.Face, x, y int, c color.Color) {
+	if s == "" {
+		return
+	}
 	if c == nil {
 		c = color.Black
+	}
+	if f == nil {
+		panic("no font set!")
 	}
 	ebiten_text.Draw(screen, s, f, x, y, c)
 }

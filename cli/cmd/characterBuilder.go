@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/spf13/cobra"
@@ -12,8 +13,10 @@ import (
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/internal/ui/button"
+	"github.com/webbben/2d-game-engine/internal/ui/slider"
 )
 
 // characterBuilderCmd represents the characterBuilder command
@@ -65,15 +68,17 @@ type builderGame struct {
 	bodyImg            *ebiten.Image
 	eyesImg            *ebiten.Image
 	hairImg            *ebiten.Image
+	armsImg            *ebiten.Image
 	nonBodyYOffset     int
 
 	bodySet bodyPartSet
-	//headSet          bodyPartSet
 	eyesSet bodyPartSet
 	hairSet bodyPartSet
+	armsSet bodyPartSet
 
-	turnLeft  *button.Button
-	turnRight *button.Button
+	turnLeft    *button.Button
+	turnRight   *button.Button
+	speedSlider slider.Slider
 }
 
 func characterBuilder() {
@@ -95,8 +100,28 @@ func characterBuilder() {
 				StepsOffsetY: []int{1, 0, 1},
 			},
 			RunAnimation: Animation{
-				TileSteps:    []int{1, 3, 0, 2, 4},
-				StepsOffsetY: []int{1, 0, 0, 1, 0},
+				// TileSteps:    []int{1, 3, 0, 2, 4},
+				// StepsOffsetY: []int{1, 0, 0, 1, 0},
+				TileSteps:    []int{3, 1, 0, 4, 2},
+				StepsOffsetY: []int{0, 1, 0, 0, 1},
+			},
+			HasUp:     true,
+			FlipRForL: true,
+		},
+		armsSet: bodyPartSet{
+			TilesetSrc: bodyTileset,
+			DStart:     32 + 32,
+			RStart:     37 + 32,
+			UStart:     42 + 32,
+			WalkAnimation: Animation{
+				TileSteps:    []int{1, 0, 2},
+				StepsOffsetY: []int{1, 0, 1},
+			},
+			RunAnimation: Animation{
+				// TileSteps:    []int{1, 3, 0, 2, 4},
+				// StepsOffsetY: []int{1, 0, 0, 1, 0},
+				TileSteps:    []int{3, 1, 0, 4, 2},
+				StepsOffsetY: []int{0, 1, 0, 0, 1},
 			},
 			HasUp:     true,
 			FlipRForL: true,
@@ -118,6 +143,7 @@ func characterBuilder() {
 	}
 
 	g.bodySet.Load()
+	g.armsSet.Load()
 	g.eyesSet.Load()
 	g.hairSet.Load()
 
@@ -129,6 +155,16 @@ func characterBuilder() {
 	turnRightImg = rendering.ScaleImage(turnRightImg, config.UIScale)
 	g.turnLeft = button.NewImageButton("", nil, turnLeftImg)
 	g.turnRight = button.NewImageButton("", nil, turnRightImg)
+
+	g.speedSlider = slider.NewSlider(slider.SliderParams{
+		TilesetSrc:    "ui/ui-components.tsj",
+		TilesetOrigin: 256,
+		TileWidth:     4,
+		MinVal:        10,
+		MaxVal:        20,
+		InitialValue:  15,
+		StepSize:      1,
+	})
 
 	if err := ebiten.RunGame(&g); err != nil {
 		panic(err)
@@ -288,7 +324,7 @@ func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, fli
 func (bg *builderGame) Draw(screen *ebiten.Image) {
 	var characterScale float64 = 10
 
-	//tileSize := int(config.TileSize * characterScale)
+	tileSize := int(config.TileSize * config.UIScale)
 
 	bodyWidth := float64(bg.bodyImg.Bounds().Dx()) * characterScale
 	bodyHeight := float64(bg.bodyImg.Bounds().Dy()) * characterScale
@@ -296,6 +332,7 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	bodyX := float64(display.SCREEN_WIDTH/2) - (bodyWidth / 2)
 	bodyY := float64(display.SCREEN_HEIGHT/2) - (bodyHeight / 2)
 	rendering.DrawImage(screen, bg.bodyImg, bodyX, bodyY, characterScale)
+	rendering.DrawImage(screen, bg.armsImg, bodyX, bodyY, characterScale)
 	eyesX := bodyX
 	eyesY := bodyY + (float64(bg.nonBodyYOffset) * characterScale)
 	if bg.eyesImg != nil {
@@ -310,6 +347,10 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	buttonRX := (display.SCREEN_WIDTH / 2) + 20
 	bg.turnLeft.Draw(screen, buttonLX, int(buttonsY))
 	bg.turnRight.Draw(screen, buttonRX, int(buttonsY))
+
+	sliderY := buttonsY + float64(tileSize*2)
+	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.speedSlider.GetValue()), config.DefaultFont, buttonLX-20, int(sliderY), color.White, nil, 0, 0)
+	bg.speedSlider.Draw(screen, float64(buttonLX), sliderY)
 }
 
 func (bg *builderGame) Update() error {
@@ -318,17 +359,20 @@ func (bg *builderGame) Update() error {
 	} else if bg.turnRight.Update().Clicked {
 		bg.rotateRight()
 	}
+	bg.speedSlider.Update()
 
 	if bg.animation != "" {
 		bg.ticks++
 		if bg.ticks > bg.animationTickCount {
 			bg.ticks = 0
 			bg.bodySet.nextFrame(bg.animation)
+			bg.armsSet.nextFrame(bg.animation)
 		}
 
 		bg.bodyImg = bg.bodySet.getCurrentFrame(bg.currentDirection, bg.animation)
 		bg.eyesImg = bg.eyesSet.getCurrentFrame(bg.currentDirection, bg.animation)
 		bg.hairImg = bg.hairSet.getCurrentFrame(bg.currentDirection, bg.animation)
+		bg.armsImg = bg.armsSet.getCurrentFrame(bg.currentDirection, bg.animation)
 
 		bg.nonBodyYOffset = bg.bodySet.getCurrentYOffset(bg.animation)
 	}
@@ -366,6 +410,7 @@ func (bg *builderGame) setDirection(dir byte) {
 	bg.bodySet.animIndex = 0
 	bg.eyesSet.animIndex = 0
 	bg.hairSet.animIndex = 0
+	bg.armsSet.animIndex = 0
 
 	switch dir {
 	case 'U':
@@ -373,21 +418,25 @@ func (bg *builderGame) setDirection(dir byte) {
 		bg.bodyImg = bg.bodySet.WalkAnimation.U[0]
 		bg.eyesImg = nil
 		bg.hairImg = bg.hairSet.WalkAnimation.U[0]
+		bg.armsImg = bg.armsSet.WalkAnimation.U[0]
 	case 'R':
 		bg.currentDirection = 'R'
 		bg.bodyImg = bg.bodySet.WalkAnimation.R[0]
 		bg.eyesImg = bg.eyesSet.WalkAnimation.R[0]
 		bg.hairImg = bg.hairSet.WalkAnimation.R[0]
+		bg.armsImg = bg.armsSet.WalkAnimation.R[0]
 	case 'D':
 		bg.currentDirection = 'D'
 		bg.bodyImg = bg.bodySet.WalkAnimation.D[0]
 		bg.eyesImg = bg.eyesSet.WalkAnimation.D[0]
 		bg.hairImg = bg.hairSet.WalkAnimation.D[0]
+		bg.armsImg = bg.armsSet.WalkAnimation.D[0]
 	case 'L':
 		bg.currentDirection = 'L'
 		bg.bodyImg = bg.bodySet.WalkAnimation.L[0]
 		bg.eyesImg = bg.eyesSet.WalkAnimation.L[0]
 		bg.hairImg = bg.hairSet.WalkAnimation.L[0]
+		bg.armsImg = bg.armsSet.WalkAnimation.L[0]
 	default:
 		panic("direction not recognized")
 	}
