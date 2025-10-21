@@ -16,6 +16,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/internal/ui/button"
+	"github.com/webbben/2d-game-engine/internal/ui/dropdown"
 	"github.com/webbben/2d-game-engine/internal/ui/slider"
 )
 
@@ -76,10 +77,11 @@ type builderGame struct {
 	hairSet bodyPartSet
 	armsSet bodyPartSet
 
-	turnLeft    *button.Button
-	turnRight   *button.Button
-	speedSlider slider.Slider
-	scaleSlider slider.Slider
+	turnLeft          *button.Button
+	turnRight         *button.Button
+	speedSlider       slider.Slider
+	scaleSlider       slider.Slider
+	animationSelector dropdown.OptionSelect
 }
 
 func characterBuilder() {
@@ -175,6 +177,16 @@ func characterBuilder() {
 		MaxVal:        10,
 		InitialValue:  8,
 		StepSize:      1,
+	})
+
+	g.animationSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
+		Font:                  config.DefaultFont,
+		Options:               []string{"walk", "run"},
+		InitialOptionIndex:    0,
+		TilesetSrc:            "ui/ui-components.tsj",
+		OriginIndex:           288,
+		DropDownBoxTilesetSrc: "boxes/boxes.tsj",
+		DropDownBoxOrigin:     128,
 	})
 
 	if err := ebiten.RunGame(&g); err != nil {
@@ -369,6 +381,10 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	text.DrawShadowText(screen, "Scale", config.DefaultTitleFont, sliderX, scaleSliderY, color.White, nil, 0, 0)
 	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.scaleSlider.GetValue()), config.DefaultFont, sliderX-40, scaleSliderY+(tileSize*2/3), color.White, nil, 0, 0)
 	bg.scaleSlider.Draw(screen, float64(sliderX), float64(scaleSliderY))
+
+	animationSelectorY := 300
+	text.DrawShadowText(screen, "Animation", config.DefaultTitleFont, sliderX, animationSelectorY, color.White, nil, 0, 0)
+	bg.animationSelector.Draw(screen, float64(sliderX), float64(animationSelectorY), nil)
 }
 
 func (bg *builderGame) Update() error {
@@ -379,6 +395,9 @@ func (bg *builderGame) Update() error {
 	}
 	bg.speedSlider.Update()
 	bg.scaleSlider.Update()
+
+	bg.animationSelector.Update()
+	bg.animation = bg.animationSelector.GetCurrentValue()
 
 	bg.animationTickCount = bg.speedSlider.GetValue()
 
