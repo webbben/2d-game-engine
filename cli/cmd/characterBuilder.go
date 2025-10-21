@@ -79,6 +79,7 @@ type builderGame struct {
 	turnLeft    *button.Button
 	turnRight   *button.Button
 	speedSlider slider.Slider
+	scaleSlider slider.Slider
 }
 
 func characterBuilder() {
@@ -160,9 +161,19 @@ func characterBuilder() {
 		TilesetSrc:    "ui/ui-components.tsj",
 		TilesetOrigin: 256,
 		TileWidth:     4,
-		MinVal:        10,
+		MinVal:        5,
 		MaxVal:        20,
-		InitialValue:  15,
+		InitialValue:  8,
+		StepSize:      1,
+	})
+
+	g.scaleSlider = slider.NewSlider(slider.SliderParams{
+		TilesetSrc:    "ui/ui-components.tsj",
+		TilesetOrigin: 256,
+		TileWidth:     4,
+		MinVal:        3,
+		MaxVal:        10,
+		InitialValue:  8,
 		StepSize:      1,
 	})
 
@@ -322,7 +333,7 @@ func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, fli
 }
 
 func (bg *builderGame) Draw(screen *ebiten.Image) {
-	var characterScale float64 = 10
+	var characterScale float64 = float64(bg.scaleSlider.GetValue())
 
 	tileSize := int(config.TileSize * config.UIScale)
 
@@ -348,9 +359,16 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	bg.turnLeft.Draw(screen, buttonLX, int(buttonsY))
 	bg.turnRight.Draw(screen, buttonRX, int(buttonsY))
 
-	sliderY := buttonsY + float64(tileSize*2)
-	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.speedSlider.GetValue()), config.DefaultFont, buttonLX-20, int(sliderY), color.White, nil, 0, 0)
-	bg.speedSlider.Draw(screen, float64(buttonLX), sliderY)
+	sliderX := 100
+	sliderY := 100
+	text.DrawShadowText(screen, "Ticks Per Frame", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.speedSlider.GetValue()), config.DefaultFont, sliderX-40, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
+	bg.speedSlider.Draw(screen, float64(sliderX), float64(sliderY))
+
+	scaleSliderY := 200
+	text.DrawShadowText(screen, "Scale", config.DefaultTitleFont, sliderX, scaleSliderY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.scaleSlider.GetValue()), config.DefaultFont, sliderX-40, scaleSliderY+(tileSize*2/3), color.White, nil, 0, 0)
+	bg.scaleSlider.Draw(screen, float64(sliderX), float64(scaleSliderY))
 }
 
 func (bg *builderGame) Update() error {
@@ -360,6 +378,9 @@ func (bg *builderGame) Update() error {
 		bg.rotateRight()
 	}
 	bg.speedSlider.Update()
+	bg.scaleSlider.Update()
+
+	bg.animationTickCount = bg.speedSlider.GetValue()
 
 	if bg.animation != "" {
 		bg.ticks++
