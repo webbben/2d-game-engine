@@ -181,7 +181,7 @@ func characterBuilder() {
 
 	g.animationSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
-		Options:               []string{"walk", "run"},
+		Options:               []string{"", "walk", "run"},
 		InitialOptionIndex:    0,
 		TilesetSrc:            "ui/ui-components.tsj",
 		OriginIndex:           288,
@@ -228,6 +228,8 @@ func (set bodyPartSet) getCurrentFrame(dir byte, animationName string) *ebiten.I
 			return set.WalkAnimation.L[set.animIndex]
 		case "run":
 			return set.RunAnimation.L[set.animIndex]
+		case "":
+			return set.WalkAnimation.L[0]
 		}
 	case 'R':
 		switch animationName {
@@ -235,6 +237,8 @@ func (set bodyPartSet) getCurrentFrame(dir byte, animationName string) *ebiten.I
 			return set.WalkAnimation.R[set.animIndex]
 		case "run":
 			return set.RunAnimation.R[set.animIndex]
+		case "":
+			return set.WalkAnimation.R[0]
 		}
 	case 'U':
 		if !set.HasUp {
@@ -245,6 +249,8 @@ func (set bodyPartSet) getCurrentFrame(dir byte, animationName string) *ebiten.I
 			return set.WalkAnimation.U[set.animIndex]
 		case "run":
 			return set.RunAnimation.U[set.animIndex]
+		case "":
+			return set.WalkAnimation.U[0]
 		}
 	case 'D':
 		switch animationName {
@@ -252,6 +258,8 @@ func (set bodyPartSet) getCurrentFrame(dir byte, animationName string) *ebiten.I
 			return set.WalkAnimation.D[set.animIndex]
 		case "run":
 			return set.RunAnimation.D[set.animIndex]
+		case "":
+			return set.WalkAnimation.D[0]
 		}
 	default:
 		panic("invalid direction")
@@ -397,7 +405,10 @@ func (bg *builderGame) Update() error {
 	bg.scaleSlider.Update()
 
 	bg.animationSelector.Update()
-	bg.animation = bg.animationSelector.GetCurrentValue()
+	selectorValue := bg.animationSelector.GetCurrentValue()
+	if selectorValue != bg.animation {
+		bg.setAnimation(selectorValue)
+	}
 
 	bg.animationTickCount = bg.speedSlider.GetValue()
 
@@ -408,16 +419,24 @@ func (bg *builderGame) Update() error {
 			bg.bodySet.nextFrame(bg.animation)
 			bg.armsSet.nextFrame(bg.animation)
 		}
-
-		bg.bodyImg = bg.bodySet.getCurrentFrame(bg.currentDirection, bg.animation)
-		bg.eyesImg = bg.eyesSet.getCurrentFrame(bg.currentDirection, bg.animation)
-		bg.hairImg = bg.hairSet.getCurrentFrame(bg.currentDirection, bg.animation)
-		bg.armsImg = bg.armsSet.getCurrentFrame(bg.currentDirection, bg.animation)
-
-		bg.nonBodyYOffset = bg.bodySet.getCurrentYOffset(bg.animation)
 	}
 
+	bg.bodyImg = bg.bodySet.getCurrentFrame(bg.currentDirection, bg.animation)
+	bg.eyesImg = bg.eyesSet.getCurrentFrame(bg.currentDirection, bg.animation)
+	bg.hairImg = bg.hairSet.getCurrentFrame(bg.currentDirection, bg.animation)
+	bg.armsImg = bg.armsSet.getCurrentFrame(bg.currentDirection, bg.animation)
+
+	bg.nonBodyYOffset = bg.bodySet.getCurrentYOffset(bg.animation)
+
 	return nil
+}
+
+func (bg *builderGame) setAnimation(animation string) {
+	bg.animation = animation
+	bg.bodySet.animIndex = 0
+	bg.eyesSet.animIndex = 0
+	bg.hairSet.animIndex = 0
+	bg.armsSet.animIndex = 0
 }
 
 func (bg *builderGame) rotateLeft() {

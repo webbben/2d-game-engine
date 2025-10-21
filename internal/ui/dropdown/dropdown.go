@@ -92,8 +92,10 @@ func NewOptionSelect(params OptionSelectParams) OptionSelect {
 
 	// make buttons for each option
 	os.optionButtons = make([]*button.Button, 0)
+	buttonWidth := totalWidth - (tileSize / 2)
+	buttonHeight := tileSize - (tileSize / 8)
 	for _, s := range params.Options {
-		os.optionButtons = append(os.optionButtons, button.NewButton(s, config.DefaultFont, totalWidth-tileSize, tileSize))
+		os.optionButtons = append(os.optionButtons, button.NewButton(s, config.DefaultFont, buttonWidth, buttonHeight))
 	}
 
 	return os
@@ -127,8 +129,7 @@ func (os *OptionSelect) Draw(screen *ebiten.Image, x, y float64, om *overlay.Ove
 	rendering.DrawImage(screen, os.barImg, x, y, 0)
 
 	// draw current value
-	currentVal := os.GetCurrentValue()
-	_, dy, _ := text.GetStringSize(currentVal, os.f)
+	dy, _ := text.GetRealisticFontMetrics(os.f)
 	sY := int(y+(tileSize/2)) + (dy / 2)
 	sX := x + (tileSize / 2)
 	text.DrawShadowText(screen, os.GetCurrentValue(), os.f, int(sX), sY, nil, nil, 0, 0)
@@ -136,7 +137,9 @@ func (os *OptionSelect) Draw(screen *ebiten.Image, x, y float64, om *overlay.Ove
 	if os.optionWindowOpen {
 		rendering.DrawImage(screen, os.dropDownBox, x, y+tileSize, 0)
 		for i, optionButton := range os.optionButtons {
-			optionButton.Draw(screen, int(x), int(y+tileSize)+(i*int(tileSize)))
+			marginHeight := (tileSize / 8) / 2
+			bY := int(y+tileSize) + (i * int(tileSize)) + int(marginHeight)
+			optionButton.Draw(screen, int(x+(tileSize/4)), int(bY))
 		}
 	}
 }
