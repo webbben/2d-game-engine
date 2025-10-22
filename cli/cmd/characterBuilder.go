@@ -77,10 +77,11 @@ type builderGame struct {
 	hairSet bodyPartSet
 	armsSet bodyPartSet
 
+	weaponSet bodyPartSet
+
 	equipBodySet bodyPartSet
 	equipBodyImg *ebiten.Image
-	equipArmsSet bodyPartSet
-	equipArmsImg *ebiten.Image
+	weaponImg    *ebiten.Image
 
 	turnLeft          *button.Button
 	turnRight         *button.Button
@@ -94,6 +95,7 @@ func characterBuilder() {
 	eyesTileset := "entities/parts/eyes.tsj"
 	hairTileset := "entities/parts/hair.tsj"
 	equipBodyTileset := "items/equiped_body_01.tsj"
+	equipWeaponTileset := "items/equiped_weapon_48x48.tsj"
 
 	g := builderGame{
 		animation:          "run",
@@ -109,8 +111,6 @@ func characterBuilder() {
 				StepsOffsetY: []int{1, 0, 1},
 			},
 			RunAnimation: Animation{
-				// TileSteps:    []int{1, 3, 0, 2, 4},
-				// StepsOffsetY: []int{1, 0, 0, 1, 0},
 				TileSteps:    []int{3, 1, 0, 4, 2},
 				StepsOffsetY: []int{0, 1, 0, 0, 1},
 			},
@@ -127,8 +127,6 @@ func characterBuilder() {
 				StepsOffsetY: []int{1, 0, 1},
 			},
 			RunAnimation: Animation{
-				// TileSteps:    []int{1, 3, 0, 2, 4},
-				// StepsOffsetY: []int{1, 0, 0, 1, 0},
 				TileSteps:    []int{3, 1, 0, 4, 2},
 				StepsOffsetY: []int{0, 1, 0, 0, 1},
 			},
@@ -159,26 +157,22 @@ func characterBuilder() {
 				StepsOffsetY: []int{1, 0, 1},
 			},
 			RunAnimation: Animation{
-				// TileSteps:    []int{1, 3, 0, 2, 4},
-				// StepsOffsetY: []int{1, 0, 0, 1, 0},
 				TileSteps:    []int{3, 1, 0, 4, 2},
 				StepsOffsetY: []int{0, 1, 0, 0, 1},
 			},
 			HasUp:     true,
 			FlipRForL: true,
 		},
-		equipArmsSet: bodyPartSet{
-			TilesetSrc: equipBodyTileset,
-			DStart:     32,
-			RStart:     5 + 32,
-			UStart:     10 + 32,
+		weaponSet: bodyPartSet{
+			TilesetSrc: equipWeaponTileset,
+			DStart:     0,
+			RStart:     5,
+			UStart:     10,
 			WalkAnimation: Animation{
 				TileSteps:    []int{1, 0, 2},
 				StepsOffsetY: []int{1, 0, 1},
 			},
 			RunAnimation: Animation{
-				// TileSteps:    []int{1, 3, 0, 2, 4},
-				// StepsOffsetY: []int{1, 0, 0, 1, 0},
 				TileSteps:    []int{3, 1, 0, 4, 2},
 				StepsOffsetY: []int{0, 1, 0, 0, 1},
 			},
@@ -193,7 +187,7 @@ func characterBuilder() {
 	g.hairSet.Load()
 
 	g.equipBodySet.Load()
-	g.equipArmsSet.Load()
+	g.weaponSet.Load()
 
 	g.setDirection('D')
 
@@ -399,6 +393,7 @@ func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, fli
 
 func (bg *builderGame) Draw(screen *ebiten.Image) {
 	var characterScale float64 = float64(bg.scaleSlider.GetValue())
+	characterTileSize := config.TileSize * characterScale
 
 	tileSize := int(config.TileSize * config.UIScale)
 
@@ -407,20 +402,36 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 
 	bodyX := float64(display.SCREEN_WIDTH/2) - (bodyWidth / 2)
 	bodyY := float64(display.SCREEN_HEIGHT/2) - (bodyHeight / 2)
+
+	// Body
 	rendering.DrawImage(screen, bg.bodyImg, bodyX, bodyY, characterScale)
+	// Arms
+	rendering.DrawImage(screen, bg.armsImg, bodyX, bodyY, characterScale)
+	// Equip Body
 	rendering.DrawImage(screen, bg.equipBodyImg, bodyX, bodyY, characterScale)
 
-	rendering.DrawImage(screen, bg.armsImg, bodyX, bodyY, characterScale)
-	rendering.DrawImage(screen, bg.equipArmsImg, bodyX, bodyY, characterScale)
-
+	// Eyes
 	eyesX := bodyX
 	eyesY := bodyY + (float64(bg.nonBodyYOffset) * characterScale)
 	if bg.eyesImg != nil {
 		rendering.DrawImage(screen, bg.eyesImg, eyesX, eyesY, characterScale)
 	}
-
+	// Hair
 	hairY := bodyY + (float64(bg.nonBodyYOffset) * characterScale)
 	rendering.DrawImage(screen, bg.hairImg, bodyX, hairY, characterScale)
+
+	// Equip Weapon
+	if bg.weaponImg != nil {
+		// weapon sets are 48x48 (3x tilesize) to give extra space for animations
+		// player is typically based on bottom left
+		// if flipping right frames for left frames, we also need to shift the x position
+		weaponY := bodyY - (characterTileSize)
+		weaponX := bodyX
+		if bg.weaponSet.FlipRForL && bg.currentDirection == 'L' {
+			weaponX -= (characterTileSize * 2)
+		}
+		rendering.DrawImage(screen, bg.weaponImg, weaponX, weaponY, characterScale)
+	}
 
 	buttonsY := bodyY + (bodyHeight) + 20
 	buttonLX := (display.SCREEN_WIDTH / 2) - bg.turnLeft.Width - 20
@@ -468,7 +479,7 @@ func (bg *builderGame) Update() error {
 			bg.bodySet.nextFrame(bg.animation)
 			bg.armsSet.nextFrame(bg.animation)
 			bg.equipBodySet.nextFrame(bg.animation)
-			bg.equipArmsSet.nextFrame(bg.animation)
+			bg.weaponSet.nextFrame(bg.animation)
 		}
 	}
 
@@ -478,7 +489,7 @@ func (bg *builderGame) Update() error {
 	bg.armsImg = bg.armsSet.getCurrentFrame(bg.currentDirection, bg.animation)
 
 	bg.equipBodyImg = bg.equipBodySet.getCurrentFrame(bg.currentDirection, bg.animation)
-	bg.equipArmsImg = bg.equipArmsSet.getCurrentFrame(bg.currentDirection, bg.animation)
+	bg.weaponImg = bg.weaponSet.getCurrentFrame(bg.currentDirection, bg.animation)
 
 	bg.nonBodyYOffset = bg.bodySet.getCurrentYOffset(bg.animation)
 
@@ -493,7 +504,7 @@ func (bg *builderGame) setAnimation(animation string) {
 	bg.armsSet.animIndex = 0
 
 	bg.equipBodySet.animIndex = 0
-	bg.equipArmsSet.animIndex = 0
+	bg.weaponSet.animIndex = 0
 }
 
 func (bg *builderGame) rotateLeft() {
@@ -529,7 +540,7 @@ func (bg *builderGame) setDirection(dir byte) {
 	bg.armsSet.animIndex = 0
 
 	bg.equipBodySet.animIndex = 0
-	bg.equipArmsSet.animIndex = 0
+	bg.weaponSet.animIndex = 0
 
 	switch dir {
 	case 'U':
@@ -540,7 +551,7 @@ func (bg *builderGame) setDirection(dir byte) {
 		bg.armsImg = bg.armsSet.WalkAnimation.U[0]
 
 		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.U[0]
-		bg.equipArmsImg = bg.equipArmsSet.WalkAnimation.U[0]
+		bg.weaponImg = bg.weaponSet.WalkAnimation.U[0]
 	case 'R':
 		bg.currentDirection = 'R'
 		bg.bodyImg = bg.bodySet.WalkAnimation.R[0]
@@ -549,7 +560,7 @@ func (bg *builderGame) setDirection(dir byte) {
 		bg.armsImg = bg.armsSet.WalkAnimation.R[0]
 
 		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.R[0]
-		bg.equipArmsImg = bg.equipArmsSet.WalkAnimation.R[0]
+		bg.weaponImg = bg.weaponSet.WalkAnimation.R[0]
 	case 'D':
 		bg.currentDirection = 'D'
 		bg.bodyImg = bg.bodySet.WalkAnimation.D[0]
@@ -558,7 +569,7 @@ func (bg *builderGame) setDirection(dir byte) {
 		bg.armsImg = bg.armsSet.WalkAnimation.D[0]
 
 		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.D[0]
-		bg.equipArmsImg = bg.equipArmsSet.WalkAnimation.D[0]
+		bg.weaponImg = bg.weaponSet.WalkAnimation.D[0]
 	case 'L':
 		bg.currentDirection = 'L'
 		bg.bodyImg = bg.bodySet.WalkAnimation.L[0]
@@ -567,7 +578,7 @@ func (bg *builderGame) setDirection(dir byte) {
 		bg.armsImg = bg.armsSet.WalkAnimation.L[0]
 
 		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.L[0]
-		bg.equipArmsImg = bg.equipArmsSet.WalkAnimation.L[0]
+		bg.weaponImg = bg.weaponSet.WalkAnimation.L[0]
 	default:
 		panic("direction not recognized")
 	}
