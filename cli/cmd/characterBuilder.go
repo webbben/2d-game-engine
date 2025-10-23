@@ -103,9 +103,10 @@ func characterBuilder() {
 		currentDirection:   'D',
 		bodySet: bodyPartSet{
 			TilesetSrc: bodyTileset,
-			DStart:     32,
-			RStart:     37,
-			UStart:     42,
+			DStart:     0,
+			RStart:     5,
+			LStart:     10,
+			UStart:     15,
 			WalkAnimation: Animation{
 				TileSteps:    []int{1, 0, 2},
 				StepsOffsetY: []int{1, 0, 1},
@@ -114,14 +115,14 @@ func characterBuilder() {
 				TileSteps:    []int{3, 1, 0, 4, 2},
 				StepsOffsetY: []int{0, 1, 0, 0, 1},
 			},
-			HasUp:     true,
-			FlipRForL: true,
+			HasUp: true,
 		},
 		armsSet: bodyPartSet{
 			TilesetSrc: bodyTileset,
-			DStart:     32 + 32,
-			RStart:     37 + 32,
-			UStart:     42 + 32,
+			DStart:     44,
+			RStart:     44 + 5,
+			LStart:     44 + 10,
+			UStart:     44 + 15,
 			WalkAnimation: Animation{
 				TileSteps:    []int{1, 0, 2},
 				StepsOffsetY: []int{1, 0, 1},
@@ -130,8 +131,7 @@ func characterBuilder() {
 				TileSteps:    []int{3, 1, 0, 4, 2},
 				StepsOffsetY: []int{0, 1, 0, 0, 1},
 			},
-			HasUp:     true,
-			FlipRForL: true,
+			HasUp: true,
 		},
 		eyesSet: bodyPartSet{
 			TilesetSrc: eyesTileset,
@@ -151,7 +151,8 @@ func characterBuilder() {
 			TilesetSrc: equipBodyTileset,
 			DStart:     0,
 			RStart:     5,
-			UStart:     10,
+			LStart:     10,
+			UStart:     15,
 			WalkAnimation: Animation{
 				TileSteps:    []int{1, 0, 2},
 				StepsOffsetY: []int{1, 0, 1},
@@ -160,14 +161,14 @@ func characterBuilder() {
 				TileSteps:    []int{3, 1, 0, 4, 2},
 				StepsOffsetY: []int{0, 1, 0, 0, 1},
 			},
-			HasUp:     true,
-			FlipRForL: true,
+			HasUp: true,
 		},
 		weaponSet: bodyPartSet{
 			TilesetSrc: equipWeaponTileset,
 			DStart:     0,
 			RStart:     5,
-			UStart:     10,
+			LStart:     10,
+			UStart:     15,
 			WalkAnimation: Animation{
 				TileSteps:    []int{1, 0, 2},
 				StepsOffsetY: []int{1, 0, 1},
@@ -176,8 +177,7 @@ func characterBuilder() {
 				TileSteps:    []int{3, 1, 0, 4, 2},
 				StepsOffsetY: []int{0, 1, 0, 0, 1},
 			},
-			HasUp:     true,
-			FlipRForL: true,
+			HasUp: true,
 		},
 	}
 
@@ -427,7 +427,7 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 		// if flipping right frames for left frames, we also need to shift the x position
 		weaponY := bodyY - (characterTileSize)
 		weaponX := bodyX
-		if bg.weaponSet.FlipRForL && bg.currentDirection == 'L' {
+		if bg.currentDirection == 'L' {
 			weaponX -= (characterTileSize * 2)
 		}
 		rendering.DrawImage(screen, bg.weaponImg, weaponX, weaponY, characterScale)
