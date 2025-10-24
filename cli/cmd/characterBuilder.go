@@ -70,6 +70,7 @@ type builderGame struct {
 	eyesImg            *ebiten.Image
 	hairImg            *ebiten.Image
 	armsImg            *ebiten.Image
+	weaponFxImg        *ebiten.Image
 	nonBodyYOffset     int
 
 	bodySet bodyPartSet
@@ -77,7 +78,8 @@ type builderGame struct {
 	hairSet bodyPartSet
 	armsSet bodyPartSet
 
-	weaponSet bodyPartSet
+	weaponSet   bodyPartSet
+	weaponFxSet bodyPartSet
 
 	equipBodySet bodyPartSet
 	equipBodyImg *ebiten.Image
@@ -90,12 +92,21 @@ type builderGame struct {
 	animationSelector dropdown.OptionSelect
 }
 
+const (
+	anim_walk  = "walk"
+	anim_run   = "run"
+	anim_slash = "slash"
+	anim_stab  = "stab"
+)
+
 func characterBuilder() {
 	bodyTileset := "entities/parts/body.tsj"
+	armsTileset := "entities/parts/arms.tsj"
 	eyesTileset := "entities/parts/eyes.tsj"
 	hairTileset := "entities/parts/hair.tsj"
 	equipBodyTileset := "items/equiped_body_01.tsj"
-	equipWeaponTileset := "items/equiped_weapon_48x48.tsj"
+	equipWeaponTileset := "items/weapon_frames.tsj"
+	weaponFxTileset := "items/weapon_fx_frames.tsj"
 
 	g := builderGame{
 		animation:          "run",
@@ -104,32 +115,37 @@ func characterBuilder() {
 		bodySet: bodyPartSet{
 			TilesetSrc: bodyTileset,
 			DStart:     0,
-			RStart:     5,
-			LStart:     10,
-			UStart:     15,
+			RStart:     13,
+			LStart:     26,
+			UStart:     39,
 			WalkAnimation: Animation{
-				TileSteps:    []int{1, 0, 2},
+				TileSteps:    []int{2, 0, 4},
 				StepsOffsetY: []int{1, 0, 1},
 			},
 			RunAnimation: Animation{
-				TileSteps:    []int{3, 1, 0, 4, 2},
+				TileSteps:    []int{1, 2, 0, 3, 4},
 				StepsOffsetY: []int{0, 1, 0, 0, 1},
+			},
+			SlashAnimation: Animation{
+				TileSteps:    []int{5, 6, 7, 8},
+				StepsOffsetY: []int{1, 2, 2, 2},
 			},
 			HasUp: true,
 		},
 		armsSet: bodyPartSet{
-			TilesetSrc: bodyTileset,
-			DStart:     44,
-			RStart:     44 + 5,
-			LStart:     44 + 10,
-			UStart:     44 + 15,
+			TilesetSrc: armsTileset,
+			DStart:     0,
+			RStart:     13,
+			LStart:     26,
+			UStart:     39,
 			WalkAnimation: Animation{
-				TileSteps:    []int{1, 0, 2},
-				StepsOffsetY: []int{1, 0, 1},
+				TileSteps: []int{2, 0, 4},
 			},
 			RunAnimation: Animation{
-				TileSteps:    []int{3, 1, 0, 4, 2},
-				StepsOffsetY: []int{0, 1, 0, 0, 1},
+				TileSteps: []int{1, 2, 0, 3, 4},
+			},
+			SlashAnimation: Animation{
+				TileSteps: []int{5, 6, 7, 8},
 			},
 			HasUp: true,
 		},
@@ -150,34 +166,48 @@ func characterBuilder() {
 		equipBodySet: bodyPartSet{
 			TilesetSrc: equipBodyTileset,
 			DStart:     0,
-			RStart:     5,
-			LStart:     10,
-			UStart:     15,
+			RStart:     13,
+			LStart:     26,
+			UStart:     39,
 			WalkAnimation: Animation{
-				TileSteps:    []int{1, 0, 2},
-				StepsOffsetY: []int{1, 0, 1},
+				TileSteps: []int{2, 0, 4},
 			},
 			RunAnimation: Animation{
-				TileSteps:    []int{3, 1, 0, 4, 2},
-				StepsOffsetY: []int{0, 1, 0, 0, 1},
+				TileSteps: []int{1, 2, 0, 3, 4},
+			},
+			SlashAnimation: Animation{
+				TileSteps: []int{5, 6, 7, 8},
 			},
 			HasUp: true,
 		},
 		weaponSet: bodyPartSet{
 			TilesetSrc: equipWeaponTileset,
 			DStart:     0,
-			RStart:     5,
-			LStart:     10,
-			UStart:     15,
+			RStart:     13,
+			LStart:     26,
+			UStart:     39,
 			WalkAnimation: Animation{
-				TileSteps:    []int{1, 0, 2},
-				StepsOffsetY: []int{1, 0, 1},
+				TileSteps: []int{2, 0, 4},
 			},
 			RunAnimation: Animation{
-				TileSteps:    []int{3, 1, 0, 4, 2},
-				StepsOffsetY: []int{0, 1, 0, 0, 1},
+				TileSteps: []int{1, 2, 0, 3, 4},
+			},
+			SlashAnimation: Animation{
+				TileSteps: []int{5, 6, 7, 8},
 			},
 			HasUp: true,
+		},
+		weaponFxSet: bodyPartSet{
+			TilesetSrc: weaponFxTileset,
+			DStart:     0,
+			RStart:     6,
+			LStart:     12,
+			UStart:     18,
+			SlashAnimation: Animation{
+				TileSteps: []int{-1, 0, 1, 2}, // -1 = skip a frame (nil image)
+			},
+			WalkAnimation: Animation{Skip: true},
+			RunAnimation:  Animation{Skip: true},
 		},
 	}
 
@@ -188,6 +218,8 @@ func characterBuilder() {
 
 	g.equipBodySet.Load()
 	g.weaponSet.Load()
+	g.weaponFxSet.Load()
+	fmt.Println("len:", len(g.weaponFxSet.WalkAnimation.D))
 
 	g.setDirection('D')
 
@@ -220,7 +252,7 @@ func characterBuilder() {
 
 	g.animationSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
-		Options:               []string{"", "walk", "run"},
+		Options:               []string{"", anim_walk, anim_run, anim_slash, anim_stab},
 		InitialOptionIndex:    0,
 		TilesetSrc:            "ui/ui-components.tsj",
 		OriginIndex:           288,
@@ -240,6 +272,7 @@ each body part:
 */
 
 type Animation struct {
+	Skip         bool // if true, this animation does not get defined
 	L            []*ebiten.Image
 	R            []*ebiten.Image
 	U            []*ebiten.Image
@@ -250,61 +283,56 @@ type Animation struct {
 
 // represents either the head, body, eyes, or hair
 type bodyPartSet struct {
+	TileSize                       int
 	animIndex                      int
 	TilesetSrc                     string
 	RStart, LStart, UStart, DStart int
 	FlipRForL                      bool // if true, instead of using an L source, we just flip the frames for right
 	WalkAnimation                  Animation
 	RunAnimation                   Animation
+	SlashAnimation                 Animation
 	HasUp                          bool
 }
 
-func (set bodyPartSet) getCurrentFrame(dir byte, animationName string) *ebiten.Image {
+func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 	switch dir {
 	case 'L':
-		switch animationName {
-		case "walk":
-			return set.WalkAnimation.L[set.animIndex]
-		case "run":
-			return set.RunAnimation.L[set.animIndex]
-		case "":
-			return set.WalkAnimation.L[0]
-		}
-	case 'R':
-		switch animationName {
-		case "walk":
-			return set.WalkAnimation.R[set.animIndex]
-		case "run":
-			return set.RunAnimation.R[set.animIndex]
-		case "":
-			return set.WalkAnimation.R[0]
-		}
-	case 'U':
-		if !set.HasUp {
+		if len(a.L) == 0 {
 			return nil
 		}
-		switch animationName {
-		case "walk":
-			return set.WalkAnimation.U[set.animIndex]
-		case "run":
-			return set.RunAnimation.U[set.animIndex]
-		case "":
-			return set.WalkAnimation.U[0]
+		return a.L[animationIndex]
+	case 'R':
+		if len(a.R) == 0 {
+			return nil
 		}
+		return a.R[animationIndex]
+	case 'U':
+		if len(a.U) == 0 {
+			return nil
+		}
+		return a.U[animationIndex]
 	case 'D':
-		switch animationName {
-		case "walk":
-			return set.WalkAnimation.D[set.animIndex]
-		case "run":
-			return set.RunAnimation.D[set.animIndex]
-		case "":
-			return set.WalkAnimation.D[0]
+		if len(a.D) == 0 {
+			return nil
 		}
-	default:
-		panic("invalid direction")
+		return a.D[animationIndex]
 	}
+	panic("unrecognized direction")
+}
 
-	panic("invalid animation name")
+func (set bodyPartSet) getCurrentFrame(dir byte, animationName string) *ebiten.Image {
+	switch animationName {
+	case anim_walk:
+		return set.WalkAnimation.getFrame(dir, set.animIndex)
+	case anim_run:
+		return set.RunAnimation.getFrame(dir, set.animIndex)
+	case anim_slash:
+		return set.SlashAnimation.getFrame(dir, set.animIndex)
+	case "":
+		return set.WalkAnimation.getFrame(dir, 0)
+	default:
+		panic("unrecognized animation name: " + animationName)
+	}
 }
 
 func (set bodyPartSet) getCurrentYOffset(animationName string) int {
@@ -312,13 +340,17 @@ func (set bodyPartSet) getCurrentYOffset(animationName string) int {
 		return 0
 	}
 	switch animationName {
-	case "walk":
+	case anim_walk:
 		if len(set.WalkAnimation.StepsOffsetY) > 0 {
 			return set.WalkAnimation.StepsOffsetY[set.animIndex-1]
 		}
-	case "run":
+	case anim_run:
 		if len(set.RunAnimation.StepsOffsetY) > 0 {
 			return set.RunAnimation.StepsOffsetY[set.animIndex-1]
+		}
+	case anim_slash:
+		if len(set.SlashAnimation.StepsOffsetY) > 0 {
+			return set.SlashAnimation.StepsOffsetY[set.animIndex-1]
 		}
 	}
 
@@ -328,50 +360,74 @@ func (set bodyPartSet) getCurrentYOffset(animationName string) int {
 func (set *bodyPartSet) nextFrame(animationName string) {
 	set.animIndex++
 	switch animationName {
-	case "walk":
+	case anim_walk:
 		if set.animIndex > len(set.WalkAnimation.TileSteps) {
 			set.animIndex = 0
 		}
-	case "run":
+	case anim_run:
 		if set.animIndex > len(set.RunAnimation.TileSteps) {
+			set.animIndex = 0
+		}
+	case anim_slash:
+		if set.animIndex > len(set.SlashAnimation.TileSteps) {
 			set.animIndex = 0
 		}
 	}
 }
 
+func (a *Animation) reset() {
+	a.L = make([]*ebiten.Image, 0)
+	a.R = make([]*ebiten.Image, 0)
+	a.U = make([]*ebiten.Image, 0)
+	a.D = make([]*ebiten.Image, 0)
+}
+
 func (set *bodyPartSet) Load() {
-	set.WalkAnimation.L = make([]*ebiten.Image, 0)
-	set.WalkAnimation.R = make([]*ebiten.Image, 0)
-	set.WalkAnimation.U = make([]*ebiten.Image, 0)
-	set.WalkAnimation.D = make([]*ebiten.Image, 0)
-	set.RunAnimation.L = make([]*ebiten.Image, 0)
-	set.RunAnimation.R = make([]*ebiten.Image, 0)
-	set.RunAnimation.U = make([]*ebiten.Image, 0)
-	set.RunAnimation.D = make([]*ebiten.Image, 0)
+	set.WalkAnimation.reset()
+	set.RunAnimation.reset()
+	set.SlashAnimation.reset()
 
 	// walk animation
-	if set.FlipRForL {
-		set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, true)
-	} else {
-		set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.WalkAnimation.TileSteps, false)
+	if !set.WalkAnimation.Skip {
+		if set.FlipRForL {
+			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, true)
+		} else {
+			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.WalkAnimation.TileSteps, false)
+		}
+		set.WalkAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, false)
+		if set.HasUp {
+			set.WalkAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.WalkAnimation.TileSteps, false)
+		}
+		set.WalkAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.WalkAnimation.TileSteps, false)
 	}
-	set.WalkAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, false)
-	if set.HasUp {
-		set.WalkAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.WalkAnimation.TileSteps, false)
-	}
-	set.WalkAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.WalkAnimation.TileSteps, false)
 
 	// run animation
-	if set.FlipRForL {
-		set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, true)
-	} else {
-		set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.RunAnimation.TileSteps, false)
+	if !set.RunAnimation.Skip {
+		if set.FlipRForL {
+			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, true)
+		} else {
+			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.RunAnimation.TileSteps, false)
+		}
+		set.RunAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, false)
+		if set.HasUp {
+			set.RunAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.RunAnimation.TileSteps, false)
+		}
+		set.RunAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.RunAnimation.TileSteps, false)
 	}
-	set.RunAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, false)
-	if set.HasUp {
-		set.RunAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.RunAnimation.TileSteps, false)
+
+	// slash animation
+	if !set.SlashAnimation.Skip {
+		if set.FlipRForL {
+			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, true)
+		} else {
+			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.SlashAnimation.TileSteps, false)
+		}
+		set.SlashAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, false)
+		if set.HasUp {
+			set.SlashAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.SlashAnimation.TileSteps, false)
+		}
+		set.SlashAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.SlashAnimation.TileSteps, false)
 	}
-	set.RunAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.RunAnimation.TileSteps, false)
 }
 
 func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, flip bool) []*ebiten.Image {
@@ -382,6 +438,11 @@ func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, fli
 	}
 	frames = append(frames, img)
 	for _, step := range indexSteps {
+		if step == -1 {
+			// indicates a skip frame
+			frames = append(frames, nil)
+			continue
+		}
 		img := tiled.GetTileImage(tilesetSrc, startIndex+step)
 		if flip {
 			img = rendering.FlipHoriz(img)
@@ -422,15 +483,14 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 
 	// Equip Weapon
 	if bg.weaponImg != nil {
-		// weapon sets are 48x48 (3x tilesize) to give extra space for animations
-		// player is typically based on bottom left
-		// if flipping right frames for left frames, we also need to shift the x position
+		// weapons are in 80x80 (5 tiles width & height) tiles
+		// this is to accomodate for the extra space they need for their swings and stuff
 		weaponY := bodyY - (characterTileSize)
-		weaponX := bodyX
-		if bg.currentDirection == 'L' {
-			weaponX -= (characterTileSize * 2)
-		}
+		weaponX := bodyX - (characterTileSize * 2)
 		rendering.DrawImage(screen, bg.weaponImg, weaponX, weaponY, characterScale)
+		if bg.weaponFxImg != nil {
+			rendering.DrawImage(screen, bg.weaponFxImg, weaponX, weaponY, characterScale)
+		}
 	}
 
 	buttonsY := bodyY + (bodyHeight) + 20
@@ -480,6 +540,7 @@ func (bg *builderGame) Update() error {
 			bg.armsSet.nextFrame(bg.animation)
 			bg.equipBodySet.nextFrame(bg.animation)
 			bg.weaponSet.nextFrame(bg.animation)
+			bg.weaponFxSet.nextFrame(bg.animation)
 		}
 	}
 
@@ -490,6 +551,7 @@ func (bg *builderGame) Update() error {
 
 	bg.equipBodyImg = bg.equipBodySet.getCurrentFrame(bg.currentDirection, bg.animation)
 	bg.weaponImg = bg.weaponSet.getCurrentFrame(bg.currentDirection, bg.animation)
+	bg.weaponFxImg = bg.weaponFxSet.getCurrentFrame(bg.currentDirection, bg.animation)
 
 	bg.nonBodyYOffset = bg.bodySet.getCurrentYOffset(bg.animation)
 
@@ -505,6 +567,7 @@ func (bg *builderGame) setAnimation(animation string) {
 
 	bg.equipBodySet.animIndex = 0
 	bg.weaponSet.animIndex = 0
+	bg.weaponFxSet.animIndex = 0
 }
 
 func (bg *builderGame) rotateLeft() {
@@ -541,6 +604,7 @@ func (bg *builderGame) setDirection(dir byte) {
 
 	bg.equipBodySet.animIndex = 0
 	bg.weaponSet.animIndex = 0
+	bg.weaponFxSet.animIndex = 0
 
 	switch dir {
 	case 'U':
@@ -552,6 +616,7 @@ func (bg *builderGame) setDirection(dir byte) {
 
 		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.U[0]
 		bg.weaponImg = bg.weaponSet.WalkAnimation.U[0]
+		bg.weaponFxImg = nil
 	case 'R':
 		bg.currentDirection = 'R'
 		bg.bodyImg = bg.bodySet.WalkAnimation.R[0]
@@ -561,6 +626,7 @@ func (bg *builderGame) setDirection(dir byte) {
 
 		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.R[0]
 		bg.weaponImg = bg.weaponSet.WalkAnimation.R[0]
+		bg.weaponFxImg = nil
 	case 'D':
 		bg.currentDirection = 'D'
 		bg.bodyImg = bg.bodySet.WalkAnimation.D[0]
@@ -570,6 +636,7 @@ func (bg *builderGame) setDirection(dir byte) {
 
 		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.D[0]
 		bg.weaponImg = bg.weaponSet.WalkAnimation.D[0]
+		bg.weaponFxImg = nil
 	case 'L':
 		bg.currentDirection = 'L'
 		bg.bodyImg = bg.bodySet.WalkAnimation.L[0]
@@ -579,6 +646,7 @@ func (bg *builderGame) setDirection(dir byte) {
 
 		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.L[0]
 		bg.weaponImg = bg.weaponSet.WalkAnimation.L[0]
+		bg.weaponFxImg = nil
 	default:
 		panic("direction not recognized")
 	}

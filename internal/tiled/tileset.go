@@ -127,6 +127,13 @@ func (tileset *Tileset) GenerateTiles() error {
 	tileIndex := 0
 	for y := 0; y < imgHeight; y += tileset.TileHeight {
 		for x := 0; x < imgWidth; x += tileset.TileWidth {
+			if x+tileset.TileWidth > imgWidth {
+				// the image of the tileset does not evenly divide by the tile size;
+				// so, this last "tile" is actually a partial one that should be skipped.
+				// this is mainly because Tiled does not count these and skips over them.
+				logz.Println(tileset.Name, "tileset image does not evenly divide by tilesize. skipping a 'partial tile' at the end of a row.")
+				break
+			}
 			rect := image.Rect(x, y, x+tileset.TileWidth, y+tileset.TileHeight)
 
 			// extract the tile image
