@@ -50,16 +50,6 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(characterBuilderCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// characterBuilderCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// characterBuilderCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 type builderGame struct {
@@ -71,20 +61,32 @@ type builderGame struct {
 	eyesImg            *ebiten.Image
 	hairImg            *ebiten.Image
 	armsImg            *ebiten.Image
+	equipBodyImg       *ebiten.Image
+	weaponImg          *ebiten.Image
 	weaponFxImg        *ebiten.Image
 	nonBodyYOffset     int
 
-	bodySet bodyPartSet
-	eyesSet bodyPartSet
-	hairSet bodyPartSet
-	armsSet bodyPartSet
+	bodySet         bodyPartSet
+	bodyOptionIndex int
+	bodyOptions     []SelectedPartDef
+	eyesSet         bodyPartSet
+	eyesOptionIndex int
+	eyesOptions     []SelectedPartDef
+	hairSet         bodyPartSet
+	hairOptionIndex int
+	hairOptions     []SelectedPartDef
+	armsSet         bodyPartSet
+	armsOptionIndex int
+	armsOptions     []SelectedPartDef
 
-	weaponSet   bodyPartSet
-	weaponFxSet bodyPartSet
+	weaponSet         bodyPartSet
+	weaponOptionIndex int
+	weaponOptions     []SelectedPartDef
+	weaponFxSet       bodyPartSet
 
-	equipBodySet bodyPartSet
-	equipBodyImg *ebiten.Image
-	weaponImg    *ebiten.Image
+	equipBodySet         bodyPartSet
+	equipBodyOptionIndex int
+	equipBodyOptions     []SelectedPartDef
 
 	turnLeft          *button.Button
 	turnRight         *button.Button
@@ -109,16 +111,65 @@ func characterBuilder() {
 	equipWeaponTileset := "items/weapon_frames.tsj"
 	weaponFxTileset := "items/weapon_fx_frames.tsj"
 
-	g := builderGame{
-		animation:          "run",
-		animationTickCount: 15,
-		currentDirection:   'D',
-		bodySet: bodyPartSet{
+	bodyOptions := []SelectedPartDef{
+		{
 			TilesetSrc: bodyTileset,
 			DStart:     0,
 			RStart:     13,
 			LStart:     26,
 			UStart:     39,
+		},
+	}
+	armsOptions := []SelectedPartDef{
+		{
+			TilesetSrc: armsTileset,
+			DStart:     0,
+			RStart:     13,
+			LStart:     26,
+			UStart:     39,
+		},
+	}
+	eyesOptions := []SelectedPartDef{
+		{
+			TilesetSrc: eyesTileset,
+			DStart:     0,
+			RStart:     1,
+			FlipRForL:  true,
+		},
+	}
+	hairOptions := []SelectedPartDef{
+		{
+			TilesetSrc: hairTileset,
+			DStart:     0,
+			RStart:     1,
+			LStart:     2,
+			UStart:     3,
+		},
+	}
+	equipBodyOptions := []SelectedPartDef{
+		{
+			TilesetSrc: equipBodyTileset,
+			DStart:     0,
+			RStart:     13,
+			LStart:     26,
+			UStart:     39,
+		},
+	}
+	weaponOptions := []SelectedPartDef{
+		{
+			TilesetSrc: equipWeaponTileset,
+			DStart:     0,
+			RStart:     13,
+			LStart:     26,
+			UStart:     39,
+		},
+	}
+
+	g := builderGame{
+		animation:          "run",
+		animationTickCount: 15,
+		currentDirection:   'D',
+		bodySet: bodyPartSet{
 			WalkAnimation: Animation{
 				Name:         "body/walk",
 				TileSteps:    []int{0, 2, 0, 4},
@@ -136,12 +187,8 @@ func characterBuilder() {
 			},
 			HasUp: true,
 		},
+		bodyOptions: bodyOptions,
 		armsSet: bodyPartSet{
-			TilesetSrc: armsTileset,
-			DStart:     0,
-			RStart:     13,
-			LStart:     26,
-			UStart:     39,
 			WalkAnimation: Animation{
 				Name:      "arms/walk",
 				TileSteps: []int{0, 2, 0, 4},
@@ -156,26 +203,14 @@ func characterBuilder() {
 			},
 			HasUp: true,
 		},
-		eyesSet: bodyPartSet{
-			TilesetSrc: eyesTileset,
-			DStart:     0,
-			RStart:     1,
-			FlipRForL:  true,
-		},
+		armsOptions: armsOptions,
+		eyesSet:     bodyPartSet{},
+		eyesOptions: eyesOptions,
 		hairSet: bodyPartSet{
-			TilesetSrc: hairTileset,
-			DStart:     0,
-			RStart:     1,
-			LStart:     2,
-			UStart:     3,
-			HasUp:      true,
+			HasUp: true,
 		},
+		hairOptions: hairOptions,
 		equipBodySet: bodyPartSet{
-			TilesetSrc: equipBodyTileset,
-			DStart:     0,
-			RStart:     13,
-			LStart:     26,
-			UStart:     39,
 			WalkAnimation: Animation{
 				Name:      "equipBody/walk",
 				TileSteps: []int{0, 2, 0, 4},
@@ -190,12 +225,8 @@ func characterBuilder() {
 			},
 			HasUp: true,
 		},
+		equipBodyOptions: equipBodyOptions,
 		weaponSet: bodyPartSet{
-			TilesetSrc: equipWeaponTileset,
-			DStart:     0,
-			RStart:     13,
-			LStart:     26,
-			UStart:     39,
 			WalkAnimation: Animation{
 				Name:      "weapon/walk",
 				TileSteps: []int{0, 2, 0, 4},
@@ -210,12 +241,15 @@ func characterBuilder() {
 			},
 			HasUp: true,
 		},
+		weaponOptions: weaponOptions,
 		weaponFxSet: bodyPartSet{
-			TilesetSrc: weaponFxTileset,
-			DStart:     0,
-			RStart:     6,
-			LStart:     12,
-			UStart:     18,
+			SelectedPartDef: SelectedPartDef{
+				TilesetSrc: weaponFxTileset,
+				DStart:     0,
+				RStart:     6,
+				LStart:     12,
+				UStart:     18,
+			},
 			SlashAnimation: Animation{
 				Name:      "weaponFx/slash",
 				TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
@@ -225,6 +259,13 @@ func characterBuilder() {
 			HasUp:         true,
 		},
 	}
+
+	g.SetBodyIndex(0)
+	g.SetArmsIndex(0)
+	g.SetHairIndex(0)
+	g.SetEyesIndex(0)
+	g.SetEquipBodyIndex(0)
+	g.SetWeaponIndex(0)
 
 	g.bodySet.Load()
 	g.armsSet.Load()
@@ -279,6 +320,55 @@ func characterBuilder() {
 	}
 }
 
+func (bg *builderGame) SetBodyIndex(i int) {
+	if i < 0 || i > len(bg.bodyOptions) {
+		panic("out of bounds")
+	}
+	bg.bodyOptionIndex = i
+	bg.bodySet.SelectedPartDef = bg.bodyOptions[i]
+	bg.bodySet.Load()
+}
+func (bg *builderGame) SetArmsIndex(i int) {
+	if i < 0 || i > len(bg.armsOptions) {
+		panic("out of bounds")
+	}
+	bg.armsOptionIndex = i
+	bg.armsSet.SelectedPartDef = bg.armsOptions[i]
+	bg.armsSet.Load()
+}
+func (bg *builderGame) SetEyesIndex(i int) {
+	if i < 0 || i > len(bg.eyesOptions) {
+		panic("out of bounds")
+	}
+	bg.eyesOptionIndex = i
+	bg.eyesSet.SelectedPartDef = bg.eyesOptions[i]
+	bg.eyesSet.Load()
+}
+func (bg *builderGame) SetHairIndex(i int) {
+	if i < 0 || i > len(bg.hairOptions) {
+		panic("out of bounds")
+	}
+	bg.hairOptionIndex = i
+	bg.hairSet.SelectedPartDef = bg.hairOptions[i]
+	bg.hairSet.Load()
+}
+func (bg *builderGame) SetEquipBodyIndex(i int) {
+	if i < 0 || i > len(bg.equipBodyOptions) {
+		panic("out of bounds")
+	}
+	bg.equipBodyOptionIndex = i
+	bg.equipBodySet.SelectedPartDef = bg.equipBodyOptions[i]
+	bg.equipBodySet.Load()
+}
+func (bg *builderGame) SetWeaponIndex(i int) {
+	if i < 0 || i > len(bg.weaponOptions) {
+		panic("out of bounds")
+	}
+	bg.weaponOptionIndex = i
+	bg.weaponSet.SelectedPartDef = bg.weaponOptions[i]
+	bg.weaponSet.Load()
+}
+
 /*
 each body part:
 - has 4 directions (LRUD)
@@ -298,15 +388,19 @@ type Animation struct {
 
 // represents either the head, body, eyes, or hair
 type bodyPartSet struct {
-	TileSize                       int
-	animIndex                      int
+	animIndex int
+	SelectedPartDef
+	WalkAnimation  Animation
+	RunAnimation   Animation
+	SlashAnimation Animation
+	HasUp          bool
+}
+
+// represents the currently selected body part and it's individual definition
+type SelectedPartDef struct {
 	TilesetSrc                     string
 	RStart, LStart, UStart, DStart int
 	FlipRForL                      bool // if true, instead of using an L source, we just flip the frames for right
-	WalkAnimation                  Animation
-	RunAnimation                   Animation
-	SlashAnimation                 Animation
-	HasUp                          bool
 }
 
 func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
