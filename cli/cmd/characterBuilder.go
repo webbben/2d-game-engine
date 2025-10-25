@@ -19,6 +19,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/button"
 	"github.com/webbben/2d-game-engine/internal/ui/dropdown"
 	"github.com/webbben/2d-game-engine/internal/ui/slider"
+	"github.com/webbben/2d-game-engine/internal/ui/stepper"
 )
 
 // characterBuilderCmd represents the characterBuilder command
@@ -88,11 +89,16 @@ type builderGame struct {
 	equipBodyOptionIndex int
 	equipBodyOptions     []SelectedPartDef
 
+	// UI components
+
 	turnLeft          *button.Button
 	turnRight         *button.Button
 	speedSlider       slider.Slider
 	scaleSlider       slider.Slider
 	animationSelector dropdown.OptionSelect
+
+	hairCtl stepper.Stepper
+	eyesCtl stepper.Stepper
 }
 
 const (
@@ -136,6 +142,30 @@ func characterBuilder() {
 			RStart:     1,
 			FlipRForL:  true,
 		},
+		{
+			TilesetSrc: eyesTileset,
+			DStart:     32,
+			RStart:     33,
+			FlipRForL:  true,
+		},
+		{
+			TilesetSrc: eyesTileset,
+			DStart:     64,
+			RStart:     65,
+			FlipRForL:  true,
+		},
+		{
+			TilesetSrc: eyesTileset,
+			DStart:     96,
+			RStart:     97,
+			FlipRForL:  true,
+		},
+		{
+			TilesetSrc: eyesTileset,
+			DStart:     128,
+			RStart:     129,
+			FlipRForL:  true,
+		},
 	}
 	hairOptions := []SelectedPartDef{
 		{
@@ -144,6 +174,20 @@ func characterBuilder() {
 			RStart:     1,
 			LStart:     2,
 			UStart:     3,
+		},
+		{
+			TilesetSrc: hairTileset,
+			DStart:     32,
+			RStart:     33,
+			LStart:     34,
+			UStart:     35,
+		},
+		{
+			TilesetSrc: hairTileset,
+			DStart:     64,
+			RStart:     65,
+			LStart:     66,
+			UStart:     67,
 		},
 	}
 	equipBodyOptions := []SelectedPartDef{
@@ -313,6 +357,25 @@ func characterBuilder() {
 		OriginIndex:           288,
 		DropDownBoxTilesetSrc: "boxes/boxes.tsj",
 		DropDownBoxOrigin:     128,
+	})
+
+	g.hairCtl = stepper.NewStepper(stepper.StepperParams{
+		MinVal:               0,
+		MaxVal:               len(hairOptions) - 1,
+		Font:                 config.DefaultTitleFont,
+		FontFg:               color.White,
+		FontBg:               color.Black,
+		DecrementButtonImage: turnLeftImg,
+		IncrementButtonImage: turnRightImg,
+	})
+	g.eyesCtl = stepper.NewStepper(stepper.StepperParams{
+		MinVal:               0,
+		MaxVal:               len(eyesOptions) - 1,
+		Font:                 config.DefaultTitleFont,
+		FontFg:               color.White,
+		FontBg:               color.Black,
+		DecrementButtonImage: turnLeftImg,
+		IncrementButtonImage: turnRightImg,
 	})
 
 	if err := ebiten.RunGame(&g); err != nil {
@@ -653,6 +716,14 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	animationSelectorY := 300
 	text.DrawShadowText(screen, "Animation", config.DefaultTitleFont, sliderX, animationSelectorY, color.White, nil, 0, 0)
 	bg.animationSelector.Draw(screen, float64(sliderX), float64(animationSelectorY), nil)
+
+	ctlX := display.SCREEN_WIDTH * 3 / 4
+	ctlY := 100
+	text.DrawShadowText(screen, "Hair", config.DefaultTitleFont, ctlX+tileSize, ctlY, color.White, nil, 0, 0)
+	bg.hairCtl.Draw(screen, float64(ctlX), float64(ctlY+10))
+	ctlY += 100
+	text.DrawShadowText(screen, "Eyes", config.DefaultTitleFont, ctlX+tileSize, ctlY, color.White, nil, 0, 0)
+	bg.eyesCtl.Draw(screen, float64(ctlX), float64(ctlY+10))
 }
 
 func (bg *builderGame) Update() error {
@@ -661,6 +732,16 @@ func (bg *builderGame) Update() error {
 	} else if bg.turnRight.Update().Clicked {
 		bg.rotateRight()
 	}
+
+	bg.hairCtl.Update()
+	if bg.hairCtl.GetValue() != bg.hairOptionIndex {
+		bg.SetHairIndex(bg.hairCtl.GetValue())
+	}
+	bg.eyesCtl.Update()
+	if bg.eyesCtl.GetValue() != bg.eyesOptionIndex {
+		bg.SetEyesIndex(bg.eyesCtl.GetValue())
+	}
+
 	bg.speedSlider.Update()
 	bg.scaleSlider.Update()
 

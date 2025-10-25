@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/webbben/2d-game-engine/internal/model"
 	"golang.org/x/image/font"
 )
 
@@ -119,4 +120,11 @@ func GetRealisticFontMetrics(f font.Face) (height int, descent int) {
 	}
 
 	return height, descent
+}
+
+func CenterTextInRect(s string, f font.Face, r model.Rect) (writeX, writeY int) {
+	dx, dy, _ := GetStringSize(s, f)
+	cX := int(r.X+(r.W/2)) - (dx / 2)
+	cY := int(r.Y+(r.H/2)) + (dy / 2)
+	return cX, cY
 }
