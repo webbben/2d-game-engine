@@ -12,6 +12,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/tiled"
@@ -119,16 +120,19 @@ func characterBuilder() {
 			LStart:     26,
 			UStart:     39,
 			WalkAnimation: Animation{
-				TileSteps:    []int{2, 0, 4},
-				StepsOffsetY: []int{1, 0, 1},
+				Name:         "body/walk",
+				TileSteps:    []int{0, 2, 0, 4},
+				StepsOffsetY: []int{0, 1, 0, 1},
 			},
 			RunAnimation: Animation{
-				TileSteps:    []int{1, 2, 0, 3, 4},
-				StepsOffsetY: []int{0, 1, 0, 0, 1},
+				Name:         "body/run",
+				TileSteps:    []int{0, 1, 2, 0, 3, 4},
+				StepsOffsetY: []int{0, 0, 1, 0, 0, 1},
 			},
 			SlashAnimation: Animation{
-				TileSteps:    []int{5, 6, 7, 8},
-				StepsOffsetY: []int{1, 2, 2, 2},
+				Name:         "body/slash",
+				TileSteps:    []int{0, 5, 6, 7, 8},
+				StepsOffsetY: []int{0, 1, 2, 2, 2},
 			},
 			HasUp: true,
 		},
@@ -139,13 +143,16 @@ func characterBuilder() {
 			LStart:     26,
 			UStart:     39,
 			WalkAnimation: Animation{
-				TileSteps: []int{2, 0, 4},
+				Name:      "arms/walk",
+				TileSteps: []int{0, 2, 0, 4},
 			},
 			RunAnimation: Animation{
-				TileSteps: []int{1, 2, 0, 3, 4},
+				Name:      "arms/run",
+				TileSteps: []int{0, 1, 2, 0, 3, 4},
 			},
 			SlashAnimation: Animation{
-				TileSteps: []int{5, 6, 7, 8},
+				Name:      "arms/slash",
+				TileSteps: []int{0, 5, 6, 7, 8},
 			},
 			HasUp: true,
 		},
@@ -170,13 +177,16 @@ func characterBuilder() {
 			LStart:     26,
 			UStart:     39,
 			WalkAnimation: Animation{
-				TileSteps: []int{2, 0, 4},
+				Name:      "equipBody/walk",
+				TileSteps: []int{0, 2, 0, 4},
 			},
 			RunAnimation: Animation{
-				TileSteps: []int{1, 2, 0, 3, 4},
+				Name:      "equipBody/run",
+				TileSteps: []int{0, 1, 2, 0, 3, 4},
 			},
 			SlashAnimation: Animation{
-				TileSteps: []int{5, 6, 7, 8},
+				Name:      "equipBody/slash",
+				TileSteps: []int{0, 5, 6, 7, 8},
 			},
 			HasUp: true,
 		},
@@ -187,13 +197,16 @@ func characterBuilder() {
 			LStart:     26,
 			UStart:     39,
 			WalkAnimation: Animation{
-				TileSteps: []int{2, 0, 4},
+				Name:      "weapon/walk",
+				TileSteps: []int{0, 2, 0, 4},
 			},
 			RunAnimation: Animation{
-				TileSteps: []int{1, 2, 0, 3, 4},
+				Name:      "weapon/run",
+				TileSteps: []int{0, 1, 2, 0, 3, 4},
 			},
 			SlashAnimation: Animation{
-				TileSteps: []int{5, 6, 7, 8},
+				Name:      "weapon/slash",
+				TileSteps: []int{0, 5, 6, 7, 8},
 			},
 			HasUp: true,
 		},
@@ -204,10 +217,12 @@ func characterBuilder() {
 			LStart:     12,
 			UStart:     18,
 			SlashAnimation: Animation{
-				TileSteps: []int{-1, 0, 1, 2}, // -1 = skip a frame (nil image)
+				Name:      "weaponFx/slash",
+				TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
 			},
-			WalkAnimation: Animation{Skip: true},
-			RunAnimation:  Animation{Skip: true},
+			WalkAnimation: Animation{Name: "weaponFx/walk", Skip: true},
+			RunAnimation:  Animation{Name: "weaponFx/run", Skip: true},
+			HasUp:         true,
 		},
 	}
 
@@ -219,7 +234,6 @@ func characterBuilder() {
 	g.equipBodySet.Load()
 	g.weaponSet.Load()
 	g.weaponFxSet.Load()
-	fmt.Println("len:", len(g.weaponFxSet.WalkAnimation.D))
 
 	g.setDirection('D')
 
@@ -272,6 +286,7 @@ each body part:
 */
 
 type Animation struct {
+	Name         string
 	Skip         bool // if true, this animation does not get defined
 	L            []*ebiten.Image
 	R            []*ebiten.Image
@@ -298,22 +313,42 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 	switch dir {
 	case 'L':
 		if len(a.L) == 0 {
+			logz.Println(a.Name, "no left frames; returning nil")
 			return nil
+		}
+		if animationIndex >= len(a.L) {
+			logz.Println(a.Name, "past left frames; returning last frame", "animIndex:", animationIndex)
+			return a.L[len(a.L)-1]
 		}
 		return a.L[animationIndex]
 	case 'R':
 		if len(a.R) == 0 {
+			logz.Println(a.Name, "no right frames; returning nil")
 			return nil
+		}
+		if animationIndex >= len(a.R) {
+			logz.Println(a.Name, "past right frames; returning last frame", "animIndex:", animationIndex)
+			return a.R[len(a.R)-1]
 		}
 		return a.R[animationIndex]
 	case 'U':
 		if len(a.U) == 0 {
+			logz.Println(a.Name, "no up frames; returning nil")
 			return nil
+		}
+		if animationIndex >= len(a.U) {
+			logz.Println(a.Name, "past up frames; returning last frame", "animIndex:", animationIndex)
+			return a.U[len(a.U)-1]
 		}
 		return a.U[animationIndex]
 	case 'D':
 		if len(a.D) == 0 {
+			logz.Println(a.Name, "no down frames; returning nil")
 			return nil
+		}
+		if animationIndex >= len(a.D) {
+			logz.Println(a.Name, "past down frames; returning last frame", "animIndex:", animationIndex)
+			return a.D[len(a.D)-1]
 		}
 		return a.D[animationIndex]
 	}
@@ -342,15 +377,15 @@ func (set bodyPartSet) getCurrentYOffset(animationName string) int {
 	switch animationName {
 	case anim_walk:
 		if len(set.WalkAnimation.StepsOffsetY) > 0 {
-			return set.WalkAnimation.StepsOffsetY[set.animIndex-1]
+			return set.WalkAnimation.StepsOffsetY[set.animIndex]
 		}
 	case anim_run:
 		if len(set.RunAnimation.StepsOffsetY) > 0 {
-			return set.RunAnimation.StepsOffsetY[set.animIndex-1]
+			return set.RunAnimation.StepsOffsetY[set.animIndex]
 		}
 	case anim_slash:
 		if len(set.SlashAnimation.StepsOffsetY) > 0 {
-			return set.SlashAnimation.StepsOffsetY[set.animIndex-1]
+			return set.SlashAnimation.StepsOffsetY[set.animIndex]
 		}
 	}
 
@@ -361,15 +396,15 @@ func (set *bodyPartSet) nextFrame(animationName string) {
 	set.animIndex++
 	switch animationName {
 	case anim_walk:
-		if set.animIndex > len(set.WalkAnimation.TileSteps) {
+		if set.animIndex >= len(set.WalkAnimation.TileSteps) {
 			set.animIndex = 0
 		}
 	case anim_run:
-		if set.animIndex > len(set.RunAnimation.TileSteps) {
+		if set.animIndex >= len(set.RunAnimation.TileSteps) {
 			set.animIndex = 0
 		}
 	case anim_slash:
-		if set.animIndex > len(set.SlashAnimation.TileSteps) {
+		if set.animIndex >= len(set.SlashAnimation.TileSteps) {
 			set.animIndex = 0
 		}
 	}
@@ -432,11 +467,15 @@ func (set *bodyPartSet) Load() {
 
 func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, flip bool) []*ebiten.Image {
 	frames := []*ebiten.Image{}
-	img := tiled.GetTileImage(tilesetSrc, startIndex)
-	if flip {
-		img = rendering.FlipHoriz(img)
+
+	if len(indexSteps) == 0 {
+		// no animation defined; just use the start tile
+		img := tiled.GetTileImage(tilesetSrc, startIndex)
+		if flip {
+			img = rendering.FlipHoriz(img)
+		}
+		frames = append(frames, img)
 	}
-	frames = append(frames, img)
 	for _, step := range indexSteps {
 		if step == -1 {
 			// indicates a skip frame
@@ -457,6 +496,10 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	characterTileSize := config.TileSize * characterScale
 
 	tileSize := int(config.TileSize * config.UIScale)
+
+	if bg.bodyImg == nil {
+		panic("no body image!")
+	}
 
 	bodyWidth := float64(bg.bodyImg.Bounds().Dx()) * characterScale
 	bodyHeight := float64(bg.bodyImg.Bounds().Dy()) * characterScale
@@ -479,6 +522,9 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	}
 	// Hair
 	hairY := bodyY + (float64(bg.nonBodyYOffset) * characterScale)
+	if bg.hairImg == nil {
+		panic("hair img is nil")
+	}
 	rendering.DrawImage(screen, bg.hairImg, bodyX, hairY, characterScale)
 
 	// Equip Weapon
@@ -606,50 +652,18 @@ func (bg *builderGame) setDirection(dir byte) {
 	bg.weaponSet.animIndex = 0
 	bg.weaponFxSet.animIndex = 0
 
-	switch dir {
-	case 'U':
-		bg.currentDirection = 'U'
-		bg.bodyImg = bg.bodySet.WalkAnimation.U[0]
-		bg.eyesImg = nil
-		bg.hairImg = bg.hairSet.WalkAnimation.U[0]
-		bg.armsImg = bg.armsSet.WalkAnimation.U[0]
+	bg.currentDirection = dir
 
-		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.U[0]
-		bg.weaponImg = bg.weaponSet.WalkAnimation.U[0]
-		bg.weaponFxImg = nil
-	case 'R':
-		bg.currentDirection = 'R'
-		bg.bodyImg = bg.bodySet.WalkAnimation.R[0]
-		bg.eyesImg = bg.eyesSet.WalkAnimation.R[0]
-		bg.hairImg = bg.hairSet.WalkAnimation.R[0]
-		bg.armsImg = bg.armsSet.WalkAnimation.R[0]
-
-		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.R[0]
-		bg.weaponImg = bg.weaponSet.WalkAnimation.R[0]
-		bg.weaponFxImg = nil
-	case 'D':
-		bg.currentDirection = 'D'
-		bg.bodyImg = bg.bodySet.WalkAnimation.D[0]
-		bg.eyesImg = bg.eyesSet.WalkAnimation.D[0]
-		bg.hairImg = bg.hairSet.WalkAnimation.D[0]
-		bg.armsImg = bg.armsSet.WalkAnimation.D[0]
-
-		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.D[0]
-		bg.weaponImg = bg.weaponSet.WalkAnimation.D[0]
-		bg.weaponFxImg = nil
-	case 'L':
-		bg.currentDirection = 'L'
-		bg.bodyImg = bg.bodySet.WalkAnimation.L[0]
-		bg.eyesImg = bg.eyesSet.WalkAnimation.L[0]
-		bg.hairImg = bg.hairSet.WalkAnimation.L[0]
-		bg.armsImg = bg.armsSet.WalkAnimation.L[0]
-
-		bg.equipBodyImg = bg.equipBodySet.WalkAnimation.L[0]
-		bg.weaponImg = bg.weaponSet.WalkAnimation.L[0]
-		bg.weaponFxImg = nil
-	default:
-		panic("direction not recognized")
+	bg.bodyImg = bg.bodySet.WalkAnimation.getFrame(dir, 0)
+	bg.eyesImg = bg.eyesSet.WalkAnimation.getFrame(dir, 0)
+	bg.hairImg = bg.hairSet.WalkAnimation.getFrame(dir, 0)
+	if bg.hairImg == nil {
+		panic("hair img is nil?")
 	}
+	bg.armsImg = bg.armsSet.WalkAnimation.getFrame(dir, 0)
+	bg.equipBodyImg = bg.equipBodySet.WalkAnimation.getFrame(dir, 0)
+	bg.weaponImg = bg.weaponSet.WalkAnimation.getFrame(dir, 0)
+	bg.weaponFxImg = bg.weaponFxSet.WalkAnimation.getFrame(dir, 0)
 }
 
 func (bg *builderGame) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
