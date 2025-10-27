@@ -104,6 +104,7 @@ type builderGame struct {
 	hairCtl      stepper.Stepper
 	eyesCtl      stepper.Stepper
 	equipBodyCtl stepper.Stepper
+	equipHeadCtl stepper.Stepper
 }
 
 const (
@@ -170,14 +171,18 @@ func characterBuilder() {
 			UStart:     (i * 52) + 39,
 		})
 	}
-	equipHeadOptions := []SelectedPartDef{}
+	equipHeadOptions := []SelectedPartDef{{None: true}}
 	for i := range 2 {
+		index := i * 4
+		cropHair, found := tiled.GetTileBoolProperty(equipHeadTileset, index, "COVER_HAIR")
+		fmt.Println("found:", found, "crophair:", cropHair)
 		equipHeadOptions = append(equipHeadOptions, SelectedPartDef{
-			TilesetSrc: equipHeadTileset,
-			DStart:     (i * 4),
-			RStart:     (i * 4) + 1,
-			LStart:     (i * 4) + 2,
-			UStart:     (i * 4) + 3,
+			TilesetSrc:     equipHeadTileset,
+			DStart:         (i * 4),
+			RStart:         (i * 4) + 1,
+			LStart:         (i * 4) + 2,
+			UStart:         (i * 4) + 3,
+			CropHairToHead: found && cropHair,
 		})
 	}
 
@@ -368,6 +373,15 @@ func characterBuilder() {
 		DecrementButtonImage: turnLeftImg,
 		IncrementButtonImage: turnRightImg,
 	})
+	g.equipHeadCtl = stepper.NewStepper(stepper.StepperParams{
+		MinVal:               0,
+		MaxVal:               len(equipHeadOptions) - 1,
+		Font:                 config.DefaultTitleFont,
+		FontFg:               color.White,
+		FontBg:               color.Black,
+		DecrementButtonImage: turnLeftImg,
+		IncrementButtonImage: turnRightImg,
+	})
 
 	if err := ebiten.RunGame(&g); err != nil {
 		panic(err)
@@ -407,6 +421,7 @@ func (bg *builderGame) SetHairIndex(i int) {
 	bg.hairOptionIndex = i
 	bg.hairSet.SelectedPartDef = bg.hairOptions[i]
 	bg.hairSet.Load()
+	bg.cropHairToHead()
 }
 func (bg *builderGame) SetEquipBodyIndex(i int) {
 	if i < 0 || i > len(bg.equipBodyOptions) {
@@ -423,6 +438,13 @@ func (bg *builderGame) SetEquipHeadIndex(i int) {
 	bg.equipHeadOptionIndex = i
 	bg.equipHeadSet.SelectedPartDef = bg.equipHeadOptions[i]
 	bg.equipHeadSet.Load()
+
+	// since some head equipment may cause hair to be cropped, always reload hair when head is equiped
+	bg.hairSet.Load()
+
+	if bg.equipHeadSet.SelectedPartDef.CropHairToHead {
+		bg.cropHairToHead()
+	}
 }
 func (bg *builderGame) SetWeaponIndex(i int) {
 	if i < 0 || i > len(bg.weaponOptions) {
@@ -456,9 +478,14 @@ type bodyPartSet struct {
 
 // represents the currently selected body part and it's individual definition
 type SelectedPartDef struct {
+	None                           bool // if true, this part will not be shown
 	TilesetSrc                     string
 	RStart, LStart, UStart, DStart int
 	FlipRForL                      bool // if true, instead of using an L source, we just flip the frames for right
+
+	// headwear-specific props
+
+	CropHairToHead bool // set to have hair not go outside the head image. used for helmets or certain hats.
 }
 
 func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
@@ -508,6 +535,10 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 }
 
 func (set bodyPartSet) getCurrentFrame(dir byte, animationName string) *ebiten.Image {
+	if set.None {
+		return nil
+	}
+
 	switch animationName {
 	case anim_walk:
 		return set.WalkAnimation.getFrame(dir, set.animIndex)
@@ -545,6 +576,10 @@ func (set bodyPartSet) getCurrentYOffset(animationName string) int {
 }
 
 func (set *bodyPartSet) nextFrame(animationName string) {
+	if set.None {
+		return
+	}
+
 	set.animIndex++
 	switch animationName {
 	case anim_walk:
@@ -569,10 +604,44 @@ func (a *Animation) reset() {
 	a.D = make([]*ebiten.Image, 0)
 }
 
+func (bg *builderGame) cropHairToHead() {
+	leftHead := ebiten.NewImage(config.TileSize, config.TileSize)
+	leftHead.DrawImage(bg.bodySet.WalkAnimation.L[0], nil)
+	rightHead := ebiten.NewImage(config.TileSize, config.TileSize)
+	rightHead.DrawImage(bg.bodySet.WalkAnimation.R[0], nil)
+	upHead := ebiten.NewImage(config.TileSize, config.TileSize)
+	upHead.DrawImage(bg.bodySet.WalkAnimation.U[0], nil)
+	downHead := ebiten.NewImage(config.TileSize, config.TileSize)
+	downHead.DrawImage(bg.bodySet.WalkAnimation.D[0], nil)
+
+	cropper := func(a *Animation) {
+		for i, img := range a.L {
+			a.L[i] = rendering.CropImageByOtherImage(img, leftHead)
+		}
+		for i, img := range a.R {
+			a.R[i] = rendering.CropImageByOtherImage(img, rightHead)
+		}
+		for i, img := range a.U {
+			a.U[i] = rendering.CropImageByOtherImage(img, upHead)
+		}
+		for i, img := range a.D {
+			a.D[i] = rendering.CropImageByOtherImage(img, downHead)
+		}
+	}
+
+	cropper(&bg.hairSet.WalkAnimation)
+	cropper(&bg.hairSet.RunAnimation)
+	cropper(&bg.hairSet.SlashAnimation)
+}
+
 func (set *bodyPartSet) Load() {
 	set.WalkAnimation.reset()
 	set.RunAnimation.reset()
 	set.SlashAnimation.reset()
+
+	if set.None {
+		return
+	}
 
 	// walk animation
 	if !set.WalkAnimation.Skip {
@@ -725,6 +794,9 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	text.DrawShadowText(screen, "Eyes", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	bg.eyesCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
 	ctlY += 100
+	text.DrawShadowText(screen, "Equip Head", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	bg.equipHeadCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
+	ctlY += 100
 	text.DrawShadowText(screen, "Equip Body", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	bg.equipBodyCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
 }
@@ -743,6 +815,10 @@ func (bg *builderGame) Update() error {
 	bg.eyesCtl.Update()
 	if bg.eyesCtl.GetValue() != bg.eyesOptionIndex {
 		bg.SetEyesIndex(bg.eyesCtl.GetValue())
+	}
+	bg.equipHeadCtl.Update()
+	if bg.equipHeadCtl.GetValue() != bg.equipHeadOptionIndex {
+		bg.SetEquipHeadIndex(bg.equipHeadCtl.GetValue())
 	}
 	bg.equipBodyCtl.Update()
 	if bg.equipBodyCtl.GetValue() != bg.equipBodyOptionIndex {
@@ -848,9 +924,6 @@ func (bg *builderGame) setDirection(dir byte) {
 	bg.bodyImg = bg.bodySet.WalkAnimation.getFrame(dir, 0)
 	bg.eyesImg = bg.eyesSet.WalkAnimation.getFrame(dir, 0)
 	bg.hairImg = bg.hairSet.WalkAnimation.getFrame(dir, 0)
-	if bg.hairImg == nil {
-		panic("hair img is nil?")
-	}
 	bg.armsImg = bg.armsSet.WalkAnimation.getFrame(dir, 0)
 	bg.equipBodyImg = bg.equipBodySet.WalkAnimation.getFrame(dir, 0)
 	bg.equipHeadImg = bg.equipHeadSet.WalkAnimation.getFrame(dir, 0)

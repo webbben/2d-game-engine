@@ -327,3 +327,19 @@ func GetIntProperty(propName string, props []Property) (val int, found bool) {
 
 	return 0, false
 }
+
+func GetTileBoolProperty(tilesetSrc string, tileIndex int, propName string) (val bool, found bool) {
+	tileset, err := LoadTileset(tilesetSrc)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, tile := range tileset.Tiles {
+		if tile.ID != tileIndex {
+			continue
+		}
+		return GetBoolProperty(propName, tile.Properties)
+	}
+
+	return false, false
+}
