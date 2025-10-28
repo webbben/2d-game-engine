@@ -17,10 +17,10 @@ type Slider struct {
 	minVal, maxVal int
 	stepSize       int
 	numSteps       int
-	stepDistPx     int
+	stepDistPx     float64
 
 	x, y         int
-	ballX        int // ball x (offset from slider x)
+	ballX        float64 // ball x (offset from slider x)
 	currentValue int
 
 	clickStarted bool
@@ -110,8 +110,7 @@ func NewSlider(params SliderParams) Slider {
 
 	// calculate slider movement distance
 	slider.numSteps = (slider.maxVal - slider.minVal) / slider.stepSize
-	stepDistancePx := ((params.TileWidth - 1) * tileSize) / slider.numSteps
-	slider.stepDistPx = stepDistancePx
+	slider.stepDistPx = float64((params.TileWidth-1)*tileSize) / float64(slider.numSteps)
 
 	slider.SetValue(params.InitialValue)
 
@@ -129,8 +128,9 @@ func (s *Slider) Update() {
 	} else if (s.MouseBehavior.LeftClick.ClickHolding || s.MouseBehavior.LeftClickOutside.ClickHolding) && s.clickStarted {
 		// follow mouse x, as long as its within slider's bounds
 		mouseX, _ := ebiten.CursorPosition()
-
-		newValue := (mouseX - s.x - (tileSize / 2)) / s.stepDistPx
+		// ballX and stepDistPx need to be maintained as floats since steps may have decimal values, and without those
+		// the ball movement ends up coming up short. but, the value is kept as an int. that's why we have all that conversion going on here.
+		newValue := int(float64(mouseX-s.x-(tileSize/2)) / s.stepDistPx)
 		newValue += s.minVal
 		s.SetValue(newValue)
 	} else {
@@ -154,15 +154,13 @@ func (s *Slider) SetValue(val int) {
 	step = max(0, step)
 	step = min(step, s.numSteps)
 
-	// since the stepSize is an int, sometimes it can be slightly too short and you see a gap on the last position
-	// so, we calculate the last step position here
+	// just to ensure the last step is exactly where it should be
 	if step == s.numSteps {
-		s.ballX = s.sliderImg.Bounds().Dx() - int(config.TileSize*config.UIScale)
+		s.ballX = float64(s.sliderImg.Bounds().Dx() - int(config.TileSize*config.UIScale))
 		return
 	}
 
-	s.ballX = step * s.stepDistPx
-	s.ballX -= s.ballX % s.stepDistPx
+	s.ballX = float64(step) * s.stepDistPx
 }
 
 func (s *Slider) Draw(screen *ebiten.Image, x, y float64) {
