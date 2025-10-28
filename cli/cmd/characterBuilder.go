@@ -105,6 +105,10 @@ type builderGame struct {
 	eyesCtl      stepper.Stepper
 	equipBodyCtl stepper.Stepper
 	equipHeadCtl stepper.Stepper
+
+	bodyColorSliders slider.SliderGroup
+	hairColorSliders slider.SliderGroup
+	eyeColorSliders  slider.SliderGroup
 }
 
 const (
@@ -381,6 +385,71 @@ func characterBuilder() {
 		FontBg:               color.Black,
 		DecrementButtonImage: turnLeftImg,
 		IncrementButtonImage: turnRightImg,
+	})
+
+	// sliders for adjusting colors
+	sliderParams := slider.SliderParams{
+		TilesetSrc:    "ui/ui-components.tsj",
+		TilesetOrigin: 256,
+		TileWidth:     4,
+		MinVal:        0,
+		MaxVal:        256,
+		InitialValue:  128,
+		StepSize:      1,
+	}
+	g.bodyColorSliders = slider.NewSliderGroup(slider.SliderGroupParams{
+		LabelFont:    config.DefaultFont,
+		LabelColorFg: color.White,
+		LabelColorBg: color.Black,
+	}, []slider.SliderDef{
+		{
+			Label:  "H",
+			Params: sliderParams,
+		},
+		{
+			Label:  "S",
+			Params: sliderParams,
+		},
+		{
+			Label:  "V",
+			Params: sliderParams,
+		},
+	})
+	g.hairColorSliders = slider.NewSliderGroup(slider.SliderGroupParams{
+		LabelFont:    config.DefaultFont,
+		LabelColorFg: color.White,
+		LabelColorBg: color.Black,
+	}, []slider.SliderDef{
+		{
+			Label:  "H",
+			Params: sliderParams,
+		},
+		{
+			Label:  "S",
+			Params: sliderParams,
+		},
+		{
+			Label:  "V",
+			Params: sliderParams,
+		},
+	})
+	g.eyeColorSliders = slider.NewSliderGroup(slider.SliderGroupParams{
+		LabelFont:    config.DefaultFont,
+		LabelColorFg: color.White,
+		LabelColorBg: color.Black,
+	}, []slider.SliderDef{
+		{
+			Label:  "H",
+			Params: sliderParams,
+		},
+		{
+			Label:  "S",
+			Params: sliderParams,
+		},
+		{
+			Label:  "V",
+			Params: sliderParams,
+		},
 	})
 
 	if err := ebiten.RunGame(&g); err != nil {
@@ -731,9 +800,15 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	bodyY := float64(display.SCREEN_HEIGHT/2) - (bodyHeight / 2)
 
 	// Body
-	rendering.DrawImage(screen, bg.bodyImg, bodyX, bodyY, characterScale)
+	h := float64(bg.bodyColorSliders.GetValue("H")) / 256
+	s := float64(bg.bodyColorSliders.GetValue("S")) / 256
+	v := float64(bg.bodyColorSliders.GetValue("V")) / 256
+	rendering.DrawHSVImage(screen, bg.bodyImg, h, s, v, bodyX, bodyY, characterScale)
 	// Arms
-	rendering.DrawImage(screen, bg.armsImg, bodyX, bodyY, characterScale)
+	h = float64(bg.bodyColorSliders.GetValue("H")) / 256
+	s = float64(bg.bodyColorSliders.GetValue("S")) / 256
+	v = float64(bg.bodyColorSliders.GetValue("V")) / 256
+	rendering.DrawHSVImage(screen, bg.armsImg, h, s, v, bodyX, bodyY, characterScale)
 	// Equip Body
 	rendering.DrawImage(screen, bg.equipBodyImg, bodyX, bodyY, characterScale)
 
@@ -741,14 +816,20 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	eyesX := bodyX
 	eyesY := bodyY + (float64(bg.nonBodyYOffset) * characterScale)
 	if bg.eyesImg != nil {
-		rendering.DrawImage(screen, bg.eyesImg, eyesX, eyesY, characterScale)
+		h := float64(bg.eyeColorSliders.GetValue("H")) / 256
+		s := float64(bg.eyeColorSliders.GetValue("S")) / 256
+		v := float64(bg.eyeColorSliders.GetValue("V")) / 256
+		rendering.DrawHSVImage(screen, bg.eyesImg, h, s, v, eyesX, eyesY, characterScale)
 	}
 	// Hair
 	hairY := bodyY + (float64(bg.nonBodyYOffset) * characterScale)
 	if bg.hairImg == nil {
 		panic("hair img is nil")
 	}
-	rendering.DrawImage(screen, bg.hairImg, bodyX, hairY, characterScale)
+	h = float64(bg.hairColorSliders.GetValue("H")) / 256
+	s = float64(bg.hairColorSliders.GetValue("S")) / 256
+	v = float64(bg.hairColorSliders.GetValue("V")) / 256
+	rendering.DrawHSVImage(screen, bg.hairImg, h, s, v, bodyX, hairY, characterScale)
 
 	// Equip Head
 	if bg.equipHeadImg != nil {
@@ -774,7 +855,7 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	bg.turnRight.Draw(screen, buttonRX, int(buttonsY))
 
 	sliderX := 100
-	sliderY := 100
+	sliderY := 50
 	text.DrawShadowText(screen, "Ticks Per Frame", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.speedSlider.GetValue()), config.DefaultFont, sliderX-40, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
 	bg.speedSlider.Draw(screen, float64(sliderX), float64(sliderY))
@@ -789,18 +870,35 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	bg.animationSelector.Draw(screen, float64(sliderX), float64(animationSelectorY), nil)
 
 	ctlX := (display.SCREEN_WIDTH * 3 / 4)
-	ctlY := 100
+	ctlY := 50
 	text.DrawShadowText(screen, "Hair", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	bg.hairCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
-	ctlY += 100
+	ctlX += 200
 	text.DrawShadowText(screen, "Eyes", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	bg.eyesCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
 	ctlY += 100
+	ctlX -= 200
 	text.DrawShadowText(screen, "Equip Head", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	bg.equipHeadCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
-	ctlY += 100
+	ctlX += 200
 	text.DrawShadowText(screen, "Equip Body", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	bg.equipBodyCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
+	ctlX -= 200
+
+	ctlY += 150
+	text.DrawShadowText(screen, "Body Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	ctlY += tileSize / 8
+	bg.bodyColorSliders.Draw(screen, float64(ctlX), float64(ctlY))
+	_, dy := bg.bodyColorSliders.Dimensions()
+	ctlY += dy + (tileSize / 2)
+	text.DrawShadowText(screen, "Hair Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	ctlY += tileSize / 8
+	bg.hairColorSliders.Draw(screen, float64(ctlX), float64(ctlY))
+	_, dy = bg.hairColorSliders.Dimensions()
+	ctlY += dy + (tileSize / 2)
+	text.DrawShadowText(screen, "Eye Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	ctlY += tileSize / 8
+	bg.eyeColorSliders.Draw(screen, float64(ctlX), float64(ctlY))
 }
 
 func (bg *builderGame) Update() error {
@@ -826,6 +924,9 @@ func (bg *builderGame) Update() error {
 	if bg.equipBodyCtl.GetValue() != bg.equipBodyOptionIndex {
 		bg.SetEquipBodyIndex(bg.equipBodyCtl.GetValue())
 	}
+	bg.bodyColorSliders.Update()
+	bg.hairColorSliders.Update()
+	bg.eyeColorSliders.Update()
 
 	bg.speedSlider.Update()
 	bg.scaleSlider.Update()

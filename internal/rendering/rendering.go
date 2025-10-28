@@ -2,11 +2,14 @@
 package rendering
 
 import (
+	"math"
+
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"golang.org/x/image/font"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/colorm"
 )
 
 // gets the absolute position an image should be drawn at if it is to be centered correctly in the given tile-based coordinates
@@ -101,4 +104,40 @@ func CropImageByOtherImage(img, otherImage *ebiten.Image) *ebiten.Image {
 	result.DrawImage(otherImage, &ops)
 
 	return result
+}
+
+func DrawHueRotatedImage(screen, img *ebiten.Image, sliderValue float64, x, y, scale float64) {
+	hueShift := sliderValue * 2 * math.Pi
+
+	op := &colorm.DrawImageOptions{}
+
+	if scale > 0 {
+		op.GeoM.Scale(scale, scale)
+	}
+	// important: if translate is above scale, it will come out weird
+	// I guess this is because these effects are applied in order
+	op.GeoM.Translate(x, y)
+
+	var c colorm.ColorM
+	c.RotateHue(hueShift)
+	colorm.DrawImage(screen, img, c, op)
+}
+
+func DrawHSVImage(screen, img *ebiten.Image, h, s, v float64, x, y, scale float64) {
+	hue := (h - 0.5) * 2 * math.Pi // rotate -180° to +180°
+	sat := s * 2.0                 // allow up to 2× saturation
+	val := v * 2.0                 // allow up to 2× brightness
+
+	op := &colorm.DrawImageOptions{}
+	if scale > 0 {
+		op.GeoM.Scale(scale, scale)
+	}
+	// important: if translate is above scale, it will come out weird
+	// I guess this is because these effects are applied in order
+	op.GeoM.Translate(x, y)
+
+	var c colorm.ColorM
+	c.ChangeHSV(hue, sat, val)
+	colorm.DrawImage(screen, img, c, op)
+
 }

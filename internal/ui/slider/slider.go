@@ -28,6 +28,11 @@ type Slider struct {
 	mouse.MouseBehavior
 }
 
+func (s Slider) Dimensions() (dx, dy int) {
+	bounds := s.sliderImg.Bounds()
+	return bounds.Dx(), bounds.Dy()
+}
+
 func (s Slider) GetValue() int {
 	return s.currentValue
 }
