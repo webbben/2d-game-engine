@@ -421,7 +421,9 @@ func (bg *builderGame) SetHairIndex(i int) {
 	bg.hairOptionIndex = i
 	bg.hairSet.SelectedPartDef = bg.hairOptions[i]
 	bg.hairSet.Load()
-	bg.cropHairToHead()
+	if bg.equipHeadSet.CropHairToHead {
+		bg.cropHairToHead()
+	}
 }
 func (bg *builderGame) SetEquipBodyIndex(i int) {
 	if i < 0 || i > len(bg.equipBodyOptions) {
