@@ -111,7 +111,7 @@ func NewSlider(params SliderParams) Slider {
 			rendering.DrawImage(slider.sliderImg, slider.tiles[1], float64(tileSize*i), 0, config.UIScale)
 		}
 	}
-	slider.ballImg = rendering.ScaleImage(slider.tiles[3], config.UIScale)
+	slider.ballImg = rendering.ScaleImage(slider.tiles[3], config.UIScale, config.UIScale)
 
 	// calculate slider movement distance
 	slider.numSteps = (slider.maxVal - slider.minVal) / slider.stepSize

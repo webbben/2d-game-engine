@@ -139,5 +139,17 @@ func DrawHSVImage(screen, img *ebiten.Image, h, s, v float64, x, y, scale float6
 	var c colorm.ColorM
 	c.ChangeHSV(hue, sat, val)
 	colorm.DrawImage(screen, img, c, op)
+}
 
+func StretchImage(img *ebiten.Image, dx, dy int) *ebiten.Image {
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+	newWidth := width + dx
+	newHeight := height + dy
+
+	scaleX := float64(newWidth) / float64(width)
+	scaleY := float64(newHeight) / float64(height)
+
+	return ScaleImage(img, scaleX, scaleY)
 }

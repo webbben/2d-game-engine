@@ -95,15 +95,15 @@ func DrawImageWithOps(screen *ebiten.Image, img *ebiten.Image, x, y, scale float
 }
 
 // scales the image by the given scale factor
-func ScaleImage(img *ebiten.Image, scale float64) *ebiten.Image {
+func ScaleImage(img *ebiten.Image, scaleX, scaleY float64) *ebiten.Image {
 	bounds := img.Bounds()
 
-	dx := float64(bounds.Dx()) * scale
-	dy := float64(bounds.Dy()) * scale
+	dx := float64(bounds.Dx()) * scaleX
+	dy := float64(bounds.Dy()) * scaleY
 	frame := ebiten.NewImage(int(dx), int(dy))
 
 	ops := ebiten.DrawImageOptions{}
-	ops.GeoM.Scale(scale, scale)
+	ops.GeoM.Scale(scaleX, scaleY)
 	frame.DrawImage(img, &ops)
 
 	return frame

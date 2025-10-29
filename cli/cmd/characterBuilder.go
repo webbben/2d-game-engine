@@ -58,15 +58,18 @@ type builderGame struct {
 	animationTickCount int
 	ticks              int
 	currentDirection   byte // L R U D
-	bodyImg            *ebiten.Image
-	eyesImg            *ebiten.Image
-	hairImg            *ebiten.Image
-	armsImg            *ebiten.Image
-	equipBodyImg       *ebiten.Image
-	equipHeadImg       *ebiten.Image
-	weaponImg          *ebiten.Image
-	weaponFxImg        *ebiten.Image
-	nonBodyYOffset     int
+
+	bgImg *ebiten.Image
+
+	bodyImg        *ebiten.Image
+	eyesImg        *ebiten.Image
+	hairImg        *ebiten.Image
+	armsImg        *ebiten.Image
+	equipBodyImg   *ebiten.Image
+	equipHeadImg   *ebiten.Image
+	weaponImg      *ebiten.Image
+	weaponFxImg    *ebiten.Image
+	nonBodyYOffset int
 
 	bodySet         bodyPartSet
 	bodyOptionIndex int
@@ -92,6 +95,9 @@ type builderGame struct {
 	equipHeadSet         bodyPartSet
 	equipHeadOptionIndex int
 	equipHeadOptions     []SelectedPartDef
+
+	stretchX, stretchY int     // amount to stretch (non-body) parts by, when body is larger or smaller
+	globalOffsetY      float64 // amount to offset placement of (non-body) parts by, when body is taller or shorter
 
 	// UI components
 
@@ -128,13 +134,15 @@ func characterBuilder() {
 	equipWeaponTileset := "items/weapon_frames.tsj"
 	weaponFxTileset := "items/weapon_fx_frames.tsj"
 
+	bgTileset := "buildings/walls.tsj"
+
 	bodyOptions := []SelectedPartDef{
 		{
 			TilesetSrc: bodyTileset,
-			DStart:     0,
-			RStart:     13,
-			LStart:     26,
-			UStart:     39,
+			DStart:     0 + (52 * 2),
+			RStart:     13 + (52 * 2),
+			LStart:     26 + (52 * 2),
+			UStart:     39 + (52 * 2),
 		},
 	}
 	armsOptions := []SelectedPartDef{
@@ -179,7 +187,6 @@ func characterBuilder() {
 	for i := range 2 {
 		index := i * 4
 		cropHair, found := tiled.GetTileBoolProperty(equipHeadTileset, index, "COVER_HAIR")
-		fmt.Println("found:", found, "crophair:", cropHair)
 		equipHeadOptions = append(equipHeadOptions, SelectedPartDef{
 			TilesetSrc:     equipHeadTileset,
 			DStart:         (i * 4),
@@ -299,6 +306,10 @@ func characterBuilder() {
 		},
 	}
 
+	//g.stretchX = 2
+	g.stretchY = -1
+	g.globalOffsetY = 2
+
 	// SETS: load data
 	g.SetBodyIndex(0)
 	g.SetArmsIndex(0)
@@ -308,15 +319,30 @@ func characterBuilder() {
 	g.SetEquipHeadIndex(0)
 	g.SetWeaponIndex(0)
 
+	// create the backdrop
+	t := float64(config.TileSize)
+	g.bgImg = ebiten.NewImage(int(t*3), int(t*3))
+	rendering.DrawImage(g.bgImg, tiled.GetTileImage(bgTileset, 150), 0, 0, 0)
+	rendering.DrawImage(g.bgImg, tiled.GetTileImage(bgTileset, 151), t, 0, 0)
+	rendering.DrawImage(g.bgImg, tiled.GetTileImage(bgTileset, 152), t*2, 0, 0)
+
+	rendering.DrawImage(g.bgImg, tiled.GetTileImage(bgTileset, 182), 0, t, 0)
+	rendering.DrawImage(g.bgImg, tiled.GetTileImage(bgTileset, 183), t, t, 0)
+	rendering.DrawImage(g.bgImg, tiled.GetTileImage(bgTileset, 184), t*2, t, 0)
+
+	rendering.DrawImage(g.bgImg, tiled.GetTileImage(bgTileset, 214), 0, t*2, 0)
+	rendering.DrawImage(g.bgImg, tiled.GetTileImage(bgTileset, 215), t, t*2, 0)
+	rendering.DrawImage(g.bgImg, tiled.GetTileImage(bgTileset, 216), t*2, t*2, 0)
+
 	// for now, weaponFx doesn't have options
-	g.weaponFxSet.Load()
+	g.weaponFxSet.Load(0, 0)
 
 	g.setDirection('D')
 
 	turnLeftImg := tiled.GetTileImage("ui/ui-components.tsj", 224)
-	turnLeftImg = rendering.ScaleImage(turnLeftImg, config.UIScale)
+	turnLeftImg = rendering.ScaleImage(turnLeftImg, config.UIScale, config.UIScale)
 	turnRightImg := tiled.GetTileImage("ui/ui-components.tsj", 225)
-	turnRightImg = rendering.ScaleImage(turnRightImg, config.UIScale)
+	turnRightImg = rendering.ScaleImage(turnRightImg, config.UIScale, config.UIScale)
 	g.turnLeft = button.NewImageButton("", nil, turnLeftImg)
 	g.turnRight = button.NewImageButton("", nil, turnRightImg)
 
@@ -465,7 +491,7 @@ func (bg *builderGame) SetBodyIndex(i int) {
 	}
 	bg.bodyOptionIndex = i
 	bg.bodySet.SelectedPartDef = bg.bodyOptions[i]
-	bg.bodySet.Load()
+	bg.bodySet.Load(0, 0)
 }
 func (bg *builderGame) SetArmsIndex(i int) {
 	if i < 0 || i > len(bg.armsOptions) {
@@ -473,7 +499,7 @@ func (bg *builderGame) SetArmsIndex(i int) {
 	}
 	bg.armsOptionIndex = i
 	bg.armsSet.SelectedPartDef = bg.armsOptions[i]
-	bg.armsSet.Load()
+	bg.armsSet.Load(0, 0)
 }
 func (bg *builderGame) SetEyesIndex(i int) {
 	if i < 0 || i > len(bg.eyesOptions) {
@@ -481,7 +507,7 @@ func (bg *builderGame) SetEyesIndex(i int) {
 	}
 	bg.eyesOptionIndex = i
 	bg.eyesSet.SelectedPartDef = bg.eyesOptions[i]
-	bg.eyesSet.Load()
+	bg.eyesSet.Load(0, 0)
 }
 func (bg *builderGame) SetHairIndex(i int) {
 	if i < 0 || i > len(bg.hairOptions) {
@@ -489,7 +515,7 @@ func (bg *builderGame) SetHairIndex(i int) {
 	}
 	bg.hairOptionIndex = i
 	bg.hairSet.SelectedPartDef = bg.hairOptions[i]
-	bg.hairSet.Load()
+	bg.hairSet.Load(bg.stretchX, 0)
 	if bg.equipHeadSet.CropHairToHead {
 		bg.cropHairToHead()
 	}
@@ -500,7 +526,7 @@ func (bg *builderGame) SetEquipBodyIndex(i int) {
 	}
 	bg.equipBodyOptionIndex = i
 	bg.equipBodySet.SelectedPartDef = bg.equipBodyOptions[i]
-	bg.equipBodySet.Load()
+	bg.equipBodySet.Load(bg.stretchX, bg.stretchY)
 }
 func (bg *builderGame) SetEquipHeadIndex(i int) {
 	if i < 0 || i > len(bg.equipHeadOptions) {
@@ -508,10 +534,10 @@ func (bg *builderGame) SetEquipHeadIndex(i int) {
 	}
 	bg.equipHeadOptionIndex = i
 	bg.equipHeadSet.SelectedPartDef = bg.equipHeadOptions[i]
-	bg.equipHeadSet.Load()
+	bg.equipHeadSet.Load(bg.stretchX, 0)
 
 	// since some head equipment may cause hair to be cropped, always reload hair when head is equiped
-	bg.hairSet.Load()
+	bg.hairSet.Load(bg.stretchX, 0)
 
 	if bg.equipHeadSet.SelectedPartDef.CropHairToHead {
 		bg.cropHairToHead()
@@ -523,7 +549,7 @@ func (bg *builderGame) SetWeaponIndex(i int) {
 	}
 	bg.weaponOptionIndex = i
 	bg.weaponSet.SelectedPartDef = bg.weaponOptions[i]
-	bg.weaponSet.Load()
+	bg.weaponSet.Load(0, 0)
 }
 
 type Animation struct {
@@ -563,7 +589,6 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 	switch dir {
 	case 'L':
 		if len(a.L) == 0 {
-			logz.Println(a.Name, "no left frames; returning nil")
 			return nil
 		}
 		if animationIndex >= len(a.L) {
@@ -573,7 +598,6 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 		return a.L[animationIndex]
 	case 'R':
 		if len(a.R) == 0 {
-			logz.Println(a.Name, "no right frames; returning nil")
 			return nil
 		}
 		if animationIndex >= len(a.R) {
@@ -583,7 +607,6 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 		return a.R[animationIndex]
 	case 'U':
 		if len(a.U) == 0 {
-			logz.Println(a.Name, "no up frames; returning nil")
 			return nil
 		}
 		if animationIndex >= len(a.U) {
@@ -593,7 +616,6 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 		return a.U[animationIndex]
 	case 'D':
 		if len(a.D) == 0 {
-			logz.Println(a.Name, "no down frames; returning nil")
 			return nil
 		}
 		if animationIndex >= len(a.D) {
@@ -705,7 +727,7 @@ func (bg *builderGame) cropHairToHead() {
 	cropper(&bg.hairSet.SlashAnimation)
 }
 
-func (set *bodyPartSet) Load() {
+func (set *bodyPartSet) Load(stretchX, stretchY int) {
 	set.WalkAnimation.reset()
 	set.RunAnimation.reset()
 	set.SlashAnimation.reset()
@@ -717,47 +739,48 @@ func (set *bodyPartSet) Load() {
 	// walk animation
 	if !set.WalkAnimation.Skip {
 		if set.FlipRForL {
-			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, true)
+			// if flip R for L, use the R frames for L but flip them horizontally
+			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, true, stretchX, stretchY)
 		} else {
-			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.WalkAnimation.TileSteps, false)
+			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.WalkAnimation.TileSteps, false, stretchX, stretchY)
 		}
-		set.WalkAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, false)
+		set.WalkAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, false, stretchX, stretchY)
 		if set.HasUp {
-			set.WalkAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.WalkAnimation.TileSteps, false)
+			set.WalkAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.WalkAnimation.TileSteps, false, stretchX, stretchY)
 		}
-		set.WalkAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.WalkAnimation.TileSteps, false)
+		set.WalkAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.WalkAnimation.TileSteps, false, stretchX, stretchY)
 	}
 
 	// run animation
 	if !set.RunAnimation.Skip {
 		if set.FlipRForL {
-			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, true)
+			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, true, stretchX, stretchY)
 		} else {
-			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.RunAnimation.TileSteps, false)
+			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.RunAnimation.TileSteps, false, stretchX, stretchY)
 		}
-		set.RunAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, false)
+		set.RunAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, false, stretchX, stretchY)
 		if set.HasUp {
-			set.RunAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.RunAnimation.TileSteps, false)
+			set.RunAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.RunAnimation.TileSteps, false, stretchX, stretchY)
 		}
-		set.RunAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.RunAnimation.TileSteps, false)
+		set.RunAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.RunAnimation.TileSteps, false, stretchX, stretchY)
 	}
 
 	// slash animation
 	if !set.SlashAnimation.Skip {
 		if set.FlipRForL {
-			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, true)
+			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, true, stretchX, stretchY)
 		} else {
-			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.SlashAnimation.TileSteps, false)
+			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.SlashAnimation.TileSteps, false, stretchX, stretchY)
 		}
-		set.SlashAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, false)
+		set.SlashAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, false, stretchX, stretchY)
 		if set.HasUp {
-			set.SlashAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.SlashAnimation.TileSteps, false)
+			set.SlashAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.SlashAnimation.TileSteps, false, stretchX, stretchY)
 		}
-		set.SlashAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.SlashAnimation.TileSteps, false)
+		set.SlashAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.SlashAnimation.TileSteps, false, stretchX, stretchY)
 	}
 }
 
-func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, flip bool) []*ebiten.Image {
+func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, flip bool, stretchX, stretchY int) []*ebiten.Image {
 	frames := []*ebiten.Image{}
 
 	if len(indexSteps) == 0 {
@@ -765,6 +788,9 @@ func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, fli
 		img := tiled.GetTileImage(tilesetSrc, startIndex)
 		if flip {
 			img = rendering.FlipHoriz(img)
+		}
+		if stretchX != 0 || stretchY != 0 {
+			img = stretchImage(img, stretchX, stretchY)
 		}
 		frames = append(frames, img)
 	}
@@ -778,14 +804,43 @@ func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, fli
 		if flip {
 			img = rendering.FlipHoriz(img)
 		}
+		if stretchX != 0 || stretchY != 0 {
+			img = stretchImage(img, stretchX, stretchY)
+		}
 		frames = append(frames, img)
 	}
 	return frames
 }
 
+// stretches the image while keeping it in its same original frame size (centered within)
+func stretchImage(img *ebiten.Image, stretchX, stretchY int) *ebiten.Image {
+	if stretchX == 0 && stretchY == 0 {
+		panic("no stretch set")
+	}
+
+	originalBounds := img.Bounds()
+
+	stretchedImage := rendering.StretchImage(img, stretchX, stretchY)
+	stretchedBounds := stretchedImage.Bounds()
+
+	if stretchX != 0 && (originalBounds.Dx() == stretchedBounds.Dx()) {
+		panic("stretch seems to not have worked")
+	}
+
+	x := (originalBounds.Dx() / 2) - (stretchedBounds.Dx() / 2)
+	y := (originalBounds.Dy() / 2) - (stretchedBounds.Dy() / 2)
+
+	newImg := ebiten.NewImage(originalBounds.Dx(), originalBounds.Dy())
+	rendering.DrawImage(newImg, stretchedImage, float64(x), float64(y), 0)
+
+	return newImg
+}
+
 func (bg *builderGame) Draw(screen *ebiten.Image) {
 	var characterScale float64 = float64(bg.scaleSlider.GetValue())
 	characterTileSize := config.TileSize * characterScale
+
+	yOff := bg.globalOffsetY * characterScale
 
 	tileSize := int(config.TileSize * config.UIScale)
 
@@ -799,6 +854,9 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	bodyX := float64(display.SCREEN_WIDTH/2) - (bodyWidth / 2)
 	bodyY := float64(display.SCREEN_HEIGHT/2) - (bodyHeight / 2)
 
+	// Backdrop
+	rendering.DrawImage(screen, bg.bgImg, bodyX-characterTileSize, bodyY-characterTileSize, characterScale)
+
 	// Body
 	h := float64(bg.bodyColorSliders.GetValue("H")) / 256
 	s := float64(bg.bodyColorSliders.GetValue("S")) / 256
@@ -808,13 +866,18 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	h = float64(bg.bodyColorSliders.GetValue("H")) / 256
 	s = float64(bg.bodyColorSliders.GetValue("S")) / 256
 	v = float64(bg.bodyColorSliders.GetValue("V")) / 256
-	rendering.DrawHSVImage(screen, bg.armsImg, h, s, v, bodyX, bodyY, characterScale)
+	rendering.DrawHSVImage(screen, bg.armsImg, h, s, v, bodyX, bodyY+yOff, characterScale)
 	// Equip Body
-	rendering.DrawImage(screen, bg.equipBodyImg, bodyX, bodyY, characterScale)
+	equipBodyYOffset := 0.0
+	if bg.stretchY%2 != 0 {
+		// if stretchY is an odd number, offset equip body by -1
+		equipBodyYOffset = -characterScale
+	}
+	rendering.DrawImage(screen, bg.equipBodyImg, bodyX, bodyY+yOff+equipBodyYOffset, characterScale)
 
 	// Eyes
 	eyesX := bodyX
-	eyesY := bodyY + (float64(bg.nonBodyYOffset) * characterScale)
+	eyesY := bodyY + (float64(bg.nonBodyYOffset) * characterScale) + yOff
 	if bg.eyesImg != nil {
 		h := float64(bg.eyeColorSliders.GetValue("H")) / 256
 		s := float64(bg.eyeColorSliders.GetValue("S")) / 256
@@ -822,7 +885,7 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 		rendering.DrawHSVImage(screen, bg.eyesImg, h, s, v, eyesX, eyesY, characterScale)
 	}
 	// Hair
-	hairY := bodyY + (float64(bg.nonBodyYOffset) * characterScale)
+	hairY := bodyY + (float64(bg.nonBodyYOffset) * characterScale) + yOff
 	if bg.hairImg == nil {
 		panic("hair img is nil")
 	}
@@ -840,7 +903,7 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	if bg.weaponImg != nil {
 		// weapons are in 80x80 (5 tiles width & height) tiles
 		// this is to accomodate for the extra space they need for their swings and stuff
-		weaponY := bodyY - (characterTileSize)
+		weaponY := bodyY - (characterTileSize) + yOff
 		weaponX := bodyX - (characterTileSize * 2)
 		rendering.DrawImage(screen, bg.weaponImg, weaponX, weaponY, characterScale)
 		if bg.weaponFxImg != nil {
