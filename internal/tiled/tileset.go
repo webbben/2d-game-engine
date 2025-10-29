@@ -34,6 +34,8 @@ func (t *Tileset) LoadJSONData(mapAbsPath string) error {
 		}
 	}
 
+	originalSrc := t.Source
+
 	// if the path is not absolute, follow the relative path starting from the map file's absolute path
 	if !filepath.IsAbs(t.Source) {
 		if mapAbsPath == "" {
@@ -47,7 +49,7 @@ func (t *Tileset) LoadJSONData(mapAbsPath string) error {
 	}
 
 	if filepath.Ext(t.Source) != ".tsj" {
-		logz.Panicf("tileset source does not have a .tsj extension. Is it invalid? %s", t.Source)
+		logz.Panicf("tileset source does not have a .tsj extension. Is it invalid? %s (original: %s)", t.Source, originalSrc)
 	}
 
 	var loaded Tileset
@@ -77,6 +79,9 @@ func (t *Tileset) LoadJSONData(mapAbsPath string) error {
 }
 
 func LoadTileset(source string) (Tileset, error) {
+	if source == "" {
+		return Tileset{}, errors.New("no source passed to LoadTileset")
+	}
 	t := Tileset{
 		FirstGID: 0,
 		Source:   source,
@@ -226,6 +231,9 @@ func (t Tileset) GetTileImage(id int) (*ebiten.Image, error) {
 }
 
 func GetTileImage(tilesetSrc string, tileID int) *ebiten.Image {
+	if tilesetSrc == "" {
+		panic("no tilesetSrc passed")
+	}
 	tileset, err := LoadTileset(tilesetSrc)
 	if err != nil {
 		logz.Panicf("failed to load tileset: %s", err)

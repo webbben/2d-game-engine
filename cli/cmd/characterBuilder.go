@@ -107,6 +107,7 @@ type builderGame struct {
 	scaleSlider       slider.Slider
 	animationSelector dropdown.OptionSelect
 
+	bodyCtl      stepper.Stepper
 	hairCtl      stepper.Stepper
 	eyesCtl      stepper.Stepper
 	equipBodyCtl stepper.Stepper
@@ -139,10 +140,37 @@ func characterBuilder() {
 	bodyOptions := []SelectedPartDef{
 		{
 			TilesetSrc: bodyTileset,
+			DStart:     0,
+			RStart:     13,
+			LStart:     26,
+			UStart:     39,
+		},
+		{
+			TilesetSrc: bodyTileset,
+			DStart:     0 + (52),
+			RStart:     13 + (52),
+			LStart:     26 + (52),
+			UStart:     39 + (52),
+			StretchX:   2,
+		},
+		{
+			TilesetSrc: bodyTileset,
 			DStart:     0 + (52 * 2),
 			RStart:     13 + (52 * 2),
 			LStart:     26 + (52 * 2),
 			UStart:     39 + (52 * 2),
+			StretchY:   -1,
+			OffsetY:    2,
+		},
+		{
+			TilesetSrc: bodyTileset,
+			DStart:     0 + (52 * 3),
+			RStart:     13 + (52 * 3),
+			LStart:     26 + (52 * 3),
+			UStart:     39 + (52 * 3),
+			StretchX:   2,
+			StretchY:   -1,
+			OffsetY:    2,
 		},
 	}
 	armsOptions := []SelectedPartDef{
@@ -152,6 +180,27 @@ func characterBuilder() {
 			RStart:     13,
 			LStart:     26,
 			UStart:     39,
+		},
+		{
+			TilesetSrc: armsTileset,
+			DStart:     0 + (52),
+			RStart:     13 + (52),
+			LStart:     26 + (52),
+			UStart:     39 + (52),
+		},
+		{
+			TilesetSrc: armsTileset,
+			DStart:     0 + (52 * 2),
+			RStart:     13 + (52 * 2),
+			LStart:     26 + (52 * 2),
+			UStart:     39 + (52 * 2),
+		},
+		{
+			TilesetSrc: armsTileset,
+			DStart:     0 + (52 * 3),
+			RStart:     13 + (52 * 3),
+			LStart:     26 + (52 * 3),
+			UStart:     39 + (52 * 3),
 		},
 	}
 	eyesOptions := []SelectedPartDef{}
@@ -306,17 +355,12 @@ func characterBuilder() {
 		},
 	}
 
-	//g.stretchX = 2
-	g.stretchY = -1
-	g.globalOffsetY = 2
-
 	// SETS: load data
-	g.SetBodyIndex(0)
-	g.SetArmsIndex(0)
 	g.SetHairIndex(0)
 	g.SetEyesIndex(0)
 	g.SetEquipBodyIndex(0)
 	g.SetEquipHeadIndex(0)
+	g.SetBodyIndex(0)
 	g.SetWeaponIndex(0)
 
 	// create the backdrop
@@ -376,6 +420,15 @@ func characterBuilder() {
 		DropDownBoxOrigin:     128,
 	})
 
+	g.bodyCtl = stepper.NewStepper(stepper.StepperParams{
+		MinVal:               0,
+		MaxVal:               len(bodyOptions) - 1,
+		Font:                 config.DefaultTitleFont,
+		FontFg:               color.White,
+		FontBg:               color.Black,
+		DecrementButtonImage: turnLeftImg,
+		IncrementButtonImage: turnRightImg,
+	})
 	g.hairCtl = stepper.NewStepper(stepper.StepperParams{
 		MinVal:               0,
 		MaxVal:               len(hairOptions) - 1,
@@ -485,6 +538,9 @@ func characterBuilder() {
 
 // SETS: Set Index Functions
 
+// DEPENDS ON:
+//
+// hairSet, equipHeadSet, equipBodySet
 func (bg *builderGame) SetBodyIndex(i int) {
 	if i < 0 || i > len(bg.bodyOptions) {
 		panic("out of bounds")
@@ -492,6 +548,18 @@ func (bg *builderGame) SetBodyIndex(i int) {
 	bg.bodyOptionIndex = i
 	bg.bodySet.SelectedPartDef = bg.bodyOptions[i]
 	bg.bodySet.Load(0, 0)
+
+	// arms are directly set with body
+	bg.SetArmsIndex(i)
+
+	bg.stretchX = bg.bodySet.StretchX
+	bg.stretchY = bg.bodySet.StretchY
+	bg.globalOffsetY = float64(bg.bodySet.OffsetY)
+
+	// reload any body parts that are influenced by stretch properties
+	bg.hairSet.Load(bg.stretchX, 0)
+	bg.equipHeadSet.Load(bg.stretchX, 0)
+	bg.equipBodySet.Load(bg.stretchX, bg.stretchY)
 }
 func (bg *builderGame) SetArmsIndex(i int) {
 	if i < 0 || i > len(bg.armsOptions) {
@@ -528,6 +596,10 @@ func (bg *builderGame) SetEquipBodyIndex(i int) {
 	bg.equipBodySet.SelectedPartDef = bg.equipBodyOptions[i]
 	bg.equipBodySet.Load(bg.stretchX, bg.stretchY)
 }
+
+// DEPENDS ON:
+//
+// hairSet
 func (bg *builderGame) SetEquipHeadIndex(i int) {
 	if i < 0 || i > len(bg.equipHeadOptions) {
 		panic("out of bounds")
@@ -579,6 +651,12 @@ type SelectedPartDef struct {
 	TilesetSrc                     string
 	RStart, LStart, UStart, DStart int
 	FlipRForL                      bool // if true, instead of using an L source, we just flip the frames for right
+
+	// body-specific props
+
+	StretchX int // amount to stretch hair and equip body on X axis
+	StretchY int // amount to stretch equip body on the Y axis
+	OffsetY  int // amount to offset positions of hair, eyes, equip body, etc on the Y axis
 
 	// headwear-specific props
 
@@ -736,6 +814,10 @@ func (set *bodyPartSet) Load(stretchX, stretchY int) {
 		return
 	}
 
+	if set.TilesetSrc == "" {
+		panic("no TilesetSrc set in bodyPartSet. has an option been set yet?")
+	}
+
 	// walk animation
 	if !set.WalkAnimation.Skip {
 		if set.FlipRForL {
@@ -781,6 +863,9 @@ func (set *bodyPartSet) Load(stretchX, stretchY int) {
 }
 
 func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, flip bool, stretchX, stretchY int) []*ebiten.Image {
+	if tilesetSrc == "" {
+		panic("no tilesetSrc passed")
+	}
 	frames := []*ebiten.Image{}
 
 	if len(indexSteps) == 0 {
@@ -866,7 +951,7 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	h = float64(bg.bodyColorSliders.GetValue("H")) / 256
 	s = float64(bg.bodyColorSliders.GetValue("S")) / 256
 	v = float64(bg.bodyColorSliders.GetValue("V")) / 256
-	rendering.DrawHSVImage(screen, bg.armsImg, h, s, v, bodyX, bodyY+yOff, characterScale)
+	rendering.DrawHSVImage(screen, bg.armsImg, h, s, v, bodyX, bodyY, characterScale)
 	// Equip Body
 	equipBodyYOffset := 0.0
 	if bg.stretchY%2 != 0 {
@@ -934,6 +1019,9 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 
 	ctlX := (display.SCREEN_WIDTH * 3 / 4)
 	ctlY := 50
+	text.DrawShadowText(screen, "Body", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	bg.bodyCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
+	ctlY += 100
 	text.DrawShadowText(screen, "Hair", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	bg.hairCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
 	ctlX += 200
@@ -971,6 +1059,10 @@ func (bg *builderGame) Update() error {
 		bg.rotateRight()
 	}
 
+	bg.bodyCtl.Update()
+	if bg.bodyCtl.GetValue() != bg.bodyOptionIndex {
+		bg.SetBodyIndex(bg.bodyCtl.GetValue())
+	}
 	bg.hairCtl.Update()
 	if bg.hairCtl.GetValue() != bg.hairOptionIndex {
 		bg.SetHairIndex(bg.hairCtl.GetValue())
