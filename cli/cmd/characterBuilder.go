@@ -61,40 +61,19 @@ type builderGame struct {
 
 	bgImg *ebiten.Image
 
-	bodyImg        *ebiten.Image
-	eyesImg        *ebiten.Image
-	hairImg        *ebiten.Image
-	armsImg        *ebiten.Image
-	equipBodyImg   *ebiten.Image
-	equipHeadImg   *ebiten.Image
-	weaponImg      *ebiten.Image
-	weaponFxImg    *ebiten.Image
 	nonBodyYOffset int
 
-	bodySet         bodyPartSet
-	bodyOptionIndex int
-	bodyOptions     []SelectedPartDef
-	eyesSet         bodyPartSet
-	eyesOptionIndex int
-	eyesOptions     []SelectedPartDef
-	hairSet         bodyPartSet
-	hairOptionIndex int
-	hairOptions     []SelectedPartDef
-	armsSet         bodyPartSet
-	armsOptionIndex int
-	armsOptions     []SelectedPartDef
+	bodySet bodyPartSet
 
-	weaponSet         bodyPartSet
-	weaponOptionIndex int
-	weaponOptions     []SelectedPartDef
-	weaponFxSet       bodyPartSet
+	eyesSet bodyPartSet
+	hairSet bodyPartSet
+	armsSet bodyPartSet
 
-	equipBodySet         bodyPartSet
-	equipBodyOptionIndex int
-	equipBodyOptions     []SelectedPartDef
-	equipHeadSet         bodyPartSet
-	equipHeadOptionIndex int
-	equipHeadOptions     []SelectedPartDef
+	weaponSet   bodyPartSet
+	weaponFxSet bodyPartSet
+
+	equipBodySet bodyPartSet
+	equipHeadSet bodyPartSet
 
 	stretchX, stretchY int     // amount to stretch (non-body) parts by, when body is larger or smaller
 	globalOffsetY      float64 // amount to offset placement of (non-body) parts by, when body is taller or shorter
@@ -122,7 +101,6 @@ const (
 	anim_walk  = "walk"
 	anim_run   = "run"
 	anim_slash = "slash"
-	anim_stab  = "stab"
 )
 
 func characterBuilder() {
@@ -276,9 +254,9 @@ func characterBuilder() {
 				TileSteps:    []int{0, 5, 6, 7, 8},
 				StepsOffsetY: []int{0, 1, 2, 2, 2},
 			},
-			HasUp: true,
+			HasUp:   true,
+			Options: bodyOptions,
 		},
-		bodyOptions: bodyOptions,
 		armsSet: bodyPartSet{
 			WalkAnimation: Animation{
 				Name:      "arms/walk",
@@ -292,15 +270,14 @@ func characterBuilder() {
 				Name:      "arms/slash",
 				TileSteps: []int{0, 5, 6, 7, 8},
 			},
-			HasUp: true,
+			HasUp:   true,
+			Options: armsOptions,
 		},
-		armsOptions: armsOptions,
-		eyesSet:     bodyPartSet{},
-		eyesOptions: eyesOptions,
+		eyesSet: bodyPartSet{Options: eyesOptions},
 		hairSet: bodyPartSet{
-			HasUp: true,
+			HasUp:   true,
+			Options: hairOptions,
 		},
-		hairOptions: hairOptions,
 		equipBodySet: bodyPartSet{
 			WalkAnimation: Animation{
 				Name:      "equipBody/walk",
@@ -314,13 +291,13 @@ func characterBuilder() {
 				Name:      "equipBody/slash",
 				TileSteps: []int{0, 5, 6, 7, 8},
 			},
-			HasUp: true,
+			HasUp:   true,
+			Options: equipBodyOptions,
 		},
-		equipBodyOptions: equipBodyOptions,
 		equipHeadSet: bodyPartSet{
-			HasUp: true,
+			HasUp:   true,
+			Options: equipHeadOptions,
 		},
-		equipHeadOptions: equipHeadOptions,
 		weaponSet: bodyPartSet{
 			WalkAnimation: Animation{
 				Name:      "weapon/walk",
@@ -334,9 +311,9 @@ func characterBuilder() {
 				Name:      "weapon/slash",
 				TileSteps: []int{0, 5, 6, 7, 8},
 			},
-			HasUp: true,
+			HasUp:   true,
+			Options: weaponOptions,
 		},
-		weaponOptions: weaponOptions,
 		weaponFxSet: bodyPartSet{
 			SelectedPartDef: SelectedPartDef{
 				TilesetSrc: weaponFxTileset,
@@ -412,7 +389,7 @@ func characterBuilder() {
 
 	g.animationSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
-		Options:               []string{"", anim_walk, anim_run, anim_slash, anim_stab},
+		Options:               []string{"", anim_walk, anim_run, anim_slash},
 		InitialOptionIndex:    0,
 		TilesetSrc:            "ui/ui-components.tsj",
 		OriginIndex:           288,
@@ -536,18 +513,22 @@ func characterBuilder() {
 	}
 }
 
+func (bps *bodyPartSet) SetOptionIndex(i, stretchX, stretchY int) {
+	if i < 0 || i > len(bps.Options) {
+		panic("out of bounds")
+	}
+	bps.optionIndex = i
+	bps.SelectedPartDef = bps.Options[i]
+	bps.Load(stretchX, stretchY)
+}
+
 // SETS: Set Index Functions
 
 // DEPENDS ON:
 //
 // hairSet, equipHeadSet, equipBodySet
 func (bg *builderGame) SetBodyIndex(i int) {
-	if i < 0 || i > len(bg.bodyOptions) {
-		panic("out of bounds")
-	}
-	bg.bodyOptionIndex = i
-	bg.bodySet.SelectedPartDef = bg.bodyOptions[i]
-	bg.bodySet.Load(0, 0)
+	bg.bodySet.SetOptionIndex(i, 0, 0)
 
 	// arms are directly set with body
 	bg.SetArmsIndex(i)
@@ -562,51 +543,26 @@ func (bg *builderGame) SetBodyIndex(i int) {
 	bg.equipBodySet.Load(bg.stretchX, bg.stretchY)
 }
 func (bg *builderGame) SetArmsIndex(i int) {
-	if i < 0 || i > len(bg.armsOptions) {
-		panic("out of bounds")
-	}
-	bg.armsOptionIndex = i
-	bg.armsSet.SelectedPartDef = bg.armsOptions[i]
-	bg.armsSet.Load(0, 0)
+	bg.armsSet.SetOptionIndex(i, 0, 0)
 }
 func (bg *builderGame) SetEyesIndex(i int) {
-	if i < 0 || i > len(bg.eyesOptions) {
-		panic("out of bounds")
-	}
-	bg.eyesOptionIndex = i
-	bg.eyesSet.SelectedPartDef = bg.eyesOptions[i]
-	bg.eyesSet.Load(0, 0)
+	bg.eyesSet.SetOptionIndex(i, 0, 0)
 }
 func (bg *builderGame) SetHairIndex(i int) {
-	if i < 0 || i > len(bg.hairOptions) {
-		panic("out of bounds")
-	}
-	bg.hairOptionIndex = i
-	bg.hairSet.SelectedPartDef = bg.hairOptions[i]
-	bg.hairSet.Load(bg.stretchX, 0)
+	bg.hairSet.SetOptionIndex(i, bg.stretchX, 0)
 	if bg.equipHeadSet.CropHairToHead {
 		bg.cropHairToHead()
 	}
 }
 func (bg *builderGame) SetEquipBodyIndex(i int) {
-	if i < 0 || i > len(bg.equipBodyOptions) {
-		panic("out of bounds")
-	}
-	bg.equipBodyOptionIndex = i
-	bg.equipBodySet.SelectedPartDef = bg.equipBodyOptions[i]
-	bg.equipBodySet.Load(bg.stretchX, bg.stretchY)
+	bg.equipBodySet.SetOptionIndex(i, bg.stretchX, bg.stretchY)
 }
 
 // DEPENDS ON:
 //
 // hairSet
 func (bg *builderGame) SetEquipHeadIndex(i int) {
-	if i < 0 || i > len(bg.equipHeadOptions) {
-		panic("out of bounds")
-	}
-	bg.equipHeadOptionIndex = i
-	bg.equipHeadSet.SelectedPartDef = bg.equipHeadOptions[i]
-	bg.equipHeadSet.Load(bg.stretchX, 0)
+	bg.equipHeadSet.SetOptionIndex(i, bg.stretchX, 0)
 
 	// since some head equipment may cause hair to be cropped, always reload hair when head is equiped
 	bg.hairSet.Load(bg.stretchX, 0)
@@ -616,12 +572,7 @@ func (bg *builderGame) SetEquipHeadIndex(i int) {
 	}
 }
 func (bg *builderGame) SetWeaponIndex(i int) {
-	if i < 0 || i > len(bg.weaponOptions) {
-		panic("out of bounds")
-	}
-	bg.weaponOptionIndex = i
-	bg.weaponSet.SelectedPartDef = bg.weaponOptions[i]
-	bg.weaponSet.Load(0, 0)
+	bg.weaponSet.SetOptionIndex(i, 0, 0)
 }
 
 type Animation struct {
@@ -643,6 +594,10 @@ type bodyPartSet struct {
 	RunAnimation   Animation
 	SlashAnimation Animation
 	HasUp          bool
+
+	optionIndex int
+	Options     []SelectedPartDef
+	img         *ebiten.Image
 }
 
 // represents the currently selected body part and it's individual definition
@@ -705,20 +660,20 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 	panic("unrecognized direction")
 }
 
-func (set bodyPartSet) getCurrentFrame(dir byte, animationName string) *ebiten.Image {
+func (set *bodyPartSet) setCurrentFrame(dir byte, animationName string) {
 	if set.None {
-		return nil
+		set.img = nil
 	}
 
 	switch animationName {
 	case anim_walk:
-		return set.WalkAnimation.getFrame(dir, set.animIndex)
+		set.img = set.WalkAnimation.getFrame(dir, set.animIndex)
 	case anim_run:
-		return set.RunAnimation.getFrame(dir, set.animIndex)
+		set.img = set.RunAnimation.getFrame(dir, set.animIndex)
 	case anim_slash:
-		return set.SlashAnimation.getFrame(dir, set.animIndex)
+		set.img = set.SlashAnimation.getFrame(dir, set.animIndex)
 	case "":
-		return set.WalkAnimation.getFrame(dir, 0)
+		set.img = set.WalkAnimation.getFrame(dir, 0)
 	default:
 		panic("unrecognized animation name: " + animationName)
 	}
@@ -929,12 +884,12 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 
 	tileSize := int(config.TileSize * config.UIScale)
 
-	if bg.bodyImg == nil {
+	if bg.bodySet.img == nil {
 		panic("no body image!")
 	}
 
-	bodyWidth := float64(bg.bodyImg.Bounds().Dx()) * characterScale
-	bodyHeight := float64(bg.bodyImg.Bounds().Dy()) * characterScale
+	bodyWidth := float64(bg.bodySet.img.Bounds().Dx()) * characterScale
+	bodyHeight := float64(bg.bodySet.img.Bounds().Dy()) * characterScale
 
 	bodyX := float64(display.SCREEN_WIDTH/2) - (bodyWidth / 2)
 	bodyY := float64(display.SCREEN_HEIGHT/2) - (bodyHeight / 2)
@@ -946,53 +901,53 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	h := float64(bg.bodyColorSliders.GetValue("H")) / 256
 	s := float64(bg.bodyColorSliders.GetValue("S")) / 256
 	v := float64(bg.bodyColorSliders.GetValue("V")) / 256
-	rendering.DrawHSVImage(screen, bg.bodyImg, h, s, v, bodyX, bodyY, characterScale)
+	rendering.DrawHSVImage(screen, bg.bodySet.img, h, s, v, bodyX, bodyY, characterScale)
 	// Arms
 	h = float64(bg.bodyColorSliders.GetValue("H")) / 256
 	s = float64(bg.bodyColorSliders.GetValue("S")) / 256
 	v = float64(bg.bodyColorSliders.GetValue("V")) / 256
-	rendering.DrawHSVImage(screen, bg.armsImg, h, s, v, bodyX, bodyY, characterScale)
+	rendering.DrawHSVImage(screen, bg.armsSet.img, h, s, v, bodyX, bodyY, characterScale)
 	// Equip Body
 	equipBodyYOffset := 0.0
 	if bg.stretchY%2 != 0 {
 		// if stretchY is an odd number, offset equip body by -1
 		equipBodyYOffset = -characterScale
 	}
-	rendering.DrawImage(screen, bg.equipBodyImg, bodyX, bodyY+yOff+equipBodyYOffset, characterScale)
+	rendering.DrawImage(screen, bg.equipBodySet.img, bodyX, bodyY+yOff+equipBodyYOffset, characterScale)
 
 	// Eyes
 	eyesX := bodyX
 	eyesY := bodyY + (float64(bg.nonBodyYOffset) * characterScale) + yOff
-	if bg.eyesImg != nil {
+	if bg.eyesSet.img != nil {
 		h := float64(bg.eyeColorSliders.GetValue("H")) / 256
 		s := float64(bg.eyeColorSliders.GetValue("S")) / 256
 		v := float64(bg.eyeColorSliders.GetValue("V")) / 256
-		rendering.DrawHSVImage(screen, bg.eyesImg, h, s, v, eyesX, eyesY, characterScale)
+		rendering.DrawHSVImage(screen, bg.eyesSet.img, h, s, v, eyesX, eyesY, characterScale)
 	}
 	// Hair
 	hairY := bodyY + (float64(bg.nonBodyYOffset) * characterScale) + yOff
-	if bg.hairImg == nil {
+	if bg.hairSet.img == nil {
 		panic("hair img is nil")
 	}
 	h = float64(bg.hairColorSliders.GetValue("H")) / 256
 	s = float64(bg.hairColorSliders.GetValue("S")) / 256
 	v = float64(bg.hairColorSliders.GetValue("V")) / 256
-	rendering.DrawHSVImage(screen, bg.hairImg, h, s, v, bodyX, hairY, characterScale)
+	rendering.DrawHSVImage(screen, bg.hairSet.img, h, s, v, bodyX, hairY, characterScale)
 
 	// Equip Head
-	if bg.equipHeadImg != nil {
-		rendering.DrawImage(screen, bg.equipHeadImg, bodyX, hairY, characterScale)
+	if bg.equipHeadSet.img != nil {
+		rendering.DrawImage(screen, bg.equipHeadSet.img, bodyX, hairY, characterScale)
 	}
 
 	// Equip Weapon
-	if bg.weaponImg != nil {
+	if bg.weaponSet.img != nil {
 		// weapons are in 80x80 (5 tiles width & height) tiles
 		// this is to accomodate for the extra space they need for their swings and stuff
 		weaponY := bodyY - (characterTileSize) + yOff
 		weaponX := bodyX - (characterTileSize * 2)
-		rendering.DrawImage(screen, bg.weaponImg, weaponX, weaponY, characterScale)
-		if bg.weaponFxImg != nil {
-			rendering.DrawImage(screen, bg.weaponFxImg, weaponX, weaponY, characterScale)
+		rendering.DrawImage(screen, bg.weaponSet.img, weaponX, weaponY, characterScale)
+		if bg.weaponFxSet.img != nil {
+			rendering.DrawImage(screen, bg.weaponFxSet.img, weaponX, weaponY, characterScale)
 		}
 	}
 
@@ -1060,23 +1015,23 @@ func (bg *builderGame) Update() error {
 	}
 
 	bg.bodyCtl.Update()
-	if bg.bodyCtl.GetValue() != bg.bodyOptionIndex {
+	if bg.bodyCtl.GetValue() != bg.bodySet.optionIndex {
 		bg.SetBodyIndex(bg.bodyCtl.GetValue())
 	}
 	bg.hairCtl.Update()
-	if bg.hairCtl.GetValue() != bg.hairOptionIndex {
+	if bg.hairCtl.GetValue() != bg.hairSet.optionIndex {
 		bg.SetHairIndex(bg.hairCtl.GetValue())
 	}
 	bg.eyesCtl.Update()
-	if bg.eyesCtl.GetValue() != bg.eyesOptionIndex {
+	if bg.eyesCtl.GetValue() != bg.eyesSet.optionIndex {
 		bg.SetEyesIndex(bg.eyesCtl.GetValue())
 	}
 	bg.equipHeadCtl.Update()
-	if bg.equipHeadCtl.GetValue() != bg.equipHeadOptionIndex {
+	if bg.equipHeadCtl.GetValue() != bg.equipHeadSet.optionIndex {
 		bg.SetEquipHeadIndex(bg.equipHeadCtl.GetValue())
 	}
 	bg.equipBodyCtl.Update()
-	if bg.equipBodyCtl.GetValue() != bg.equipBodyOptionIndex {
+	if bg.equipBodyCtl.GetValue() != bg.equipBodySet.optionIndex {
 		bg.SetEquipBodyIndex(bg.equipBodyCtl.GetValue())
 	}
 	bg.bodyColorSliders.Update()
@@ -1109,15 +1064,15 @@ func (bg *builderGame) Update() error {
 	}
 
 	// SETS: get current frame
-	bg.bodyImg = bg.bodySet.getCurrentFrame(bg.currentDirection, bg.animation)
-	bg.eyesImg = bg.eyesSet.getCurrentFrame(bg.currentDirection, bg.animation)
-	bg.hairImg = bg.hairSet.getCurrentFrame(bg.currentDirection, bg.animation)
-	bg.armsImg = bg.armsSet.getCurrentFrame(bg.currentDirection, bg.animation)
+	bg.bodySet.setCurrentFrame(bg.currentDirection, bg.animation)
+	bg.eyesSet.setCurrentFrame(bg.currentDirection, bg.animation)
+	bg.hairSet.setCurrentFrame(bg.currentDirection, bg.animation)
+	bg.armsSet.setCurrentFrame(bg.currentDirection, bg.animation)
 
-	bg.equipBodyImg = bg.equipBodySet.getCurrentFrame(bg.currentDirection, bg.animation)
-	bg.equipHeadImg = bg.equipHeadSet.getCurrentFrame(bg.currentDirection, bg.animation)
-	bg.weaponImg = bg.weaponSet.getCurrentFrame(bg.currentDirection, bg.animation)
-	bg.weaponFxImg = bg.weaponFxSet.getCurrentFrame(bg.currentDirection, bg.animation)
+	bg.equipBodySet.setCurrentFrame(bg.currentDirection, bg.animation)
+	bg.equipHeadSet.setCurrentFrame(bg.currentDirection, bg.animation)
+	bg.weaponSet.setCurrentFrame(bg.currentDirection, bg.animation)
+	bg.weaponFxSet.setCurrentFrame(bg.currentDirection, bg.animation)
 
 	bg.nonBodyYOffset = bg.bodySet.getCurrentYOffset(bg.animation)
 
@@ -1179,14 +1134,14 @@ func (bg *builderGame) setDirection(dir byte) {
 	bg.currentDirection = dir
 
 	// SETS: set to first frame of walking animation
-	bg.bodyImg = bg.bodySet.WalkAnimation.getFrame(dir, 0)
-	bg.eyesImg = bg.eyesSet.WalkAnimation.getFrame(dir, 0)
-	bg.hairImg = bg.hairSet.WalkAnimation.getFrame(dir, 0)
-	bg.armsImg = bg.armsSet.WalkAnimation.getFrame(dir, 0)
-	bg.equipBodyImg = bg.equipBodySet.WalkAnimation.getFrame(dir, 0)
-	bg.equipHeadImg = bg.equipHeadSet.WalkAnimation.getFrame(dir, 0)
-	bg.weaponImg = bg.weaponSet.WalkAnimation.getFrame(dir, 0)
-	bg.weaponFxImg = bg.weaponFxSet.WalkAnimation.getFrame(dir, 0)
+	bg.bodySet.setCurrentFrame(dir, anim_walk)
+	bg.eyesSet.setCurrentFrame(dir, anim_walk)
+	bg.hairSet.setCurrentFrame(dir, anim_walk)
+	bg.armsSet.setCurrentFrame(dir, anim_walk)
+	bg.equipBodySet.setCurrentFrame(dir, anim_walk)
+	bg.equipHeadSet.setCurrentFrame(dir, anim_walk)
+	bg.weaponSet.setCurrentFrame(dir, anim_walk)
+	bg.weaponFxSet.setCurrentFrame(dir, anim_walk)
 }
 
 func (bg *builderGame) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
