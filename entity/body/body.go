@@ -63,7 +63,7 @@ func NewEntityBodySet(bodySet, armsSet, eyesSet, hairSet BodyPartSet, equipBodyS
 	}
 	if weaponFxSet != nil {
 		eb.weaponFxSet = *weaponFxSet
-		eb.weaponFxSet.Load(0, 0)
+		eb.weaponFxSet.load(0, 0)
 	}
 
 	return eb
@@ -74,46 +74,38 @@ func (eb *EntityBodySet) Dimensions() (dx, dy int) {
 	return bounds.Dx(), bounds.Dy()
 }
 
-func (eb *EntityBodySet) SetStretch(dx, dy int) {
-	eb.stretchX = dx
-	eb.stretchY = dy
-}
-
-func (eb *EntityBodySet) SetGlobalOffsetY(dy int) {
-	eb.globalOffsetY = float64(dy)
-}
-
 func (eb *EntityBodySet) SetBody(bodyDef, armDef SelectedPartDef) {
-	eb.bodySet.SetImageSource(bodyDef, 0, 0)
+	eb.bodySet.setImageSource(bodyDef, 0, 0)
 
 	// arms are directly set with body
-	eb.armsSet.SetImageSource(armDef, 0, 0)
+	eb.armsSet.setImageSource(armDef, 0, 0)
 
-	eb.SetStretch(bodyDef.StretchX, bodyDef.StretchY)
-	eb.SetGlobalOffsetY(bodyDef.OffsetY)
+	eb.stretchX = bodyDef.StretchX
+	eb.stretchY = bodyDef.StretchY
+	eb.globalOffsetY = float64(bodyDef.OffsetY)
 
 	// reload any body parts that are influenced by stretch properties
-	eb.hairSet.Load(eb.stretchX, 0)
-	eb.equipHeadSet.Load(eb.stretchX, 0)
-	eb.equipBodySet.Load(eb.stretchX, eb.stretchY)
+	eb.hairSet.load(eb.stretchX, 0)
+	eb.equipHeadSet.load(eb.stretchX, 0)
+	eb.equipBodySet.load(eb.stretchX, eb.stretchY)
 }
 
 func (eb *EntityBodySet) SetEyes(def SelectedPartDef) {
-	eb.eyesSet.SetImageSource(def, 0, 0)
+	eb.eyesSet.setImageSource(def, 0, 0)
 }
 
 func (eb *EntityBodySet) SetHair(def SelectedPartDef) {
-	eb.hairSet.SetImageSource(def, eb.stretchX, 0)
+	eb.hairSet.setImageSource(def, eb.stretchX, 0)
 	if eb.cropHairToHead {
 		eb.cropHair()
 	}
 }
 
 func (eb *EntityBodySet) SetEquipHead(def SelectedPartDef) {
-	eb.equipHeadSet.SetImageSource(def, eb.stretchX, 0)
+	eb.equipHeadSet.setImageSource(def, eb.stretchX, 0)
 
 	// since some head equipment may cause hair to be cropped, always reload hair when head is equiped
-	eb.hairSet.Load(eb.stretchX, 0)
+	eb.hairSet.load(eb.stretchX, 0)
 
 	if def.CropHairToHead {
 		eb.cropHair()
@@ -121,11 +113,11 @@ func (eb *EntityBodySet) SetEquipHead(def SelectedPartDef) {
 }
 
 func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
-	eb.equipBodySet.SetImageSource(def, eb.stretchX, eb.stretchY)
+	eb.equipBodySet.setImageSource(def, eb.stretchX, eb.stretchY)
 }
 
 func (eb *EntityBodySet) SetWeapon(def SelectedPartDef) {
-	eb.weaponSet.SetImageSource(def, 0, 0)
+	eb.weaponSet.setImageSource(def, 0, 0)
 }
 
 func (eb EntityBodySet) GetCurrentAnimation() string {
@@ -171,7 +163,7 @@ type SelectedPartDef struct {
 	CropHairToHead bool // set to have hair not go outside the head image. used for helmets or certain hats.
 }
 
-func (bps *BodyPartSet) SetImageSource(def SelectedPartDef, stretchX, stretchY int) {
+func (bps *BodyPartSet) setImageSource(def SelectedPartDef, stretchX, stretchY int) {
 	bps.TilesetSrc = def.TilesetSrc
 	bps.LStart = def.LStart
 	bps.RStart = def.RStart
@@ -180,10 +172,10 @@ func (bps *BodyPartSet) SetImageSource(def SelectedPartDef, stretchX, stretchY i
 	bps.FlipRForL = def.FlipRForL
 	bps.None = def.None
 
-	bps.Load(stretchX, stretchY)
+	bps.load(stretchX, stretchY)
 }
 
-func (set *BodyPartSet) Load(stretchX, stretchY int) {
+func (set *BodyPartSet) load(stretchX, stretchY int) {
 	set.WalkAnimation.reset()
 	set.RunAnimation.reset()
 	set.SlashAnimation.reset()
