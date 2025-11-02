@@ -13,11 +13,11 @@ const (
 
 type Animation struct {
 	Name         string
-	Skip         bool // if true, this animation does not get defined
-	L            []*ebiten.Image
-	R            []*ebiten.Image
-	U            []*ebiten.Image
-	D            []*ebiten.Image
+	Skip         bool            // if true, this animation does not get defined
+	L            []*ebiten.Image `json:"-"`
+	R            []*ebiten.Image `json:"-"`
+	U            []*ebiten.Image `json:"-"`
+	D            []*ebiten.Image `json:"-"`
 	TileSteps    []int
 	StepsOffsetY []int
 }

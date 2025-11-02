@@ -1,6 +1,8 @@
 package body
 
 import (
+	"fmt"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/rendering"
@@ -11,62 +13,108 @@ type HSV struct {
 	H, S, V float64
 }
 
+var Default HSV = HSV{0.5, 0.5, 0.5}
+
 type EntityBodySet struct {
-	animation          string
-	animationTickCount int
-	ticks              int
-	currentDirection   byte // L R U D
+	animation          string `json:"-"`
+	animationTickCount int    `json:"-"`
+	ticks              int    `json:"-"` // number of ticks elapsed
+	currentDirection   byte   `json:"-"` // L R U D
+	cropHairToHead     bool   `json:"-"`
 
-	cropHairToHead bool
+	// actual body definition - not including equiped items
 
-	BodyHSV HSV
+	bodyHSV HSV
 	bodySet BodyPartSet
-	EyesHSV HSV
+	eyesHSV HSV
 	eyesSet BodyPartSet
-	HairHSV HSV
+	hairHSV HSV
 	hairSet BodyPartSet
 	armsSet BodyPartSet
 
+	// currently equiped items
+
 	equipBodySet BodyPartSet
 	equipHeadSet BodyPartSet
+	weaponSet    BodyPartSet
+	weaponFxSet  BodyPartSet
 
-	weaponSet   BodyPartSet
-	weaponFxSet BodyPartSet
-
-	stretchX, stretchY int     // amount to stretch (non-body) parts by, when body is larger or smaller
-	globalOffsetY      float64 // amount to offset placement of (non-body) parts by, when body is taller or shorter
-	nonBodyYOffset     int
+	stretchX, stretchY int     `json:"-"` // amount to stretch (non-body) parts by, when body is larger or smaller
+	globalOffsetY      float64 `json:"-"` // amount to offset placement of (non-body) parts by, when body is taller or shorter
+	nonBodyYOffset     int     `json:"-"`
 }
 
-func NewEntityBodySet(bodySet, armsSet, eyesSet, hairSet BodyPartSet, equipBodySet, equipHeadSet, weaponSet, weaponFxSet *BodyPartSet) EntityBodySet {
+func (eb *EntityBodySet) SetBodyHSV(h, s, v float64) {
+	eb.bodyHSV = HSV{h, s, v}
+}
+func (eb EntityBodySet) GetBodyHSV() (h, s, v float64) {
+	return eb.bodyHSV.H, eb.bodyHSV.S, eb.bodyHSV.V
+}
+func (eb *EntityBodySet) SetEyesHSV(h, s, v float64) {
+	eb.eyesHSV = HSV{h, s, v}
+}
+func (eb EntityBodySet) GetEyesHSV() (h, s, v float64) {
+	return eb.eyesHSV.H, eb.eyesHSV.S, eb.eyesHSV.V
+}
+func (eb *EntityBodySet) SetHairHSV(h, s, v float64) {
+	eb.hairHSV = HSV{h, s, v}
+}
+func (eb EntityBodySet) GetHairHSV() (h, s, v float64) {
+	return eb.hairHSV.H, eb.hairHSV.S, eb.hairHSV.V
+}
+
+// creates a base body set, without anything equiped
+func NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet BodyPartSet, bodyHSV, eyesHSV, hairHSV *HSV) EntityBodySet {
+	if bodyHSV == nil {
+		bodyHSV = &Default
+	}
+	if eyesHSV == nil {
+		eyesHSV = &Default
+	}
+	if hairHSV == nil {
+		hairHSV = &Default
+	}
+	if bodySet.None {
+		panic("body must not be none")
+	}
+	if armsSet.None {
+		panic("arms must not be none")
+	}
+	if eyesSet.None {
+		panic("eyes must not be none")
+	}
+
 	eb := EntityBodySet{
 		animation:          "",
 		animationTickCount: 15,
 		currentDirection:   'D',
 		bodySet:            bodySet,
-		BodyHSV:            HSV{0.5, 0.5, 0.5},
+		bodyHSV:            *bodyHSV,
 		armsSet:            armsSet,
-		eyesSet:            eyesSet,
-		EyesHSV:            HSV{0.5, 0.5, 0.5},
 		hairSet:            hairSet,
-		HairHSV:            HSV{0.5, 0.5, 0.5},
-	}
-
-	if equipBodySet != nil {
-		eb.equipBodySet = *equipBodySet
-	}
-	if equipHeadSet != nil {
-		eb.equipHeadSet = *equipHeadSet
-	}
-	if weaponSet != nil {
-		eb.weaponSet = *weaponSet
-	}
-	if weaponFxSet != nil {
-		eb.weaponFxSet = *weaponFxSet
-		eb.weaponFxSet.load(0, 0)
+		hairHSV:            *hairHSV,
+		eyesSet:            eyesSet,
+		eyesHSV:            *eyesHSV,
+		equipBodySet:       equipBodySet,
+		equipHeadSet:       equipHeadSet,
+		weaponSet:          weaponSet,
+		weaponFxSet:        weaponFxSet,
 	}
 
 	return eb
+}
+
+func (eb EntityBodySet) GetCodeDefinition() string {
+	eb.bodySet.unsetAllImages()
+	eb.hairSet.unsetAllImages()
+	eb.eyesSet.unsetAllImages()
+	eb.armsSet.unsetAllImages()
+	eb.equipBodySet.unsetAllImages()
+	eb.equipHeadSet.unsetAllImages()
+	eb.weaponSet.unsetAllImages()
+	eb.weaponFxSet.unsetAllImages()
+
+	return fmt.Sprintf("%#v", eb)
 }
 
 func (eb *EntityBodySet) Dimensions() (dx, dy int) {
@@ -75,6 +123,13 @@ func (eb *EntityBodySet) Dimensions() (dx, dy int) {
 }
 
 func (eb *EntityBodySet) SetBody(bodyDef, armDef SelectedPartDef) {
+	if bodyDef.None {
+		panic("body must be defined")
+	}
+	if armDef.None {
+		panic("arms must be defined")
+	}
+
 	eb.bodySet.setImageSource(bodyDef, 0, 0)
 
 	// arms are directly set with body
@@ -91,6 +146,9 @@ func (eb *EntityBodySet) SetBody(bodyDef, armDef SelectedPartDef) {
 }
 
 func (eb *EntityBodySet) SetEyes(def SelectedPartDef) {
+	if def.None {
+		panic("eyes must be defined")
+	}
 	eb.eyesSet.setImageSource(def, 0, 0)
 }
 
@@ -116,8 +174,15 @@ func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
 	eb.equipBodySet.setImageSource(def, eb.stretchX, eb.stretchY)
 }
 
-func (eb *EntityBodySet) SetWeapon(def SelectedPartDef) {
-	eb.weaponSet.setImageSource(def, 0, 0)
+func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
+	if eb.weaponSet.None {
+		panic("no weapon set!")
+	}
+	if eb.weaponFxSet.None {
+		panic("no weaponFx set!")
+	}
+	eb.weaponSet.setImageSource(weaponDef, 0, 0)
+	eb.weaponFxSet.setImageSource(weaponFxDef, 0, 0)
 }
 
 func (eb EntityBodySet) GetCurrentAnimation() string {
@@ -128,12 +193,20 @@ func (eb *EntityBodySet) SetAnimationTickCount(tickCount int) {
 	eb.animationTickCount = tickCount
 }
 
-// represents either the head, body, eyes, or hair
+// represents either the head, body, eyes, or hair of an entity.
+//
+// Defines the animation patterns for each body part, so this is required to be defined for each entity.
+// The actual body part definitions (which tiles to show for hair, eyes, etc) are defined by the TilesetSrc and start indices, and can be set
+// using the set functions.
 type BodyPartSet struct {
+	// tileset and image source definitions
+
 	TilesetSrc                     string
 	RStart, LStart, UStart, DStart int
 	FlipRForL                      bool
 	None                           bool
+
+	// animation definitions
 
 	animIndex      int
 	WalkAnimation  Animation
@@ -141,7 +214,17 @@ type BodyPartSet struct {
 	SlashAnimation Animation
 	HasUp          bool
 
-	img *ebiten.Image
+	img *ebiten.Image `json:"-"`
+}
+
+// for no body part
+var NONE BodyPartSet = BodyPartSet{None: true}
+
+func (bps *BodyPartSet) unsetAllImages() {
+	bps.WalkAnimation.reset()
+	bps.RunAnimation.reset()
+	bps.SlashAnimation.reset()
+	bps.img = nil
 }
 
 // TODO choose a better name. Maybe BodyPartDef?
@@ -390,10 +473,9 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	yOff := eb.globalOffsetY * characterScale
 	characterTileSize := config.TileSize * characterScale
 	// Body
-	bodyHSV := eb.BodyHSV
-	rendering.DrawHSVImage(screen, eb.bodySet.img, bodyHSV.H, bodyHSV.S, bodyHSV.V, bodyX, bodyY, characterScale)
+	rendering.DrawHSVImage(screen, eb.bodySet.img, eb.bodyHSV.H, eb.bodyHSV.S, eb.bodyHSV.V, bodyX, bodyY, characterScale)
 	// Arms
-	rendering.DrawHSVImage(screen, eb.armsSet.img, bodyHSV.H, bodyHSV.S, bodyHSV.V, bodyX, bodyY, characterScale)
+	rendering.DrawHSVImage(screen, eb.armsSet.img, eb.bodyHSV.H, eb.bodyHSV.S, eb.bodyHSV.V, bodyX, bodyY, characterScale)
 	// Equip Body
 	equipBodyYOffset := 0.0
 	if eb.stretchY%2 != 0 {
@@ -406,16 +488,14 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	eyesX := bodyX
 	eyesY := bodyY + (float64(eb.nonBodyYOffset) * characterScale) + yOff
 	if eb.eyesSet.img != nil {
-		eyesHSV := eb.EyesHSV
-		rendering.DrawHSVImage(screen, eb.eyesSet.img, eyesHSV.H, eyesHSV.S, eyesHSV.V, eyesX, eyesY, characterScale)
+		rendering.DrawHSVImage(screen, eb.eyesSet.img, eb.eyesHSV.H, eb.eyesHSV.S, eb.eyesHSV.V, eyesX, eyesY, characterScale)
 	}
 	// Hair
 	hairY := bodyY + (float64(eb.nonBodyYOffset) * characterScale) + yOff
 	if eb.hairSet.img == nil {
 		panic("hair img is nil")
 	}
-	hairHSV := eb.HairHSV
-	rendering.DrawHSVImage(screen, eb.hairSet.img, hairHSV.H, hairHSV.S, hairHSV.V, bodyX, hairY, characterScale)
+	rendering.DrawHSVImage(screen, eb.hairSet.img, eb.hairHSV.H, eb.hairHSV.S, eb.hairHSV.V, bodyX, hairY, characterScale)
 
 	// Equip Head
 	if eb.equipHeadSet.img != nil {

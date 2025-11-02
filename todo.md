@@ -11,14 +11,9 @@ Tracking ongoing tasks and their progress
 
 ## Entity
 
-- [ ] design system of combining reusable smaller images into full frames
+- [x] design system of combining reusable smaller images into full frames
   - this will enable us to easily create varied entities without creating entire individual frame images
-
-## Physics
-
-- [ ] Finish collisions
-  - [x] player <-> entity
-  - [ ] objects, structures
+  - [ ] plug new system of reusable entity components into the actual entity drawing logic
 
 ## Rendering
 
@@ -44,3 +39,9 @@ Tracking ongoing tasks and their progress
 ## Rendering
 
 - [x] add support for animated tiles (like grass tiles that have passive animations)
+
+## Physics
+
+- [x] Finish collisions
+  - [x] player <-> entity
+  - [x] objects, structures

@@ -60,8 +60,10 @@ type builderGame struct {
 
 	bodySetOptions, eyesSetOptions, hairSetOptions, armsSetOptions []body.SelectedPartDef
 	bodySetIndex, eyesSetIndex, hairSetIndex, armsSetIndex         int
-	equipBodySetOptions, equipHeadSetOptions, weaponSetOptions     []body.SelectedPartDef
+	equipBodySetOptions, equipHeadSetOptions                       []body.SelectedPartDef
 	equipBodySetIndex, equipHeadSetIndex, weaponSetIndex           int
+
+	weaponOptions []weaponOption
 
 	// entity body animation parts (in entity)
 
@@ -84,6 +86,11 @@ type builderGame struct {
 	bodyColorSliders slider.SliderGroup
 	hairColorSliders slider.SliderGroup
 	eyeColorSliders  slider.SliderGroup
+}
+
+type weaponOption struct {
+	weaponPartDef body.SelectedPartDef
+	weaponFxDef   body.SelectedPartDef
 }
 
 func characterBuilder() {
@@ -207,16 +214,6 @@ func characterBuilder() {
 		})
 	}
 
-	weaponOptions := []body.SelectedPartDef{
-		{
-			TilesetSrc: equipWeaponTileset,
-			DStart:     0,
-			RStart:     13,
-			LStart:     26,
-			UStart:     39,
-		},
-	}
-
 	bodySet := body.BodyPartSet{
 		WalkAnimation: body.Animation{
 			Name:         "body/walk",
@@ -284,11 +281,6 @@ func characterBuilder() {
 		HasUp: true,
 	}
 	weaponFxSet := body.BodyPartSet{
-		TilesetSrc: weaponFxTileset,
-		DStart:     0,
-		RStart:     6,
-		LStart:     12,
-		UStart:     18,
 		SlashAnimation: body.Animation{
 			Name:      "weaponFx/slash",
 			TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
@@ -298,16 +290,26 @@ func characterBuilder() {
 		HasUp:         true,
 	}
 
-	entBody := body.NewEntityBodySet(
-		bodySet,
-		armsSet,
-		eyesSet,
-		hairSet,
-		&equipBodySet,
-		&equipHeadSet,
-		&weaponSet,
-		&weaponFxSet,
-	)
+	weaponOptions := []weaponOption{
+		{
+			weaponPartDef: body.SelectedPartDef{
+				TilesetSrc: equipWeaponTileset,
+				DStart:     0,
+				RStart:     13,
+				LStart:     26,
+				UStart:     39,
+			},
+			weaponFxDef: body.SelectedPartDef{
+				TilesetSrc: weaponFxTileset,
+				DStart:     0,
+				RStart:     6,
+				LStart:     12,
+				UStart:     18,
+			},
+		},
+	}
+
+	entBody := body.NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, nil, nil, nil)
 
 	g := builderGame{
 		bodySetOptions:      bodyOptions,
@@ -316,7 +318,7 @@ func characterBuilder() {
 		hairSetOptions:      hairOptions,
 		equipBodySetOptions: equipBodyOptions,
 		equipHeadSetOptions: equipHeadOptions,
-		weaponSetOptions:    weaponOptions,
+		weaponOptions:       weaponOptions,
 		entityBody:          entBody,
 	}
 
@@ -553,12 +555,12 @@ func (bg *builderGame) SetEquipHeadIndex(i int) {
 	bg.entityBody.SetEquipHead(op)
 }
 func (bg *builderGame) SetWeaponIndex(i int) {
-	if i < 0 || i > len(bg.weaponSetOptions) {
+	if i < 0 || i > len(bg.weaponOptions) {
 		panic("out of bounds")
 	}
 	bg.weaponSetIndex = i
-	op := bg.weaponSetOptions[i]
-	bg.entityBody.SetWeapon(op)
+	op := bg.weaponOptions[i]
+	bg.entityBody.SetWeapon(op.weaponPartDef, op.weaponFxDef)
 }
 
 func (bg *builderGame) Draw(screen *ebiten.Image) {
@@ -593,14 +595,14 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.speedSlider.GetValue()), config.DefaultFont, sliderX-40, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
 	bg.speedSlider.Draw(screen, float64(sliderX), float64(sliderY))
 
-	scaleSliderY := 200
-	text.DrawShadowText(screen, "Scale", config.DefaultTitleFont, sliderX, scaleSliderY, color.White, nil, 0, 0)
-	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.scaleSlider.GetValue()), config.DefaultFont, sliderX-40, scaleSliderY+(tileSize*2/3), color.White, nil, 0, 0)
-	bg.scaleSlider.Draw(screen, float64(sliderX), float64(scaleSliderY))
+	sliderY += tileSize * 2
+	text.DrawShadowText(screen, "Scale", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.scaleSlider.GetValue()), config.DefaultFont, sliderX-40, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
+	bg.scaleSlider.Draw(screen, float64(sliderX), float64(sliderY))
 
-	animationSelectorY := 300
-	text.DrawShadowText(screen, "Animation", config.DefaultTitleFont, sliderX, animationSelectorY, color.White, nil, 0, 0)
-	bg.animationSelector.Draw(screen, float64(sliderX), float64(animationSelectorY), nil)
+	sliderY += tileSize * 2
+	text.DrawShadowText(screen, "Animation", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	bg.animationSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 
 	// UI controls - Right side
 	ctlX := (display.SCREEN_WIDTH * 3 / 4)
@@ -669,15 +671,21 @@ func (bg *builderGame) Update() error {
 	bg.hairColorSliders.Update()
 	bg.eyeColorSliders.Update()
 
-	bg.entityBody.BodyHSV.H = float64(bg.bodyColorSliders.GetValue("H")) / 256
-	bg.entityBody.BodyHSV.S = float64(bg.bodyColorSliders.GetValue("S")) / 256
-	bg.entityBody.BodyHSV.V = float64(bg.bodyColorSliders.GetValue("V")) / 256
-	bg.entityBody.HairHSV.H = float64(bg.hairColorSliders.GetValue("H")) / 256
-	bg.entityBody.HairHSV.S = float64(bg.hairColorSliders.GetValue("S")) / 256
-	bg.entityBody.HairHSV.V = float64(bg.hairColorSliders.GetValue("V")) / 256
-	bg.entityBody.EyesHSV.H = float64(bg.eyeColorSliders.GetValue("H")) / 256
-	bg.entityBody.EyesHSV.S = float64(bg.eyeColorSliders.GetValue("S")) / 256
-	bg.entityBody.EyesHSV.V = float64(bg.eyeColorSliders.GetValue("V")) / 256
+	bg.entityBody.SetBodyHSV(
+		float64(bg.bodyColorSliders.GetValue("H"))/256,
+		float64(bg.bodyColorSliders.GetValue("S"))/256,
+		float64(bg.bodyColorSliders.GetValue("V"))/256,
+	)
+	bg.entityBody.SetHairHSV(
+		float64(bg.hairColorSliders.GetValue("H"))/256,
+		float64(bg.hairColorSliders.GetValue("S"))/256,
+		float64(bg.hairColorSliders.GetValue("V"))/256,
+	)
+	bg.entityBody.SetEyesHSV(
+		float64(bg.eyeColorSliders.GetValue("H"))/256,
+		float64(bg.eyeColorSliders.GetValue("S"))/256,
+		float64(bg.eyeColorSliders.GetValue("V"))/256,
+	)
 
 	bg.speedSlider.Update()
 	bg.scaleSlider.Update()
