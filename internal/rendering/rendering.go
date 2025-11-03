@@ -6,6 +6,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/model"
 	"golang.org/x/image/font"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -19,6 +20,12 @@ func GetImageDrawPos(image *ebiten.Image, x float64, y float64, offsetX float64,
 	imgHeight := image.Bounds().Dy()
 	drawX := x - offsetX - ((float64(imgWidth) - config.TileSize) / 2)
 	drawY := y - offsetY - (float64(imgHeight) - config.TileSize)
+	return drawX, drawY
+}
+
+func GetRectDrawPos(rect model.Rect, x, y float64, offsetX, offsetY float64) (float64, float64) {
+	drawX := x - offsetX - ((float64(rect.W) - config.TileSize) / 2)
+	drawY := y - offsetY - (float64(rect.H) - config.TileSize)
 	return drawX, drawY
 }
 

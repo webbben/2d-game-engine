@@ -4,17 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/mouse"
-	"github.com/webbben/2d-game-engine/internal/tiled"
 )
 
 var (
@@ -30,11 +26,8 @@ func GetDefaultWalkSpeed() float64 {
 
 type Entity struct {
 	EntityInfo
-	Loaded              bool                     `json:"-"` // if the entity has been loaded into memory fully yet
-	Movement            Movement                 `json:"movement"`
-	CurrentFrame        *ebiten.Image            `json:"-"`
-	AnimationFrameMap   map[string]*ebiten.Image `json:"-"`
-	AnimationFrameCount map[string]int           `json:"-"`
+	Loaded   bool     `json:"-"` // if the entity has been loaded into memory fully yet
+	Movement Movement `json:"movement"`
 	Position
 	MouseBehavior mouse.MouseBehavior
 
@@ -43,6 +36,7 @@ type Entity struct {
 	footstepSFX audio.FootstepSFX
 
 	FrameTilesetSources []string `json:"frame_tilesets"`
+	Body                body.EntityBodySet
 
 	World WorldContext `json:"-"`
 
@@ -72,8 +66,6 @@ func (e *Entity) LoadFootstepSFX(source audio.FootstepSFX) {
 func (e Entity) Duplicate() Entity {
 	copyEnt := Entity{
 		EntityInfo:          e.EntityInfo,
-		AnimationFrameMap:   e.AnimationFrameMap,
-		AnimationFrameCount: e.AnimationFrameCount,
 		FrameTilesetSources: e.FrameTilesetSources,
 		World:               e.World,
 	}
@@ -159,16 +151,15 @@ func OpenEntity(source string) (Entity, error) {
 
 // load fully entity data into memory for rendering in a map
 func (e *Entity) Load() {
-	e.loadAnimationFrames()
-
-	// ensure first frame is set
 	e.Movement.Direction = 'D'
+	e.Body.Load()
 	e.Movement.IsMoving = false
-	e.updateCurrentFrame()
 
-	e.width = float64(e.CurrentFrame.Bounds().Dx())
-
-	fmt.Println("width:", e.width)
+	// confirm that body image exists
+	dx, dy := e.Body.Dimensions()
+	if dx == 0 || dy == 0 {
+		panic("body image has no size?")
+	}
 
 	e.Loaded = true
 }
@@ -188,21 +179,7 @@ type Position struct {
 }
 
 type Movement struct {
-	IdleLeft       *ebiten.Image   `json:"-"`
-	Left           []*ebiten.Image `json:"-"`
-	LeftRun        []*ebiten.Image `json:"-"`
-	IdleRight      *ebiten.Image   `json:"-"`
-	Right          []*ebiten.Image `json:"-"`
-	RightRun       []*ebiten.Image `json:"-"`
-	IdleUp         *ebiten.Image   `json:"-"`
-	Up             []*ebiten.Image `json:"-"`
-	UpRun          []*ebiten.Image `json:"-"`
-	IdleDown       *ebiten.Image   `json:"-"`
-	Down           []*ebiten.Image `json:"-"`
-	DownRun        []*ebiten.Image `json:"-"`
-	Direction      byte            `json:"-"` // L R U D
-	AnimationTimer int             `json:"-"` // counts the ticks until next animation frame
-	AnimationFrame int             `json:"-"` // the current movement animation frame index
+	Direction byte `json:"-"` // L R U D
 
 	CanRun bool `json:"can_run"`
 
@@ -215,75 +192,6 @@ type Movement struct {
 	TargetTile          model.Coords   `json:"-"` // next tile the entity is currently moving
 	TargetPath          []model.Coords `json:"-"` // path the entity is currently trying to travel on
 	SuggestedTargetPath []model.Coords `json:"-"` // a suggested path for this entity to consider merging into the target path
-}
-
-func (e *Entity) loadAnimationFrames() {
-	e.AnimationFrameMap = make(map[string]*ebiten.Image)
-	e.AnimationFrameCount = make(map[string]int)
-
-	for _, tilesetSource := range e.FrameTilesetSources {
-		t, err := tiled.LoadTileset(tilesetSource)
-		if err != nil {
-			logz.Panicf("error while loading tileset data: %s", err.Error())
-		}
-
-		// find all the animation frames
-		for _, tile := range t.Tiles {
-			frames := ""
-			for _, p := range tile.Properties {
-				if p.Name == "frames" {
-					frames = p.GetStringValue()
-				}
-			}
-			if frames != "" {
-				// found animation frame; load image
-				imagePath := filepath.Join(t.GeneratedImagesPath, fmt.Sprintf("%v.png", tile.ID))
-				img, _, err := ebitenutil.NewImageFromFile(imagePath)
-				if err != nil {
-					logz.Panicf("error loading animation image: %s", err.Error())
-				}
-				// the "frame" property expects the following format:
-				// "animationName1:0,animationName2:x"
-				// where "animationName" is the name of a specific animation, and the number is the frame number in that animation
-				frameDefs := strings.Split(frames, ",")
-				for _, frame := range frameDefs {
-					vals := strings.Split(frame, ":")
-					if len(vals) != 2 {
-						panic("frames property in tileset is malformed")
-					}
-					e.AnimationFrameMap[fmt.Sprintf("%s_%s", vals[0], vals[1])] = img
-
-					// update frame count
-					_, exists := e.AnimationFrameCount[vals[0]]
-					if !exists {
-						e.AnimationFrameCount[vals[0]] = 0
-					}
-					e.AnimationFrameCount[vals[0]]++
-				}
-			}
-		}
-	}
-
-	// TODO add validation of loaded animation frames (e.g. verify there are no missing frames, verify frame counts, etc)
-}
-
-func (e Entity) getAnimationFrame(animationName string, frameNumber int) *ebiten.Image {
-	if e.AnimationFrameMap == nil {
-		panic("entity animation frame map accessed before it was loaded")
-	}
-
-	key := fmt.Sprintf("%s_%v", animationName, frameNumber)
-	img, exists := e.AnimationFrameMap[key]
-	if !exists {
-		fmt.Println("tried:", key)
-		keys := make([]string, 0, len(e.AnimationFrameMap))
-		for k := range e.AnimationFrameMap {
-			keys = append(keys, k)
-		}
-		fmt.Println("existing keys:", strings.Join(keys, ", "))
-		panic("accessed animation frame key for entity does not exist")
-	}
-	return img
 }
 
 func (e *Entity) SetPosition(c model.Coords) {

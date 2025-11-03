@@ -9,6 +9,8 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
@@ -38,14 +40,38 @@ type EntityBodySet struct {
 
 	// currently equiped items
 
-	EquipBodySet BodyPartSet `json:"-"`
-	EquipHeadSet BodyPartSet `json:"-"`
-	WeaponSet    BodyPartSet `json:"-"`
-	WeaponFxSet  BodyPartSet `json:"-"`
+	EquipBodySet BodyPartSet
+	EquipHeadSet BodyPartSet
+	WeaponSet    BodyPartSet
+	WeaponFxSet  BodyPartSet
 
-	stretchX, stretchY int     `json:"-"` // amount to stretch (non-body) parts by, when body is larger or smaller
-	globalOffsetY      float64 `json:"-"` // amount to offset placement of (non-body) parts by, when body is taller or shorter
-	nonBodyYOffset     int     `json:"-"`
+	globalOffsetY  float64 `json:"-"` // amount to offset placement of (non-body) parts by, when body is taller or shorter
+	nonBodyYOffset int     `json:"-"`
+}
+
+func (eb *EntityBodySet) Load() {
+	eb.SetHair(eb.HairSet.PartSrc)
+	eb.SetEyes(eb.EyesSet.PartSrc)
+	eb.SetEquipBody(eb.EquipBodySet.PartSrc)
+	eb.SetEquipHead(eb.EquipHeadSet.PartSrc)
+	eb.SetBody(eb.BodySet.PartSrc, eb.ArmsSet.PartSrc)
+	eb.SetWeapon(eb.WeaponSet.PartSrc, eb.WeaponFxSet.PartSrc)
+
+	// set an initial direction and ensure img is set
+	eb.animation = ""
+	eb.SetDirection(model.Directions.Down)
+	if eb.BodySet.img == nil {
+		panic("body image is nil!")
+	}
+
+	// make sure everything looks correct
+	eb.HairSet.validate()
+	eb.EyesSet.validate()
+	eb.EquipBodySet.validate()
+	eb.EquipHeadSet.validate()
+	eb.BodySet.validate()
+	eb.WeaponSet.validate()
+	eb.WeaponFxSet.validate()
 }
 
 func ReadJSON(jsonFilePath string) (EntityBodySet, error) {
@@ -140,6 +166,9 @@ func NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBod
 }
 
 func (eb *EntityBodySet) Dimensions() (dx, dy int) {
+	if eb.BodySet.img == nil {
+		panic("body image is nil")
+	}
 	bounds := eb.BodySet.img.Bounds()
 	return bounds.Dx(), bounds.Dy()
 }
@@ -152,40 +181,41 @@ func (eb *EntityBodySet) SetBody(bodyDef, armDef SelectedPartDef) {
 		panic("arms must be defined")
 	}
 
-	eb.BodySet.setImageSource(bodyDef, 0, 0)
+	eb.BodySet.setImageSource(bodyDef)
 
 	// arms are directly set with body
-	eb.ArmsSet.setImageSource(armDef, 0, 0)
+	eb.ArmsSet.setImageSource(armDef)
 
-	eb.stretchX = bodyDef.StretchX
-	eb.stretchY = bodyDef.StretchY
 	eb.globalOffsetY = float64(bodyDef.OffsetY)
 
 	// reload any body parts that are influenced by stretch properties
-	eb.HairSet.load(eb.stretchX, 0)
-	eb.EquipHeadSet.load(eb.stretchX, 0)
-	eb.EquipBodySet.load(eb.stretchX, eb.stretchY)
+	eb.HairSet.stretchX, eb.HairSet.stretchY = bodyDef.StretchX, 0
+	eb.HairSet.load()
+	eb.EquipHeadSet.stretchX, eb.EquipHeadSet.stretchY = bodyDef.StretchX, 0
+	eb.EquipHeadSet.load()
+	eb.EquipBodySet.stretchX, eb.EquipBodySet.stretchY = bodyDef.StretchX, bodyDef.StretchY
+	eb.EquipBodySet.load()
 }
 
 func (eb *EntityBodySet) SetEyes(def SelectedPartDef) {
 	if def.None {
 		panic("eyes must be defined")
 	}
-	eb.EyesSet.setImageSource(def, 0, 0)
+	eb.EyesSet.setImageSource(def)
 }
 
 func (eb *EntityBodySet) SetHair(def SelectedPartDef) {
-	eb.HairSet.setImageSource(def, eb.stretchX, 0)
+	eb.HairSet.setImageSource(def)
 	if eb.cropHairToHead {
 		eb.cropHair()
 	}
 }
 
 func (eb *EntityBodySet) SetEquipHead(def SelectedPartDef) {
-	eb.EquipHeadSet.setImageSource(def, eb.stretchX, 0)
+	eb.EquipHeadSet.setImageSource(def)
 
 	// since some head equipment may cause hair to be cropped, always reload hair when head is equiped
-	eb.HairSet.load(eb.stretchX, 0)
+	eb.HairSet.load()
 
 	if def.CropHairToHead {
 		eb.cropHair()
@@ -193,7 +223,7 @@ func (eb *EntityBodySet) SetEquipHead(def SelectedPartDef) {
 }
 
 func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
-	eb.EquipBodySet.setImageSource(def, eb.stretchX, eb.stretchY)
+	eb.EquipBodySet.setImageSource(def)
 }
 
 func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
@@ -203,8 +233,8 @@ func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
 	if eb.WeaponFxSet.None {
 		panic("no weaponFx set!")
 	}
-	eb.WeaponSet.setImageSource(weaponDef, 0, 0)
-	eb.WeaponFxSet.setImageSource(weaponFxDef, 0, 0)
+	eb.WeaponSet.setImageSource(weaponDef)
+	eb.WeaponFxSet.setImageSource(weaponFxDef)
 }
 
 func (eb EntityBodySet) GetCurrentAnimation() string {
@@ -222,11 +252,13 @@ func (eb *EntityBodySet) SetAnimationTickCount(tickCount int) {
 // using the set functions.
 type BodyPartSet struct {
 	// tileset and image source definitions
+	PartSrc SelectedPartDef
 
 	TilesetSrc                     string
 	RStart, LStart, UStart, DStart int
 	FlipRForL                      bool
 	None                           bool
+	stretchX, stretchY             int
 
 	// animation definitions
 
@@ -237,6 +269,16 @@ type BodyPartSet struct {
 	HasUp          bool
 
 	img *ebiten.Image `json:"-"`
+}
+
+func (bps BodyPartSet) validate() {
+	if bps.None {
+		return
+	}
+	fmt.Println(bps.TilesetSrc)
+	bps.WalkAnimation.validate()
+	bps.RunAnimation.validate()
+	bps.SlashAnimation.validate()
 }
 
 // for no body part
@@ -268,7 +310,7 @@ type SelectedPartDef struct {
 	CropHairToHead bool // set to have hair not go outside the head image. used for helmets or certain hats.
 }
 
-func (bps *BodyPartSet) setImageSource(def SelectedPartDef, stretchX, stretchY int) {
+func (bps *BodyPartSet) setImageSource(def SelectedPartDef) {
 	bps.TilesetSrc = def.TilesetSrc
 	bps.LStart = def.LStart
 	bps.RStart = def.RStart
@@ -277,10 +319,13 @@ func (bps *BodyPartSet) setImageSource(def SelectedPartDef, stretchX, stretchY i
 	bps.FlipRForL = def.FlipRForL
 	bps.None = def.None
 
-	bps.load(stretchX, stretchY)
+	// set this so the part can be reloaded later
+	bps.PartSrc = def
+
+	bps.load()
 }
 
-func (set *BodyPartSet) load(stretchX, stretchY int) {
+func (set *BodyPartSet) load() {
 	set.WalkAnimation.reset()
 	set.RunAnimation.reset()
 	set.SlashAnimation.reset()
@@ -297,43 +342,43 @@ func (set *BodyPartSet) load(stretchX, stretchY int) {
 	if !set.WalkAnimation.Skip {
 		if set.FlipRForL {
 			// if flip R for L, use the R frames for L but flip them horizontally
-			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, true, stretchX, stretchY)
+			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, true, set.stretchX, set.stretchY)
 		} else {
-			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.WalkAnimation.TileSteps, false, stretchX, stretchY)
+			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.WalkAnimation.TileSteps, false, set.stretchX, set.stretchY)
 		}
-		set.WalkAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, false, stretchX, stretchY)
+		set.WalkAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, false, set.stretchX, set.stretchY)
 		if set.HasUp {
-			set.WalkAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.WalkAnimation.TileSteps, false, stretchX, stretchY)
+			set.WalkAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.WalkAnimation.TileSteps, false, set.stretchX, set.stretchY)
 		}
-		set.WalkAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.WalkAnimation.TileSteps, false, stretchX, stretchY)
+		set.WalkAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.WalkAnimation.TileSteps, false, set.stretchX, set.stretchY)
 	}
 
 	// run animation
 	if !set.RunAnimation.Skip {
 		if set.FlipRForL {
-			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, true, stretchX, stretchY)
+			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, true, set.stretchX, set.stretchY)
 		} else {
-			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.RunAnimation.TileSteps, false, stretchX, stretchY)
+			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.RunAnimation.TileSteps, false, set.stretchX, set.stretchY)
 		}
-		set.RunAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, false, stretchX, stretchY)
+		set.RunAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, false, set.stretchX, set.stretchY)
 		if set.HasUp {
-			set.RunAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.RunAnimation.TileSteps, false, stretchX, stretchY)
+			set.RunAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.RunAnimation.TileSteps, false, set.stretchX, set.stretchY)
 		}
-		set.RunAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.RunAnimation.TileSteps, false, stretchX, stretchY)
+		set.RunAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.RunAnimation.TileSteps, false, set.stretchX, set.stretchY)
 	}
 
 	// slash animation
 	if !set.SlashAnimation.Skip {
 		if set.FlipRForL {
-			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, true, stretchX, stretchY)
+			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, true, set.stretchX, set.stretchY)
 		} else {
-			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.SlashAnimation.TileSteps, false, stretchX, stretchY)
+			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.SlashAnimation.TileSteps, false, set.stretchX, set.stretchY)
 		}
-		set.SlashAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, false, stretchX, stretchY)
+		set.SlashAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, false, set.stretchX, set.stretchY)
 		if set.HasUp {
-			set.SlashAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.SlashAnimation.TileSteps, false, stretchX, stretchY)
+			set.SlashAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.SlashAnimation.TileSteps, false, set.stretchX, set.stretchY)
 		}
-		set.SlashAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.SlashAnimation.TileSteps, false, stretchX, stretchY)
+		set.SlashAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.SlashAnimation.TileSteps, false, set.stretchX, set.stretchY)
 	}
 }
 
@@ -477,6 +522,7 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 	case ANIM_WALK:
 		if set.animIndex >= len(set.WalkAnimation.TileSteps) {
 			set.animIndex = 0
+			fmt.Println("(reset!)")
 		}
 	case ANIM_RUN:
 		if set.animIndex >= len(set.RunAnimation.TileSteps) {
@@ -487,6 +533,8 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 			set.animIndex = 0
 		}
 	}
+
+	fmt.Printf("(%s) anim: %s index: %v max index: %v\n", set.TilesetSrc, set.WalkAnimation.Name, set.animIndex, len(set.WalkAnimation.TileSteps)-1)
 }
 
 func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64) {
@@ -500,7 +548,7 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	rendering.DrawHSVImage(screen, eb.ArmsSet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, characterScale)
 	// Equip Body
 	equipBodyYOffset := 0.0
-	if eb.stretchY%2 != 0 {
+	if eb.EquipBodySet.stretchY%2 != 0 {
 		// if stretchY is an odd number, offset equip body by -1
 		equipBodyYOffset = -characterScale
 	}
@@ -541,6 +589,7 @@ func (eb *EntityBodySet) Update() {
 	if eb.animation != "" {
 		eb.ticks++
 		if eb.ticks > eb.animationTickCount {
+			fmt.Println("next frame!")
 			// SETS: next frame
 			eb.ticks = 0
 			eb.BodySet.nextFrame(eb.animation)
@@ -567,6 +616,10 @@ func (eb *EntityBodySet) Update() {
 }
 
 func (eb *EntityBodySet) SetAnimation(animation string) {
+	if animation == eb.animation {
+		return
+	}
+
 	eb.animation = animation
 
 	// SETS: reset animation index
@@ -578,6 +631,11 @@ func (eb *EntityBodySet) SetAnimation(animation string) {
 	eb.EquipHeadSet.animIndex = 0
 	eb.WeaponSet.animIndex = 0
 	eb.WeaponFxSet.animIndex = 0
+}
+
+func (eb *EntityBodySet) StopAnimation() {
+	logz.Println("ent body", "animation stopped")
+	eb.SetAnimation("")
 }
 
 func (eb *EntityBodySet) RotateLeft() {
@@ -607,6 +665,10 @@ func (eb *EntityBodySet) RotateRight() {
 }
 
 func (eb *EntityBodySet) SetDirection(dir byte) {
+	if dir == eb.currentDirection {
+		return
+	}
+
 	// SETS: reset animation index
 	eb.BodySet.animIndex = 0
 	eb.EyesSet.animIndex = 0

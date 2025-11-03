@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
@@ -64,46 +65,6 @@ func (e *Entity) GoToPos(c model.Coords, closeEnough bool) (model.Coords, MoveEr
 
 	e.Movement.TargetPath = path
 	return path[len(path)-1], MoveError{Success: true}
-}
-
-// gets the frameType and frameCount for the correct animation, based on the entity's direction
-func (e Entity) getMovementAnimationInfo() (string, int) {
-	var name string
-	switch e.Movement.Direction {
-	case model.Directions.Left:
-		if e.Movement.IsMoving || !e.Movement.movementStopped {
-			name = "left_walk"
-		} else {
-			name = "left_idle"
-		}
-	case model.Directions.Right:
-		if e.Movement.IsMoving || !e.Movement.movementStopped {
-			name = "right_walk"
-		} else {
-			name = "right_idle"
-		}
-	case model.Directions.Up:
-		if e.Movement.IsMoving || !e.Movement.movementStopped {
-			name = "up_walk"
-		} else {
-			name = "up_idle"
-		}
-	case model.Directions.Down:
-		if e.Movement.IsMoving || !e.Movement.movementStopped {
-			name = "down_walk"
-		} else {
-			name = "down_idle"
-		}
-	default:
-		panic("incorrect direction value found during UpdateMovement")
-	}
-
-	count, exists := e.AnimationFrameCount[name]
-	if !exists {
-		panic("animation name has no record in AnimationFrameCount map: " + name)
-	}
-
-	return name, count
 }
 
 // Tells the entity to stop moving once it has finished its current tile movement.
@@ -283,6 +244,10 @@ func (e *Entity) TryMovePx(dx, dy int) MoveError {
 	e.Movement.IsMoving = true
 	e.Movement.Speed = e.Movement.WalkSpeed
 
+	e.Body.SetAnimation(body.ANIM_WALK)
+	e.Body.SetDirection(e.Movement.Direction)
+	e.Body.SetAnimationTickCount(13)
+
 	return MoveError{Success: true}
 }
 
@@ -315,15 +280,9 @@ func (e *Entity) updateMovement() {
 
 	if target.Equals(newPos) {
 		e.Movement.IsMoving = false
+		e.Body.StopAnimation()
 	}
 
-	// update animation
-	e.Movement.AnimationTimer++
-	if e.Movement.AnimationTimer > 10 {
-		_, frameCount := e.getMovementAnimationInfo()
-		e.Movement.AnimationFrame = (e.Movement.AnimationFrame + 1) % frameCount
-		e.Movement.AnimationTimer = 0
-	}
 	e.footstepSFX.TicksUntilNextPlay--
 	if e.footstepSFX.TicksUntilNextPlay <= 0 {
 		groundMaterial := e.World.GetGroundMaterial(e.TilePos.X, e.TilePos.Y)

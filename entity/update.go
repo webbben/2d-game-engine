@@ -4,6 +4,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 )
 
@@ -11,25 +12,22 @@ func (e *Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	if !e.Loaded {
 		return
 	}
-	if e.CurrentFrame == nil {
-		panic("tried to draw entity with no set frame")
-	}
 
-	op := &ebiten.DrawImageOptions{}
 	drawX, drawY := e.DrawPos(offsetX, offsetY)
+	// apparently, when drawing the body, gameScale isn't automatically factored in so we need to multiply it in here
+	// however, I see another place that relies on DrawPos, so I'm leaving this out of that function for now. (TODO?)
+	drawX *= config.GameScale
+	drawY *= config.GameScale
+	e.Body.Draw(screen, drawX, drawY, config.GameScale)
 	e.Position.drawX = drawX
 	e.Position.drawY = drawY
-	op.GeoM.Translate(drawX, drawY)
-	op.GeoM.Scale(config.GameScale, config.GameScale)
-	screen.DrawImage(e.CurrentFrame, op)
 }
 
 // returns the actual absolute position where the entity will be drawn
 func (e Entity) DrawPos(offsetX, offsetY float64) (drawX, drawY float64) {
-	if e.CurrentFrame == nil {
-		panic("tried to get draw position for entity with no set frame")
-	}
-	drawX, drawY = rendering.GetImageDrawPos(e.CurrentFrame, e.X, e.Y, offsetX, offsetY)
+	dx, dy := e.Body.Dimensions()
+	rect := model.NewRect(0, 0, float64(dx), float64(dy))
+	drawX, drawY = rendering.GetRectDrawPos(rect, e.X, e.Y, offsetX, offsetY)
 	drawY -= 6 // move up a little, since we want the entity to look like its standing in the middle of the tile
 	return drawX, drawY
 }
@@ -38,18 +36,19 @@ func (e Entity) DrawPos(offsetX, offsetY float64) (drawX, drawY float64) {
 // by "extent", we basically mean just the position of the end of the actual image rectangle, when the image is positioned for drawing.
 // you would use this (along with DrawPos) when checking if an entity is actually touching or overlapping physically with something
 func (e Entity) ExtentPos(offsetX, offsetY float64) (extentX, extentY float64) {
-	if e.CurrentFrame == nil {
-		panic("tried to get extent position for entity with no set frame")
-	}
 	extentX, extentY = e.DrawPos(offsetX, offsetY)
-	extentX += float64(e.CurrentFrame.Bounds().Dx())
-	extentY += float64(e.CurrentFrame.Bounds().Dy())
+	dx, dy := e.Body.Dimensions()
+	extentX += float64(dx)
+	extentY += float64(dy)
 	return extentX, extentY
 }
 
 func (e *Entity) Update() {
-	bounds := e.CurrentFrame.Bounds()
-	e.MouseBehavior.Update(int(e.Position.drawX), int(e.Position.drawY), bounds.Dx(), bounds.Dy(), true)
+	if !e.Loaded {
+		panic("entity not loaded yet!")
+	}
+	dx, dy := e.Body.Dimensions()
+	e.MouseBehavior.Update(int(e.Position.drawX), int(e.Position.drawY), dx, dy, true)
 
 	if !e.Movement.IsMoving {
 		if len(e.Movement.TargetPath) > 0 {
@@ -66,27 +65,5 @@ func (e *Entity) Update() {
 		}
 	}
 
-	e.updateCurrentFrame()
-}
-
-func (e *Entity) updateCurrentFrame() {
-	// handle stopping movement
-	// to prevent an awkward frame skip, we wait until one tick after movement stops to actually stop the movement animation.
-	// this is so on the next tick, the player or npc logic has another chance to queue up a next movement before actually fully stopping.
-	if !e.Movement.IsMoving {
-		if e.Movement.movementStopped {
-			// idle
-			animationName, _ := e.getMovementAnimationInfo()
-			e.CurrentFrame = e.getAnimationFrame(animationName, 0)
-			return
-		}
-	}
-
-	animationName, _ := e.getMovementAnimationInfo()
-	e.CurrentFrame = e.getAnimationFrame(animationName, e.Movement.AnimationFrame)
-
-	// need to set it here so that the last animation frame can be properly gotten
-	if !e.Movement.IsMoving {
-		e.Movement.movementStopped = true
-	}
+	e.Body.Update()
 }

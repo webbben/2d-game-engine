@@ -495,6 +495,8 @@ func characterBuilder() {
 		},
 	})
 
+	g.entityBody.WriteToJSON("/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json")
+
 	if err := ebiten.RunGame(&g); err != nil {
 		panic(err)
 	}

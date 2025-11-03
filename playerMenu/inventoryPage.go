@@ -31,7 +31,6 @@ type InventoryPage struct {
 	EquipedAuxiliary *inventory.ItemSlot // for shields, torches, etc
 
 	PlayerInventory inventory.Inventory
-	playerAvatar    *ebiten.Image
 	playerRef       *player.Player
 	width, height   int
 
@@ -131,7 +130,6 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 	ip.EquipedRing2.SetBGImage(tiled.GetTileImage(src, 11))
 
 	ip.playerRef = playerRef
-	ip.playerAvatar = ip.playerRef.Entity.DrawAvatarBox(100, 200)
 
 	tileSize := int(config.TileSize * config.UIScale)
 
@@ -250,14 +248,17 @@ func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *ov
 	tileSize := config.TileSize * config.UIScale
 
 	// draw player avatar
-	rendering.DrawImage(screen, ip.playerAvatar, drawX, drawY, 0)
+	ip.playerRef.Entity.Body.Draw(screen, drawX, drawY, config.UIScale)
 
 	// draw inventory item slots
 	inventoryWidth, _ := ip.PlayerInventory.Dimensions()
 	inventoryDrawX := int(drawX) + ip.width - inventoryWidth
 	ip.PlayerInventory.Draw(screen, float64(inventoryDrawX), drawY, om)
 	// player equipment item slots
-	equipStartX := drawX + float64(ip.playerAvatar.Bounds().Dx()) + 10
+	playerAvatarDx, _ := ip.playerRef.Entity.Body.Dimensions()
+	playerAvatarDx = int(float64(playerAvatarDx) * config.UIScale)
+
+	equipStartX := drawX + float64(playerAvatarDx) + 10
 	equipStartY := drawY + 10
 
 	ip.EquipedHead.Draw(screen, equipStartX, equipStartY, om)

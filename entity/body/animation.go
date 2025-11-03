@@ -22,6 +22,30 @@ type Animation struct {
 	StepsOffsetY []int
 }
 
+func (a Animation) validate() {
+	if a.Skip {
+		return
+	}
+
+	// no animation defined; this just shows a single frame
+	if len(a.TileSteps) == 0 {
+		return
+	}
+
+	if len(a.L) != len(a.TileSteps) {
+		panic(a.Name + ": animation frame count doesn't match TileSteps")
+	}
+	if len(a.R) != len(a.TileSteps) {
+		panic(a.Name + ": animation frame count doesn't match TileSteps")
+	}
+	if len(a.U) != len(a.TileSteps) {
+		panic(a.Name + ": animation frame count doesn't match TileSteps")
+	}
+	if len(a.D) != len(a.TileSteps) {
+		panic(a.Name + ": animation frame count doesn't match TileSteps")
+	}
+}
+
 func (a *Animation) reset() {
 	a.L = make([]*ebiten.Image, 0)
 	a.R = make([]*ebiten.Image, 0)
@@ -68,5 +92,5 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 		}
 		return a.D[animationIndex]
 	}
-	panic("unrecognized direction")
+	panic("unrecognized direction: " + string(dir))
 }
