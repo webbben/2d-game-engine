@@ -45,6 +45,9 @@ type Entity struct {
 }
 
 func (e Entity) CollisionRect() model.Rect {
+	if e.width == 0 {
+		panic("entity width is unset or unexpectedly 0!")
+	}
 	offsetX := (config.TileSize - e.width) / 2
 	return model.Rect{
 		X: e.X + offsetX,
@@ -160,6 +163,8 @@ func (e *Entity) Load() {
 	if dx == 0 || dy == 0 {
 		panic("body image has no size?")
 	}
+
+	e.width = float64(dx)
 
 	e.Loaded = true
 }
