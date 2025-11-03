@@ -128,24 +128,20 @@ func setupGameState() *game.Game {
 
 	// make the player
 	playerEnt := entity.NewEntity(entity.GeneralProps{
-		DisplayName:     "Caius Cosades",
-		FrameTilesetSrc: "entities/sdv_npc_alex.tsj",
-		IsPlayer:        true,
+		DisplayName:   "Caius Cosades",
+		EntityBodySrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json",
+		IsPlayer:      true,
 	}, entity.MovementProps{
 		WalkSpeed: 0,
 	}, footstepSFX)
-
-	playerEnt.Body = GetEntBody()
-
-	playerEnt.Load()
 
 	p := player.NewPlayer(g.DefinitionManager, &playerEnt)
 
 	g.PlacePlayerAtSpawnPoint(&p, 0)
 
 	legionaryEnt := entity.NewEntity(entity.GeneralProps{
-		DisplayName:     "Legionary",
-		FrameTilesetSrc: "entities/legionary1.tsj",
+		DisplayName:   "Legionary",
+		EntityBodySrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json",
 	}, entity.MovementProps{
 		WalkSpeed: 0,
 	}, footstepSFX)
@@ -153,7 +149,6 @@ func setupGameState() *game.Game {
 	for i := 0; i < 0; i++ {
 		npcEnt := legionaryEnt.Duplicate()
 		npcEnt.DisplayName = fmt.Sprintf("NPC_%v", i)
-		npcEnt.Load()
 		n := npc.New(npc.NPC{
 			Entity: &npcEnt,
 			NPCInfo: npc.NPCInfo{

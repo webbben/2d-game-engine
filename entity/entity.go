@@ -35,8 +35,7 @@ type Entity struct {
 
 	footstepSFX audio.FootstepSFX
 
-	FrameTilesetSources []string `json:"frame_tilesets"`
-	Body                body.EntityBodySet
+	Body body.EntityBodySet
 
 	World WorldContext `json:"-"`
 
@@ -68,9 +67,8 @@ func (e *Entity) LoadFootstepSFX(source audio.FootstepSFX) {
 // Useful for when you need a bunch of NPC entities of the same kind
 func (e Entity) Duplicate() Entity {
 	copyEnt := Entity{
-		EntityInfo:          e.EntityInfo,
-		FrameTilesetSources: e.FrameTilesetSources,
-		World:               e.World,
+		EntityInfo: e.EntityInfo,
+		World:      e.World,
 	}
 
 	copyEnt.IsPlayer = false // cannot have duplicate players
@@ -99,14 +97,14 @@ type AudioProps struct {
 }
 
 type GeneralProps struct {
-	DisplayName     string
-	IsPlayer        bool
-	FrameTilesetSrc string
+	DisplayName   string
+	IsPlayer      bool
+	EntityBodySrc string // path to a JSON file containing the definition of the body
 }
 
 func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
-	if general.FrameTilesetSrc == "" {
-		panic("no frame tileset src specified")
+	if general.EntityBodySrc == "" {
+		panic("no body source JSON specified")
 	}
 	if general.DisplayName == "" {
 		panic("entity display name is empty")
@@ -117,7 +115,6 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 	}
 
 	ent := Entity{
-		FrameTilesetSources: []string{general.FrameTilesetSrc},
 		EntityInfo: EntityInfo{
 			IsPlayer: general.IsPlayer,
 		},
@@ -126,8 +123,30 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 		},
 	}
 
+	// load body
+	entBody, err := body.ReadJSON("/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json")
+	if err != nil {
+		panic(err)
+	}
+	ent.Body = entBody
+
 	// load sounds
 	ent.LoadFootstepSFX(ap.FootstepSFX)
+
+	// prepare initial image frames
+	ent.Movement.Direction = 'D'
+	ent.Body.Load()
+	ent.Movement.IsMoving = false
+
+	// confirm that body image exists
+	dx, dy := ent.Body.Dimensions()
+	if dx == 0 || dy == 0 {
+		panic("body image has no size?")
+	}
+
+	ent.width = float64(dx)
+
+	ent.Loaded = true
 
 	return ent
 }
@@ -150,23 +169,6 @@ func OpenEntity(source string) (Entity, error) {
 	}
 
 	return ent, nil
-}
-
-// load fully entity data into memory for rendering in a map
-func (e *Entity) Load() {
-	e.Movement.Direction = 'D'
-	e.Body.Load()
-	e.Movement.IsMoving = false
-
-	// confirm that body image exists
-	dx, dy := e.Body.Dimensions()
-	if dx == 0 || dy == 0 {
-		panic("body image has no size?")
-	}
-
-	e.width = float64(dx)
-
-	e.Loaded = true
 }
 
 type EntityInfo struct {
