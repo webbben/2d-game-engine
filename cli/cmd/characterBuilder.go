@@ -20,6 +20,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/dropdown"
 	"github.com/webbben/2d-game-engine/internal/ui/slider"
 	"github.com/webbben/2d-game-engine/internal/ui/stepper"
+	"github.com/webbben/2d-game-engine/internal/ui/textfield"
 )
 
 // characterBuilderCmd represents the characterBuilder command
@@ -86,6 +87,8 @@ type builderGame struct {
 	bodyColorSliders slider.SliderGroup
 	hairColorSliders slider.SliderGroup
 	eyeColorSliders  slider.SliderGroup
+
+	textField textfield.TextField
 }
 
 type weaponOption struct {
@@ -497,6 +500,8 @@ func characterBuilder() {
 
 	g.entityBody.WriteToJSON("/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json")
 
+	g.textField = *textfield.NewTextField(200, config.DefaultFont)
+
 	if err := ebiten.RunGame(&g); err != nil {
 		panic(err)
 	}
@@ -584,13 +589,13 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	// Character body
 	bg.entityBody.Draw(screen, bodyX, bodyY, characterScale)
 
-	// UI controls - Left side
 	buttonsY := bodyY + (bodyHeight) + 20
 	buttonLX := (display.SCREEN_WIDTH / 2) - bg.turnLeft.Width - 20
 	buttonRX := (display.SCREEN_WIDTH / 2) + 20
 	bg.turnLeft.Draw(screen, buttonLX, int(buttonsY))
 	bg.turnRight.Draw(screen, buttonRX, int(buttonsY))
 
+	// UI controls - Left side
 	sliderX := 100
 	sliderY := 50
 	text.DrawShadowText(screen, "Ticks Per Frame", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
@@ -605,6 +610,9 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	sliderY += tileSize * 2
 	text.DrawShadowText(screen, "Animation", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	bg.animationSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
+
+	sliderY += tileSize * 5
+	bg.textField.Draw(screen, float64(sliderX), float64(sliderY))
 
 	// UI controls - Right side
 	ctlX := (display.SCREEN_WIDTH * 3 / 4)
@@ -699,6 +707,8 @@ func (bg *builderGame) Update() error {
 	}
 
 	bg.entityBody.SetAnimationTickCount(bg.speedSlider.GetValue())
+
+	bg.textField.Update()
 
 	bg.entityBody.Update()
 
