@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
+	"github.com/webbben/2d-game-engine/internal/ui/box"
 	"golang.org/x/image/font"
 )
 
@@ -33,6 +34,26 @@ func NewImageButton(buttonText string, fontFace font.Face, img *ebiten.Image) *B
 	b.buttonImg = img
 
 	return b
+}
+
+func NewLinearBoxButton(buttonText string, tilesetSrc string, originIndex int, fontFace font.Face) *Button {
+	if fontFace == nil {
+		panic("font must be defined")
+	}
+	// calculate the box image
+	tileSize := int(config.TileSize * config.UIScale)
+	dx, _, _ := text.GetStringSize(buttonText, fontFace)
+	tileWidth := dx + int(float64(tileSize)*1.5)
+	tileWidth -= tileWidth % tileSize
+	tileWidth = tileWidth / tileSize
+
+	linearBox := box.NewLinearBox(box.LinearBoxParams{
+		TilesetSrc:  tilesetSrc,
+		OriginIndex: originIndex,
+		TileWidth:   tileWidth,
+	})
+
+	return NewImageButton(buttonText, fontFace, linearBox.Image())
 }
 
 func NewButton(buttonText string, fontFace font.Face, width, height int) *Button {
@@ -126,8 +147,6 @@ func (b *Button) Draw(screen *ebiten.Image, x, y int) {
 
 	if b.buttonImg != nil {
 		// draw button image instead of highlight hover box
-		dx, dy := rendering.CenterImageOnImage(b.buttonImg, b.textImg)
-		rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
 		ops := ebiten.DrawImageOptions{}
 		if b.mouseBehavior.IsHovering {
 			ops.ColorScale.Scale(1.2, 1.2, 1.2, 1)
@@ -135,10 +154,10 @@ func (b *Button) Draw(screen *ebiten.Image, x, y int) {
 		rendering.DrawImageWithOps(screen, b.buttonImg, float64(x), float64(y), 0, &ops)
 	} else {
 		// for clear buttons with no button image; we just show a highlight box
-		dx, dy := rendering.CenterImageOnImage(b.hoverBoxImg, b.textImg)
-		rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
 		if b.mouseBehavior.IsHovering {
 			rendering.DrawImage(screen, b.hoverBoxImg, float64(x), float64(y), 0)
 		}
 	}
+	dx, dy := rendering.CenterImageOnImage(b.buttonImg, b.textImg)
+	rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
 }

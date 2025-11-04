@@ -124,7 +124,7 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 	}
 
 	// load body
-	entBody, err := body.ReadJSON("/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json")
+	entBody, err := body.ReadJSON(general.EntityBodySrc)
 	if err != nil {
 		panic(err)
 	}

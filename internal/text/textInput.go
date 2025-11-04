@@ -122,5 +122,5 @@ var digitsEtc = map[ebiten.Key][2]rune{
 	ebiten.Key3: {'3', '#'}, ebiten.Key4: {'4', '$'}, ebiten.Key5: {'5', '%'},
 	ebiten.Key6: {'6', '^'}, ebiten.Key7: {'7', '&'}, ebiten.Key8: {'8', '*'},
 	ebiten.Key9: {'9', '('}, ebiten.KeyComma: {',', '<'}, ebiten.KeyPeriod: {'.', '>'},
-	ebiten.KeySlash: {'/', '?'},
+	ebiten.KeySlash: {'/', '?'}, ebiten.KeyMinus: {'-', '_'}, ebiten.KeyEqual: {'=', '+'},
 }

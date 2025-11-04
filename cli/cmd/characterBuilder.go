@@ -88,7 +88,8 @@ type builderGame struct {
 	hairColorSliders slider.SliderGroup
 	eyeColorSliders  slider.SliderGroup
 
-	textField textfield.TextField
+	textField  textfield.TextField
+	saveButton *button.Button
 }
 
 type weaponOption struct {
@@ -498,20 +499,31 @@ func characterBuilder() {
 		},
 	})
 
-	g.entityBody.WriteToJSON("/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json")
-
 	g.textField = *textfield.NewTextField(textfield.TextFieldParams{
 		FontFace:     config.DefaultFont,
-		WidthPx:      200,
+		WidthPx:      500,
 		AllowSpecial: true,
 		TextColor:    color.White,
 		BorderColor:  color.White,
 		BgColor:      color.Black,
 	})
 
+	g.saveButton = button.NewLinearBoxButton("Save JSON", "ui/ui-components.tsj", 352, config.DefaultTitleFont)
+
 	if err := ebiten.RunGame(&g); err != nil {
 		panic(err)
 	}
+}
+
+func (bg builderGame) saveCharacter() {
+	outputFileName := bg.textField.GetText()
+	if outputFileName == "" {
+		return
+	}
+
+	basePath := "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/" + outputFileName + ".json"
+
+	bg.entityBody.WriteToJSON(basePath)
 }
 
 // SETS: Set Index Functions
@@ -618,8 +630,12 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	text.DrawShadowText(screen, "Animation", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	bg.animationSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 
-	sliderY += tileSize * 5
-	bg.textField.Draw(screen, float64(sliderX), float64(sliderY))
+	saveX := sliderX
+	saveY := display.SCREEN_HEIGHT - tileSize*2
+	bg.textField.Draw(screen, float64(saveX), float64(saveY))
+	textFieldDx, _ := bg.textField.Dimensions()
+	saveX += textFieldDx + tileSize
+	bg.saveButton.Draw(screen, saveX, saveY)
 
 	// UI controls - Right side
 	ctlX := (display.SCREEN_WIDTH * 3 / 4)
@@ -716,6 +732,9 @@ func (bg *builderGame) Update() error {
 	bg.entityBody.SetAnimationTickCount(bg.speedSlider.GetValue())
 
 	bg.textField.Update()
+	if bg.saveButton.Update().Clicked {
+		bg.saveCharacter()
+	}
 
 	bg.entityBody.Update()
 

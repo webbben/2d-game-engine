@@ -9,7 +9,6 @@ import (
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity"
-	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/game"
@@ -129,7 +128,7 @@ func setupGameState() *game.Game {
 	// make the player
 	playerEnt := entity.NewEntity(entity.GeneralProps{
 		DisplayName:   "Caius Cosades",
-		EntityBodySrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json",
+		EntityBodySrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_02.json",
 		IsPlayer:      true,
 	}, entity.MovementProps{
 		WalkSpeed: 0,
@@ -204,14 +203,6 @@ func addCustomKeyBindings(g *game.Game) {
 	g.SetGlobalKeyBinding(ebiten.KeyEscape, func(gg *game.Game) {
 		os.Exit(0)
 	})
-}
-
-func GetEntBody() body.EntityBodySet {
-	entBody, err := body.ReadJSON("/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json")
-	if err != nil {
-		panic(err)
-	}
-	return entBody
 }
 
 func GetPlayerMenu(p *player.Player, defMgr *definitions.DefinitionManager) playermenu.PlayerMenu {

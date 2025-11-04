@@ -31,6 +31,14 @@ type TextField struct {
 	isFocused   bool
 }
 
+func (tf TextField) GetText() string {
+	return tf.textInput.GetCurrentText()
+}
+
+func (tf TextField) Dimensions() (dx, dy int) {
+	return tf.bounds.Dx(), tf.bounds.Dy()
+}
+
 type TextFieldParams struct {
 	WidthPx            int
 	FontFace           font.Face
