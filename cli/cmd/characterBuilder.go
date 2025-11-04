@@ -500,7 +500,7 @@ func characterBuilder() {
 
 	g.entityBody.WriteToJSON("/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json")
 
-	g.textField = *textfield.NewTextField(200, config.DefaultFont)
+	g.textField = *textfield.NewTextField(200, config.DefaultFont, true)
 
 	if err := ebiten.RunGame(&g); err != nil {
 		panic(err)
