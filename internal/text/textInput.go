@@ -9,14 +9,19 @@ import (
 )
 
 type TextInput struct {
-	txt                    string
-	allowSpecialCharacters bool
-	holdBackspaceTicks     int
+	txt                string
+	allowSpecial       bool
+	maxCharLen         int
+	holdBackspaceTicks int
 }
 
-func NewTextInput(allowSpecialCharacters bool) TextInput {
+func NewTextInput(allowSpecial bool, maxCharLen int) TextInput {
+	if maxCharLen < 0 {
+		panic("max char length must be 0 or greater")
+	}
 	t := TextInput{
-		allowSpecialCharacters: allowSpecialCharacters,
+		allowSpecial: allowSpecial,
+		maxCharLen:   maxCharLen,
 	}
 	return t
 }
@@ -33,47 +38,66 @@ func (ti *TextInput) SetText(s string) {
 	ti.txt = s
 }
 
-func (f *TextInput) Update() {
+func (ti *TextInput) Update() {
+	ti.handleNewCharInput()
+
+	// backspace
+	if len(ti.txt) > 0 {
+		if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
+			ti.backspace()
+		} else if ebiten.IsKeyPressed(ebiten.KeyBackspace) {
+			ti.holdBackspaceTicks++
+			if ti.holdBackspaceTicks > 8 {
+				ti.backspace()
+				ti.holdBackspaceTicks = 0
+			}
+		} else if inpututil.IsKeyJustReleased(ebiten.KeyBackspace) {
+			ti.holdBackspaceTicks = 0
+		}
+	}
+}
+
+func (ti TextInput) atTextLimit() bool {
+	return ti.maxCharLen > 0 && len(ti.txt) >= ti.maxCharLen
+}
+
+func (ti *TextInput) handleNewCharInput() {
+	if ti.atTextLimit() {
+		return
+	}
+
 	shift := ebiten.IsKeyPressed(ebiten.KeyShift) || ebiten.IsKeyPressed(ebiten.KeyShiftLeft) || ebiten.IsKeyPressed(ebiten.KeyShiftRight)
 
 	// letters
 	for k, ch := range letters {
+		if ti.atTextLimit() {
+			break
+		}
 		if inpututil.IsKeyJustPressed(k) {
 			if shift {
 				ch = rune(strings.ToUpper(string(ch))[0])
 			}
-			f.txt += string(ch)
+			ti.txt += string(ch)
 		}
 	}
 
 	// numbers and symbols
 	for k, ch := range digitsEtc {
+		if ti.atTextLimit() {
+			break
+		}
 		if inpututil.IsKeyJustPressed(k) {
 			i := 0
-			if shift {
+			if shift && ti.allowSpecial {
 				i = 1
 			}
-			f.txt += string(ch[i])
+			ti.txt += string(ch[i])
 		}
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		f.txt += " "
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) && !ti.atTextLimit() {
+		ti.txt += " "
 	}
-	if len(f.txt) > 0 {
-		if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
-			f.backspace()
-		} else if ebiten.IsKeyPressed(ebiten.KeyBackspace) {
-			f.holdBackspaceTicks++
-			if f.holdBackspaceTicks > 8 {
-				f.backspace()
-				f.holdBackspaceTicks = 0
-			}
-		} else if inpututil.IsKeyJustReleased(ebiten.KeyBackspace) {
-			f.holdBackspaceTicks = 0
-		}
-	}
-
 }
 
 func (ti *TextInput) backspace() {

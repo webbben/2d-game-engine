@@ -8,6 +8,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/webbben/2d-game-engine/internal/mouse"
+	"github.com/webbben/2d-game-engine/internal/rendering"
 	internaltext "github.com/webbben/2d-game-engine/internal/text"
 	"golang.org/x/image/font"
 )
@@ -15,9 +16,11 @@ import (
 type TextField struct {
 	bounds    image.Rectangle
 	textInput internaltext.TextInput
-	offset    int // horizontal scroll offset in pixels
 
-	fontFace text.Face
+	fontFace    text.Face
+	textColor   color.Color
+	borderColor color.Color
+	bgColor     color.Color
 
 	mouseBehavior mouse.MouseBehavior
 
@@ -28,23 +31,44 @@ type TextField struct {
 	isFocused   bool
 }
 
-func NewTextField(widthPx int, fontFace font.Face, allowSpecial bool) *TextField {
-	h, _ := internaltext.GetRealisticFontMetrics(fontFace)
+type TextFieldParams struct {
+	WidthPx            int
+	FontFace           font.Face
+	AllowSpecial       bool
+	TextColor          color.Color
+	BorderColor        color.Color
+	BgColor            color.Color
+	MaxCharacterLength int
+}
+
+func NewTextField(params TextFieldParams) *TextField {
+	if params.FontFace == nil {
+		panic("no font set")
+	}
+	if params.TextColor == nil {
+		params.TextColor = color.Black
+	}
+	if params.BorderColor == nil {
+		params.BorderColor = params.TextColor
+	}
+
+	h, _ := internaltext.GetRealisticFontMetrics(params.FontFace)
 
 	t := TextField{
-		bounds:    image.Rect(0, 0, widthPx, h*2),
-		fontFace:  text.NewGoXFace(fontFace),
-		textBox:   ebiten.NewImage(widthPx, h*2),
-		textInput: internaltext.NewTextInput(allowSpecial),
+		bounds:      image.Rect(0, 0, params.WidthPx, h*2),
+		fontFace:    text.NewGoXFace(params.FontFace),
+		textBox:     ebiten.NewImage(params.WidthPx, h*2),
+		textInput:   internaltext.NewTextInput(params.AllowSpecial, params.MaxCharacterLength),
+		textColor:   params.TextColor,
+		borderColor: params.BorderColor,
+		bgColor:     params.BgColor,
 	}
-	t.SetText("Hello")
 
 	return &t
 }
 
 func (t *TextField) SetText(s string) {
 	t.textInput.SetText(s)
-	t.offset = 0
 }
 
 func (t *TextField) Contains(x, y int) bool {
@@ -92,22 +116,30 @@ func (t *TextField) Draw(screen *ebiten.Image, x, y float64) {
 	t.bounds = image.Rect(int(x), int(y), int(x)+width, int(y)+height)
 
 	// Draw border
-	vector.StrokeRect(screen, float32(x), float32(y), float32(width), float32(height), 1, color.White, false)
+	vector.StrokeRect(screen, float32(x), float32(y), float32(width), float32(height), 1, t.borderColor, false)
 
 	// Draw background
-	vector.FillRect(screen, float32(x), float32(y), float32(width), float32(height), color.RGBA{0, 0, 0, 255}, false)
+	if t.bgColor != nil {
+		vector.FillRect(screen, float32(x), float32(y), float32(width), float32(height), t.bgColor, false)
+	}
+
+	textStartX := 0
+	// if the text has exceeded the width of the textbox, start pushing it back so we can see the last characters
+	textWidth := int(text.Advance(t.textInput.GetCurrentText(), t.fontFace))
+	if textWidth > t.bounds.Dx() {
+		textStartX -= textWidth - t.bounds.Dx()
+	}
 
 	op := text.DrawOptions{}
-	op.GeoM.Translate(x, y)
-	op.ColorScale.ScaleWithColor(color.White)
+	op.GeoM.Translate(float64(textStartX), 0)
+	op.ColorScale.ScaleWithColor(t.textColor)
 	op.LineSpacing = t.fontFace.Metrics().HLineGap + t.fontFace.Metrics().HAscent + t.fontFace.Metrics().HDescent
 
-	text.Draw(screen, t.textInput.GetCurrentText(), t.fontFace, &op)
+	text.Draw(t.textBox, t.textInput.GetCurrentText(), t.fontFace, &op)
 
 	// Draw cursor
 	if t.isFocused && t.showCursor {
-		cursorX := int(text.Advance(t.textInput.GetCurrentText(), t.fontFace))
-		cursorX += int(x) - t.offset
+		cursorX := int(x) + textStartX + textWidth
 		cursorY := int(y) + 4
 		vector.StrokeLine(
 			screen,
@@ -120,4 +152,6 @@ func (t *TextField) Draw(screen *ebiten.Image, x, y float64) {
 			false,
 		)
 	}
+
+	rendering.DrawImage(screen, t.textBox, x, y, 0)
 }
