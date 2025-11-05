@@ -113,33 +113,33 @@ func characterBuilder() {
 		{
 			TilesetSrc: bodyTileset,
 			DStart:     0,
-			RStart:     13,
-			LStart:     26,
-			UStart:     39,
+			RStart:     16,
+			LStart:     32,
+			UStart:     48,
 		},
 		{
 			TilesetSrc: bodyTileset,
-			DStart:     0 + (52),
-			RStart:     13 + (52),
-			LStart:     26 + (52),
-			UStart:     39 + (52),
-			StretchX:   2,
-		},
-		{
-			TilesetSrc: bodyTileset,
-			DStart:     0 + (52 * 2),
-			RStart:     13 + (52 * 2),
-			LStart:     26 + (52 * 2),
-			UStart:     39 + (52 * 2),
+			DStart:     0 + (64),
+			RStart:     16 + (64),
+			LStart:     32 + (64),
+			UStart:     48 + (64),
 			StretchY:   -1,
 			OffsetY:    2,
 		},
 		{
 			TilesetSrc: bodyTileset,
-			DStart:     0 + (52 * 3),
-			RStart:     13 + (52 * 3),
-			LStart:     26 + (52 * 3),
-			UStart:     39 + (52 * 3),
+			DStart:     0 + (64 * 2),
+			RStart:     16 + (64 * 2),
+			LStart:     32 + (64 * 2),
+			UStart:     48 + (64 * 2),
+			StretchX:   2,
+		},
+		{
+			TilesetSrc: bodyTileset,
+			DStart:     0 + (64 * 3),
+			RStart:     16 + (64 * 3),
+			LStart:     32 + (64 * 3),
+			UStart:     48 + (64 * 3),
 			StretchX:   2,
 			StretchY:   -1,
 			OffsetY:    2,
@@ -149,30 +149,30 @@ func characterBuilder() {
 		{
 			TilesetSrc: armsTileset,
 			DStart:     0,
-			RStart:     13,
-			LStart:     26,
-			UStart:     39,
+			RStart:     16,
+			LStart:     32,
+			UStart:     48,
 		},
 		{
 			TilesetSrc: armsTileset,
-			DStart:     0 + (52),
-			RStart:     13 + (52),
-			LStart:     26 + (52),
-			UStart:     39 + (52),
+			DStart:     0 + (64),
+			RStart:     16 + (64),
+			LStart:     32 + (64),
+			UStart:     48 + (64),
 		},
 		{
 			TilesetSrc: armsTileset,
-			DStart:     0 + (52 * 2),
-			RStart:     13 + (52 * 2),
-			LStart:     26 + (52 * 2),
-			UStart:     39 + (52 * 2),
+			DStart:     0 + (64 * 2),
+			RStart:     16 + (64 * 2),
+			LStart:     32 + (64 * 2),
+			UStart:     48 + (64 * 2),
 		},
 		{
 			TilesetSrc: armsTileset,
-			DStart:     0 + (52 * 3),
-			RStart:     13 + (52 * 3),
-			LStart:     26 + (52 * 3),
-			UStart:     39 + (52 * 3),
+			DStart:     0 + (64 * 3),
+			RStart:     16 + (64 * 3),
+			LStart:     32 + (64 * 3),
+			UStart:     48 + (64 * 3),
 		},
 	}
 	eyesOptions := []body.SelectedPartDef{}
@@ -195,13 +195,13 @@ func characterBuilder() {
 		})
 	}
 	equipBodyOptions := []body.SelectedPartDef{}
-	for i := range 4 {
+	for i := range 3 {
 		equipBodyOptions = append(equipBodyOptions, body.SelectedPartDef{
 			TilesetSrc: equipBodyTileset,
-			DStart:     (i * 52),
-			RStart:     (i * 52) + 13,
-			LStart:     (i * 52) + 26,
-			UStart:     (i * 52) + 39,
+			DStart:     (i * 64),
+			RStart:     (i * 64) + 16,
+			LStart:     (i * 64) + 32,
+			UStart:     (i * 64) + 48,
 		})
 	}
 	equipHeadOptions := []body.SelectedPartDef{{None: true}}
@@ -218,36 +218,50 @@ func characterBuilder() {
 		})
 	}
 
+	walkTileSteps := []int{0, 2, 0, 4}
+	runTileSteps := []int{0, 1, 2, 0, 3, 4}
+	slashTileSteps := []int{0, 5, 6, 7, 8}
+	backslashTileSteps := []int{8, 9, 10, 11}
+
 	bodySet := body.BodyPartSet{
 		WalkAnimation: body.Animation{
 			Name:         "body/walk",
-			TileSteps:    []int{0, 2, 0, 4},
+			TileSteps:    walkTileSteps,
 			StepsOffsetY: []int{0, 1, 0, 1},
 		},
 		RunAnimation: body.Animation{
 			Name:         "body/run",
-			TileSteps:    []int{0, 1, 2, 0, 3, 4},
+			TileSteps:    runTileSteps,
 			StepsOffsetY: []int{0, 0, 1, 0, 0, 1},
 		},
 		SlashAnimation: body.Animation{
 			Name:         "body/slash",
-			TileSteps:    []int{0, 5, 6, 7, 8},
+			TileSteps:    slashTileSteps,
 			StepsOffsetY: []int{0, 1, 2, 2, 2},
+		},
+		BackslashAnimation: body.Animation{
+			Name:         "body/backslash",
+			TileSteps:    backslashTileSteps,
+			StepsOffsetY: []int{2, 2, 1, 1},
 		},
 		HasUp: true,
 	}
 	armsSet := body.BodyPartSet{
 		WalkAnimation: body.Animation{
 			Name:      "arms/walk",
-			TileSteps: []int{0, 2, 0, 4},
+			TileSteps: walkTileSteps,
 		},
 		RunAnimation: body.Animation{
 			Name:      "arms/run",
-			TileSteps: []int{0, 1, 2, 0, 3, 4},
+			TileSteps: runTileSteps,
 		},
 		SlashAnimation: body.Animation{
 			Name:      "arms/slash",
-			TileSteps: []int{0, 5, 6, 7, 8},
+			TileSteps: slashTileSteps,
+		},
+		BackslashAnimation: body.Animation{
+			Name:      "body/backslash",
+			TileSteps: backslashTileSteps,
 		},
 		HasUp: true,
 	}
@@ -256,15 +270,19 @@ func characterBuilder() {
 	equipBodySet := body.BodyPartSet{
 		WalkAnimation: body.Animation{
 			Name:      "equipBody/walk",
-			TileSteps: []int{0, 2, 0, 4},
+			TileSteps: walkTileSteps,
 		},
 		RunAnimation: body.Animation{
 			Name:      "equipBody/run",
-			TileSteps: []int{0, 1, 2, 0, 3, 4},
+			TileSteps: runTileSteps,
 		},
 		SlashAnimation: body.Animation{
 			Name:      "equipBody/slash",
-			TileSteps: []int{0, 5, 6, 7, 8},
+			TileSteps: slashTileSteps,
+		},
+		BackslashAnimation: body.Animation{
+			Name:      "body/backslash",
+			TileSteps: backslashTileSteps,
 		},
 		HasUp: true,
 	}
@@ -272,15 +290,19 @@ func characterBuilder() {
 	weaponSet := body.BodyPartSet{
 		WalkAnimation: body.Animation{
 			Name:      "weapon/walk",
-			TileSteps: []int{0, 2, 0, 4},
+			TileSteps: walkTileSteps,
 		},
 		RunAnimation: body.Animation{
 			Name:      "weapon/run",
-			TileSteps: []int{0, 1, 2, 0, 3, 4},
+			TileSteps: runTileSteps,
 		},
 		SlashAnimation: body.Animation{
 			Name:      "weapon/slash",
-			TileSteps: []int{0, 5, 6, 7, 8},
+			TileSteps: slashTileSteps,
+		},
+		BackslashAnimation: body.Animation{
+			Name:      "body/backslash",
+			TileSteps: backslashTileSteps,
 		},
 		HasUp: true,
 	}
@@ -288,6 +310,10 @@ func characterBuilder() {
 		SlashAnimation: body.Animation{
 			Name:      "weaponFx/slash",
 			TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
+		},
+		BackslashAnimation: body.Animation{
+			Name:      "body/backslash",
+			TileSteps: []int{-1, 3, 4, 5},
 		},
 		WalkAnimation: body.Animation{Name: "weaponFx/walk", Skip: true},
 		RunAnimation:  body.Animation{Name: "weaponFx/run", Skip: true},
@@ -299,16 +325,16 @@ func characterBuilder() {
 			weaponPartDef: body.SelectedPartDef{
 				TilesetSrc: equipWeaponTileset,
 				DStart:     0,
-				RStart:     13,
-				LStart:     26,
-				UStart:     39,
+				RStart:     16,
+				LStart:     32,
+				UStart:     48,
 			},
 			weaponFxDef: body.SelectedPartDef{
 				TilesetSrc: weaponFxTileset,
 				DStart:     0,
-				RStart:     6,
-				LStart:     12,
-				UStart:     18,
+				RStart:     9,
+				LStart:     18,
+				UStart:     27,
 			},
 		},
 	}

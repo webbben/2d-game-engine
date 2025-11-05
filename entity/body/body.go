@@ -262,11 +262,12 @@ type BodyPartSet struct {
 
 	// animation definitions
 
-	animIndex      int
-	WalkAnimation  Animation
-	RunAnimation   Animation
-	SlashAnimation Animation
-	HasUp          bool
+	animIndex          int
+	WalkAnimation      Animation
+	RunAnimation       Animation
+	SlashAnimation     Animation
+	BackslashAnimation Animation
+	HasUp              bool
 
 	img *ebiten.Image `json:"-"`
 }

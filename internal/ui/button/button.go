@@ -145,7 +145,10 @@ func (b *Button) Draw(screen *ebiten.Image, x, y int) {
 	// update internal position
 	b.x, b.y = x, y
 
+	var dx, dy int
+
 	if b.buttonImg != nil {
+		dx, dy = rendering.CenterImageOnImage(b.buttonImg, b.textImg)
 		// draw button image instead of highlight hover box
 		ops := ebiten.DrawImageOptions{}
 		if b.mouseBehavior.IsHovering {
@@ -154,10 +157,10 @@ func (b *Button) Draw(screen *ebiten.Image, x, y int) {
 		rendering.DrawImageWithOps(screen, b.buttonImg, float64(x), float64(y), 0, &ops)
 	} else {
 		// for clear buttons with no button image; we just show a highlight box
+		dx, dy = rendering.CenterImageOnImage(b.hoverBoxImg, b.textImg)
 		if b.mouseBehavior.IsHovering {
 			rendering.DrawImage(screen, b.hoverBoxImg, float64(x), float64(y), 0)
 		}
 	}
-	dx, dy := rendering.CenterImageOnImage(b.buttonImg, b.textImg)
 	rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
 }
