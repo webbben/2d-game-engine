@@ -48,7 +48,9 @@ func (e *Entity) Update() {
 		panic("entity not loaded yet!")
 	}
 	dx, dy := e.Body.Dimensions()
-	e.MouseBehavior.Update(int(e.Position.drawX), int(e.Position.drawY), dx, dy, true)
+	dx = int(float64(dx) * config.GameScale)
+	dy = int(float64(dy) * config.GameScale)
+	e.MouseBehavior.Update(int(e.Position.drawX), int(e.Position.drawY), dx, dy, false)
 
 	if !e.Movement.IsMoving {
 		if len(e.Movement.TargetPath) > 0 {

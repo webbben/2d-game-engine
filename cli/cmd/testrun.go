@@ -77,7 +77,7 @@ to quickly create a Cobra application.`,
 		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("currency_value_100", 1))
 		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("currency_value_1000", 1))
 
-		fmt.Println("player inventory:", gameState.Player.InventoryItems)
+		fmt.Println("player inventory:", gameState.Player.Entity.InventoryItems)
 
 		gameState.PlayerMenu.InventoryPage.SyncPlayerItems()
 
@@ -100,7 +100,7 @@ func init() {
 
 func setupGameState() *game.Game {
 	g := game.NewGame(10)
-	err := g.SetupMap("prison_ship", &game.OpenMapOptions{
+	err := g.SetupMap("village_surano", &game.OpenMapOptions{
 		RunNPCManager:    true,
 		RegenerateImages: true,
 	})
@@ -128,8 +128,9 @@ func setupGameState() *game.Game {
 	// make the player
 	playerEnt := entity.NewEntity(entity.GeneralProps{
 		DisplayName:   "Caius Cosades",
-		EntityBodySrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_02.json",
+		EntityBodySrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json",
 		IsPlayer:      true,
+		InventorySize: 18,
 	}, entity.MovementProps{
 		WalkSpeed: 0,
 	}, footstepSFX)
@@ -138,28 +139,24 @@ func setupGameState() *game.Game {
 
 	g.PlacePlayerAtSpawnPoint(&p, 0)
 
-	legionaryEnt := entity.NewEntity(entity.GeneralProps{
+	npcEnt := entity.NewEntity(entity.GeneralProps{
 		DisplayName:   "Legionary",
-		EntityBodySrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json",
+		EntityBodySrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_02.json",
+		InventorySize: 18,
 	}, entity.MovementProps{
 		WalkSpeed: 0,
 	}, footstepSFX)
+	n := npc.New(npc.NPC{
+		Entity: &npcEnt,
+		NPCInfo: npc.NPCInfo{
+			DisplayName: npcEnt.DisplayName,
+		},
+		DialogID: "dialog1",
+	})
 
-	for i := 0; i < 0; i++ {
-		npcEnt := legionaryEnt.Duplicate()
-		npcEnt.DisplayName = fmt.Sprintf("NPC_%v", i)
-		n := npc.New(npc.NPC{
-			Entity: &npcEnt,
-			NPCInfo: npc.NPCInfo{
-				DisplayName: npcEnt.DisplayName,
-			},
-			DialogID: "dialog1",
-		})
+	n.SetFollowTask(&playerEnt, 0)
 
-		n.SetFollowTask(&playerEnt, 0)
-
-		g.MapInfo.AddNPCToMap(&n, model.Coords{X: i, Y: 0})
-	}
+	g.MapInfo.AddNPCToMap(&n, model.Coords{X: 0, Y: 0})
 
 	// setup the game struct
 	g.Player = &p
@@ -191,6 +188,7 @@ func addCustomKeyBindings(g *game.Game) {
 				gg.PlayerMenu.InventoryPage.SyncPlayerItems()
 			}
 			gg.ShowPlayerMenu = showPlayerMenu
+			fmt.Println(gg.Player.Entity.InventoryItems)
 		}()
 	})
 	g.SetGlobalKeyBinding(ebiten.Key0, func(gg *game.Game) {

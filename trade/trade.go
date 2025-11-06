@@ -317,7 +317,7 @@ func (ts TradeScreen) calculateTransaction() int {
 
 func (ts *TradeScreen) loadPlayerInventory() {
 	// set inventory items
-	ts.playerInventory.SetItemSlots(ts.playerRef.InventoryItems)
+	ts.playerInventory.SetItemSlots(ts.playerRef.Entity.InventoryItems)
 
 	moneyCount := ts.playerRef.CountMoney()
 	ts.playerGoldCount.SetText(general_util.ConvertIntToCommaString(moneyCount))
@@ -334,23 +334,8 @@ func (ts *TradeScreen) acceptTransaction() {
 		ts.playerRef.SpendMoney(-transactionAmount)
 	}
 
-	// // remove bought and sold items from their respective inventories
-	// for _, boughtItem := range ts.boughtItems {
-	// 	ts.playerRef.AddItemToInventory(boughtItem.invItem)
-	// 	success, remaining := item.RemoveItemFromInventory(boughtItem.invItem, ts.shopKeeperItems)
-	// 	if !success {
-	// 		logz.Panicf("failed to remove items from shopkeeper inventory: %s", remaining.String())
-	// 	}
-	// }
-	// for _, soldItem := range ts.soldItems {
-	// 	success, remaining := ts.playerRef.RemoveItemFromInventory(soldItem.invItem)
-	// 	if !success {
-	// 		logz.Panicf("failed to remove items from player inventory: %s", remaining.String())
-	// 	}
-	// }
-
 	// update player and shopkeeper inventories to match inventories in this trade screen
-	ts.playerRef.SetInventoryItems(ts.playerInventory.GetInventoryItems())
+	ts.playerRef.Entity.SetInventoryItems(ts.playerInventory.GetInventoryItems())
 	ts.shopkeeper.SetShopInventory(ts.shopkeeperInventory.GetInventoryItems())
 
 	ts.Exit = true

@@ -25,7 +25,7 @@ func (p *Player) Update() {
 }
 
 func (p *Player) handleActivations() {
-	nearbyNPCs := p.World.GetNearbyNPCs(p.Entity.X, p.Entity.X, config.TileSize*config.GameScale*1.5)
+	nearbyNPCs := p.World.GetNearbyNPCs(p.Entity.X, p.Entity.Y, config.TileSize*config.GameScale*1.5)
 
 	for _, n := range nearbyNPCs {
 		if n == nil {

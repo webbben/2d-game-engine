@@ -12,20 +12,9 @@ import (
 )
 
 type Player struct {
-	Entity *entity.Entity // the entity that represents this player in a map
+	Entity *entity.Entity
 
-	InventoryItems []*item.InventoryItem // the regular items (not equiped) that are in the player's inventory
-	CoinPurse      []*item.InventoryItem // items in the player's coin purse. note that coins can also be put in regular inventory slots.
-
-	// equiped items
-	EquipedHeadwear  *item.InventoryItem
-	EquipedBodywear  *item.InventoryItem
-	EquipedFootwear  *item.InventoryItem
-	EquipedAmulet    *item.InventoryItem
-	EquipedRing1     *item.InventoryItem
-	EquipedRing2     *item.InventoryItem
-	EquipedAmmo      *item.InventoryItem
-	EquipedAuxiliary *item.InventoryItem
+	CoinPurse []*item.InventoryItem // items in the player's coin purse. note that coins can also be put in regular inventory slots.
 
 	defMgr *definitions.DefinitionManager
 
@@ -47,26 +36,9 @@ func NewPlayer(defMgr *definitions.DefinitionManager, ent *entity.Entity) Player
 	}
 
 	return Player{
-		InventoryItems: make([]*item.InventoryItem, 18),
-		CoinPurse:      make([]*item.InventoryItem, 6),
-		defMgr:         defMgr,
-		Entity:         ent,
-	}
-}
-
-func (p *Player) SetInventoryItems(invItems []*item.InventoryItem) {
-	p.InventoryItems = make([]*item.InventoryItem, 0)
-
-	for _, newItem := range invItems {
-		if newItem == nil {
-			p.InventoryItems = append(p.InventoryItems, nil)
-			continue
-		}
-		p.InventoryItems = append(p.InventoryItems, &item.InventoryItem{
-			Instance: newItem.Instance,
-			Def:      newItem.Def,
-			Quantity: newItem.Quantity,
-		})
+		CoinPurse: make([]*item.InventoryItem, 6),
+		defMgr:    defMgr,
+		Entity:    ent,
 	}
 }
 
@@ -80,7 +52,7 @@ func (p *Player) AddItemToInventory(invItem item.InventoryItem) (bool, item.Inve
 		invItem = remaining
 	}
 
-	return item.AddItemToInventory(invItem, p.InventoryItems)
+	return p.Entity.AddItemToInventory(invItem)
 }
 
 func (p *Player) RemoveItemFromInventory(itemToRemove item.InventoryItem) (bool, item.InventoryItem) {
@@ -91,7 +63,7 @@ func (p *Player) RemoveItemFromInventory(itemToRemove item.InventoryItem) (bool,
 			return true, remaining
 		}
 	}
-	return item.RemoveItemFromInventory(itemToRemove, p.InventoryItems)
+	return p.Entity.RemoveItemFromInventory(itemToRemove)
 }
 
 func (p Player) CountMoney() int {
@@ -106,7 +78,7 @@ func (p Player) CountMoney() int {
 	}
 
 	// also check for coins not in coin purse
-	for _, coinItem := range p.InventoryItems {
+	for _, coinItem := range p.Entity.InventoryItems {
 		if coinItem == nil {
 			continue
 		}
@@ -122,7 +94,7 @@ func (p Player) CountMoney() int {
 func (p *Player) SpendMoney(value int) {
 	// first, calculate our wallet
 	wallet := map[int]int{}
-	for _, coin := range append(p.CoinPurse, p.InventoryItems...) {
+	for _, coin := range append(p.CoinPurse, p.Entity.InventoryItems...) {
 		if coin == nil {
 			continue
 		}

@@ -11,6 +11,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/mouse"
+	"github.com/webbben/2d-game-engine/item"
 )
 
 var (
@@ -41,6 +42,19 @@ type Entity struct {
 
 	Vitals     Vitals
 	Attributes Attributes
+
+	// Inventory and Items
+
+	InventoryItems []*item.InventoryItem
+
+	EquipedHeadwear  *item.InventoryItem
+	EquipedBodywear  *item.InventoryItem
+	EquipedFootwear  *item.InventoryItem
+	EquipedAmulet    *item.InventoryItem
+	EquipedRing1     *item.InventoryItem
+	EquipedRing2     *item.InventoryItem
+	EquipedAmmo      *item.InventoryItem
+	EquipedAuxiliary *item.InventoryItem
 }
 
 func (e Entity) CollisionRect() model.Rect {
@@ -61,6 +75,8 @@ func (e *Entity) LoadFootstepSFX(source audio.FootstepSFX) {
 	e.footstepSFX.Load()
 }
 
+// TODO this probably doesn't work anymore
+//
 // create a duplicate entity from this one.
 // both entities will share the same references to tiles and animations and such, but will be able to have different
 // positions, movement targets, etc.
@@ -100,6 +116,7 @@ type GeneralProps struct {
 	DisplayName   string
 	IsPlayer      bool
 	EntityBodySrc string // path to a JSON file containing the definition of the body
+	InventorySize int
 }
 
 func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
@@ -109,6 +126,9 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 	if general.DisplayName == "" {
 		panic("entity display name is empty")
 	}
+	if general.InventorySize <= 0 {
+		panic("inventory size must be positive")
+	}
 	if mv.WalkSpeed == 0 {
 		logz.Warnln("", "loaded entity does not have a walking speed; setting default value.")
 		mv.WalkSpeed = GetDefaultWalkSpeed()
@@ -116,11 +136,13 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 
 	ent := Entity{
 		EntityInfo: EntityInfo{
-			IsPlayer: general.IsPlayer,
+			IsPlayer:    general.IsPlayer,
+			DisplayName: general.DisplayName,
 		},
 		Movement: Movement{
 			WalkSpeed: mv.WalkSpeed,
 		},
+		InventoryItems: make([]*item.InventoryItem, general.InventorySize),
 	}
 
 	// load body
@@ -215,4 +237,29 @@ func (e *Entity) SetPositionPx(x, y float64) {
 	e.Y = y
 	e.TargetX = e.X
 	e.TargetY = e.Y
+}
+
+// for setting the entire inventory
+func (e *Entity) SetInventoryItems(invItems []*item.InventoryItem) {
+	e.InventoryItems = make([]*item.InventoryItem, 0)
+
+	for _, newItem := range invItems {
+		if newItem == nil {
+			e.InventoryItems = append(e.InventoryItems, nil)
+			continue
+		}
+		e.InventoryItems = append(e.InventoryItems, &item.InventoryItem{
+			Instance: newItem.Instance,
+			Def:      newItem.Def,
+			Quantity: newItem.Quantity,
+		})
+	}
+}
+
+func (e *Entity) AddItemToInventory(invItem item.InventoryItem) (bool, item.InventoryItem) {
+	return item.AddItemToInventory(invItem, e.InventoryItems)
+}
+
+func (e *Entity) RemoveItemFromInventory(itemToRemove item.InventoryItem) (bool, item.InventoryItem) {
+	return item.RemoveItemFromInventory(itemToRemove, e.InventoryItems)
 }

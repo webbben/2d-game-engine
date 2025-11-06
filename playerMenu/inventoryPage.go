@@ -171,19 +171,19 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 
 func (ip *InventoryPage) SyncPlayerItems() {
 	// set equiped items
-	setInventoryItem(ip.EquipedHead, ip.playerRef.EquipedHeadwear)
-	setInventoryItem(ip.EquipedBody, ip.playerRef.EquipedBodywear)
-	setInventoryItem(ip.EquipedFeet, ip.playerRef.EquipedFootwear)
+	setInventoryItem(ip.EquipedHead, ip.playerRef.Entity.EquipedHeadwear)
+	setInventoryItem(ip.EquipedBody, ip.playerRef.Entity.EquipedBodywear)
+	setInventoryItem(ip.EquipedFeet, ip.playerRef.Entity.EquipedFootwear)
 
-	setInventoryItem(ip.EquipedAmulet, ip.playerRef.EquipedAmulet)
-	setInventoryItem(ip.EquipedRing1, ip.playerRef.EquipedRing1)
-	setInventoryItem(ip.EquipedRing2, ip.playerRef.EquipedRing2)
+	setInventoryItem(ip.EquipedAmulet, ip.playerRef.Entity.EquipedAmulet)
+	setInventoryItem(ip.EquipedRing1, ip.playerRef.Entity.EquipedRing1)
+	setInventoryItem(ip.EquipedRing2, ip.playerRef.Entity.EquipedRing2)
 
-	setInventoryItem(ip.EquipedAmmo, ip.playerRef.EquipedAmmo)
-	setInventoryItem(ip.EquipedAuxiliary, ip.playerRef.EquipedAuxiliary)
+	setInventoryItem(ip.EquipedAmmo, ip.playerRef.Entity.EquipedAmmo)
+	setInventoryItem(ip.EquipedAuxiliary, ip.playerRef.Entity.EquipedAuxiliary)
 
 	// set inventory items
-	ip.PlayerInventory.SetItemSlots(ip.playerRef.InventoryItems)
+	ip.PlayerInventory.SetItemSlots(ip.playerRef.Entity.InventoryItems)
 
 	// set coin purse items
 	ip.coinPurse.SetItemSlots(ip.playerRef.CoinPurse)
