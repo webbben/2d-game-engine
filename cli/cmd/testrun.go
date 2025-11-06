@@ -186,6 +186,8 @@ func addCustomKeyBindings(g *game.Game) {
 			showPlayerMenu := !gg.ShowPlayerMenu
 			if showPlayerMenu {
 				gg.PlayerMenu.InventoryPage.SyncPlayerItems()
+			} else {
+				gg.PlayerMenu.InventoryPage.SavePlayerInventory()
 			}
 			gg.ShowPlayerMenu = showPlayerMenu
 			fmt.Println(gg.Player.Entity.InventoryItems)

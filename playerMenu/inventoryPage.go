@@ -310,3 +310,19 @@ func (ip InventoryPage) CountMoney() int {
 
 	return sum
 }
+
+// saves the currently set player inventory to the player's actual items list (done when inventory session closed)
+func (ip *InventoryPage) SavePlayerInventory() {
+	ip.playerRef.Entity.SetInventoryItems(ip.PlayerInventory.GetInventoryItems())
+
+	ip.playerRef.Entity.EquipedHeadwear = ip.EquipedHead.Item
+	ip.playerRef.Entity.EquipedBodywear = ip.EquipedBody.Item
+	ip.playerRef.Entity.EquipedFootwear = ip.EquipedFeet.Item
+
+	ip.playerRef.Entity.EquipedAmulet = ip.EquipedAmulet.Item
+	ip.playerRef.Entity.EquipedRing1 = ip.EquipedRing1.Item
+	ip.playerRef.Entity.EquipedRing2 = ip.EquipedRing2.Item
+
+	ip.playerRef.Entity.EquipedAmmo = ip.EquipedAmmo.Item
+	ip.playerRef.Entity.EquipedAuxiliary = ip.EquipedAuxiliary.Item
+}
