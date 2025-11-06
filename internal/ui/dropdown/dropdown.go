@@ -24,7 +24,6 @@ type OptionSelect struct {
 
 	topBarMouseBehavior mouse.MouseBehavior
 	optionWindowOpen    bool
-	//outsideClick        mouse.MouseBehavior
 
 	selectedOptionIndex int
 }
@@ -76,15 +75,15 @@ func NewOptionSelect(params OptionSelectParams) OptionSelect {
 
 	maxWidth += tileSize / 2
 	maxWidth -= maxWidth % tileSize
+	totalWidth := maxWidth + (tileSize * 2)
 
 	// draw bar image
-	totalWidth := maxWidth + (tileSize * 2)
-	os.barImg = ebiten.NewImage(totalWidth, tileSize)
-	rendering.DrawImage(os.barImg, os.tiles[0], 0, 0, config.UIScale)
-	for i := range maxWidth / tileSize {
-		rendering.DrawImage(os.barImg, os.tiles[1], float64(i+1*tileSize), 0, config.UIScale)
-	}
-	rendering.DrawImage(os.barImg, os.tiles[2], float64(maxWidth+tileSize), 0, config.UIScale)
+	linearBox := box.NewLinearBox(box.LinearBoxParams{
+		TilesetSrc:  params.TilesetSrc,
+		OriginIndex: params.OriginIndex,
+		TileWidth:   totalWidth / tileSize,
+	})
+	os.barImg = linearBox.Image()
 
 	// drop down window for text options
 	dropDownBox := box.NewBox(params.DropDownBoxTilesetSrc, params.DropDownBoxOrigin)
