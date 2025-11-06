@@ -3,12 +3,15 @@ package body
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/internal/tiled"
 )
 
 const (
-	ANIM_WALK  = "walk"
-	ANIM_RUN   = "run"
-	ANIM_SLASH = "slash"
+	ANIM_WALK      = "walk"
+	ANIM_RUN       = "run"
+	ANIM_SLASH     = "slash"
+	ANIM_BACKSLASH = "backslash"
 )
 
 type Animation struct {
@@ -25,6 +28,10 @@ type Animation struct {
 func (a Animation) validate() {
 	if a.Skip {
 		return
+	}
+
+	if a.Name == "" {
+		panic("no animation name")
 	}
 
 	// no animation defined; this just shows a single frame
@@ -54,10 +61,14 @@ func (a *Animation) reset() {
 }
 
 func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
+	if a.Skip {
+		return nil
+	}
+
 	switch dir {
 	case 'L':
 		if len(a.L) == 0 {
-			return nil
+			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.L) {
 			logz.Println(a.Name, "past left frames; returning last frame", "animIndex:", animationIndex)
@@ -66,7 +77,7 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 		return a.L[animationIndex]
 	case 'R':
 		if len(a.R) == 0 {
-			return nil
+			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.R) {
 			logz.Println(a.Name, "past right frames; returning last frame", "animIndex:", animationIndex)
@@ -75,7 +86,7 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 		return a.R[animationIndex]
 	case 'U':
 		if len(a.U) == 0 {
-			return nil
+			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.U) {
 			logz.Println(a.Name, "past up frames; returning last frame", "animIndex:", animationIndex)
@@ -84,7 +95,7 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 		return a.U[animationIndex]
 	case 'D':
 		if len(a.D) == 0 {
-			return nil
+			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.D) {
 			logz.Println(a.Name, "past down frames; returning last frame", "animIndex:", animationIndex)
@@ -93,4 +104,80 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 		return a.D[animationIndex]
 	}
 	panic("unrecognized direction: " + string(dir))
+}
+
+func (a *Animation) loadFrames(tilesetSrc string, rStart, lStart, uStart, dStart, stretchX, stretchY int, flip, hasUp bool) {
+	if a.Skip {
+		return
+	}
+
+	if flip {
+		a.L = getAnimationFrames(tilesetSrc, rStart, a.TileSteps, true, stretchX, stretchY)
+	} else {
+		a.L = getAnimationFrames(tilesetSrc, lStart, a.TileSteps, false, stretchX, stretchY)
+	}
+	a.R = getAnimationFrames(tilesetSrc, rStart, a.TileSteps, false, stretchX, stretchY)
+	if hasUp {
+		a.U = getAnimationFrames(tilesetSrc, uStart, a.TileSteps, false, stretchX, stretchY)
+	}
+	a.D = getAnimationFrames(tilesetSrc, dStart, a.TileSteps, false, stretchX, stretchY)
+}
+
+func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, flip bool, stretchX, stretchY int) []*ebiten.Image {
+	if tilesetSrc == "" {
+		panic("no tilesetSrc passed")
+	}
+	frames := []*ebiten.Image{}
+
+	if len(indexSteps) == 0 {
+		// no animation defined; just use the start tile
+		img := tiled.GetTileImage(tilesetSrc, startIndex)
+		if flip {
+			img = rendering.FlipHoriz(img)
+		}
+		if stretchX != 0 || stretchY != 0 {
+			img = stretchImage(img, stretchX, stretchY)
+		}
+		frames = append(frames, img)
+	}
+	for _, step := range indexSteps {
+		if step == -1 {
+			// indicates a skip frame
+			frames = append(frames, nil)
+			continue
+		}
+		img := tiled.GetTileImage(tilesetSrc, startIndex+step)
+		if flip {
+			img = rendering.FlipHoriz(img)
+		}
+		if stretchX != 0 || stretchY != 0 {
+			img = stretchImage(img, stretchX, stretchY)
+		}
+		frames = append(frames, img)
+	}
+	return frames
+}
+
+// stretches the image while keeping it in its same original frame size (centered within)
+func stretchImage(img *ebiten.Image, stretchX, stretchY int) *ebiten.Image {
+	if stretchX == 0 && stretchY == 0 {
+		panic("no stretch set")
+	}
+
+	originalBounds := img.Bounds()
+
+	stretchedImage := rendering.StretchImage(img, stretchX, stretchY)
+	stretchedBounds := stretchedImage.Bounds()
+
+	if stretchX != 0 && (originalBounds.Dx() == stretchedBounds.Dx()) {
+		panic("stretch seems to not have worked")
+	}
+
+	x := (originalBounds.Dx() / 2) - (stretchedBounds.Dx() / 2)
+	y := (originalBounds.Dy() / 2) - (stretchedBounds.Dy() / 2)
+
+	newImg := ebiten.NewImage(originalBounds.Dx(), originalBounds.Dy())
+	rendering.DrawImage(newImg, stretchedImage, float64(x), float64(y), 0)
+
+	return newImg
 }

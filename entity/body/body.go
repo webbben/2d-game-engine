@@ -9,10 +9,8 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
-	"github.com/webbben/2d-game-engine/internal/tiled"
 )
 
 type HSV struct {
@@ -339,107 +337,15 @@ func (set *BodyPartSet) load() {
 		panic("no TilesetSrc set in BodyPartSet. has an option been set yet?")
 	}
 
-	// walk animation
-	if !set.WalkAnimation.Skip {
-		if set.FlipRForL {
-			// if flip R for L, use the R frames for L but flip them horizontally
-			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, true, set.stretchX, set.stretchY)
-		} else {
-			set.WalkAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.WalkAnimation.TileSteps, false, set.stretchX, set.stretchY)
-		}
-		set.WalkAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.WalkAnimation.TileSteps, false, set.stretchX, set.stretchY)
-		if set.HasUp {
-			set.WalkAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.WalkAnimation.TileSteps, false, set.stretchX, set.stretchY)
-		}
-		set.WalkAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.WalkAnimation.TileSteps, false, set.stretchX, set.stretchY)
-	}
+	set.WalkAnimation.Name = fmt.Sprintf("%s/walk", set.TilesetSrc)
+	set.RunAnimation.Name = fmt.Sprintf("%s/run", set.TilesetSrc)
+	set.SlashAnimation.Name = fmt.Sprintf("%s/slash", set.TilesetSrc)
+	set.BackslashAnimation.Name = fmt.Sprintf("%s/backslash", set.TilesetSrc)
 
-	// run animation
-	if !set.RunAnimation.Skip {
-		if set.FlipRForL {
-			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, true, set.stretchX, set.stretchY)
-		} else {
-			set.RunAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.RunAnimation.TileSteps, false, set.stretchX, set.stretchY)
-		}
-		set.RunAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.RunAnimation.TileSteps, false, set.stretchX, set.stretchY)
-		if set.HasUp {
-			set.RunAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.RunAnimation.TileSteps, false, set.stretchX, set.stretchY)
-		}
-		set.RunAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.RunAnimation.TileSteps, false, set.stretchX, set.stretchY)
-	}
-
-	// slash animation
-	if !set.SlashAnimation.Skip {
-		if set.FlipRForL {
-			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, true, set.stretchX, set.stretchY)
-		} else {
-			set.SlashAnimation.L = getAnimationFrames(set.TilesetSrc, set.LStart, set.SlashAnimation.TileSteps, false, set.stretchX, set.stretchY)
-		}
-		set.SlashAnimation.R = getAnimationFrames(set.TilesetSrc, set.RStart, set.SlashAnimation.TileSteps, false, set.stretchX, set.stretchY)
-		if set.HasUp {
-			set.SlashAnimation.U = getAnimationFrames(set.TilesetSrc, set.UStart, set.SlashAnimation.TileSteps, false, set.stretchX, set.stretchY)
-		}
-		set.SlashAnimation.D = getAnimationFrames(set.TilesetSrc, set.DStart, set.SlashAnimation.TileSteps, false, set.stretchX, set.stretchY)
-	}
-}
-
-func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, flip bool, stretchX, stretchY int) []*ebiten.Image {
-	if tilesetSrc == "" {
-		panic("no tilesetSrc passed")
-	}
-	frames := []*ebiten.Image{}
-
-	if len(indexSteps) == 0 {
-		// no animation defined; just use the start tile
-		img := tiled.GetTileImage(tilesetSrc, startIndex)
-		if flip {
-			img = rendering.FlipHoriz(img)
-		}
-		if stretchX != 0 || stretchY != 0 {
-			img = stretchImage(img, stretchX, stretchY)
-		}
-		frames = append(frames, img)
-	}
-	for _, step := range indexSteps {
-		if step == -1 {
-			// indicates a skip frame
-			frames = append(frames, nil)
-			continue
-		}
-		img := tiled.GetTileImage(tilesetSrc, startIndex+step)
-		if flip {
-			img = rendering.FlipHoriz(img)
-		}
-		if stretchX != 0 || stretchY != 0 {
-			img = stretchImage(img, stretchX, stretchY)
-		}
-		frames = append(frames, img)
-	}
-	return frames
-}
-
-// stretches the image while keeping it in its same original frame size (centered within)
-func stretchImage(img *ebiten.Image, stretchX, stretchY int) *ebiten.Image {
-	if stretchX == 0 && stretchY == 0 {
-		panic("no stretch set")
-	}
-
-	originalBounds := img.Bounds()
-
-	stretchedImage := rendering.StretchImage(img, stretchX, stretchY)
-	stretchedBounds := stretchedImage.Bounds()
-
-	if stretchX != 0 && (originalBounds.Dx() == stretchedBounds.Dx()) {
-		panic("stretch seems to not have worked")
-	}
-
-	x := (originalBounds.Dx() / 2) - (stretchedBounds.Dx() / 2)
-	y := (originalBounds.Dy() / 2) - (stretchedBounds.Dy() / 2)
-
-	newImg := ebiten.NewImage(originalBounds.Dx(), originalBounds.Dy())
-	rendering.DrawImage(newImg, stretchedImage, float64(x), float64(y), 0)
-
-	return newImg
+	set.WalkAnimation.loadFrames(set.TilesetSrc, set.RStart, set.LStart, set.UStart, set.DStart, set.stretchX, set.stretchY, set.FlipRForL, set.HasUp)
+	set.RunAnimation.loadFrames(set.TilesetSrc, set.RStart, set.LStart, set.UStart, set.DStart, set.stretchX, set.stretchY, set.FlipRForL, set.HasUp)
+	set.SlashAnimation.loadFrames(set.TilesetSrc, set.RStart, set.LStart, set.UStart, set.DStart, set.stretchX, set.stretchY, set.FlipRForL, set.HasUp)
+	set.BackslashAnimation.loadFrames(set.TilesetSrc, set.RStart, set.LStart, set.UStart, set.DStart, set.stretchX, set.stretchY, set.FlipRForL, set.HasUp)
 }
 
 func (eb *EntityBodySet) cropHair() {
@@ -475,6 +381,11 @@ func (eb *EntityBodySet) cropHair() {
 func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string) {
 	if set.None {
 		set.img = nil
+		return
+	}
+	if dir == 'U' && !set.HasUp {
+		set.img = nil
+		return
 	}
 
 	switch animationName {
@@ -484,6 +395,8 @@ func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string) {
 		set.img = set.RunAnimation.getFrame(dir, set.animIndex)
 	case ANIM_SLASH:
 		set.img = set.SlashAnimation.getFrame(dir, set.animIndex)
+	case ANIM_BACKSLASH:
+		set.img = set.BackslashAnimation.getFrame(dir, set.animIndex)
 	case "":
 		set.img = set.WalkAnimation.getFrame(dir, 0)
 	default:
@@ -492,9 +405,6 @@ func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string) {
 }
 
 func (set BodyPartSet) getCurrentYOffset(animationName string) int {
-	if set.animIndex == 0 {
-		return 0
-	}
 	switch animationName {
 	case ANIM_WALK:
 		if len(set.WalkAnimation.StepsOffsetY) > 0 {
@@ -507,6 +417,10 @@ func (set BodyPartSet) getCurrentYOffset(animationName string) int {
 	case ANIM_SLASH:
 		if len(set.SlashAnimation.StepsOffsetY) > 0 {
 			return set.SlashAnimation.StepsOffsetY[set.animIndex]
+		}
+	case ANIM_BACKSLASH:
+		if len(set.BackslashAnimation.StepsOffsetY) > 0 {
+			return set.BackslashAnimation.StepsOffsetY[set.animIndex]
 		}
 	}
 
@@ -523,7 +437,6 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 	case ANIM_WALK:
 		if set.animIndex >= len(set.WalkAnimation.TileSteps) {
 			set.animIndex = 0
-			fmt.Println("(reset!)")
 		}
 	case ANIM_RUN:
 		if set.animIndex >= len(set.RunAnimation.TileSteps) {
@@ -533,9 +446,11 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 		if set.animIndex >= len(set.SlashAnimation.TileSteps) {
 			set.animIndex = 0
 		}
+	case ANIM_BACKSLASH:
+		if set.animIndex >= len(set.BackslashAnimation.TileSteps) {
+			set.animIndex = 0
+		}
 	}
-
-	fmt.Printf("(%s) anim: %s index: %v max index: %v\n", set.TilesetSrc, set.WalkAnimation.Name, set.animIndex, len(set.WalkAnimation.TileSteps)-1)
 }
 
 func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64) {
@@ -590,7 +505,6 @@ func (eb *EntityBodySet) Update() {
 	if eb.animation != "" {
 		eb.ticks++
 		if eb.ticks > eb.animationTickCount {
-			fmt.Println("next frame!")
 			// SETS: next frame
 			eb.ticks = 0
 			eb.BodySet.nextFrame(eb.animation)
@@ -635,7 +549,6 @@ func (eb *EntityBodySet) SetAnimation(animation string) {
 }
 
 func (eb *EntityBodySet) StopAnimation() {
-	logz.Println("ent body", "animation stopped")
 	eb.SetAnimation("")
 }
 

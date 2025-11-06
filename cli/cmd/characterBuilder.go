@@ -225,22 +225,18 @@ func characterBuilder() {
 
 	bodySet := body.BodyPartSet{
 		WalkAnimation: body.Animation{
-			Name:         "body/walk",
 			TileSteps:    walkTileSteps,
 			StepsOffsetY: []int{0, 1, 0, 1},
 		},
 		RunAnimation: body.Animation{
-			Name:         "body/run",
 			TileSteps:    runTileSteps,
 			StepsOffsetY: []int{0, 0, 1, 0, 0, 1},
 		},
 		SlashAnimation: body.Animation{
-			Name:         "body/slash",
 			TileSteps:    slashTileSteps,
 			StepsOffsetY: []int{0, 1, 2, 2, 2},
 		},
 		BackslashAnimation: body.Animation{
-			Name:         "body/backslash",
 			TileSteps:    backslashTileSteps,
 			StepsOffsetY: []int{2, 2, 1, 1},
 		},
@@ -248,19 +244,15 @@ func characterBuilder() {
 	}
 	armsSet := body.BodyPartSet{
 		WalkAnimation: body.Animation{
-			Name:      "arms/walk",
 			TileSteps: walkTileSteps,
 		},
 		RunAnimation: body.Animation{
-			Name:      "arms/run",
 			TileSteps: runTileSteps,
 		},
 		SlashAnimation: body.Animation{
-			Name:      "arms/slash",
 			TileSteps: slashTileSteps,
 		},
 		BackslashAnimation: body.Animation{
-			Name:      "body/backslash",
 			TileSteps: backslashTileSteps,
 		},
 		HasUp: true,
@@ -269,19 +261,15 @@ func characterBuilder() {
 	hairSet := body.BodyPartSet{HasUp: true}
 	equipBodySet := body.BodyPartSet{
 		WalkAnimation: body.Animation{
-			Name:      "equipBody/walk",
 			TileSteps: walkTileSteps,
 		},
 		RunAnimation: body.Animation{
-			Name:      "equipBody/run",
 			TileSteps: runTileSteps,
 		},
 		SlashAnimation: body.Animation{
-			Name:      "equipBody/slash",
 			TileSteps: slashTileSteps,
 		},
 		BackslashAnimation: body.Animation{
-			Name:      "body/backslash",
 			TileSteps: backslashTileSteps,
 		},
 		HasUp: true,
@@ -289,34 +277,28 @@ func characterBuilder() {
 	equipHeadSet := body.BodyPartSet{HasUp: true}
 	weaponSet := body.BodyPartSet{
 		WalkAnimation: body.Animation{
-			Name:      "weapon/walk",
 			TileSteps: walkTileSteps,
 		},
 		RunAnimation: body.Animation{
-			Name:      "weapon/run",
 			TileSteps: runTileSteps,
 		},
 		SlashAnimation: body.Animation{
-			Name:      "weapon/slash",
 			TileSteps: slashTileSteps,
 		},
 		BackslashAnimation: body.Animation{
-			Name:      "body/backslash",
 			TileSteps: backslashTileSteps,
 		},
 		HasUp: true,
 	}
 	weaponFxSet := body.BodyPartSet{
 		SlashAnimation: body.Animation{
-			Name:      "weaponFx/slash",
 			TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
 		},
 		BackslashAnimation: body.Animation{
-			Name:      "body/backslash",
 			TileSteps: []int{-1, 3, 4, 5},
 		},
-		WalkAnimation: body.Animation{Name: "weaponFx/walk", Skip: true},
-		RunAnimation:  body.Animation{Name: "weaponFx/run", Skip: true},
+		WalkAnimation: body.Animation{Skip: true},
+		RunAnimation:  body.Animation{Skip: true},
 		HasUp:         true,
 	}
 
@@ -406,7 +388,7 @@ func characterBuilder() {
 
 	g.animationSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
-		Options:               []string{"", body.ANIM_WALK, body.ANIM_RUN, body.ANIM_SLASH},
+		Options:               []string{"", body.ANIM_WALK, body.ANIM_RUN, body.ANIM_SLASH, body.ANIM_BACKSLASH},
 		InitialOptionIndex:    0,
 		TilesetSrc:            "ui/ui-components.tsj",
 		OriginIndex:           288,
