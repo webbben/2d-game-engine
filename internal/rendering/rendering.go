@@ -2,6 +2,7 @@
 package rendering
 
 import (
+	"image"
 	"math"
 
 	"github.com/webbben/2d-game-engine/internal/config"
@@ -159,4 +160,23 @@ func StretchImage(img *ebiten.Image, dx, dy int) *ebiten.Image {
 	scaleY := float64(newHeight) / float64(height)
 
 	return ScaleImage(img, scaleX, scaleY)
+}
+
+func StretchMiddle(src *ebiten.Image) *ebiten.Image {
+	w, h := src.Bounds().Dx(), src.Bounds().Dy()
+	dst := ebiten.NewImage(w, h)
+
+	// Left half: columns 0–7 → destination 0–7
+	leftRect := image.Rect(0, 0, w/2, h)
+	DrawImage(dst, src.SubImage(leftRect).(*ebiten.Image), -1, 0, 0)
+
+	// Right half: columns 8–15 → destination 9–16
+	rightRect := image.Rect(w/2, 0, w, h)
+	DrawImage(dst, src.SubImage(rightRect).(*ebiten.Image), float64(w/2)+1, 0, 0)
+
+	// Fill the middle 2 columns (original cols 7 & 8)
+	middleRect := image.Rect(w/2-1, 0, w/2+1, h)
+	DrawImage(dst, src.SubImage(middleRect).(*ebiten.Image), float64(w/2)-1, 0, 0)
+
+	return dst
 }

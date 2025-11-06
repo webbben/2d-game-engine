@@ -166,12 +166,12 @@ func stretchImage(img *ebiten.Image, stretchX, stretchY int) *ebiten.Image {
 
 	originalBounds := img.Bounds()
 
-	stretchedImage := rendering.StretchImage(img, stretchX, stretchY)
-	stretchedBounds := stretchedImage.Bounds()
-
-	if stretchX != 0 && (originalBounds.Dx() == stretchedBounds.Dx()) {
-		panic("stretch seems to not have worked")
+	stretchedImage := img
+	if stretchX > 0 {
+		stretchedImage = rendering.StretchMiddle(stretchedImage)
 	}
+	stretchedImage = rendering.StretchImage(stretchedImage, 0, stretchY)
+	stretchedBounds := stretchedImage.Bounds()
 
 	x := (originalBounds.Dx() / 2) - (stretchedBounds.Dx() / 2)
 	y := (originalBounds.Dy() / 2) - (stretchedBounds.Dy() / 2)
