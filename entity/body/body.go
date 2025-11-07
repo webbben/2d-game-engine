@@ -186,6 +186,10 @@ func (eb *EntityBodySet) SetBody(bodyDef, armDef SelectedPartDef) {
 
 	// arms are directly set with body
 	eb.ArmsSet.setImageSource(armDef)
+	if eb.EquipBodySet.sourceSet {
+		// subtract arms by equip body image (remove parts hidden by it)
+		eb.subtractArms()
+	}
 
 	eb.globalOffsetY = float64(bodyDef.OffsetY)
 
@@ -216,15 +220,26 @@ func (eb *EntityBodySet) SetEquipHead(def SelectedPartDef) {
 	eb.EquipHeadSet.setImageSource(def)
 
 	// since some head equipment may cause hair to be cropped, always reload hair when head is equiped
-	eb.HairSet.load()
+	if eb.HairSet.sourceSet {
+		eb.HairSet.load()
 
-	if def.CropHairToHead {
-		eb.cropHair()
+		if def.CropHairToHead {
+			eb.cropHairToHead = true
+			eb.cropHair()
+		} else {
+			eb.cropHairToHead = false
+		}
 	}
 }
 
 func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
 	eb.EquipBodySet.setImageSource(def)
+
+	// redo the arms subtraction
+	if eb.ArmsSet.sourceSet {
+		eb.ArmsSet.load()
+		eb.subtractArms()
+	}
 }
 
 func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
@@ -252,6 +267,7 @@ func (eb *EntityBodySet) SetAnimationTickCount(tickCount int) {
 // The actual body part definitions (which tiles to show for hair, eyes, etc) are defined by the TilesetSrc and start indices, and can be set
 // using the set functions.
 type BodyPartSet struct {
+	sourceSet bool
 	// tileset and image source definitions
 	PartSrc SelectedPartDef
 
@@ -324,6 +340,8 @@ func (bps *BodyPartSet) setImageSource(def SelectedPartDef) {
 	// set this so the part can be reloaded later
 	bps.PartSrc = def
 
+	bps.sourceSet = true
+
 	bps.load()
 }
 
@@ -336,8 +354,11 @@ func (set *BodyPartSet) load() {
 		return
 	}
 
+	if !set.sourceSet {
+		panic("source not set before attempting to load")
+	}
 	if set.TilesetSrc == "" {
-		panic("no TilesetSrc set in BodyPartSet. has an option been set yet?")
+		panic("no TilesetSrc set in BodyPartSet")
 	}
 
 	set.WalkAnimation.Name = fmt.Sprintf("%s/walk", set.TilesetSrc)
@@ -379,6 +400,32 @@ func (eb *EntityBodySet) cropHair() {
 	cropper(&eb.HairSet.WalkAnimation)
 	cropper(&eb.HairSet.RunAnimation)
 	cropper(&eb.HairSet.SlashAnimation)
+}
+
+func (eb *EntityBodySet) subtractArms() {
+	fmt.Println("subtract arms")
+	cropper := func(a *Animation, subtractorA Animation) {
+		for i, img := range a.L {
+			equipBodyImg := subtractorA.L[i]
+			a.L[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg)
+		}
+		for i, img := range a.R {
+			equipBodyImg := subtractorA.R[i]
+			a.R[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg)
+		}
+		for i, img := range a.U {
+			equipBodyImg := subtractorA.U[i]
+			a.U[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg)
+		}
+		for i, img := range a.D {
+			equipBodyImg := subtractorA.D[i]
+			a.D[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg)
+		}
+	}
+
+	cropper(&eb.ArmsSet.WalkAnimation, eb.EquipBodySet.WalkAnimation)
+	cropper(&eb.ArmsSet.RunAnimation, eb.EquipBodySet.RunAnimation)
+	cropper(&eb.ArmsSet.SlashAnimation, eb.EquipBodySet.SlashAnimation)
 }
 
 func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string) {
@@ -457,49 +504,59 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 }
 
 func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64) {
-	bodyX := x
-	bodyY := y
+	// render order decisions (for not so obvious things):
+	// - Arms: after equip body, equip head, hair so that hands show when doing U slash
+	renderOrder := []string{"body", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_weapon"}
+
 	yOff := eb.globalOffsetY * characterScale
 	characterTileSize := config.TileSize * characterScale
-	// Body
-	rendering.DrawHSVImage(screen, eb.BodySet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, characterScale)
-	// Arms
-	rendering.DrawHSVImage(screen, eb.ArmsSet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, characterScale)
-	// Equip Body
+
+	bodyX := x
+	bodyY := y
+
 	equipBodyYOffset := 0.0
 	if eb.EquipBodySet.stretchY%2 != 0 {
 		// if stretchY is an odd number, offset equip body by -1
 		equipBodyYOffset = -characterScale
 	}
-	rendering.DrawImage(screen, eb.EquipBodySet.img, bodyX, bodyY+yOff+equipBodyYOffset, characterScale)
+	equipBodyY := bodyY + yOff + equipBodyYOffset
 
-	// Eyes
-	eyesX := bodyX
 	eyesY := bodyY + (float64(eb.nonBodyYOffset) * characterScale) + yOff
-	if eb.EyesSet.img != nil {
-		rendering.DrawHSVImage(screen, eb.EyesSet.img, eb.EyesHSV.H, eb.EyesHSV.S, eb.EyesHSV.V, eyesX, eyesY, characterScale)
-	}
-	// Hair
 	hairY := bodyY + (float64(eb.nonBodyYOffset) * characterScale) + yOff
-	if eb.HairSet.img == nil {
-		panic("hair img is nil")
-	}
-	rendering.DrawHSVImage(screen, eb.HairSet.img, eb.HairHSV.H, eb.HairHSV.S, eb.HairHSV.V, bodyX, hairY, characterScale)
 
-	// Equip Head
-	if eb.EquipHeadSet.img != nil {
-		rendering.DrawImage(screen, eb.EquipHeadSet.img, bodyX, hairY, characterScale)
-	}
+	weaponY := bodyY - (characterTileSize) + yOff
+	weaponX := bodyX - (characterTileSize * 2)
 
-	// Equip Weapon
-	if eb.WeaponSet.img != nil {
-		// weapons are in 80x80 (5 tiles width & height) tiles
-		// this is to accomodate for the extra space they need for their swings and stuff
-		weaponY := bodyY - (characterTileSize) + yOff
-		weaponX := bodyX - (characterTileSize * 2)
-		rendering.DrawImage(screen, eb.WeaponSet.img, weaponX, weaponY, characterScale)
-		if eb.WeaponFxSet.img != nil {
-			rendering.DrawImage(screen, eb.WeaponFxSet.img, weaponX, weaponY, characterScale)
+	for _, part := range renderOrder {
+		switch part {
+		case "body":
+			rendering.DrawHSVImage(screen, eb.BodySet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, characterScale)
+		case "arms":
+			rendering.DrawHSVImage(screen, eb.ArmsSet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, characterScale)
+		case "equip_body":
+			rendering.DrawImage(screen, eb.EquipBodySet.img, bodyX, equipBodyY, characterScale)
+		case "eyes":
+			if eb.EyesSet.img != nil {
+				rendering.DrawHSVImage(screen, eb.EyesSet.img, eb.EyesHSV.H, eb.EyesHSV.S, eb.EyesHSV.V, bodyX, eyesY, characterScale)
+			}
+		case "hair":
+			if eb.HairSet.img == nil {
+				panic("hair img is nil")
+			}
+			rendering.DrawHSVImage(screen, eb.HairSet.img, eb.HairHSV.H, eb.HairHSV.S, eb.HairHSV.V, bodyX, hairY, characterScale)
+		case "equip_head":
+			if eb.EquipHeadSet.img != nil {
+				rendering.DrawImage(screen, eb.EquipHeadSet.img, bodyX, hairY, characterScale)
+			}
+		case "equip_weapon":
+			if eb.WeaponSet.img != nil {
+				rendering.DrawImage(screen, eb.WeaponSet.img, weaponX, weaponY, characterScale)
+				if eb.WeaponFxSet.img != nil {
+					rendering.DrawImage(screen, eb.WeaponFxSet.img, weaponX, weaponY, characterScale)
+				}
+			}
+		default:
+			panic("unrecognized part name: " + part)
 		}
 	}
 }

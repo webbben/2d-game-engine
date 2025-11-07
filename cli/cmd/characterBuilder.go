@@ -195,7 +195,7 @@ func characterBuilder() {
 		})
 	}
 	equipBodyOptions := []body.SelectedPartDef{}
-	for i := range 3 {
+	for i := range 4 {
 		equipBodyOptions = append(equipBodyOptions, body.SelectedPartDef{
 			TilesetSrc: equipBodyTileset,
 			DStart:     (i * 64),
@@ -205,7 +205,7 @@ func characterBuilder() {
 		})
 	}
 	equipHeadOptions := []body.SelectedPartDef{{None: true}}
-	for i := range 2 {
+	for i := range 3 {
 		index := i * 4
 		cropHair, found := tiled.GetTileBoolProperty(equipHeadTileset, index, "COVER_HAIR")
 		equipHeadOptions = append(equipHeadOptions, body.SelectedPartDef{

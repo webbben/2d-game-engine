@@ -103,12 +103,26 @@ func CenterImageOnImage(bg *ebiten.Image, img *ebiten.Image) (int, int) {
 	return x, y
 }
 
+// Blending:
+// https://ebitengine.org/en/examples/blend.html
+
 func CropImageByOtherImage(img, otherImage *ebiten.Image) *ebiten.Image {
 	result := ebiten.NewImage(img.Bounds().Dx(), img.Bounds().Dy())
 	result.DrawImage(img, nil)
 
 	ops := ebiten.DrawImageOptions{}
 	ops.Blend = ebiten.BlendDestinationIn
+	result.DrawImage(otherImage, &ops)
+
+	return result
+}
+
+func SubtractImageByOtherImage(img, otherImage *ebiten.Image) *ebiten.Image {
+	result := ebiten.NewImage(img.Bounds().Dx(), img.Bounds().Dy())
+	result.DrawImage(img, nil)
+
+	ops := ebiten.DrawImageOptions{}
+	ops.Blend = ebiten.BlendDestinationOut
 	result.DrawImage(otherImage, &ops)
 
 	return result
