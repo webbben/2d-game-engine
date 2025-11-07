@@ -450,6 +450,10 @@ func (mi *MapInfo) GetPlayer() *player.Player {
 	return mi.PlayerRef
 }
 
+func (mi MapInfo) GetDistToPlayer(x, y float64) float64 {
+	return general_util.EuclideanDist(x, y, mi.PlayerRef.Entity.X, mi.PlayerRef.Entity.Y)
+}
+
 func (mi *MapInfo) GetGroundMaterial(tileX, tileY int) string {
 	if tileY < 0 || tileY >= len(mi.Map.GroundMaterial) {
 		panic("tileY outside of bounds of ground material matrix")

@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/webbben/2d-game-engine/entity/body"
+	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
@@ -288,17 +289,27 @@ func (e *Entity) updateMovement() {
 	e.footstepSFX.TicksUntilNextPlay--
 	if e.footstepSFX.TicksUntilNextPlay <= 0 {
 		groundMaterial := e.World.GetGroundMaterial(e.TilePos.X, e.TilePos.Y)
+		var distToPlayer float64
+		if e.IsPlayer {
+			distToPlayer = 0
+		} else {
+			distToPlayer = e.World.GetDistToPlayer(e.X, e.Y)
+			maxDist := float64(config.TileSize * 10)
+			distToPlayer = min(distToPlayer, maxDist)
+			distToPlayer = distToPlayer / maxDist
+		}
+		volFactor := 1 - distToPlayer
 		switch groundMaterial {
 		case "wood":
-			e.footstepSFX.StepWood()
+			e.footstepSFX.Step(audio.STEP_WOOD, volFactor)
 		case "stone":
-			e.footstepSFX.StepStone()
+			e.footstepSFX.Step(audio.STEP_STONE, volFactor)
 		case "grass":
-			e.footstepSFX.StepGrass()
+			e.footstepSFX.Step(audio.STEP_GRASS, volFactor)
 		case "tile":
-			e.footstepSFX.StepStone() // TODO add new category for tile material?
+			e.footstepSFX.Step(audio.STEP_STONE, volFactor) // TODO get new sound specifically for tile?
 		case "":
-			e.footstepSFX.StepDefault() // if no string found, use default
+			e.footstepSFX.Step(audio.STEP_DEFAULT, volFactor)
 		default:
 			// if we don't have the string registered (and it's not an empty string) then error
 			panic("ground material not recognized: " + groundMaterial)

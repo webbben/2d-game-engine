@@ -4,6 +4,18 @@ import (
 	"fmt"
 )
 
+type StepType string
+
+const (
+	STEP_DEFAULT StepType = "default"
+	STEP_WOOD    StepType = "wood"
+	STEP_STONE   StepType = "stone"
+	STEP_GRASS   StepType = "grass"
+	STEP_FOREST  StepType = "forest"
+	STEP_SAND    StepType = "sand"
+	STEP_SNOW    StepType = "snow"
+)
+
 type FootstepSFX struct {
 	StepDefaultSrc   []string
 	stepDefaultSound []*Sound
@@ -93,71 +105,93 @@ func (sfx *FootstepSFX) Load() {
 	}
 }
 
-func (sfx *FootstepSFX) StepDefault() {
+// volumeFactor should be 0 to 1
+func (sfx *FootstepSFX) Step(stepType StepType, volumeFactor float64) {
+	switch stepType {
+	case STEP_DEFAULT:
+		sfx.stepDefault(volumeFactor)
+	case STEP_WOOD:
+		sfx.stepWood(volumeFactor)
+	case STEP_STONE:
+		sfx.stepStone(volumeFactor)
+	case STEP_GRASS:
+		sfx.stepGrass(volumeFactor)
+	case STEP_FOREST:
+		sfx.stepForest(volumeFactor)
+	case STEP_SAND:
+		sfx.stepSand(volumeFactor)
+	case STEP_SNOW:
+		sfx.stepSnow(volumeFactor)
+	default:
+		panic("unrecognized step type")
+	}
+}
+
+func (sfx *FootstepSFX) stepDefault(volumeFactor float64) {
 	if sfx.stepDefaultSound == nil {
 		panic("default step sound not loaded")
 	}
 	sfx.TicksUntilNextPlay = sfx.TickDelay
 	sfx.index = (sfx.index + 1) % len(sfx.stepDefaultSound)
-	sfx.stepDefaultSound[sfx.index].Play()
+	sfx.stepDefaultSound[sfx.index].PlayVolumeAdjusted(volumeFactor)
 }
 
-func (sfx *FootstepSFX) StepWood() {
+func (sfx *FootstepSFX) stepWood(volumeFactor float64) {
 	if sfx.stepWoodSound == nil {
-		sfx.StepDefault()
+		sfx.stepDefault(volumeFactor)
 		return
 	}
 	sfx.TicksUntilNextPlay = sfx.TickDelay
 	sfx.index = (sfx.index + 1) % len(sfx.stepWoodSound)
-	sfx.stepWoodSound[sfx.index].Play()
+	sfx.stepWoodSound[sfx.index].PlayVolumeAdjusted(volumeFactor)
 }
 
-func (sfx *FootstepSFX) StepStone() {
+func (sfx *FootstepSFX) stepStone(volumeFactor float64) {
 	if sfx.stepStoneSound == nil {
-		sfx.StepDefault()
+		sfx.stepDefault(volumeFactor)
 		return
 	}
 	sfx.TicksUntilNextPlay = sfx.TickDelay
 	sfx.index = (sfx.index + 1) % len(sfx.stepStoneSound)
-	sfx.stepStoneSound[sfx.index].Play()
+	sfx.stepStoneSound[sfx.index].PlayVolumeAdjusted(volumeFactor)
 }
 
-func (sfx *FootstepSFX) StepGrass() {
+func (sfx *FootstepSFX) stepGrass(volumeFactor float64) {
 	if sfx.stepGrassSound == nil {
-		sfx.StepDefault()
+		sfx.stepDefault(volumeFactor)
 		return
 	}
 	sfx.TicksUntilNextPlay = sfx.TickDelay
 	sfx.index = (sfx.index + 1) % len(sfx.stepGrassSound)
-	sfx.stepGrassSound[sfx.index].Play()
+	sfx.stepGrassSound[sfx.index].PlayVolumeAdjusted(volumeFactor)
 }
 
-func (sfx *FootstepSFX) StepForest() {
+func (sfx *FootstepSFX) stepForest(volumeFactor float64) {
 	if sfx.stepForestSound == nil {
-		sfx.StepDefault()
+		sfx.stepDefault(volumeFactor)
 		return
 	}
 	sfx.TicksUntilNextPlay = sfx.TickDelay
 	sfx.index = (sfx.index + 1) % len(sfx.stepForestSound)
-	sfx.stepForestSound[sfx.index].Play()
+	sfx.stepForestSound[sfx.index].PlayVolumeAdjusted(volumeFactor)
 }
 
-func (sfx *FootstepSFX) StepSand() {
+func (sfx *FootstepSFX) stepSand(volumeFactor float64) {
 	if sfx.stepSandSound == nil {
-		sfx.StepDefault()
+		sfx.stepDefault(volumeFactor)
 		return
 	}
 	sfx.TicksUntilNextPlay = sfx.TickDelay
 	sfx.index = (sfx.index + 1) % len(sfx.stepSandSound)
-	sfx.stepSandSound[sfx.index].Play()
+	sfx.stepSandSound[sfx.index].PlayVolumeAdjusted(volumeFactor)
 }
 
-func (sfx *FootstepSFX) StepSnow() {
+func (sfx *FootstepSFX) stepSnow(volumeFactor float64) {
 	if sfx.stepSnowSound == nil {
-		sfx.StepDefault()
+		sfx.stepDefault(volumeFactor)
 		return
 	}
 	sfx.TicksUntilNextPlay = sfx.TickDelay
 	sfx.index = (sfx.index + 1) % len(sfx.stepSnowSound)
-	sfx.stepSnowSound[sfx.index].Play()
+	sfx.stepSnowSound[sfx.index].PlayVolumeAdjusted(volumeFactor)
 }

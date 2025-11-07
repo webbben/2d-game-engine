@@ -102,6 +102,7 @@ type WorldContext interface {
 	FindPath(start, goal model.Coords) ([]model.Coords, bool)
 	MapDimensions() (width int, height int)
 	GetGroundMaterial(tileX, tileY int) string
+	GetDistToPlayer(x, y float64) float64
 }
 
 type MovementProps struct {

@@ -15,9 +15,10 @@ const sampleRate = 44100
 var audioContext = audio.NewContext(sampleRate)
 
 type Sound struct {
-	srcPath string
-	player  *audio.Player
-	volume  float64
+	srcPath    string
+	player     *audio.Player
+	baseVolume float64
+	volume     float64
 	//data   []byte
 }
 
@@ -25,7 +26,22 @@ func (s *Sound) SetVolume(v float64) {
 	if s.player == nil {
 		panic("no sound player found when setting volume")
 	}
-	s.player.SetVolume(s.volume)
+	s.player.SetVolume(v)
+}
+
+func (s *Sound) ResetVolume() {
+	s.SetVolume(s.baseVolume)
+}
+
+func (s *Sound) PlayVolumeAdjusted(volFactor float64) {
+	if volFactor < 0 || volFactor > 1 {
+		panic("volume factor must be between 0 and 1")
+	}
+	if volFactor == 0 {
+		return
+	}
+	s.SetVolume(s.baseVolume * volFactor)
+	s.Play()
 }
 
 func (s *Sound) Play() {
@@ -64,8 +80,9 @@ func NewSound(relAudioPath string, volume float64) (Sound, error) {
 	player.SetVolume(volume)
 
 	sound := Sound{
-		srcPath: srcPath,
-		player:  player,
+		baseVolume: volume,
+		srcPath:    srcPath,
+		player:     player,
 	}
 
 	return sound, nil
