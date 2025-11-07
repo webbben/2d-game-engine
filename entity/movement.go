@@ -280,7 +280,9 @@ func (e *Entity) updateMovement() {
 
 	if target.Equals(newPos) {
 		e.Movement.IsMoving = false
-		e.Body.StopAnimation()
+		if len(e.Movement.TargetPath) == 0 {
+			e.Body.StopAnimation()
+		}
 	}
 
 	e.footstepSFX.TicksUntilNextPlay--

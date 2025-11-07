@@ -158,6 +158,7 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 	// prepare initial image frames
 	ent.Movement.Direction = 'D'
 	ent.Body.Load()
+	ent.Body.Name = general.DisplayName
 	ent.Movement.IsMoving = false
 
 	// confirm that body image exists

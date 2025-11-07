@@ -9,6 +9,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 )
@@ -20,6 +21,8 @@ type HSV struct {
 var Default HSV = HSV{0.5, 0.5, 0.5}
 
 type EntityBodySet struct {
+	Name string
+
 	animation          string `json:"-"`
 	animationTickCount int    `json:"-"`
 	ticks              int    `json:"-"` // number of ticks elapsed
@@ -535,6 +538,8 @@ func (eb *EntityBodySet) SetAnimation(animation string) {
 		return
 	}
 
+	logz.Println(eb.Name, "set animation:", animation)
+
 	eb.animation = animation
 
 	// SETS: reset animation index
@@ -549,6 +554,7 @@ func (eb *EntityBodySet) SetAnimation(animation string) {
 }
 
 func (eb *EntityBodySet) StopAnimation() {
+	logz.Println(eb.Name, "stop animation")
 	eb.SetAnimation("")
 }
 
