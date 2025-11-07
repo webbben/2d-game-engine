@@ -15,7 +15,8 @@ import (
 )
 
 var (
-	defaultWalkSpeed float64 = float64(config.TileSize) / 16
+	defaultWalkSpeed float64 = float64(config.TileSize) / 18
+	defaultRunSpeed  float64 = float64(config.TileSize) / 12
 )
 
 func GetDefaultWalkSpeed() float64 {
@@ -23,6 +24,12 @@ func GetDefaultWalkSpeed() float64 {
 		panic("entity default walk speed is 0?")
 	}
 	return defaultWalkSpeed
+}
+func GetDefaultRunSpeed() float64 {
+	if defaultRunSpeed == 0 {
+		panic("default run speed is 0?")
+	}
+	return defaultRunSpeed
 }
 
 type Entity struct {
@@ -107,6 +114,7 @@ type WorldContext interface {
 
 type MovementProps struct {
 	WalkSpeed float64
+	RunSpeed  float64
 }
 
 type AudioProps struct {
@@ -134,6 +142,10 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 		logz.Warnln("", "loaded entity does not have a walking speed; setting default value.")
 		mv.WalkSpeed = GetDefaultWalkSpeed()
 	}
+	if mv.RunSpeed == 0 {
+		logz.Warnln("", "loaded entity does not have a run speed; setting default value.")
+		mv.RunSpeed = GetDefaultRunSpeed()
+	}
 
 	ent := Entity{
 		EntityInfo: EntityInfo{
@@ -142,6 +154,7 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 		},
 		Movement: Movement{
 			WalkSpeed: mv.WalkSpeed,
+			RunSpeed:  mv.RunSpeed,
 		},
 		InventoryItems: make([]*item.InventoryItem, general.InventorySize),
 	}
@@ -176,6 +189,7 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 }
 
 // Create an entity by opening an entity's definition JSON
+// TODO delete? not being used currently
 func OpenEntity(source string) (Entity, error) {
 	data, err := os.ReadFile(source)
 	if err != nil {
@@ -212,13 +226,12 @@ type Position struct {
 type Movement struct {
 	Direction byte `json:"-"` // L R U D
 
-	CanRun bool `json:"can_run"`
-
 	IsMoving        bool    `json:"-"`
 	movementStopped bool    // set when movement ends, so that animation knows when to prepare to go back to idle
 	Interrupted     bool    `json:"-"`          // flag for if this entity's movement was stopped unexpectedly (e.g. by a collision)
 	WalkSpeed       float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
-	Speed           float64 `json:"-"`          // actual speed the entity is moving at
+	RunSpeed        float64
+	Speed           float64 `json:"-"` // actual speed the entity is moving at
 
 	TargetTile          model.Coords   `json:"-"` // next tile the entity is currently moving
 	TargetPath          []model.Coords `json:"-"` // path the entity is currently trying to travel on
@@ -264,4 +277,14 @@ func (e *Entity) AddItemToInventory(invItem item.InventoryItem) (bool, item.Inve
 
 func (e *Entity) RemoveItemFromInventory(itemToRemove item.InventoryItem) (bool, item.InventoryItem) {
 	return item.RemoveItemFromInventory(itemToRemove, e.InventoryItems)
+}
+
+func (e *Entity) UnequipWeaponFromBody() {
+	e.Body.WeaponSet.None = true
+	e.Body.WeaponFxSet.None = true
+	e.Body.Load()
+}
+
+func (e *Entity) EquipWeapon(weaponDef body.SelectedPartDef, weaponFxDef body.SelectedPartDef) {
+	e.Body.SetWeapon(weaponDef, weaponFxDef)
 }

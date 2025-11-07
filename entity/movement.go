@@ -86,11 +86,11 @@ const (
 
 // same as TryMovePx, but lets the entity still move in the direction even if a collision is encountered,
 // as long as there is some space in that direction
-func (e *Entity) TryMoveMaxPx(dx, dy int) MoveError {
+func (e *Entity) TryMoveMaxPx(dx, dy int, run bool) MoveError {
 	if dx == 0 && dy == 0 {
 		panic("TryMoveMaxPx called with no distance given")
 	}
-	moveError := e.TryMovePx(dx, dy)
+	moveError := e.TryMovePx(dx, dy, run)
 	if moveError.Collision {
 		// a collision occurred; try to adjust the target by the intersection area
 		cr := moveError.CollisionResult
@@ -204,12 +204,12 @@ func (e *Entity) TryMoveMaxPx(dx, dy int) MoveError {
 			return moveError
 		}
 
-		return e.TryMovePx(dx, dy)
+		return e.TryMovePx(dx, dy, run)
 	}
 	return moveError
 }
 
-func (e *Entity) TryMovePx(dx, dy int) MoveError {
+func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
 	if dx == 0 && dy == 0 {
 		panic("TryMovePx: dx and dy are both 0")
 	}
@@ -243,11 +243,20 @@ func (e *Entity) TryMovePx(dx, dy int) MoveError {
 	}
 
 	e.Movement.IsMoving = true
-	e.Movement.Speed = e.Movement.WalkSpeed
+	if run {
+		e.Movement.Speed = e.Movement.RunSpeed
+		e.Body.SetAnimation(body.ANIM_RUN)
+		e.Body.SetAnimationTickCount(8)
+	} else {
+		e.Movement.Speed = e.Movement.WalkSpeed
+		e.Body.SetAnimation(body.ANIM_WALK)
+		e.Body.SetAnimationTickCount(16)
+	}
+	if e.Movement.Speed == 0 {
+		panic("movement speed is 0")
+	}
 
-	e.Body.SetAnimation(body.ANIM_WALK)
 	e.Body.SetDirection(e.Movement.Direction)
-	e.Body.SetAnimationTickCount(13)
 
 	return MoveError{Success: true}
 }
@@ -255,6 +264,9 @@ func (e *Entity) TryMovePx(dx, dy int) MoveError {
 func (e *Entity) updateMovement() {
 	if e.Movement.Speed == 0 {
 		panic("updateMovement called when speed is 0; speed was not set wherever entity movement was started")
+	}
+	if e.Body.GetCurrentAnimation() == "" {
+		panic("entity is moving but body has no animation set")
 	}
 
 	// check for suggested paths (if entity is currently following a path)
@@ -349,7 +361,7 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		panic("trySetNextTargetPath: next target is not an adjacent tile (dist > 16)")
 	}
 
-	moveError := e.TryMovePx(int(dPos.X), int(dPos.Y))
+	moveError := e.TryMovePx(int(dPos.X), int(dPos.Y), false)
 
 	if !moveError.Success {
 		return moveError

@@ -244,10 +244,10 @@ func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
 
 func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
 	if eb.WeaponSet.None {
-		panic("no weapon set!")
+		return
 	}
 	if eb.WeaponFxSet.None {
-		panic("no weaponFx set!")
+		panic("no weaponFx set when setting weapon!")
 	}
 	eb.WeaponSet.setImageSource(weaponDef)
 	eb.WeaponFxSet.setImageSource(weaponFxDef)

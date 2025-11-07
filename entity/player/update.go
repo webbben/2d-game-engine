@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
@@ -18,6 +19,8 @@ func (p Player) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 
 func (p *Player) Update() {
 	p.handleMovement()
+
+	p.handleActions()
 
 	p.handleActivations()
 
@@ -64,9 +67,16 @@ func (p *Player) handleMovement() {
 		return
 	}
 
+	running := ebiten.IsKeyPressed(ebiten.KeyShift)
+
 	isDiagonal := v.X != 0 && v.Y != 0
 
-	travelDistance := p.Entity.Movement.WalkSpeed * 2
+	speed := p.Entity.Movement.WalkSpeed
+	if running {
+		speed = p.Entity.Movement.RunSpeed
+	}
+
+	travelDistance := speed * 2
 
 	scaled := v.Normalize().Scale(travelDistance)
 
@@ -75,8 +85,14 @@ func (p *Player) handleMovement() {
 		scaled.Y = math.Round(scaled.Y * 2)
 	}
 
-	e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y))
+	e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y), running)
 	if !e.Success && !e.Collision {
 		logz.Println(p.Entity.DisplayName, e)
+	}
+}
+
+func (p *Player) handleActions() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
+		p.Entity.UnequipWeaponFromBody()
 	}
 }
