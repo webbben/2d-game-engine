@@ -71,8 +71,7 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.L) {
-			logz.Println(a.Name, "past left frames; returning last frame", "animIndex:", animationIndex)
-			return a.L[len(a.L)-1]
+			panic("past last index")
 		}
 		return a.L[animationIndex]
 	case 'R':
@@ -80,8 +79,7 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.R) {
-			logz.Println(a.Name, "past right frames; returning last frame", "animIndex:", animationIndex)
-			return a.R[len(a.R)-1]
+			panic("past last index")
 		}
 		return a.R[animationIndex]
 	case 'U':
@@ -89,8 +87,7 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.U) {
-			logz.Println(a.Name, "past up frames; returning last frame", "animIndex:", animationIndex)
-			return a.U[len(a.U)-1]
+			panic("past last index")
 		}
 		return a.U[animationIndex]
 	case 'D':
@@ -98,8 +95,7 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.D) {
-			logz.Println(a.Name, "past down frames; returning last frame", "animIndex:", animationIndex)
-			return a.D[len(a.D)-1]
+			panic("past last index")
 		}
 		return a.D[animationIndex]
 	}

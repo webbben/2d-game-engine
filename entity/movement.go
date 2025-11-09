@@ -225,9 +225,6 @@ func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
 		}
 	}
 
-	e.Position.TargetX = float64(x)
-	e.Position.TargetY = float64(y)
-
 	if dx != 0 {
 		if dx > 0 {
 			e.Movement.Direction = model.Directions.Right
@@ -242,16 +239,36 @@ func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
 		}
 	}
 
-	e.Movement.IsMoving = true
+	// attempt to set the movement animation
+	// if the entity body is already doing a different animation (like a weapon swing) then movement may fail
+	anim := body.ANIM_WALK
+	speed := e.Movement.WalkSpeed
+	tickCount := 16
 	if run {
-		e.Movement.Speed = e.Movement.RunSpeed
-		e.Body.SetAnimation(body.ANIM_RUN)
-		e.Body.SetAnimationTickCount(8)
-	} else {
-		e.Movement.Speed = e.Movement.WalkSpeed
-		e.Body.SetAnimation(body.ANIM_WALK)
-		e.Body.SetAnimationTickCount(16)
+		anim = body.ANIM_RUN
+		speed = e.Movement.RunSpeed
+		tickCount = 8
 	}
+	animRes := e.Body.SetAnimation(anim, body.SetAnimationOps{})
+	if !animRes.Success && !animRes.AlreadySet {
+		logz.Println(e.DisplayName, "failed to set movement animation:", anim)
+		if animRes.Queued {
+			panic("queued a movement animation - not supposed to do that")
+		}
+		// failed to set movement animation - perhaps a different animation, like an attack, is currently active
+		if e.Body.GetCurrentAnimation() == "" {
+			panic("failed to set movement animation, but current animation seems to be empty...?")
+		}
+		return MoveError{Cancelled: true}
+	}
+
+	e.Movement.IsMoving = true
+	e.Position.TargetX = float64(x)
+	e.Position.TargetY = float64(y)
+
+	e.Movement.Speed = speed
+	e.Body.SetAnimationTickCount(tickCount)
+
 	if e.Movement.Speed == 0 {
 		panic("movement speed is 0")
 	}
@@ -367,8 +384,11 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		return moveError
 	}
 
+	if !e.Movement.IsMoving {
+		panic("movement succeeded, but not moving?")
+	}
+
 	e.Movement.TargetPath = e.Movement.TargetPath[1:]
-	e.Movement.IsMoving = true
 	return MoveError{Success: true}
 }
 

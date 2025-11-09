@@ -734,7 +734,7 @@ func (bg *builderGame) Update() error {
 	bg.animationSelector.Update()
 	selectorValue := bg.animationSelector.GetCurrentValue()
 	if selectorValue != bg.entityBody.GetCurrentAnimation() {
-		bg.entityBody.SetAnimation(selectorValue)
+		bg.entityBody.SetAnimation(selectorValue, body.SetAnimationOps{Force: true})
 	}
 
 	bg.entityBody.SetAnimationTickCount(bg.speedSlider.GetValue())

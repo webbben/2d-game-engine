@@ -288,3 +288,11 @@ func (e *Entity) UnequipWeaponFromBody() {
 func (e *Entity) EquipWeapon(weaponDef body.SelectedPartDef, weaponFxDef body.SelectedPartDef) {
 	e.Body.SetWeapon(weaponDef, weaponFxDef)
 }
+
+func (e *Entity) SwingWeapon() {
+	if e.Body.WeaponSet.None {
+		panic("tried to swing weapon, but no weapon is equiped")
+	}
+	e.Body.SetAnimationTickCount(8)
+	e.Body.SetAnimation(body.ANIM_SLASH, body.SetAnimationOps{DoOnce: true, PreventSkip: true})
+}

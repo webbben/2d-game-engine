@@ -54,7 +54,12 @@ func (e *Entity) Update() {
 
 	if !e.Movement.IsMoving {
 		if len(e.Movement.TargetPath) > 0 {
-			e.trySetNextTargetPath()
+			res := e.trySetNextTargetPath()
+			if res.Success {
+				if !e.Movement.IsMoving {
+					panic("trySetNextTargetPath succeeded, but still not moving?")
+				}
+			}
 		}
 	}
 

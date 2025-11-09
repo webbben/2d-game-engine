@@ -23,11 +23,14 @@ var Default HSV = HSV{0.5, 0.5, 0.5}
 type EntityBodySet struct {
 	Name string
 
-	animation          string `json:"-"`
-	animationTickCount int    `json:"-"`
-	ticks              int    `json:"-"` // number of ticks elapsed
-	currentDirection   byte   `json:"-"` // L R U D
-	cropHairToHead     bool   `json:"-"`
+	animation                 string `json:"-"`
+	nextAnimation             string `json:"-"`
+	preventAnimationSkip      bool   `json:"-"` // if set, the current animation cannot be skipped
+	stopAnimationOnCompletion bool   `json:"-"`
+	animationTickCount        int    `json:"-"`
+	ticks                     int    `json:"-"` // number of ticks elapsed
+	currentDirection          byte   `json:"-"` // L R U D
+	cropHairToHead            bool   `json:"-"`
 
 	// actual body definition - not including equiped items
 
@@ -280,6 +283,7 @@ type BodyPartSet struct {
 	// animation definitions
 
 	animIndex          int
+	reachedLastFrame   bool
 	WalkAnimation      Animation
 	RunAnimation       Animation
 	SlashAnimation     Animation
@@ -483,22 +487,27 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 	}
 
 	set.animIndex++
+	set.reachedLastFrame = false
 	switch animationName {
 	case ANIM_WALK:
 		if set.animIndex >= len(set.WalkAnimation.TileSteps) {
-			set.animIndex = 0
+			set.reachedLastFrame = true
+			set.animIndex = len(set.WalkAnimation.TileSteps) - 1
 		}
 	case ANIM_RUN:
 		if set.animIndex >= len(set.RunAnimation.TileSteps) {
-			set.animIndex = 0
+			set.reachedLastFrame = true
+			set.animIndex = len(set.RunAnimation.TileSteps) - 1
 		}
 	case ANIM_SLASH:
 		if set.animIndex >= len(set.SlashAnimation.TileSteps) {
-			set.animIndex = 0
+			set.reachedLastFrame = true
+			set.animIndex = len(set.SlashAnimation.TileSteps) - 1
 		}
 	case ANIM_BACKSLASH:
 		if set.animIndex >= len(set.BackslashAnimation.TileSteps) {
-			set.animIndex = 0
+			set.reachedLastFrame = true
+			set.animIndex = len(set.BackslashAnimation.TileSteps) - 1
 		}
 	}
 }
@@ -561,6 +570,49 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	}
 }
 
+func (eb *EntityBodySet) animationFinished() bool {
+	if !eb.BodySet.reachedLastFrame {
+		return false
+	}
+	if !eb.ArmsSet.reachedLastFrame {
+		return false
+	}
+	if !eb.WeaponSet.None {
+		if !eb.WeaponSet.reachedLastFrame {
+			return false
+		}
+		if !eb.WeaponFxSet.reachedLastFrame {
+			return false
+		}
+	}
+	if !eb.EquipBodySet.None {
+		if !eb.EquipBodySet.reachedLastFrame {
+			return false
+		}
+	}
+	return true
+}
+
+func (eb *EntityBodySet) resetCurrentAnimation() {
+	eb.BodySet.animIndex = 0
+	eb.EyesSet.animIndex = 0
+	eb.HairSet.animIndex = 0
+	eb.ArmsSet.animIndex = 0
+	eb.EquipBodySet.animIndex = 0
+	eb.EquipHeadSet.animIndex = 0
+	eb.WeaponSet.animIndex = 0
+	eb.WeaponFxSet.animIndex = 0
+
+	eb.BodySet.reachedLastFrame = false
+	eb.EyesSet.reachedLastFrame = false
+	eb.HairSet.reachedLastFrame = false
+	eb.ArmsSet.reachedLastFrame = false
+	eb.EquipBodySet.reachedLastFrame = false
+	eb.EquipHeadSet.reachedLastFrame = false
+	eb.WeaponSet.reachedLastFrame = false
+	eb.WeaponFxSet.reachedLastFrame = false
+}
+
 func (eb *EntityBodySet) Update() {
 	if eb.animation != "" {
 		eb.ticks++
@@ -573,6 +625,17 @@ func (eb *EntityBodySet) Update() {
 			eb.EquipHeadSet.nextFrame(eb.animation)
 			eb.WeaponSet.nextFrame(eb.animation)
 			eb.WeaponFxSet.nextFrame(eb.animation)
+		}
+	} else {
+		if eb.nextAnimation != "" {
+			res := eb.SetAnimation(eb.nextAnimation, SetAnimationOps{})
+			if res.FailedToSet {
+				panic("failed to set next animation?")
+			}
+			if eb.animation != eb.nextAnimation {
+				panic("next animation wasn't set?")
+			}
+			eb.nextAnimation = ""
 		}
 	}
 
@@ -587,32 +650,70 @@ func (eb *EntityBodySet) Update() {
 	eb.WeaponSet.setCurrentFrame(eb.currentDirection, eb.animation)
 	eb.WeaponFxSet.setCurrentFrame(eb.currentDirection, eb.animation)
 
+	// detect end of animation
+	if eb.animationFinished() {
+		eb.resetCurrentAnimation()
+		eb.preventAnimationSkip = false
+		if eb.stopAnimationOnCompletion {
+			eb.StopAnimation()
+			eb.stopAnimationOnCompletion = false
+		}
+	}
+
 	eb.nonBodyYOffset = eb.BodySet.getCurrentYOffset(eb.animation)
 }
 
-func (eb *EntityBodySet) SetAnimation(animation string) {
+type SetAnimationOps struct {
+	Force       bool
+	QueueNext   bool
+	PreventSkip bool
+	DoOnce      bool
+}
+
+type SetAnimationResult struct {
+	AlreadySet  bool
+	FailedToSet bool
+	Queued      bool
+	Success     bool
+}
+
+// sets an animation. returns if animation was successfully set.
+func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) SetAnimationResult {
 	if animation == eb.animation {
-		return
+		return SetAnimationResult{AlreadySet: true}
+	}
+	if eb.animation != "" && (!ops.Force || eb.preventAnimationSkip) {
+		if ops.QueueNext && eb.nextAnimation == "" {
+			eb.nextAnimation = animation
+			logz.Println(eb.Name, "next animation queued:", animation)
+			return SetAnimationResult{Queued: true}
+		}
+		logz.Println(eb.Name, "animation already set, and force is not enabled")
+		return SetAnimationResult{FailedToSet: true}
 	}
 
 	logz.Println(eb.Name, "set animation:", animation)
-
+	eb.preventAnimationSkip = ops.PreventSkip
+	eb.stopAnimationOnCompletion = ops.DoOnce
 	eb.animation = animation
-
-	// SETS: reset animation index
-	eb.BodySet.animIndex = 0
-	eb.EyesSet.animIndex = 0
-	eb.HairSet.animIndex = 0
-	eb.ArmsSet.animIndex = 0
-	eb.EquipBodySet.animIndex = 0
-	eb.EquipHeadSet.animIndex = 0
-	eb.WeaponSet.animIndex = 0
-	eb.WeaponFxSet.animIndex = 0
+	eb.resetCurrentAnimation()
+	return SetAnimationResult{Success: true}
 }
 
 func (eb *EntityBodySet) StopAnimation() {
 	logz.Println(eb.Name, "stop animation")
-	eb.SetAnimation("")
+	if eb.animation == "" {
+		panic("trying to stop animation, but animation already unset?")
+	}
+	res := eb.SetAnimation("", SetAnimationOps{
+		Force: true,
+	})
+	if res.FailedToSet {
+		panic("failed to stop animation?")
+	}
+	if eb.animation != "" {
+		panic("animation is not stopped?")
+	}
 }
 
 func (eb *EntityBodySet) RotateLeft() {

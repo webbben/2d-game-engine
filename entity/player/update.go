@@ -95,4 +95,7 @@ func (p *Player) handleActions() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
 		p.Entity.UnequipWeaponFromBody()
 	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyG) {
+		p.Entity.SwingWeapon()
+	}
 }
