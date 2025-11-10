@@ -105,7 +105,7 @@ func (e Entity) Duplicate() Entity {
 }
 
 type WorldContext interface {
-	Collides(r model.Rect, excludeEntityId string, rectBased bool) model.CollisionResult
+	Collides(r model.Rect, excludeEntityId string) model.CollisionResult
 	FindPath(start, goal model.Coords) ([]model.Coords, bool)
 	MapDimensions() (width int, height int)
 	GetGroundMaterial(tileX, tileY int) string

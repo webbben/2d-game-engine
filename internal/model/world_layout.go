@@ -165,6 +165,13 @@ type IntersectionResult struct {
 	Dx, Dy     float64
 }
 
+func (ir IntersectionResult) String() string {
+	if !ir.Intersects {
+		return ""
+	}
+	return fmt.Sprintf("dx: %v dy: %v", ir.Dx, ir.Dy)
+}
+
 func (ir IntersectionResult) Int() int {
 	if ir.Intersects {
 		return 1
@@ -196,19 +203,19 @@ func (c CollisionResult) String() string {
 	}
 	coll := []string{}
 	if c.TopLeft.Intersects {
-		coll = append(coll, "TL")
+		coll = append(coll, fmt.Sprintf("TL (%s)", c.TopLeft))
 	}
 	if c.TopRight.Intersects {
-		coll = append(coll, "TR")
+		coll = append(coll, fmt.Sprintf("TR (%s)", c.TopRight))
 	}
 	if c.BottomLeft.Intersects {
-		coll = append(coll, "BL")
+		coll = append(coll, fmt.Sprintf("BL (%s)", c.BottomLeft))
 	}
 	if c.BottomRight.Intersects {
-		coll = append(coll, "BR")
+		coll = append(coll, fmt.Sprintf("BR (%s)", c.BottomRight))
 	}
 	if c.Other.Intersects {
-		coll = append(coll, "O")
+		coll = append(coll, fmt.Sprintf("O (%s)", c.Other))
 	}
 	return fmt.Sprintf("%v", coll)
 }

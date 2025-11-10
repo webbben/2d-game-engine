@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"fmt"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
@@ -59,6 +61,9 @@ func (e *Entity) Update() {
 				if !e.Movement.IsMoving {
 					panic("trySetNextTargetPath succeeded, but still not moving?")
 				}
+			} else {
+				logz.Println(e.DisplayName, "failed to set next target path:", res)
+				fmt.Println(res.CollisionResult)
 			}
 		}
 	}

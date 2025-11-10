@@ -195,7 +195,7 @@ func (mi *MapInfo) AddPlayerToMap(p *player.Player, x, y float64) {
 		W: config.TileSize,
 		H: config.TileSize,
 	}
-	if res := mi.Collides(r, "", true); res.Collides() {
+	if res := mi.Collides(r, ""); res.Collides() {
 		// this also handles placement outside of map bounds
 		panic("player added to map on colliding tile")
 	}
@@ -217,7 +217,7 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 		W: config.TileSize,
 		H: config.TileSize,
 	}
-	if res := mi.Collides(r, "", false); res.Collides() {
+	if res := mi.Collides(r, ""); res.Collides() {
 		panic("npc added to map on colliding tile")
 	}
 	n.Entity.World = mi
@@ -240,7 +240,7 @@ func (mi *MapInfo) AddObjectToMap(obj tiled.Object, m tiled.Map) {
 // rectBased param determines if collisions check for collision rects (e.g. for buildings with nuanced collision rects)
 // or if it just uses tile-based collisions (if a tile contains a collision rect, the entire tile is marked as a collision).
 // generally, the player should use rect-based, and NPCs should use tile-based (since NPCs usually can't do partial tile/px based movement)
-func (mi MapInfo) Collides(r model.Rect, excludeEntId string, rectBased bool) model.CollisionResult {
+func (mi MapInfo) Collides(r model.Rect, excludeEntId string) model.CollisionResult {
 	tl := model.ConvertPxToTilePos(int(r.X), int(r.Y))
 	tr := model.ConvertPxToTilePos(int(r.X+r.W), int(r.Y))
 	bl := model.ConvertPxToTilePos(int(r.X), int(r.Y+r.H))
@@ -266,43 +266,28 @@ func (mi MapInfo) Collides(r model.Rect, excludeEntId string, rectBased bool) mo
 	}
 
 	// next, check for regular collisions on the map
-	if rectBased {
-		if !cr.TopLeft.Intersects {
-			r1 := mi.Map.CollisionRects[tl.Y][tl.X]
-			if r1.IsCollision {
-				cr.TopLeft = r1.OffsetRect(float64(tl.X*config.TileSize), float64(tl.Y*config.TileSize)).IntersectionArea(r)
-			}
+	if !cr.TopLeft.Intersects {
+		r1 := mi.Map.CollisionRects[tl.Y][tl.X]
+		if r1.IsCollision {
+			cr.TopLeft = r1.OffsetRect(float64(tl.X*config.TileSize), float64(tl.Y*config.TileSize)).IntersectionArea(r)
 		}
-		if !cr.TopRight.Intersects {
-			r2 := mi.Map.CollisionRects[tr.Y][tr.X]
-			if r2.IsCollision {
-				cr.TopRight = r2.OffsetRect(float64(tr.X*config.TileSize), float64(tr.Y*config.TileSize)).IntersectionArea(r)
-			}
+	}
+	if !cr.TopRight.Intersects {
+		r2 := mi.Map.CollisionRects[tr.Y][tr.X]
+		if r2.IsCollision {
+			cr.TopRight = r2.OffsetRect(float64(tr.X*config.TileSize), float64(tr.Y*config.TileSize)).IntersectionArea(r)
 		}
-		if !cr.BottomLeft.Intersects {
-			r3 := mi.Map.CollisionRects[bl.Y][bl.X]
-			if r3.IsCollision {
-				cr.BottomLeft = r3.OffsetRect(float64(bl.X*config.TileSize), float64(bl.Y*config.TileSize)).IntersectionArea(r)
-			}
+	}
+	if !cr.BottomLeft.Intersects {
+		r3 := mi.Map.CollisionRects[bl.Y][bl.X]
+		if r3.IsCollision {
+			cr.BottomLeft = r3.OffsetRect(float64(bl.X*config.TileSize), float64(bl.Y*config.TileSize)).IntersectionArea(r)
 		}
-		if !cr.BottomRight.Intersects {
-			r4 := mi.Map.CollisionRects[br.Y][br.X]
-			if r4.IsCollision {
-				cr.BottomRight = r4.OffsetRect(float64(br.X*config.TileSize), float64(br.Y*config.TileSize)).IntersectionArea(r)
-			}
-		}
-	} else {
-		if !cr.TopLeft.Intersects {
-			cr.TopLeft.Intersects = mi.Map.CostMap[tl.Y][tl.X] >= 10
-		}
-		if !cr.TopRight.Intersects {
-			cr.TopRight.Intersects = mi.Map.CostMap[tr.Y][tr.X] >= 10
-		}
-		if !cr.BottomLeft.Intersects {
-			cr.BottomLeft.Intersects = mi.Map.CostMap[bl.Y][bl.X] >= 10
-		}
-		if !cr.BottomRight.Intersects {
-			cr.BottomRight.Intersects = mi.Map.CostMap[br.Y][br.X] >= 10
+	}
+	if !cr.BottomRight.Intersects {
+		r4 := mi.Map.CollisionRects[br.Y][br.X]
+		if r4.IsCollision {
+			cr.BottomRight = r4.OffsetRect(float64(br.X*config.TileSize), float64(br.Y*config.TileSize)).IntersectionArea(r)
 		}
 	}
 

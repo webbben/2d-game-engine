@@ -217,7 +217,7 @@ func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
 	y := int(e.TargetY) + dy
 	targetRect := model.Rect{X: float64(x), Y: float64(y), W: e.width, H: e.width}
 
-	res := e.World.Collides(targetRect, e.ID, e.IsPlayer)
+	res := e.World.Collides(targetRect, e.ID)
 	if res.Collides() {
 		return MoveError{
 			Collision:       true,

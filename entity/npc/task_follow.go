@@ -20,6 +20,7 @@ func (t *Task) startFollow() {
 	// Start: go to the position behind the target entity
 	target := _followGetTargetPosition(*t.targetEntity, t.FollowTask.distance)
 	if target.Equals(t.Owner.Entity.TilePos) {
+		logz.Println(t.Owner.DisplayName, "already at target position")
 		return
 	}
 
