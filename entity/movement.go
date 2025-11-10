@@ -213,16 +213,10 @@ func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
 	if dx == 0 && dy == 0 {
 		panic("TryMovePx: dx and dy are both 0")
 	}
-	x := int(e.TargetX) + dx
-	y := int(e.TargetY) + dy
-	targetRect := model.Rect{X: float64(x), Y: float64(y), W: e.width, H: e.width}
 
-	res := e.World.Collides(targetRect, e.ID)
-	if res.Collides() {
-		return MoveError{
-			Collision:       true,
-			CollisionResult: res,
-		}
+	if e.Body.IsAttacking() || e.attackManager.waitingToAttack {
+		// cannot move (or change directions) while attacking
+		return MoveError{Cancelled: true}
 	}
 
 	if dx != 0 {
@@ -236,6 +230,20 @@ func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
 			e.Movement.Direction = model.Directions.Down
 		} else {
 			e.Movement.Direction = model.Directions.Up
+		}
+	}
+
+	e.Body.SetDirection(e.Movement.Direction)
+
+	x := int(e.TargetX) + dx
+	y := int(e.TargetY) + dy
+	targetRect := model.Rect{X: float64(x), Y: float64(y), W: e.width, H: e.width}
+
+	res := e.World.Collides(targetRect, e.ID)
+	if res.Collides() {
+		return MoveError{
+			Collision:       true,
+			CollisionResult: res,
 		}
 	}
 
@@ -273,8 +281,6 @@ func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
 		panic("movement speed is 0")
 	}
 
-	e.Body.SetDirection(e.Movement.Direction)
-
 	return MoveError{Success: true}
 }
 
@@ -291,8 +297,6 @@ func (e *Entity) updateMovement() {
 		e.tryMergeSuggestedPath(e.Movement.SuggestedTargetPath)
 		e.Movement.SuggestedTargetPath = []model.Coords{}
 	}
-
-	e.Movement.movementStopped = false
 
 	pos := model.Vec2{X: e.X, Y: e.Y}
 	target := model.Vec2{X: e.TargetX, Y: e.TargetY}

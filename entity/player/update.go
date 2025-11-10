@@ -96,6 +96,6 @@ func (p *Player) handleActions() {
 		p.Entity.UnequipWeaponFromBody()
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyG) {
-		p.Entity.SwingWeapon()
+		p.Entity.StartMeleeAttack()
 	}
 }

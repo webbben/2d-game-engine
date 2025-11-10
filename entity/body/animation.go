@@ -14,6 +14,17 @@ const (
 	ANIM_BACKSLASH = "backslash"
 )
 
+func (eb EntityBodySet) IsAttacking() bool {
+	switch eb.animation {
+	case ANIM_SLASH:
+		return true
+	case ANIM_BACKSLASH:
+		return true
+	default:
+		return false
+	}
+}
+
 type Animation struct {
 	Name         string
 	Skip         bool            // if true, this animation does not get defined
@@ -176,4 +187,35 @@ func stretchImage(img *ebiten.Image, stretchX, stretchY int) *ebiten.Image {
 	rendering.DrawImage(newImg, stretchedImage, float64(x), float64(y), 0)
 
 	return newImg
+}
+
+type damageFlickerFX struct {
+	tickDuration int
+	tickCount    int
+	show         bool // if true, damage flicker effect will run
+	red          bool // if true, the flicker is on the red step. otherwise it's on the white step
+}
+
+func (dfx *damageFlickerFX) update() {
+	if !dfx.show {
+		return
+	}
+	if dfx.tickCount > dfx.tickDuration {
+		dfx.show = false
+	}
+	dfx.tickCount++
+	if dfx.tickCount%5 == 0 {
+		dfx.red = !dfx.red
+	}
+}
+
+func (eb *EntityBodySet) SetDamageFlicker(tickDuration int) {
+	if tickDuration <= 0 {
+		panic("invalid tick duration")
+	}
+	eb.dmgFlicker = damageFlickerFX{
+		tickDuration: tickDuration,
+		show:         true,
+		red:          true,
+	}
 }

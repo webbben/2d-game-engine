@@ -78,4 +78,6 @@ func (e *Entity) Update() {
 	}
 
 	e.Body.Update()
+
+	e.updateAttackManager()
 }

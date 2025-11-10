@@ -223,7 +223,7 @@ func (t *Task) update() {
 	}
 
 	// no update logic found?
-	panic("task.update: no update logic executed for this task. tasks are currently required to have an update function.")
+	//panic("task.update: no update logic executed for this task. tasks are currently required to have an update function.")
 }
 
 // it is not allowed for multiple fundamental tasks to be active at once.

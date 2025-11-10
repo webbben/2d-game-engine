@@ -8,6 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/mouse"
@@ -44,6 +45,8 @@ type Entity struct {
 	footstepSFX audio.FootstepSFX
 
 	Body body.EntityBodySet
+
+	attackManager
 
 	World WorldContext `json:"-"`
 
@@ -110,6 +113,7 @@ type WorldContext interface {
 	MapDimensions() (width int, height int)
 	GetGroundMaterial(tileX, tileY int) string
 	GetDistToPlayer(x, y float64) float64
+	AttackArea(attackInfo AttackInfo)
 }
 
 type MovementProps struct {
@@ -151,6 +155,7 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 		EntityInfo: EntityInfo{
 			IsPlayer:    general.IsPlayer,
 			DisplayName: general.DisplayName,
+			ID:          general_util.GenerateUUID(),
 		},
 		Movement: Movement{
 			WalkSpeed: mv.WalkSpeed,
@@ -226,12 +231,11 @@ type Position struct {
 type Movement struct {
 	Direction byte `json:"-"` // L R U D
 
-	IsMoving        bool    `json:"-"`
-	movementStopped bool    // set when movement ends, so that animation knows when to prepare to go back to idle
-	Interrupted     bool    `json:"-"`          // flag for if this entity's movement was stopped unexpectedly (e.g. by a collision)
-	WalkSpeed       float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
-	RunSpeed        float64
-	Speed           float64 `json:"-"` // actual speed the entity is moving at
+	IsMoving    bool    `json:"-"`
+	Interrupted bool    `json:"-"`          // flag for if this entity's movement was stopped unexpectedly (e.g. by a collision)
+	WalkSpeed   float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
+	RunSpeed    float64
+	Speed       float64 `json:"-"` // actual speed the entity is moving at
 
 	TargetTile          model.Coords   `json:"-"` // next tile the entity is currently moving
 	TargetPath          []model.Coords `json:"-"` // path the entity is currently trying to travel on
@@ -287,12 +291,4 @@ func (e *Entity) UnequipWeaponFromBody() {
 
 func (e *Entity) EquipWeapon(weaponDef body.SelectedPartDef, weaponFxDef body.SelectedPartDef) {
 	e.Body.SetWeapon(weaponDef, weaponFxDef)
-}
-
-func (e *Entity) SwingWeapon() {
-	if e.Body.WeaponSet.None {
-		panic("tried to swing weapon, but no weapon is equiped")
-	}
-	e.Body.SetAnimationTickCount(8)
-	e.Body.SetAnimation(body.ANIM_SLASH, body.SetAnimationOps{DoOnce: true, PreventSkip: true})
 }

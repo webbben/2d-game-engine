@@ -2,13 +2,16 @@ package game
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/lights"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
@@ -448,4 +451,26 @@ func (mi *MapInfo) GetGroundMaterial(tileX, tileY int) string {
 	}
 
 	return mi.Map.GroundMaterial[tileY][tileX]
+}
+
+func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
+	// find all entities in the area of the rect
+
+	logz.Println("Attack Area", "target rect:", attackInfo.TargetRect, "attack info:", attackInfo)
+
+	if len(mi.NPCManager.NPCs) == 0 {
+		fmt.Println("no NPCs?")
+	}
+
+	for _, n := range mi.NPCManager.NPCs {
+		logz.Println("Attack Area", "entID:", n.Entity.ID)
+		if slices.Contains(attackInfo.ExcludeEntIds, n.Entity.ID) {
+			continue
+		}
+		fmt.Println("npc rect:", n.Entity.CollisionRect())
+		if attackInfo.TargetRect.Intersects(n.Entity.CollisionRect()) {
+			n.Entity.ReceiveAttack(attackInfo)
+		}
+	}
+
 }
