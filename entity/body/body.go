@@ -691,8 +691,6 @@ func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) Set
 		logz.Println(eb.Name, "animation already set, and force is not enabled")
 		return SetAnimationResult{FailedToSet: true}
 	}
-
-	logz.Println(eb.Name, "set animation:", animation)
 	eb.preventAnimationSkip = ops.PreventSkip
 	eb.stopAnimationOnCompletion = ops.DoOnce
 	eb.animation = animation
@@ -701,7 +699,6 @@ func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) Set
 }
 
 func (eb *EntityBodySet) StopAnimation() {
-	logz.Println(eb.Name, "stop animation")
 	if eb.animation == "" {
 		panic("trying to stop animation, but animation already unset?")
 	}

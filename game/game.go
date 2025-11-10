@@ -52,6 +52,8 @@ type Game struct {
 	UpdateHooks
 
 	DefinitionManager *definitions.DefinitionManager
+
+	debugData debugData // just used for the debug drawing
 }
 
 func (g *Game) SetupTradeSession(shopkeeperID string) {

@@ -15,6 +15,15 @@ import (
 	"github.com/webbben/2d-game-engine/internal/rendering"
 )
 
+type debugData struct {
+	positionDot    *ebiten.Image
+	rectImg        *ebiten.Image
+	costTile       *ebiten.Image
+	collisionRects map[string]*ebiten.Image
+
+	pathTile1, pathTile2 *ebiten.Image
+}
+
 func (g Game) drawGridLines(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	if g.MapInfo == nil {
 		panic("GAME: tried to draw grid lines on a nil map!")
@@ -43,30 +52,34 @@ func (g Game) drawPaths(screen *ebiten.Image, offsetX, offsetY float64) {
 	if g.MapInfo == nil {
 		panic("tried to draw paths on a nil map!")
 	}
-	color1 := color.RGBA{255, 0, 0, 50}
-	tile := ebiten.NewImage(config.TileSize, config.TileSize)
-	tile.Fill(color1)
-	tile2 := ebiten.NewImage(config.TileSize, config.TileSize)
-	color2 := color.RGBA{0, 0, 255, 50}
-	tile2.Fill(color2)
+	if g.debugData.pathTile1 == nil {
+		color1 := color.RGBA{255, 0, 0, 50}
+		g.debugData.pathTile1 = ebiten.NewImage(config.TileSize, config.TileSize)
+		g.debugData.pathTile1.Fill(color1)
+	}
+	if g.debugData.pathTile2 == nil {
+		g.debugData.pathTile2 = ebiten.NewImage(config.TileSize, config.TileSize)
+		color2 := color.RGBA{0, 0, 255, 50}
+		g.debugData.pathTile2.Fill(color2)
+	}
 
 	for _, n := range g.MapInfo.NPCManager.NPCs {
 		if len(n.Entity.Movement.TargetPath) > 0 {
 			for _, c := range n.Entity.Movement.TargetPath {
 				op := &ebiten.DrawImageOptions{}
-				drawX, drawY := rendering.GetImageDrawPos(tile, float64(c.X)*config.TileSize, float64(c.Y)*config.TileSize, offsetX, offsetY)
+				drawX, drawY := rendering.GetImageDrawPos(g.debugData.pathTile1, float64(c.X)*config.TileSize, float64(c.Y)*config.TileSize, offsetX, offsetY)
 				op.GeoM.Translate(drawX, drawY)
 				op.GeoM.Scale(config.GameScale, config.GameScale)
-				screen.DrawImage(tile, op)
+				screen.DrawImage(g.debugData.pathTile1, op)
 			}
 		}
 		if len(n.Entity.Movement.SuggestedTargetPath) > 0 {
 			for _, c := range n.Entity.Movement.SuggestedTargetPath {
 				op := &ebiten.DrawImageOptions{}
-				drawX, drawY := rendering.GetImageDrawPos(tile2, float64(c.X)*config.TileSize, float64(c.Y)*config.TileSize, offsetX, offsetY)
+				drawX, drawY := rendering.GetImageDrawPos(g.debugData.pathTile2, float64(c.X)*config.TileSize, float64(c.Y)*config.TileSize, offsetX, offsetY)
 				op.GeoM.Translate(drawX, drawY)
 				op.GeoM.Scale(config.GameScale, config.GameScale)
-				screen.DrawImage(tile2, op)
+				screen.DrawImage(g.debugData.pathTile2, op)
 			}
 		}
 	}
@@ -76,25 +89,36 @@ func (g Game) drawCollisions(screen *ebiten.Image, offsetX, offsetY float64) {
 	if g.MapInfo == nil {
 		panic("tried to draw paths on a nil map!")
 	}
-	color1 := color.RGBA{150, 0, 0, 50}
+	if g.debugData.costTile == nil {
+		g.debugData.costTile = ebiten.NewImage(config.TileSize, config.TileSize)
+		color1 := color.RGBA{150, 0, 0, 50}
+		g.debugData.costTile.Fill(color1)
+	}
+	if g.debugData.collisionRects == nil {
+		g.debugData.collisionRects = make(map[string]*ebiten.Image)
+	}
+
 	color2 := color.RGBA{0, 0, 150, 50}
-	tile := ebiten.NewImage(config.TileSize, config.TileSize)
-	tile.Fill(color1)
 
 	for y, row := range g.MapInfo.CostMap() {
 		for x, cost := range row {
 			if cost >= 10 {
 				op := &ebiten.DrawImageOptions{}
-				drawX, drawY := rendering.GetImageDrawPos(tile, float64(x)*config.TileSize, float64(y)*config.TileSize, offsetX, offsetY)
+				drawX, drawY := rendering.GetImageDrawPos(g.debugData.costTile, float64(x)*config.TileSize, float64(y)*config.TileSize, offsetX, offsetY)
 				op.GeoM.Translate(drawX, drawY)
 				op.GeoM.Scale(config.GameScale, config.GameScale)
-				screen.DrawImage(tile, op)
+				screen.DrawImage(g.debugData.costTile, op)
 			}
 
 			r := g.MapInfo.Map.CollisionRects[y][x]
 			if r.IsCollision {
-				rectImg := ebiten.NewImage(int(r.Rect.W), int(r.Rect.H))
-				rectImg.Fill(color2)
+				key := fmt.Sprintf("w:%v/h:%v", r.Rect.W, r.Rect.H)
+				rectImg, exists := g.debugData.collisionRects[key]
+				if !exists {
+					rectImg = ebiten.NewImage(int(r.Rect.W), int(r.Rect.H))
+					rectImg.Fill(color2)
+					g.debugData.collisionRects[key] = rectImg
+				}
 
 				op := &ebiten.DrawImageOptions{}
 				drawX, drawY := (float64(x*config.TileSize)+r.Rect.X)-offsetX, (float64(y*config.TileSize)+r.Rect.Y)-offsetY
@@ -106,13 +130,21 @@ func (g Game) drawCollisions(screen *ebiten.Image, offsetX, offsetY float64) {
 	}
 }
 
-func (g Game) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY float64) {
+func (g *Game) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY float64) {
 	if g.MapInfo == nil {
 		panic("tried to draw paths on a nil map!")
 	}
-	yellow := color.RGBA{0, 255, 255, 50}
-	positionDot := ebiten.NewImage(1, 1)
-	positionDot.Fill(yellow)
+	if g.debugData.positionDot == nil {
+		yellow := color.RGBA{0, 255, 255, 50}
+		g.debugData.positionDot = ebiten.NewImage(1, 1)
+		g.debugData.positionDot.Fill(yellow)
+	}
+	if g.debugData.rectImg == nil {
+		rect := g.Player.Entity.CollisionRect()
+		g.debugData.rectImg = ebiten.NewImage(int(rect.W), int(rect.H))
+		g.debugData.rectImg.Fill(color.RGBA{0, 0, 255, 50})
+	}
+
 	// tile2 := ebiten.NewImage(config.TileSize, config.TileSize)
 	// color2 := color.RGBA{0, 0, 255, 50}
 	// tile2.Fill(color2)
@@ -121,23 +153,21 @@ func (g Game) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY float64
 	drawX, drawY := g.Player.Entity.X-offsetX, g.Player.Entity.Y-offsetY
 	op.GeoM.Translate(drawX, drawY)
 	op.GeoM.Scale(config.GameScale, config.GameScale)
-	screen.DrawImage(positionDot, op)
+	screen.DrawImage(g.debugData.positionDot, op)
 
 	op = &ebiten.DrawImageOptions{}
 	rect := g.Player.Entity.CollisionRect()
 	drawX, drawY = rect.X-offsetX, rect.Y-offsetY
 	op.GeoM.Translate(drawX, drawY)
 	op.GeoM.Scale(config.GameScale, config.GameScale)
-	rectImg := ebiten.NewImage(int(rect.W), int(rect.H))
-	rectImg.Fill(color.RGBA{0, 0, 255, 50})
-	screen.DrawImage(rectImg, op)
+	screen.DrawImage(g.debugData.rectImg, op)
 
 	for _, n := range g.MapInfo.NPCManager.NPCs {
 		op := &ebiten.DrawImageOptions{}
-		drawX, drawY := rendering.GetImageDrawPos(positionDot, n.Entity.X, n.Entity.Y, offsetX, offsetY)
+		drawX, drawY := rendering.GetImageDrawPos(g.debugData.positionDot, n.Entity.X, n.Entity.Y, offsetX, offsetY)
 		op.GeoM.Translate(drawX, drawY)
 		op.GeoM.Scale(config.GameScale, config.GameScale)
-		screen.DrawImage(positionDot, op)
+		screen.DrawImage(g.debugData.positionDot, op)
 	}
 }
 
