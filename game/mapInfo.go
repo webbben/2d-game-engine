@@ -472,5 +472,86 @@ func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
 			n.Entity.ReceiveAttack(attackInfo)
 		}
 	}
+}
 
+// attempts to activate an object or npc in an area. if an activation occurs, true is returned.
+func (mi *MapInfo) ActivateArea(r model.Rect) bool {
+	// check for activated objects
+	// try to get the object that is the "best match" (i.e. closest to the center of the activated area)
+	var closestObject *object.Object = nil
+	closestObjectDist := float64(config.TileSize * 1000)
+	for _, obj := range mi.Objects {
+		if r.Intersects(obj.GetRect()) {
+			dist := general_util.EuclideanDistCenter(r, obj.GetRect())
+			if closestObject == nil || dist < closestObjectDist {
+				closestObject = obj
+				closestObjectDist = dist
+			}
+		}
+	}
+	if closestObject != nil {
+		result := closestObject.Activate()
+
+		if result.UpdateOccurred {
+			if result.ChangeMapID != "" {
+				mi.gameRef.handleMapDoor(result)
+			}
+		}
+
+		return true
+	}
+
+	// check for activated entities
+	// if multiple entites are present, activate the closest one to the center of the activation area
+	var closestNPC *npc.NPC = nil
+	closestNPCDist := float64(config.TileSize * 1000)
+	for _, n := range mi.NPCManager.NPCs {
+		if r.Intersects(n.Entity.CollisionRect()) {
+			dist := general_util.EuclideanDistCenter(r, n.Entity.CollisionRect())
+			if closestNPC == nil || dist < closestNPCDist {
+				closestNPC = n
+				closestNPCDist = dist
+			}
+		}
+	}
+	if closestNPC != nil {
+		closestNPC.Activate()
+		return true
+	}
+
+	return false
+}
+
+// handles a player's click in the game world; for non-ui clicks, such as clicking objects or entities in a map.
+// if a click event occurs, true will be returned.
+func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
+	distThreshold := float64(config.TileSize * 2)
+	// check for object clicks
+	for _, obj := range mi.Objects {
+		logz.Println(obj.Type, "obj drawRect:", obj.GetDrawRect(), "obj rect:", obj.GetRect())
+		if obj.GetDrawRect().Within(mouseX, mouseY) {
+			if general_util.EuclideanDistCenter(mi.GetPlayerRect(), obj.GetRect()) <= distThreshold {
+				fmt.Println("object clicked")
+				result := obj.Activate()
+				if result.UpdateOccurred {
+					if result.ChangeMapID != "" {
+						mi.gameRef.handleMapDoor(result)
+					}
+				}
+				return true
+			}
+		}
+	}
+
+	// check for NPC clicks
+	for _, n := range mi.NPCs {
+		if n.Entity.GetDrawRect().Within(mouseX, mouseY) {
+			if general_util.EuclideanDistCenter(mi.GetPlayerRect(), n.Entity.CollisionRect()) <= distThreshold {
+				n.Activate()
+				return true
+			}
+		}
+	}
+
+	return false
 }

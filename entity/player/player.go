@@ -8,6 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/item"
 )
 
@@ -23,6 +24,8 @@ type Player struct {
 
 type WorldContext interface {
 	GetNearbyNPCs(x, y, radius float64) []*npc.NPC
+	ActivateArea(r model.Rect) bool
+	HandleMouseClick(mouseX, mouseY int) bool
 }
 
 // needed for sorting renderables

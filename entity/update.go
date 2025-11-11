@@ -1,8 +1,6 @@
 package entity
 
 import (
-	"fmt"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
@@ -45,14 +43,20 @@ func (e Entity) ExtentPos(offsetX, offsetY float64) (extentX, extentY float64) {
 	return extentX, extentY
 }
 
+func (e Entity) GetDrawRect() model.Rect {
+	dx, dy := e.Body.Dimensions()
+	dx = int(float64(dx) * config.GameScale)
+	dy = int(float64(dy) * config.GameScale)
+	return model.NewRect(e.drawX, e.drawY, float64(dx), float64(dy))
+}
+
 func (e *Entity) Update() {
 	if !e.Loaded {
 		panic("entity not loaded yet!")
 	}
-	dx, dy := e.Body.Dimensions()
-	dx = int(float64(dx) * config.GameScale)
-	dy = int(float64(dy) * config.GameScale)
-	e.MouseBehavior.Update(int(e.Position.drawX), int(e.Position.drawY), dx, dy, false)
+	drawRect := e.GetDrawRect()
+	// TODO do we need this anymore? clicks are now managed in MapInfo logic via central handler function
+	e.MouseBehavior.Update(int(drawRect.X), int(drawRect.Y), int(drawRect.W), int(drawRect.H), false)
 
 	if !e.Movement.IsMoving {
 		if len(e.Movement.TargetPath) > 0 {
@@ -62,8 +66,8 @@ func (e *Entity) Update() {
 					panic("trySetNextTargetPath succeeded, but still not moving?")
 				}
 			} else {
-				logz.Println(e.DisplayName, "failed to set next target path:", res)
-				fmt.Println(res.CollisionResult)
+				// logz.Println(e.DisplayName, "failed to set next target path:", res)
+				// fmt.Println(res.CollisionResult)
 			}
 		}
 	}

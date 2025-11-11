@@ -5,7 +5,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
@@ -22,23 +21,7 @@ func (p *Player) Update() {
 
 	p.handleActions()
 
-	p.handleActivations()
-
 	p.Entity.Update()
-}
-
-func (p *Player) handleActivations() {
-	nearbyNPCs := p.World.GetNearbyNPCs(p.Entity.X, p.Entity.Y, config.TileSize*config.GameScale*1.5)
-
-	for _, n := range nearbyNPCs {
-		if n == nil {
-			panic("npc is nil?")
-		}
-		if n.Entity.MouseBehavior.LeftClick.ClickReleased {
-			n.Activate()
-			return
-		}
-	}
 }
 
 func (p *Player) handleMovement() {
@@ -94,8 +77,40 @@ func (p *Player) handleMovement() {
 func (p *Player) handleActions() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
 		p.Entity.UnequipWeaponFromBody()
+		return
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyG) {
-		p.Entity.StartMeleeAttack()
+
+	if p.Entity.IsWeaponEquiped() {
+		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+			// attack
+			p.Entity.StartMeleeAttack()
+			return
+		}
 	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		if p.World.ActivateArea(p.Entity.GetFrontRect()) {
+			return
+		}
+	}
+
+	if !p.Entity.IsWeaponEquiped() {
+		// nearbyNPCs := p.World.GetNearbyNPCs(p.Entity.X, p.Entity.Y, config.TileSize*config.GameScale*1.5)
+
+		// for _, n := range nearbyNPCs {
+		// 	if n == nil {
+		// 		panic("npc is nil?")
+		// 	}
+		// 	if n.Entity.MouseBehavior.LeftClick.ClickReleased {
+		// 		logz.Println(p.Entity.DisplayName, "activating npc:", n.DisplayName)
+		// 		n.Activate()
+		// 		return
+		// 	}
+		// }
+		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+			mouseX, mouseY := ebiten.CursorPosition()
+			p.World.HandleMouseClick(mouseX, mouseY)
+		}
+	}
+
 }

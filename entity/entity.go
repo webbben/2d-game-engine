@@ -282,13 +282,3 @@ func (e *Entity) AddItemToInventory(invItem item.InventoryItem) (bool, item.Inve
 func (e *Entity) RemoveItemFromInventory(itemToRemove item.InventoryItem) (bool, item.InventoryItem) {
 	return item.RemoveItemFromInventory(itemToRemove, e.InventoryItems)
 }
-
-func (e *Entity) UnequipWeaponFromBody() {
-	e.Body.WeaponSet.None = true
-	e.Body.WeaponFxSet.None = true
-	e.Body.Load()
-}
-
-func (e *Entity) EquipWeapon(weaponDef body.SelectedPartDef, weaponFxDef body.SelectedPartDef) {
-	e.Body.SetWeapon(weaponDef, weaponFxDef)
-}

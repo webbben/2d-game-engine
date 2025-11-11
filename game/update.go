@@ -6,6 +6,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
+	"github.com/webbben/2d-game-engine/object"
 )
 
 func (g *Game) Update() error {
@@ -69,6 +70,16 @@ func (g *Game) worldUpdates() {
 	g.Camera.MoveCamera(g.Player.Entity.X, g.Player.Entity.Y)
 }
 
+func (g *Game) handleMapDoor(result object.ObjectUpdateResult) {
+	if result.ChangeMapID == "" {
+		panic("tried to do map door change, but no map ID is set in object update result")
+	}
+	err := g.EnterMap(result.ChangeMapID, nil, result.ChangeMapSpawnIndex)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (g *Game) updateMap() {
 	g.MapInfo.Map.Update()
 
@@ -77,13 +88,11 @@ func (g *Game) updateMap() {
 
 	for i := range g.MapInfo.Objects {
 		result := g.MapInfo.Objects[i].Update()
-
-		if result.ChangeMapID != "" {
-			err := g.EnterMap(result.ChangeMapID, nil, result.ChangeMapSpawnIndex)
-			if err != nil {
-				panic(err)
+		if result.UpdateOccurred {
+			if result.ChangeMapID != "" {
+				g.handleMapDoor(result)
+				return
 			}
-			return
 		}
 	}
 

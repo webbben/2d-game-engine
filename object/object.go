@@ -45,9 +45,6 @@ type Object struct {
 
 	MouseBehavior mouse.MouseBehavior
 
-	OnLeftClick  func()
-	OnRightClick func()
-
 	Door Door
 
 	Gate Gate
@@ -61,6 +58,7 @@ type Object struct {
 	PlayerHovering bool
 }
 
+// general purpose function to get the rect that this object occupies in the map. does not scale the values.
 func (obj Object) GetRect() model.Rect {
 	if obj.Collidable {
 		return obj.CollisionRect
@@ -71,6 +69,11 @@ func (obj Object) GetRect() model.Rect {
 		W: float64(obj.Width),
 		H: float64(obj.Height),
 	}
+}
+
+// gets the rect that represents where the object is on the screen, as drawn. useful for detecting things like mouseclicks.
+func (obj Object) GetDrawRect() model.Rect {
+	return model.NewRect(obj.DrawX, obj.DrawY, float64(obj.Width)*config.GameScale, float64(obj.Height)*config.GameScale)
 }
 
 func (obj Object) Collides(other model.Rect) model.IntersectionResult {

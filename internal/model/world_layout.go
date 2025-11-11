@@ -142,7 +142,17 @@ type Rect struct {
 }
 
 func NewRect(x, y, w, h float64) Rect {
+	if w <= 0 {
+		panic("width is <= 0")
+	}
+	if h <= 0 {
+		panic("height is <= 0")
+	}
 	return Rect{X: x, Y: y, W: w, H: h}
+}
+
+func (r Rect) GetCenter() (x, y float64) {
+	return r.X + (r.W / 2), r.Y + (r.H / 2)
 }
 
 func (r Rect) String() string {

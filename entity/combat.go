@@ -53,22 +53,8 @@ type AttackInfo struct {
 	ExcludeEntIds []string
 }
 
-func (e *Entity) StartMeleeAttack() {
-	if e.Body.WeaponSet.None {
-		panic("tried to swing weapon, but no weapon is equiped")
-	}
-	animationInterval := 6
-	e.Body.SetAnimationTickCount(animationInterval)
-	res := e.Body.SetAnimation(body.ANIM_SLASH, body.SetAnimationOps{DoOnce: true, PreventSkip: true})
-	if !res.Success {
-		if !res.AlreadySet {
-			// if not already attacking, then just wait to do the attack once whatever the current animation is finishes
-			e.waitingToAttack = true
-		}
-		// already attacking - need to wait until the animation is done before attacking again
-		return
-	}
-
+// returns the tile rect that is right in front of the entity
+func (e Entity) GetFrontRect() model.Rect {
 	targetRect := model.Rect{
 		W: config.TileSize,
 		H: config.TileSize,
@@ -85,10 +71,28 @@ func (e *Entity) StartMeleeAttack() {
 	case model.Directions.Down:
 		targetRect.Y += config.TileSize
 	}
+	return targetRect
+}
+
+func (e *Entity) StartMeleeAttack() {
+	if e.Body.WeaponSet.None {
+		panic("tried to swing weapon, but no weapon is equiped")
+	}
+	animationInterval := 6
+	e.Body.SetAnimationTickCount(animationInterval)
+	res := e.Body.SetAnimation(body.ANIM_SLASH, body.SetAnimationOps{DoOnce: true, PreventSkip: true})
+	if !res.Success {
+		if !res.AlreadySet {
+			// if not already attacking, then just wait to do the attack once whatever the current animation is finishes
+			e.waitingToAttack = true
+		}
+		// already attacking - need to wait until the animation is done before attacking again
+		return
+	}
 
 	e.attackManager.queueAttack(AttackInfo{
 		Damage:        10,
-		TargetRect:    targetRect,
+		TargetRect:    e.GetFrontRect(),
 		ExcludeEntIds: []string{e.ID},
 	}, animationInterval*3)
 }
@@ -107,4 +111,18 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	logz.Println(e.DisplayName, "current health:", e.Vitals.Health.CurrentVal)
 
 	e.Body.SetDamageFlicker(15)
+}
+
+func (e *Entity) UnequipWeaponFromBody() {
+	e.Body.WeaponSet.None = true
+	e.Body.WeaponFxSet.None = true
+	e.Body.Load()
+}
+
+func (e *Entity) EquipWeapon(weaponDef body.SelectedPartDef, weaponFxDef body.SelectedPartDef) {
+	e.Body.SetWeapon(weaponDef, weaponFxDef)
+}
+
+func (e Entity) IsWeaponEquiped() bool {
+	return !e.Body.WeaponSet.None
 }
