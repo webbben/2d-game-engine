@@ -33,7 +33,7 @@ type Object struct {
 	Width, Height int
 	Rect          model.Rect // rect used for step detection (covers entire object)
 	CollisionRect model.Rect // rect used for collision (e.g. for gates, only covers bottom tiles)
-	Collidable    bool       // if set, game will check for collisions with this object
+	collidable    bool       // if set, game will check for collisions with this object
 
 	tileData tiled.TileData // data of a tile embedded in this object
 
@@ -60,7 +60,7 @@ type Object struct {
 
 // general purpose function to get the rect that this object occupies in the map. does not scale the values.
 func (obj Object) GetRect() model.Rect {
-	if obj.Collidable {
+	if obj.collidable {
 		return obj.CollisionRect
 	}
 	return model.Rect{
@@ -76,19 +76,35 @@ func (obj Object) GetDrawRect() model.Rect {
 	return model.NewRect(obj.DrawX, obj.DrawY, float64(obj.Width)*config.GameScale, float64(obj.Height)*config.GameScale)
 }
 
+func (obj Object) IsCollidable() bool {
+	if obj.Type == TYPE_GATE {
+		if obj.Gate.IsOpen() {
+			return false
+		}
+	}
+	return obj.collidable
+}
+
+func (obj Object) IsActivatable() bool {
+	switch obj.Type {
+	case TYPE_DOOR:
+		return true
+	case TYPE_GATE:
+		return true
+	case TYPE_LIGHT:
+		return true
+	case TYPE_CONTAINER:
+		return true
+	default:
+		return false
+	}
+}
+
 func (obj Object) Collides(other model.Rect) model.IntersectionResult {
-	if !obj.Collidable {
+	if !obj.IsCollidable() {
 		return model.IntersectionResult{}
 	}
-	switch obj.Type {
-	case TYPE_GATE:
-		if obj.Gate.IsOpen() {
-			return model.IntersectionResult{}
-		}
-		return obj.CollisionRect.IntersectionArea(other)
-	default:
-		return obj.CollisionRect.IntersectionArea(other)
-	}
+	return obj.CollisionRect.IntersectionArea(other)
 }
 
 func (obj Object) Y() float64 {
@@ -343,7 +359,7 @@ func (obj *Object) addDefaultCollision() {
 		W: float64(obj.Width),
 		H: config.TileSize,
 	}
-	obj.Collidable = true
+	obj.collidable = true
 }
 
 func (obj *Object) loadDoorObject(props []tiled.Property) {

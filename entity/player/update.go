@@ -5,6 +5,8 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/webbben/2d-game-engine/entity"
+	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
@@ -54,8 +56,12 @@ func (p *Player) handleMovement() {
 
 	isDiagonal := v.X != 0 && v.Y != 0
 
+	animationTickInterval := p.Entity.Movement.WalkAnimationTickInterval
+	animation := body.ANIM_WALK
 	speed := p.Entity.Movement.WalkSpeed
 	if running {
+		animationTickInterval = p.Entity.Movement.RunAnimationTickInterval
+		animation = body.ANIM_RUN
 		speed = p.Entity.Movement.RunSpeed
 	}
 
@@ -68,9 +74,16 @@ func (p *Player) handleMovement() {
 		scaled.Y = math.Round(scaled.Y * 2)
 	}
 
-	e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y), running)
-	if !e.Success && !e.Collision {
+	e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y), speed, entity.AnimationOptions{
+		AnimationName:         animation,
+		AnimationTickInterval: animationTickInterval,
+	})
+	if !e.Success {
 		logz.Println(p.Entity.DisplayName, e)
+	}
+	if !p.Entity.Body.IsAttacking() {
+		// TODO probably need a more long term solution than this - e.g. what if there are other animation types?
+		p.Entity.FaceTowards(int(scaled.X), int(scaled.Y))
 	}
 }
 

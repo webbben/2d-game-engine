@@ -51,6 +51,7 @@ type AttackInfo struct {
 	Damage        int
 	TargetRect    model.Rect
 	ExcludeEntIds []string
+	Origin        model.Vec2
 }
 
 // returns the tile rect that is right in front of the entity
@@ -94,6 +95,7 @@ func (e *Entity) StartMeleeAttack() {
 		Damage:        10,
 		TargetRect:    e.GetFrontRect(),
 		ExcludeEntIds: []string{e.ID},
+		Origin:        model.Vec2{X: e.X, Y: e.Y},
 	}, animationInterval*3)
 }
 
@@ -111,6 +113,11 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	logz.Println(e.DisplayName, "current health:", e.Vitals.Health.CurrentVal)
 
 	e.Body.SetDamageFlicker(15)
+
+	moveError := e.TryBumpBack(config.TileSize, defaultRunSpeed, attack.Origin, "", 0)
+	if !moveError.Success {
+		logz.Println(e.DisplayName, "failed to bump back:", moveError)
+	}
 }
 
 func (e *Entity) UnequipWeaponFromBody() {

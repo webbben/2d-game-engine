@@ -550,7 +550,7 @@ func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) Set
 
 func (eb *EntityBodySet) StopAnimation() {
 	if eb.animation == "" {
-		panic("trying to stop animation, but animation already unset?")
+		return
 	}
 	res := eb.SetAnimation("", SetAnimationOps{
 		Force: true,

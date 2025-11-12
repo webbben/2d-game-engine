@@ -84,13 +84,39 @@ const (
 	fullBlock
 )
 
+type AnimationOptions struct {
+	AnimationName         string
+	AnimationTickInterval int
+	SetAnimationOps       body.SetAnimationOps
+}
+
+// This function points the entity in the direction corresponding to the given movement.
+// Ex: dx=-1 and dy=0 corresponds to facing left, and dx=0 dy=-1 corresponds to facing up.
+func (e *Entity) FaceTowards(dx, dy int) {
+	if dx != 0 {
+		if dx > 0 {
+			e.Movement.Direction = model.Directions.Right
+		} else {
+			e.Movement.Direction = model.Directions.Left
+		}
+	} else {
+		if dy > 0 {
+			e.Movement.Direction = model.Directions.Down
+		} else {
+			e.Movement.Direction = model.Directions.Up
+		}
+	}
+
+	e.Body.SetDirection(e.Movement.Direction)
+}
+
 // same as TryMovePx, but lets the entity still move in the direction even if a collision is encountered,
 // as long as there is some space in that direction
-func (e *Entity) TryMoveMaxPx(dx, dy int, run bool) MoveError {
+func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64, animOps AnimationOptions) MoveError {
 	if dx == 0 && dy == 0 {
 		panic("TryMoveMaxPx called with no distance given")
 	}
-	moveError := e.TryMovePx(dx, dy, run)
+	moveError := e.TryMovePx(dx, dy, speed, animOps)
 	if moveError.Collision {
 		// a collision occurred; try to adjust the target by the intersection area
 		cr := moveError.CollisionResult
@@ -204,12 +230,12 @@ func (e *Entity) TryMoveMaxPx(dx, dy int, run bool) MoveError {
 			return moveError
 		}
 
-		return e.TryMovePx(dx, dy, run)
+		return e.TryMovePx(dx, dy, speed, animOps)
 	}
 	return moveError
 }
 
-func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
+func (e *Entity) TryMovePx(dx, dy int, speed float64, animOps AnimationOptions) MoveError {
 	if dx == 0 && dy == 0 {
 		panic("TryMovePx: dx and dy are both 0")
 	}
@@ -218,22 +244,6 @@ func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
 		// cannot move (or change directions) while attacking
 		return MoveError{Cancelled: true}
 	}
-
-	if dx != 0 {
-		if dx > 0 {
-			e.Movement.Direction = model.Directions.Right
-		} else {
-			e.Movement.Direction = model.Directions.Left
-		}
-	} else {
-		if dy > 0 {
-			e.Movement.Direction = model.Directions.Down
-		} else {
-			e.Movement.Direction = model.Directions.Up
-		}
-	}
-
-	e.Body.SetDirection(e.Movement.Direction)
 
 	x := int(e.TargetX) + dx
 	y := int(e.TargetY) + dy
@@ -247,19 +257,8 @@ func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
 		}
 	}
 
-	// attempt to set the movement animation
-	// if the entity body is already doing a different animation (like a weapon swing) then movement may fail
-	anim := body.ANIM_WALK
-	speed := e.Movement.WalkSpeed
-	tickCount := 16
-	if run {
-		anim = body.ANIM_RUN
-		speed = e.Movement.RunSpeed
-		tickCount = 8
-	}
-	animRes := e.Body.SetAnimation(anim, body.SetAnimationOps{})
+	animRes := e.Body.SetAnimation(animOps.AnimationName, animOps.SetAnimationOps)
 	if !animRes.Success && !animRes.AlreadySet {
-		logz.Println(e.DisplayName, "failed to set movement animation:", anim)
 		if animRes.Queued {
 			panic("queued a movement animation - not supposed to do that")
 		}
@@ -275,7 +274,7 @@ func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
 	e.Position.TargetY = float64(y)
 
 	e.Movement.Speed = speed
-	e.Body.SetAnimationTickCount(tickCount)
+	e.Body.SetAnimationTickCount(animOps.AnimationTickInterval)
 
 	if e.Movement.Speed == 0 {
 		panic("movement speed is 0")
@@ -284,12 +283,25 @@ func (e *Entity) TryMovePx(dx, dy int, run bool) MoveError {
 	return MoveError{Success: true}
 }
 
+func (e *Entity) TryBumpBack(px int, speed float64, forceOrigin model.Vec2, anim string, animTickInterval int) MoveError {
+	// calculate dx dy values
+	origin := model.Vec2{X: e.X, Y: e.Y}
+	dest := moveAway(origin, forceOrigin, float64(px))
+	dx := dest.X - origin.X
+	dy := dest.Y - origin.Y
+
+	return e.TryMoveMaxPx(int(dx), int(dy), speed, AnimationOptions{
+		AnimationName:         anim,
+		AnimationTickInterval: animTickInterval,
+		SetAnimationOps: body.SetAnimationOps{
+			Force: true,
+		},
+	})
+}
+
 func (e *Entity) updateMovement() {
 	if e.Movement.Speed == 0 {
 		panic("updateMovement called when speed is 0; speed was not set wherever entity movement was started")
-	}
-	if e.Body.GetCurrentAnimation() == "" {
-		panic("entity is moving but body has no animation set")
 	}
 
 	// check for suggested paths (if entity is currently following a path)
@@ -363,6 +375,12 @@ func moveTowards(pos, target model.Vec2, speed float64) model.Vec2 {
 	return pos.Add(step)
 }
 
+func moveAway(pos, target model.Vec2, speed float64) model.Vec2 {
+	dir := target.Sub(pos)
+	step := dir.Normalize().Scale(speed)
+	return pos.Sub(step)
+}
+
 func (e *Entity) trySetNextTargetPath() MoveError {
 	if len(e.Movement.TargetPath) == 0 {
 		panic("tried to set next target along path for entity that has no set target path")
@@ -372,21 +390,38 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		panic("trySetNextTargetPath: next target is the same tile as current position")
 	}
 
+	if float64(e.TilePos.X) != e.X/config.TileSize || float64(e.TilePos.Y) != e.Y/config.TileSize {
+		logz.Println(e.DisplayName, "trySetNextTargetPath: entity is not at its tile position. Was it bumped by an enemy attack or something?")
+		logz.Println(e.DisplayName, "tilePos:", e.TilePos, "e.X:", e.X/config.TileSize, "e.Y:", e.Y/config.TileSize)
+		logz.Println(e.DisplayName, "Clamping to current tile position. TODO: perhaps we should make a more graceful way of recovering the position than this?")
+		e.TargetX = float64(e.TilePos.X * config.TileSize)
+		e.TargetY = float64(e.TilePos.Y * config.TileSize)
+		e.Movement.IsMoving = true
+		return MoveError{Cancelled: true}
+	}
+
 	curPos := model.Vec2{X: e.X, Y: e.Y}
 	target := model.Vec2{X: float64(nextTarget.X * config.TileSize), Y: float64(nextTarget.Y * config.TileSize)}
 	dist := curPos.Dist(target)
 	dPos := target.Sub(curPos)
 
-	if dist > 16 {
+	if dist > config.TileSize {
 		logz.Println(e.DisplayName, "curPos:", curPos, "target:", target, "dist:", dist)
-		panic("trySetNextTargetPath: next target is not an adjacent tile (dist > 16)")
+		logz.Println(e.DisplayName, "trySetNextTargetPath: next target is not an adjacent tile (dist > 16). Clearing target path.")
+		e.Movement.TargetPath = []model.Coords{}
+		return MoveError{Cancelled: true}
 	}
 
-	moveError := e.TryMovePx(int(dPos.X), int(dPos.Y), false)
+	moveError := e.TryMovePx(int(dPos.X), int(dPos.Y), e.Movement.WalkSpeed, AnimationOptions{
+		AnimationName:         body.ANIM_WALK,
+		AnimationTickInterval: e.Movement.WalkAnimationTickInterval,
+	})
 
 	if !moveError.Success {
 		return moveError
 	}
+
+	e.FaceTowards(int(dPos.X), int(dPos.Y))
 
 	if !e.Movement.IsMoving {
 		panic("movement succeeded, but not moving?")

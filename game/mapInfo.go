@@ -270,6 +270,8 @@ func (mi MapInfo) Collides(r model.Rect, excludeEntId string) model.CollisionRes
 
 	// next, check for regular collisions on the map
 	if !cr.TopLeft.Intersects {
+		// rects in CollisionRects don't have an X or Y value set, so we "offset" them to put them in their actual correct place
+		// then, we check if that collision rect intersects with r.
 		r1 := mi.Map.CollisionRects[tl.Y][tl.X]
 		if r1.IsCollision {
 			cr.TopLeft = r1.OffsetRect(float64(tl.X*config.TileSize), float64(tl.Y*config.TileSize)).IntersectionArea(r)
@@ -300,34 +302,73 @@ func (mi MapInfo) Collides(r model.Rect, excludeEntId string) model.CollisionRes
 		return cr
 	}
 
-	// if no static collisions are found, find any entity collisions
+	// if no static collisions are found, find any entity or object collisions
+	// check the corner points of r and see if they are inside any of the entity/object rects.
+	// if a corner point is inside a rect, then that corresponding corner gets the collision.
+	// if no corner point is inside the rect but there is still a collision (e.g. the two rects aren't the same size) then the collision is set to Other.
 	if mi.PlayerRef != nil {
 		if mi.PlayerRef.Entity.ID != excludeEntId {
-			cr.Other = r.IntersectionArea(mi.PlayerRef.Entity.CollisionRect())
-			if cr.Other.Intersects {
-				return cr
+			newCr := checkCornerCollision(r, mi.PlayerRef.Entity.CollisionRect())
+			if newCr.Collides() {
+				newCr.Assert()
 			}
+			cr.MergeOtherCollisionResult(newCr)
 		}
 	}
 	for _, n := range mi.NPCs {
 		if n.Entity.ID == excludeEntId {
 			continue
 		}
-		cr.Other = r.IntersectionArea(n.Entity.CollisionRect())
-		if cr.Other.Intersects {
-			return cr
+		newCr := checkCornerCollision(r, n.Entity.CollisionRect())
+		if newCr.Collides() {
+			newCr.Assert()
 		}
+		cr.MergeOtherCollisionResult(newCr)
 	}
 
 	// check for collidable objects (gates, etc)
 	for _, obj := range mi.Objects {
-		cr.Other = obj.Collides(r)
-		if cr.Other.Intersects {
-			return cr
+		if !obj.IsCollidable() {
+			continue
 		}
+		newCr := checkCornerCollision(r, obj.GetRect())
+		if newCr.Collides() {
+			newCr.Assert()
+		}
+		cr.MergeOtherCollisionResult(newCr)
 	}
 
 	cr.Assert()
+	return cr
+}
+
+func checkCornerCollision(r, targetRect model.Rect) model.CollisionResult {
+	cr := model.CollisionResult{}
+
+	res := r.IntersectionArea(targetRect)
+	if res.Intersects {
+		corners := 0
+		if res.FromTL {
+			cr.TopLeft = res
+			corners++
+		}
+		if res.FromTR {
+			cr.TopRight = res
+			corners++
+		}
+		if res.FromBL {
+			cr.BottomLeft = res
+			corners++
+		}
+		if res.FromBR {
+			cr.BottomRight = res
+			corners++
+		}
+		if corners > 2 {
+			panic("how can a rect intersect with another rect on more than 2 corners? is it inside the other rect?")
+		}
+	}
+
 	return cr
 }
 
@@ -481,6 +522,9 @@ func (mi *MapInfo) ActivateArea(r model.Rect) bool {
 	var closestObject *object.Object = nil
 	closestObjectDist := float64(config.TileSize * 1000)
 	for _, obj := range mi.Objects {
+		if !obj.IsActivatable() {
+			continue
+		}
 		if r.Intersects(obj.GetRect()) {
 			dist := general_util.EuclideanDistCenter(r, obj.GetRect())
 			if closestObject == nil || dist < closestObjectDist {
@@ -491,8 +535,10 @@ func (mi *MapInfo) ActivateArea(r model.Rect) bool {
 	}
 	if closestObject != nil {
 		result := closestObject.Activate()
+		logz.Println("Activate Area", closestObject.Type, "Activating...")
 
 		if result.UpdateOccurred {
+			logz.Println("Activate Area", closestObject.Type, "Activation occurred")
 			if result.ChangeMapID != "" {
 				mi.gameRef.handleMapDoor(result)
 			}
@@ -528,7 +574,9 @@ func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
 	distThreshold := float64(config.TileSize * 2)
 	// check for object clicks
 	for _, obj := range mi.Objects {
-		logz.Println(obj.Type, "obj drawRect:", obj.GetDrawRect(), "obj rect:", obj.GetRect())
+		if !obj.IsActivatable() {
+			continue
+		}
 		if obj.GetDrawRect().Within(mouseX, mouseY) {
 			if general_util.EuclideanDistCenter(mi.GetPlayerRect(), obj.GetRect()) <= distThreshold {
 				fmt.Println("object clicked")

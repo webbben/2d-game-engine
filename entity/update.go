@@ -65,9 +65,6 @@ func (e *Entity) Update() {
 				if !e.Movement.IsMoving {
 					panic("trySetNextTargetPath succeeded, but still not moving?")
 				}
-			} else {
-				// logz.Println(e.DisplayName, "failed to set next target path:", res)
-				// fmt.Println(res.CollisionResult)
 			}
 		}
 	}
@@ -77,7 +74,7 @@ func (e *Entity) Update() {
 	} else {
 		if e.TargetX != e.X || e.TargetY != e.Y {
 			logz.Println(e.DisplayName, "x:", e.X, "y:", e.Y, "targetX:", e.TargetX, "targetY:", e.TargetY)
-			panic("entity is not moving but hasn't met its goal yet")
+			panic("entity is not moving but hasn't met its goal yet. hint: if you are setting the entity position, use the SetPosition function to ensure Target is updated too.")
 		}
 	}
 

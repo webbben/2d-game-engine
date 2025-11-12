@@ -41,10 +41,10 @@ to quickly create a Cobra application.`,
 		config.ShowPlayerCoords = true
 		config.ShowGameDebugInfo = true
 		//config.DrawGridLines = true
-		//config.ShowEntityPositions = true
+		config.ShowEntityPositions = true
 		//config.TrackMemoryUsage = true
 		//config.HourSpeed = time.Second * 20
-		//config.ShowCollisions = true
+		config.ShowCollisions = true
 		//config.ShowNPCPaths = true
 
 		config.GameDataPathOverride = "/Users/benwebb/dev/personal/ancient-rome"

@@ -7,6 +7,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/general_util"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 )
 
@@ -111,6 +112,7 @@ func (obj *Object) activateLight() ObjectUpdateResult {
 	if obj.Type != TYPE_LIGHT {
 		panic("tried to activate light, but object is not a light")
 	}
+	logz.Println("OBJECT", "light activated")
 	obj.Light.On = !obj.Light.On
 	return ObjectUpdateResult{UpdateOccurred: true}
 }

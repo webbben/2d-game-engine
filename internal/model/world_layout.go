@@ -118,6 +118,10 @@ type Vec2 struct {
 	X, Y float64
 }
 
+func NewVec2(x, y float64) Vec2 {
+	return Vec2{X: x, Y: y}
+}
+
 func (v Vec2) Add(o Vec2) Vec2      { return Vec2{v.X + o.X, v.Y + o.Y} }
 func (v Vec2) Sub(o Vec2) Vec2      { return Vec2{v.X - o.X, v.Y - o.Y} }
 func (v Vec2) Scale(s float64) Vec2 { return Vec2{v.X * s, v.Y * s} }
@@ -170,9 +174,30 @@ func (r Rect) Within(x, y int) bool {
 	return x > int(r.X) && x < int(r.X+r.W) && y > int(r.Y) && y < int(r.Y+r.H)
 }
 
+func (r Rect) VecWithin(v Vec2) bool {
+	return r.Within(int(v.X), int(v.Y))
+}
+
 type IntersectionResult struct {
 	Intersects bool
 	Dx, Dy     float64
+
+	// where the intersection came from, from the perspective of "r" (the main rect the Intersection function was called on)
+	FromTL, FromTR, FromBL, FromBR bool
+}
+
+func (ir *IntersectionResult) MergeIntersectionResult(other IntersectionResult) {
+	if !other.Intersects {
+		return
+	}
+	if !ir.Intersects {
+		ir.Intersects = other.Intersects
+		ir.Dx = other.Dx
+		ir.Dy = other.Dy
+		return
+	}
+	ir.Dx = max(ir.Dx, other.Dx)
+	ir.Dy = max(ir.Dy, other.Dy)
 }
 
 func (ir IntersectionResult) String() string {
@@ -205,6 +230,18 @@ type CollisionResult struct {
 	BottomLeft  IntersectionResult
 	BottomRight IntersectionResult
 	Other       IntersectionResult // for general use when not specifically corner related
+}
+
+// merges the two collision results, basically by taking the "maximum" collision for each corner.
+func (cr *CollisionResult) MergeOtherCollisionResult(other CollisionResult) {
+	if !other.Collides() {
+		return
+	}
+	cr.TopLeft.MergeIntersectionResult(other.TopLeft)
+	cr.TopRight.MergeIntersectionResult(other.TopRight)
+	cr.BottomLeft.MergeIntersectionResult(other.BottomLeft)
+	cr.BottomRight.MergeIntersectionResult(other.BottomRight)
+	cr.Other.MergeIntersectionResult(other.Other)
 }
 
 func (c CollisionResult) String() string {
@@ -252,16 +289,67 @@ func (r Rect) IntersectionArea(other Rect) IntersectionResult {
 	res.Intersects = r.Intersects(other)
 	if res.Intersects {
 		// find intersecting area
-		// for some reason these calculations come out 1 short, so adding 1 here seems to fix it
+		// for some reason these calculations come out 1 short, so adding 1 here seems to fix it (<- err, I guess this was undone? no 1's are being added)
+
+		var left, above bool // "R is left/above Other"
 		if r.X < other.X {
 			res.Dx = (r.X + r.W) - other.X
+			left = true
 		} else {
 			res.Dx = (other.X + other.W) - r.X
+			left = false
 		}
 		if r.Y < other.Y {
+			above = true
 			res.Dy = (r.Y + r.H) - other.Y
 		} else {
+			above = false
 			res.Dy = (other.Y + other.H) - r.Y
+		}
+		if res.Dx == 0 && res.Dy == 0 {
+			panic("intersection, but no overlap found")
+		}
+		// record the corner of r where the intersection happened
+		/*
+			A quick diagram to explain how this works, in case the wording of "FromTL, FromBL" etc gets confused in the future.
+			For R, Other is intersecting "FromBR" (From Bottom Right)
+			So, the "From" directions are from the perspective of R (the Rect this function is called directly on).
+
+			 -----------
+			|           |
+			|           |
+			|    R      |
+			|           |
+			|     ------|-----
+			 ----|------      |
+			     |            |
+			     |   Other    |
+			     |            |
+			      ------------
+		*/
+		corners := 0
+		if left {
+			if above {
+				res.FromBR = true
+				corners++
+			} else {
+				res.FromTR = true
+				corners++
+			}
+		} else {
+			if above {
+				res.FromBL = true
+				corners++
+			} else {
+				res.FromTL = true
+				corners++
+			}
+		}
+		if corners == 0 {
+			panic("intersection, but no relative corner set")
+		}
+		if corners > 2 {
+			panic("intersection somehow has more than 2 intersecting corners set. is R inside Other?")
 		}
 	}
 	return res

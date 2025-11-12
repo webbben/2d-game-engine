@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/webbben/2d-game-engine/definitions"
@@ -79,7 +80,14 @@ func InitialStartUp() error {
 		return err
 	}
 	err = lights.LoadShaders()
-	return err
+	if err != nil {
+		return err
+	}
+
+	// set logs to show microseconds in timestamps
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
+	return nil
 }
 
 func (g *Game) RunGame() error {

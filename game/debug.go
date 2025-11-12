@@ -128,6 +128,25 @@ func (g Game) drawCollisions(screen *ebiten.Image, offsetX, offsetY float64) {
 			}
 		}
 	}
+
+	for _, obj := range g.MapInfo.Objects {
+		if !obj.IsCollidable() {
+			continue
+		}
+		objRect := obj.GetRect()
+		key := fmt.Sprintf("obj:%s", objRect)
+		rectImg, exists := g.debugData.collisionRects[key]
+		if !exists {
+			rectImg = ebiten.NewImage(int(objRect.W), int(objRect.H))
+			rectImg.Fill(color2)
+			g.debugData.collisionRects[key] = rectImg
+		}
+		op := &ebiten.DrawImageOptions{}
+		drawX, drawY := objRect.X-offsetX, objRect.Y-offsetY
+		op.GeoM.Translate(drawX, drawY)
+		op.GeoM.Scale(config.GameScale, config.GameScale)
+		screen.DrawImage(rectImg, op)
+	}
 }
 
 func (g *Game) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY float64) {

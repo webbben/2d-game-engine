@@ -16,8 +16,10 @@ import (
 )
 
 var (
-	defaultWalkSpeed float64 = float64(config.TileSize) / 18
-	defaultRunSpeed  float64 = float64(config.TileSize) / 12
+	defaultWalkSpeed                 float64 = float64(config.TileSize) / 18
+	defaultRunSpeed                  float64 = float64(config.TileSize) / 12
+	defaultWalkAnimationTickInterval         = 10
+	defaultRunAnimationTickInterval          = 6
 )
 
 func GetDefaultWalkSpeed() float64 {
@@ -117,8 +119,10 @@ type WorldContext interface {
 }
 
 type MovementProps struct {
-	WalkSpeed float64
-	RunSpeed  float64
+	WalkSpeed                 float64
+	WalkAnimationTickInterval int
+	RunSpeed                  float64
+	RunAnimationTickInterval  int
 }
 
 type AudioProps struct {
@@ -150,6 +154,12 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 		logz.Warnln("", "loaded entity does not have a run speed; setting default value.")
 		mv.RunSpeed = GetDefaultRunSpeed()
 	}
+	if mv.WalkAnimationTickInterval == 0 {
+		mv.WalkAnimationTickInterval = defaultWalkAnimationTickInterval
+	}
+	if mv.RunAnimationTickInterval == 0 {
+		mv.RunAnimationTickInterval = defaultRunAnimationTickInterval
+	}
 
 	ent := Entity{
 		EntityInfo: EntityInfo{
@@ -158,8 +168,10 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 			ID:          general_util.GenerateUUID(),
 		},
 		Movement: Movement{
-			WalkSpeed: mv.WalkSpeed,
-			RunSpeed:  mv.RunSpeed,
+			WalkSpeed:                 mv.WalkSpeed,
+			RunSpeed:                  mv.RunSpeed,
+			WalkAnimationTickInterval: mv.WalkAnimationTickInterval,
+			RunAnimationTickInterval:  mv.RunAnimationTickInterval,
 		},
 		InventoryItems: make([]*item.InventoryItem, general.InventorySize),
 	}
@@ -231,11 +243,13 @@ type Position struct {
 type Movement struct {
 	Direction byte `json:"-"` // L R U D
 
-	IsMoving    bool    `json:"-"`
-	Interrupted bool    `json:"-"`          // flag for if this entity's movement was stopped unexpectedly (e.g. by a collision)
-	WalkSpeed   float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
-	RunSpeed    float64
-	Speed       float64 `json:"-"` // actual speed the entity is moving at
+	IsMoving                  bool    `json:"-"`
+	Interrupted               bool    `json:"-"`          // flag for if this entity's movement was stopped unexpectedly (e.g. by a collision)
+	WalkSpeed                 float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
+	RunSpeed                  float64
+	Speed                     float64 `json:"-"` // actual speed the entity is moving at
+	WalkAnimationTickInterval int
+	RunAnimationTickInterval  int
 
 	TargetTile          model.Coords   `json:"-"` // next tile the entity is currently moving
 	TargetPath          []model.Coords `json:"-"` // path the entity is currently trying to travel on
@@ -243,6 +257,13 @@ type Movement struct {
 }
 
 func (e *Entity) SetPosition(c model.Coords) {
+	mapWidth, mapHeight := e.World.MapDimensions()
+	if c.X > mapWidth {
+		panic("c.X is outside of map bounds")
+	}
+	if c.Y > mapHeight {
+		panic("c.Y is outside of map bounds")
+	}
 	e.TilePos = c
 	e.X = float64(c.X) * float64(config.TileSize)
 	e.Y = float64(c.Y) * float64(config.TileSize)
