@@ -92,18 +92,25 @@ type AnimationOptions struct {
 
 // This function points the entity in the direction corresponding to the given movement.
 // Ex: dx=-1 and dy=0 corresponds to facing left, and dx=0 dy=-1 corresponds to facing up.
-func (e *Entity) FaceTowards(dx, dy int) {
-	if dx != 0 {
-		if dx > 0 {
-			e.Movement.Direction = model.Directions.Right
-		} else {
+func (e *Entity) FaceTowards(dx, dy float64) {
+	if dx == 0 && dy == 0 {
+		// no direction to face towards; just stay as is.
+		return
+	}
+	// since we can't "face" diagonally, first find out which value (dx or dy) is of greater magnitude.
+	horizontal := math.Abs(dx) >= math.Abs(dy)
+
+	if horizontal {
+		if dx < 0 {
 			e.Movement.Direction = model.Directions.Left
+		} else {
+			e.Movement.Direction = model.Directions.Right
 		}
 	} else {
-		if dy > 0 {
-			e.Movement.Direction = model.Directions.Down
-		} else {
+		if dy < 0 {
 			e.Movement.Direction = model.Directions.Up
+		} else {
+			e.Movement.Direction = model.Directions.Down
 		}
 	}
 
@@ -421,7 +428,7 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		return moveError
 	}
 
-	e.FaceTowards(int(dPos.X), int(dPos.Y))
+	e.FaceTowards(dPos.X, dPos.Y)
 
 	if !e.Movement.IsMoving {
 		panic("movement succeeded, but not moving?")

@@ -14,6 +14,7 @@ import (
 
 type Player struct {
 	Entity *entity.Entity
+	MovementMechanics
 
 	CoinPurse []*item.InventoryItem // items in the player's coin purse. note that coins can also be put in regular inventory slots.
 

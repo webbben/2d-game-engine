@@ -11,6 +11,11 @@ import (
 	"github.com/webbben/2d-game-engine/internal/model"
 )
 
+// keep track of variables or state related to managing movement mechanics
+type MovementMechanics struct {
+	ticksSinceLastMouseDirect int
+}
+
 func (p Player) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 	if p.Entity == nil {
 		panic("tried to draw player that doesn't have entity")
@@ -47,12 +52,15 @@ func (p *Player) handleMovement() {
 		v.Y += 1
 	}
 
-	if v.X == 0 && v.Y == 0 {
-		// no movement
-		return
-	}
-
 	running := ebiten.IsKeyPressed(ebiten.KeyShift)
+	faceMouse := ebiten.IsMouseButtonPressed(ebiten.MouseButtonRight)
+	if faceMouse {
+		// can't run while sidleing/facing mouse position
+		running = false
+	}
+	if p.ticksSinceLastMouseDirect < 100 {
+		p.ticksSinceLastMouseDirect++ // don't need to increment forever, just used to check for a small number of ticks
+	}
 
 	isDiagonal := v.X != 0 && v.Y != 0
 
@@ -74,16 +82,27 @@ func (p *Player) handleMovement() {
 		scaled.Y = math.Round(scaled.Y * 2)
 	}
 
-	e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y), speed, entity.AnimationOptions{
-		AnimationName:         animation,
-		AnimationTickInterval: animationTickInterval,
-	})
-	if !e.Success {
-		logz.Println(p.Entity.DisplayName, e)
+	if v.X != 0 || v.Y != 0 {
+		e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y), speed, entity.AnimationOptions{
+			AnimationName:         animation,
+			AnimationTickInterval: animationTickInterval,
+		})
+		if !e.Success {
+			logz.Println(p.Entity.DisplayName, e)
+		}
 	}
 	if !p.Entity.Body.IsAttacking() {
-		// TODO probably need a more long term solution than this - e.g. what if there are other animation types?
-		p.Entity.FaceTowards(int(scaled.X), int(scaled.Y))
+		// if using faceMouse, make sure the player can't do it too rapidly
+		if faceMouse {
+			if p.ticksSinceLastMouseDirect > 5 {
+				p.ticksSinceLastMouseDirect = 0
+				mouseX, mouseY := ebiten.CursorPosition()
+				r := p.Entity.GetDrawRect()
+				p.Entity.FaceTowards(float64(mouseX)-r.X, float64(mouseY)-r.Y)
+			}
+		} else {
+			p.Entity.FaceTowards(scaled.X, scaled.Y)
+		}
 	}
 }
 
