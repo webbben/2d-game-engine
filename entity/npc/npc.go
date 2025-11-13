@@ -55,7 +55,7 @@ type NPCInfo struct {
 
 type TaskMGMT struct {
 	Active              bool // if the NPC is actively doing a task right now
-	CurrentTask         *Task
+	CurrentTask         Task
 	TaskQueue           []*Task // TODO queue of tasks to run one after the other. not implemented yet.
 	waitUntil           time.Time
 	waitUntilDoneMoving bool // if set, will wait until entity has stopped moving before processing next update
@@ -75,48 +75,18 @@ var ErrAlreadyActive error = errors.New("NPC already has an active task")
 //
 // Directly using this task outside of the game engine would be for setting customly defined tasks.
 func (n *NPC) SetTask(t Task) error {
+	if t == nil {
+		panic("SetTask: task is nil")
+	}
 	if n.Active {
 		logz.Warnln(n.DisplayName, "tried to set task on already active NPC")
 		return ErrAlreadyActive
 	}
 
-	t.Owner = n
-	t.status = TASK_STATUS_NOTSTARTED
-	n.CurrentTask = &t
+	t.SetOwner(n)
+	n.CurrentTask = t
 	n.Active = true
 	return nil
-}
-
-// Sets a fundamental GoTo task. This is a built-in task that sends the NPC to the given destination.
-//
-// Built-in logic:
-// - NPC attempts to go to the goal position
-// - if it fails, or is interrupted somehow, the task will end.
-func (n *NPC) SetGotoTask(goalPos model.Coords) error {
-	task := Task{
-		ID:          general_util.GenerateUUID(),
-		Name:        "GoTo",
-		Description: "Travel to the designated position",
-		GotoTask: GotoTask{
-			goalPos:   goalPos,
-			isGoingTo: true,
-		},
-	}
-
-	return n.SetTask(task)
-}
-
-func (n *NPC) SetFollowTask(targetEntity *entity.Entity, distance int) error {
-	task := Task{
-		ID: general_util.GenerateUUID(),
-		FollowTask: FollowTask{
-			targetEntity: targetEntity,
-			distance:     distance,
-			isFollowing:  true,
-		},
-	}
-
-	return n.SetTask(task)
 }
 
 // Ends the current task. Causes the task to run its "end" hook logic.
@@ -125,7 +95,7 @@ func (n *NPC) EndCurrentTask() {
 		logz.Warnln(n.DisplayName, "tried to cancel current task, but no current task exists.")
 		return
 	}
-	n.CurrentTask.stop = true
+	n.CurrentTask.Cleanup()
 }
 
 // Interrupt regular NPC updates for a certain duration

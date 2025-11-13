@@ -29,14 +29,11 @@ func (n *NPC) npcUpdates() {
 		}
 		n.waitUntilDoneMoving = false
 	}
-	if n.OnUpdateFn != nil {
-		n.OnUpdateFn(n)
-	}
 	if n.Active {
 		if n.CurrentTask == nil {
 			panic("NPC is marked as active, but there is no current task set")
 		}
-		n.CurrentTask.update()
+		n.HandleTaskUpdate()
 	} else {
 		n.SetTask(n.DefaultTask)
 	}

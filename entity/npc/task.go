@@ -4,259 +4,155 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/internal/logz"
-	"github.com/webbben/2d-game-engine/internal/model"
 )
+
+type TaskStatus string
 
 const (
 	// the task has not started yet
-	TASK_STATUS_NOTSTARTED = "not_yet_started"
+	TASK_STATUS_NOTSTARTED TaskStatus = "not_yet_started"
 	// task has only started, and no update has occurred yet
-	TASK_STATUS_START = "start"
+	TASK_STATUS_START TaskStatus = "start"
 	// task has started processing updates
-	TASK_STATUS_INPROG = "in_progress"
+	TASK_STATUS_INPROG TaskStatus = "in_progress"
 	// task has ended and is no longer active
-	TASK_STATUS_END = "end"
+	TASK_STATUS_END TaskStatus = "end"
 )
 
-type Task struct {
-	Owner       *NPC
-	Description string
-	// Type        string
-	ID   string
-	Name string
+type Task interface {
+	// the NPC who "owns" this task (i.e. the NPC who is currently running this task)
+	GetOwner() *NPC
+	SetOwner(ownerNPC *NPC)
 
-	status string // current status of function
-	stop   bool   // if set to true, causes end function to be called
-	done   bool   // flag that indicates this task is finished or ended. causes no further updates to process.
+	GetDescription() string
+	SetDescription(desc string)
+
+	GetID() string
+	SetID(id string)
+
+	GetName() string
+	SetName(name string)
+
+	GetStatus() TaskStatus // current status of function
+	SetStatus(status TaskStatus)
+
+	IsDone() bool // flag that indicates this task is finished or ended. causes no further updates to process.
+	SetDone()
 
 	// Optional custom logic for task completion
-	IsCompleteFn func(t Task) bool
+	IsComplete() bool
 	// Optional custom logic for task failure
-	IsFailureFn func(t Task) bool
+	IsFailure() bool
 
-	// Optional custom logic for Start hook
-	StartFn func(t *Task)
-	// Optional custom logic for Update hook
-	OnUpdateFn func(t *Task)
-	// Optional custom logic for End hook
-	EndFn func(t *Task)
-
-	StartTime time.Time
-	started   bool // flag that signals this task has started already
-	Timeout   time.Duration
-	Restart   bool // flag to restart the task over again
-
-	// key/value storage for misc memory between hooks.
-	// Only use this if existing task properties and features don't handle the use case.
-	Context map[string]interface{}
-
-	// fundamental built-in task logic
-	GotoTask
-	FollowTask
+	// logic to execute in order to start the task
+	Start()
+	// logic to execute on each update tick
+	Update()
+	// logic to execute when task is done - in case some kind of cleanup should occur
+	Cleanup()
 
 	// background task assistance
-	lastBackgroundAssist time.Time // last time a the bg task loop assisted this task
+	BackgroundAssist()
+	//lastBackgroundAssist time.Time // last time a the bg task loop assisted this task
 }
 
-// Returns the current programmatic status of the task.
-func (t Task) GetStatus() string {
-	t.validateStatus()
-	return t.status
+type TaskBase struct {
+	Owner       *NPC
+	Description string
+	ID          string
+	Name        string
+	Status      TaskStatus
+}
+
+func NewTaskBase(id, name, desc string) TaskBase {
+	return TaskBase{
+		ID:          id,
+		Name:        name,
+		Description: desc,
+		Status:      TASK_STATUS_NOTSTARTED,
+	}
+}
+
+func (tb TaskBase) GetOwner() *NPC {
+	return tb.Owner
+}
+func (tb *TaskBase) SetOwner(n *NPC) {
+	tb.Owner = n
+}
+func (tb TaskBase) GetDescription() string {
+	return tb.Description
+}
+func (tb *TaskBase) SetDescription(desc string) {
+	tb.Description = desc
+}
+func (tb TaskBase) GetID() string {
+	return tb.ID
+}
+func (tb *TaskBase) SetID(id string) {
+	tb.ID = id
+}
+func (tb TaskBase) GetName() string {
+	return tb.Name
+}
+func (tb *TaskBase) SetName(name string) {
+	tb.Name = name
+}
+func (tb TaskBase) GetStatus() TaskStatus {
+	return tb.Status
+}
+func (tb *TaskBase) SetStatus(status TaskStatus) {
+	tb.Status = status
+}
+func (tb TaskBase) IsDone() bool {
+	return tb.Status == TASK_STATUS_END
+}
+func (tb *TaskBase) SetDone() {
+	tb.Status = TASK_STATUS_END
 }
 
 // does various checks to ensure task status is consistent with other state variables.
-func (t Task) validateStatus() {
-	if !(t.status == TASK_STATUS_START ||
-		t.status == TASK_STATUS_INPROG ||
-		t.status == TASK_STATUS_END ||
-		t.status == TASK_STATUS_NOTSTARTED) {
-		panic("invalid task status:" + t.status)
+func validateStatus(t Task) {
+	status := t.GetStatus()
+	if !(status == TASK_STATUS_START ||
+		status == TASK_STATUS_INPROG ||
+		status == TASK_STATUS_END ||
+		status == TASK_STATUS_NOTSTARTED) {
+		panic("invalid task status:" + status)
 	}
-	if t.status == TASK_STATUS_END {
-		if t.Owner != nil {
+	if status == TASK_STATUS_END {
+		if t.GetOwner() != nil {
 			panic("task.validateStatus: task has ended but still has an owner")
 		}
-		if !t.done {
+		if !t.IsDone() {
 			panic("task.validateStatus: task has ended but 'done' bool is still false")
 		}
 	} else {
-		if t.done {
+		if t.IsDone() {
 			panic("task.validateStatus: task marked as 'done' but hasn't ended yet")
 		}
 	}
 }
 
-type GotoTask struct {
-	goalPos   model.Coords
-	isGoingTo bool
-}
-
-type FollowTask struct {
-	targetEntity    *entity.Entity
-	targetPosition  model.Coords // the last calculated target position
-	distance        int          // number of tiles behind the target entity to stand. default, 0, means the tile directly behind.
-	isFollowing     bool
-	recalculatePath bool // if set, indicates NPC should recalculate the path to the target
-}
-
-func (t Task) Copy() Task {
-	task := Task{
-		Owner:        nil,
-		Description:  t.Description,
-		StartFn:      t.StartFn,
-		IsCompleteFn: t.IsCompleteFn,
-		IsFailureFn:  t.IsFailureFn,
-		OnUpdateFn:   t.OnUpdateFn,
-		EndFn:        t.EndFn,
-		Timeout:      t.Timeout,
-		Context:      make(map[string]interface{}),
-
-		GotoTask: t.GotoTask,
+func (n *NPC) HandleTaskUpdate() {
+	if n.CurrentTask.GetOwner() == nil {
+		panic("tried to run task that has no owner set")
 	}
-	return task
-}
-
-func (t *Task) start() {
-	if t.Owner == nil {
-		panic("tried to start task that has no owner")
-	}
-	t.StartTime = time.Now()
-	t.started = true
-	t.done = false
-	if t.Restart {
-		logz.Println(t.Owner.DisplayName, "restarting task")
-		t.Restart = false // if restarting, be sure to unset this flag
-	}
-	t.status = TASK_STATUS_START
-
-	// fundamental task logic
-	if t.GotoTask.isGoingTo {
-		t.startGoto()
-		return
-	}
-	if t.FollowTask.isFollowing {
-		t.startFollow()
+	if n.CurrentTask.IsDone() {
 		return
 	}
 
-	// custom task logic
-	if t.StartFn != nil {
-		t.StartFn(t)
+	switch n.CurrentTask.GetStatus() {
+	case TASK_STATUS_NOTSTARTED:
+		n.CurrentTask.Start()
+	default:
+		n.CurrentTask.Update()
 	}
 
-	// prevent restart loops (in case custom start function causes restarts)
-	if t.Restart {
-		panic("task.start: start hook is not allowed to trigger restarts! this could cause endless restart loops.")
-	}
+	validateStatus(n.CurrentTask)
 }
 
-func (t Task) isComplete() bool {
-	if !t.started {
-		return false
-	}
-
-	// fundamental task logic
-	if t.GotoTask.isGoingTo {
-		return t.isCompleteGoto()
-	}
-
-	// custom task logic
-	if t.IsCompleteFn != nil {
-		return t.IsCompleteFn(t)
-	}
-	return false
-}
-
-func (t Task) isFailure() bool {
-	if !t.started {
-		return false
-	}
-	if t.Timeout != 0 {
-		if time.Since(t.StartTime) > t.Timeout {
-			return true
-		}
-	}
-	if t.IsFailureFn == nil {
-		return false
-	}
-	return t.IsFailureFn(t)
-}
-
-func (t *Task) update() {
-	if t.done {
-		return
-	}
-	// task state validation
-	t.validateStatus()
-	t.verifyFundamentalTasks()
-
-	if !t.started || t.Restart {
-		t.start()
-		return
-	}
-	if t.isComplete() || t.stop {
-		t.end()
-		return
-	}
-	if t.isFailure() || t.stop {
-		t.end()
-		return
-	}
-
-	// fundamental task logic
-	t.status = TASK_STATUS_INPROG
-	if t.GotoTask.isGoingTo {
-		t.updateGoto()
-		return
-	}
-	if t.FollowTask.isFollowing {
-		t.updateFollow()
-		return
-	}
-
-	// if no fundamental task logic, use any customized onUpdate logic
-	if t.OnUpdateFn != nil {
-		t.OnUpdateFn(t)
-		return
-	}
-
-	// no update logic found?
-	//panic("task.update: no update logic executed for this task. tasks are currently required to have an update function.")
-}
-
-// it is not allowed for multiple fundamental tasks to be active at once.
-// ensure that no more than a single task is currently active.
-func (t Task) verifyFundamentalTasks() {
-	active := 0
-	if t.GotoTask.isGoingTo {
-		active++
-	}
-	if t.FollowTask.isFollowing {
-		if active > 0 {
-			panic("VerifyTaskGoals: followTask: another task is already active!")
-		}
-		active++
-	}
-}
-
-// runs once a task has officially ended. may be used for "wrap up" logic.
-// task will be disconnected from owner NPC and set to done, so no further updates will occur.
-func (t *Task) end() {
-	if t.Owner == nil {
-		panic("tried to end a task that has no owner assigned")
-	}
-	if t.EndFn != nil {
-		t.EndFn(t)
-	}
-	t.Owner.Active = false
-	t.Owner = nil // remove owner reference
-	t.done = true
-	t.status = TASK_STATUS_END
-}
-
-func (t *Task) handleNPCCollision(continueFunc func()) {
+func (t *TaskBase) HandleNPCCollision(continueFunc func()) {
 	if !t.Owner.Entity.Movement.Interrupted {
 		return
 	}
@@ -298,15 +194,5 @@ func (t *Task) handleNPCCollision(continueFunc func()) {
 		// this NPC has higher priority, so it can re-route first
 		continueFunc()
 		return
-	}
-}
-
-func (t *Task) BackgroundAssist() {
-	if time.Since(t.lastBackgroundAssist) < time.Millisecond*500 {
-		// last assist was too recent
-		return
-	}
-	if t.FollowTask.isFollowing {
-		t.followBackgroundAssist()
 	}
 }
