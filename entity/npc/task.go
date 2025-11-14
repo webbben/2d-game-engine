@@ -7,18 +7,29 @@ import (
 	"github.com/webbben/2d-game-engine/internal/logz"
 )
 
-type TaskStatus string
+type TaskStatus int
 
 const (
 	// the task has not started yet
-	TASK_STATUS_NOTSTARTED TaskStatus = "not_yet_started"
-	// task has only started, and no update has occurred yet
-	TASK_STATUS_START TaskStatus = "start"
+	TASK_STATUS_NOTSTARTED TaskStatus = iota
 	// task has started processing updates
-	TASK_STATUS_INPROG TaskStatus = "in_progress"
+	TASK_STATUS_INPROG
 	// task has ended and is no longer active
-	TASK_STATUS_END TaskStatus = "end"
+	TASK_STATUS_END
 )
+
+func (ts TaskStatus) String() string {
+	switch ts {
+	case TASK_STATUS_NOTSTARTED:
+		return "NOTSTARTED (0)"
+	case TASK_STATUS_INPROG:
+		return "INPROG (1)"
+	case TASK_STATUS_END:
+		return "END (2)"
+	default:
+		return "(Error: task status not given a string representation yet)"
+	}
+}
 
 type Task interface {
 	// the NPC who "owns" this task (i.e. the NPC who is currently running this task)
@@ -37,8 +48,8 @@ type Task interface {
 	GetStatus() TaskStatus // current status of function
 	SetStatus(status TaskStatus)
 
-	IsDone() bool // flag that indicates this task is finished or ended. causes no further updates to process.
-	SetDone()
+	IsDone() bool   // flag that indicates this task is finished or ended. causes no further updates to process.
+	IsActive() bool // indicates that the task is currently underway (already started, and hasn't stopped yet)
 
 	// Optional custom logic for task completion
 	IsComplete() bool
@@ -49,8 +60,8 @@ type Task interface {
 	Start()
 	// logic to execute on each update tick
 	Update()
-	// logic to execute when task is done - in case some kind of cleanup should occur
-	Cleanup()
+	// logic to execute to end the task; do any cleanup necessary, and ensure that IsDone returns true.
+	End()
 
 	// background task assistance
 	BackgroundAssist()
@@ -107,18 +118,17 @@ func (tb *TaskBase) SetStatus(status TaskStatus) {
 func (tb TaskBase) IsDone() bool {
 	return tb.Status == TASK_STATUS_END
 }
-func (tb *TaskBase) SetDone() {
-	tb.Status = TASK_STATUS_END
+func (tb TaskBase) IsActive() bool {
+	return tb.Status > TASK_STATUS_NOTSTARTED && tb.Status < TASK_STATUS_END
 }
 
 // does various checks to ensure task status is consistent with other state variables.
 func validateStatus(t Task) {
 	status := t.GetStatus()
-	if !(status == TASK_STATUS_START ||
-		status == TASK_STATUS_INPROG ||
+	if !(status == TASK_STATUS_INPROG ||
 		status == TASK_STATUS_END ||
 		status == TASK_STATUS_NOTSTARTED) {
-		panic("invalid task status:" + status)
+		panic("invalid task status:" + status.String())
 	}
 	if status == TASK_STATUS_END {
 		if t.GetOwner() != nil {

@@ -175,7 +175,7 @@ func (nm *NPCManager) _asyncJobs() {
 		}
 
 		for _, n := range nm.NPCs {
-			if !n.Active {
+			if !n.IsActive() {
 				continue
 			}
 

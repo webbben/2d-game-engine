@@ -11,6 +11,7 @@ import (
 )
 
 type NPC struct {
+	debug debug
 	NPCInfo
 	Entity *entity.Entity
 
@@ -54,7 +55,6 @@ type NPCInfo struct {
 }
 
 type TaskMGMT struct {
-	Active              bool // if the NPC is actively doing a task right now
 	CurrentTask         Task
 	TaskQueue           []*Task // TODO queue of tasks to run one after the other. not implemented yet.
 	waitUntil           time.Time
@@ -67,6 +67,14 @@ type TaskMGMT struct {
 	StuckCount int
 }
 
+// checks if the npc is currently working on a task
+func (tm TaskMGMT) IsActive() bool {
+	if tm.CurrentTask == nil {
+		return false
+	}
+	return !tm.CurrentTask.IsDone()
+}
+
 // Error indicates the NPC is already active with a task
 var ErrAlreadyActive error = errors.New("NPC already has an active task")
 
@@ -74,18 +82,21 @@ var ErrAlreadyActive error = errors.New("NPC already has an active task")
 // For setting fundamental tasks, use the respective Set<taskType>Task command.
 //
 // Directly using this task outside of the game engine would be for setting customly defined tasks.
-func (n *NPC) SetTask(t Task) error {
+func (n *NPC) SetTask(t Task, force bool) error {
 	if t == nil {
 		panic("SetTask: task is nil")
 	}
-	if n.Active {
-		logz.Warnln(n.DisplayName, "tried to set task on already active NPC")
-		return ErrAlreadyActive
+	if n.IsActive() {
+		if force {
+			// TODO force quit current task
+		} else {
+			logz.Warnln(n.DisplayName, "tried to set task on already active NPC")
+			return ErrAlreadyActive
+		}
 	}
 
 	t.SetOwner(n)
 	n.CurrentTask = t
-	n.Active = true
 	return nil
 }
 
@@ -95,7 +106,7 @@ func (n *NPC) EndCurrentTask() {
 		logz.Warnln(n.DisplayName, "tried to cancel current task, but no current task exists.")
 		return
 	}
-	n.CurrentTask.Cleanup()
+	n.CurrentTask.End()
 }
 
 // Interrupt regular NPC updates for a certain duration

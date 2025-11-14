@@ -42,8 +42,13 @@ func NewFollowTask(target *entity.Entity, distance int) FollowTask {
 	return t
 }
 
-func (t *FollowTask) Cleanup() {
+func (n *NPC) SetFollowTask(target *entity.Entity, distance int, force bool) error {
+	t := NewFollowTask(target, distance)
+	return n.SetTask(&t, force)
+}
 
+func (t *FollowTask) End() {
+	t.Status = TASK_STATUS_END
 }
 func (t FollowTask) IsComplete() bool {
 	return false
@@ -60,6 +65,7 @@ func (t *FollowTask) Start() {
 		t.Owner.WaitUntilNotMoving()
 		return
 	}
+	t.Status = TASK_STATUS_INPROG
 
 	// when following an entity, the NPC tries to go directly behind it.
 	// so, if the entity as at position x/y and facing 'R', then this NPC will try to go to x-1/y
@@ -101,6 +107,8 @@ func _followGetTargetPosition(e entity.Entity, dist int) model.Coords {
 }
 
 func (t *FollowTask) Update() {
+	t.Status = TASK_STATUS_INPROG
+
 	t.HandleNPCCollision(t.Start)
 
 	if t.restart {

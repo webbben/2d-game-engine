@@ -155,8 +155,10 @@ func setupGameState() *game.Game {
 		DialogID: "dialog1",
 	})
 
-	followTask := npc.NewFollowTask(&playerEnt, 0)
-	n.SetTask(&followTask)
+	err = n.SetFightTask(&playerEnt, false)
+	if err != nil {
+		panic(err)
+	}
 
 	g.MapInfo.AddNPCToMap(&n, model.Coords{X: 0, Y: 0})
 
