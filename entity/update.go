@@ -54,9 +54,10 @@ func (e *Entity) Update() {
 	if !e.Loaded {
 		panic("entity not loaded yet!")
 	}
-	drawRect := e.GetDrawRect()
-	// TODO do we need this anymore? clicks are now managed in MapInfo logic via central handler function
-	e.MouseBehavior.Update(int(drawRect.X), int(drawRect.Y), int(drawRect.W), int(drawRect.H), false)
+
+	if e.stunTicks > 0 {
+		e.stunTicks--
+	}
 
 	if !e.Movement.IsMoving {
 		if len(e.Movement.TargetPath) > 0 {
@@ -64,6 +65,16 @@ func (e *Entity) Update() {
 			if res.Success {
 				if !e.Movement.IsMoving {
 					panic("trySetNextTargetPath succeeded, but still not moving?")
+				}
+			} else {
+				// failed to set next path
+				logz.Println(e.DisplayName, "failed to set next target path:", res)
+				if res.AlreadyMoving {
+					logz.Panicf("movement failed because we are already moving... but IsMoving is false? %s", res)
+				}
+				// ensure no movement animation is still active
+				if e.Body.IsMoving() {
+					e.Body.StopAnimation()
 				}
 			}
 		}
@@ -75,6 +86,12 @@ func (e *Entity) Update() {
 		if e.TargetX != e.X || e.TargetY != e.Y {
 			logz.Println(e.DisplayName, "x:", e.X, "y:", e.Y, "targetX:", e.TargetX, "targetY:", e.TargetY)
 			panic("entity is not moving but hasn't met its goal yet. hint: if you are setting the entity position, use the SetPosition function to ensure Target is updated too.")
+		}
+		if e.Body.IsMoving() {
+			logz.Panicf(`
+				[%s] entity is not moving, but body is still doing a movement animation. 
+				(Hint: this is sometimes related to the 'light stop' done inside updateMovement)
+			`, e.DisplayName)
 		}
 	}
 

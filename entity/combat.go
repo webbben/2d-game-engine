@@ -10,8 +10,11 @@ import (
 type attackManager struct {
 	attackQueued         bool
 	attackTicksRemaining int
-	queuedAttack         AttackInfo
-	waitingToAttack      bool // set when entity should trigger attack once movement or other things are done
+	// for "queuing" attacks to happen, when the attack should not register at the start of the attack animation.
+	// for example, if a swing animation has a cock-back portion that is two frames, you may want to "queue" the attack to happen after two ticks
+	// so that the damage is applied at the right timing.
+	queuedAttack    AttackInfo
+	waitingToAttack bool // set when entity should trigger attack once movement or other things are done
 }
 
 func (am *attackManager) clearAttack() {
@@ -49,6 +52,7 @@ func (e *Entity) updateAttackManager() {
 
 type AttackInfo struct {
 	Damage        int
+	StunTicks     int
 	TargetRect    model.Rect
 	ExcludeEntIds []string
 	Origin        model.Vec2
@@ -79,6 +83,10 @@ func (e *Entity) StartMeleeAttack() {
 	if e.Body.WeaponSet.None {
 		panic("tried to swing weapon, but no weapon is equiped")
 	}
+	if e.IsStunned() {
+		return
+	}
+
 	animationInterval := 6
 	e.Body.SetAnimationTickCount(animationInterval)
 	res := e.Body.SetAnimation(body.ANIM_SLASH, body.SetAnimationOps{DoOnce: true})
@@ -93,6 +101,7 @@ func (e *Entity) StartMeleeAttack() {
 
 	e.attackManager.queueAttack(AttackInfo{
 		Damage:        10,
+		StunTicks:     20,
 		TargetRect:    e.GetFrontRect(),
 		ExcludeEntIds: []string{e.ID},
 		Origin:        model.Vec2{X: e.X, Y: e.Y},
@@ -109,6 +118,15 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 		return
 	}
 
+	if e.Body.IsAttacking() {
+		// attack animations should be interrupted
+		e.Body.StopAnimation()
+	}
+	if e.attackManager.attackQueued {
+		// if an attack is interrupted, clear the queued damage signal
+		e.attackManager.clearAttack()
+	}
+
 	e.Vitals.Health.CurrentVal -= attack.Damage
 	logz.Println(e.DisplayName, "current health:", e.Vitals.Health.CurrentVal)
 
@@ -118,15 +136,33 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	if !moveError.Success {
 		logz.Println(e.DisplayName, "failed to bump back:", moveError)
 	}
+
+	if attack.StunTicks > 0 {
+		e.stun(attack.StunTicks)
+	}
+}
+
+func (e *Entity) stun(ticks int) {
+	e.stunTicks = ticks
+}
+
+func (e Entity) IsStunned() bool {
+	return e.stunTicks > 0
 }
 
 func (e *Entity) UnequipWeaponFromBody() {
+	if e.IsStunned() {
+		return
+	}
 	e.Body.WeaponSet.None = true
 	e.Body.WeaponFxSet.None = true
 	e.Body.Load()
 }
 
 func (e *Entity) EquipWeapon(weaponDef body.SelectedPartDef, weaponFxDef body.SelectedPartDef) {
+	if e.IsStunned() {
+		return
+	}
 	e.Body.SetWeapon(weaponDef, weaponFxDef)
 }
 

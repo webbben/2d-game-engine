@@ -65,11 +65,14 @@ func (t *FollowTask) Start() {
 	if t.Owner == nil {
 		panic("no owner set")
 	}
+
+	t.Status = TASK_STATUS_INPROG
+
 	if t.Owner.Entity.Movement.IsMoving {
+		t.restart = true
 		t.Owner.WaitUntilNotMoving()
 		return
 	}
-	t.Status = TASK_STATUS_INPROG
 
 	// when following an entity, the NPC tries to go directly behind it.
 	// so, if the entity as at position x/y and facing 'R', then this NPC will try to go to x-1/y
@@ -153,6 +156,12 @@ func (t *FollowTask) Update() {
 		logz.Println(t.Owner.DisplayName, "follow: NPC unexpected has empty path!")
 		t.Start()
 		return
+	}
+
+	// not at target position and target path is not empty... but not moving for some reason? seems like a bad state to me
+	if !t.Owner.Entity.Movement.IsMoving {
+		t.Owner.Wait(time.Second)
+		t.restart = true
 	}
 }
 

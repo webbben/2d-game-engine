@@ -539,8 +539,8 @@ func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) Set
 			logz.Println(eb.Name, "next animation queued:", animation)
 			return SetAnimationResult{Queued: true}
 		}
-		logz.Println(eb.Name, "Force:", ops.Force)
-		logz.Println(eb.Name, "attempted to set animation:", animation, "animation already set:", eb.animation)
+		//logz.Println(eb.Name, "Force:", ops.Force)
+		//logz.Println(eb.Name, "attempted to set animation:", animation, "animation already set:", eb.animation)
 		return SetAnimationResult{FailedToSet: true}
 	}
 	eb.stopAnimationOnCompletion = ops.DoOnce
@@ -551,6 +551,9 @@ func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) Set
 
 func (eb *EntityBodySet) StopAnimation() {
 	if eb.animation == "" {
+		if eb.nextAnimation != "" {
+			logz.Println(eb.Name, "stop animation: next animation exists - should we be clearing this??")
+		}
 		return
 	}
 	res := eb.SetAnimation("", SetAnimationOps{

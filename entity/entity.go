@@ -11,7 +11,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
-	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/item"
 )
 
@@ -40,7 +39,6 @@ type Entity struct {
 	Loaded   bool     `json:"-"` // if the entity has been loaded into memory fully yet
 	Movement Movement `json:"movement"`
 	Position
-	MouseBehavior mouse.MouseBehavior
 
 	width float64 // used for collision rect
 
@@ -54,6 +52,7 @@ type Entity struct {
 
 	Vitals     Vitals
 	Attributes Attributes
+	stunTicks  int
 
 	// Inventory and Items
 
@@ -256,6 +255,7 @@ type Movement struct {
 	SuggestedTargetPath []model.Coords `json:"-"` // a suggested path for this entity to consider merging into the target path
 }
 
+// for setting a tile position
 func (e *Entity) SetPosition(c model.Coords) {
 	mapWidth, mapHeight := e.World.MapDimensions()
 	if c.X > mapWidth {

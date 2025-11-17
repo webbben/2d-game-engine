@@ -14,13 +14,11 @@ func (e Entity) GetPathToEntity(otherEnt Entity) (path []model.Coords, found boo
 	return e.World.FindPath(e.TilePos, otherEnt.TilePos)
 }
 
-func (e *Entity) TryMoveTowardsEntity(otherEnt Entity, dist, speed float64, animOps AnimationOptions) MoveError {
+func (e *Entity) TryMoveTowardsEntity(otherEnt Entity, dist, speed float64) MoveError {
 	currentPosition := model.NewVec2(e.X, e.Y)
 	targetPosition := model.NewVec2(otherEnt.X, otherEnt.Y)
 	v := targetPosition.Sub(currentPosition)
 	scaled := v.Normalize().Scale(dist)
-
-	e.SetAnimation(animOps)
 
 	return e.TryMoveMaxPx(int(scaled.X), int(scaled.Y), speed)
 }

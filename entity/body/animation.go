@@ -14,11 +14,24 @@ const (
 	ANIM_BACKSLASH = "backslash"
 )
 
+// if the body is currently doing an attack animation
 func (eb EntityBodySet) IsAttacking() bool {
 	switch eb.animation {
 	case ANIM_SLASH:
 		return true
 	case ANIM_BACKSLASH:
+		return true
+	default:
+		return false
+	}
+}
+
+// if the body is currently running, walking, or doing a purposeful movement animation
+func (eb EntityBodySet) IsMoving() bool {
+	switch eb.animation {
+	case ANIM_WALK:
+		return true
+	case ANIM_RUN:
 		return true
 	default:
 		return false

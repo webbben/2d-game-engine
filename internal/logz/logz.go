@@ -3,7 +3,13 @@ package logz
 import (
 	"fmt"
 	"log"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
+
+func printLogLine(s string) {
+	log.Printf("T %v %s", ebiten.Tick(), s)
+}
 
 func Println(category string, args ...any) {
 	if category == "" {
@@ -12,7 +18,7 @@ func Println(category string, args ...any) {
 	}
 	fullArgs := []any{fmt.Sprintf("[%s]", category)}
 	fullArgs = append(fullArgs, args...)
-	log.Println(fullArgs...)
+	printLogLine(fmt.Sprintln(fullArgs...))
 }
 
 func Printf(category string, format string, args ...any) {
@@ -20,8 +26,8 @@ func Printf(category string, format string, args ...any) {
 		log.Printf(format, args...)
 		return
 	}
-	format = fmt.Sprintf("[%s] %s", category, format)
-	log.Printf(format, args...)
+	format = fmt.Sprintf("[%s] %s\n", category, format)
+	printLogLine(fmt.Sprintf(format, args...))
 }
 
 func Errorln(category string, args ...any) {
@@ -47,6 +53,11 @@ func Warnf(category string, format string, args ...any) {
 }
 
 func Panicf(formatString string, args ...any) {
-	format := fmt.Sprintf(formatString, args...)
-	panic(format)
+	Println("Panic!")
+	panic(fmt.Sprintf(formatString, args...))
+}
+
+func Panic(s string) {
+	Println("Panic!")
+	panic(s)
 }

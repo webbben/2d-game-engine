@@ -68,8 +68,7 @@ func (e *Entity) GoToPos(c model.Coords, closeEnough bool) (model.Coords, MoveEr
 	return path[len(path)-1], MoveError{Success: true}
 }
 
-// Tells the entity to stop moving once it has finished its current tile movement.
-// Meant for stopping entities that are currently following a path.
+// Tells the entity to stop moving along its set path once it has finished its current tile movement.
 func (e *Entity) CancelCurrentPath() {
 	if len(e.Movement.TargetPath) == 0 {
 		logz.Warnln("tried to cancel path for an entity that has no path")
@@ -261,6 +260,10 @@ func (e *Entity) TryMovePx(dx, dy int, speed float64) MoveError {
 		panic("TryMovePx: dx and dy are both 0")
 	}
 
+	if e.IsStunned() {
+		return MoveError{Cancelled: true}
+	}
+
 	if e.Body.IsAttacking() || e.attackManager.waitingToAttack {
 		// cannot move (or change directions) while attacking
 		return MoveError{Cancelled: true}
@@ -324,10 +327,23 @@ func (e *Entity) updateMovement() {
 		e.Movement.SuggestedTargetPath = []model.Coords{}
 	}
 
+	res := e.World.Collides(e.CollisionRect(), e.ID)
+	if res.Collides() {
+		logz.Panicf("[%s] updateMovement: current position is colliding!", e.DisplayName)
+	}
+
 	pos := model.Vec2{X: e.X, Y: e.Y}
 	target := model.Vec2{X: e.TargetX, Y: e.TargetY}
 
 	newPos := moveTowards(pos, target, e.Movement.Speed)
+	w, h := e.CollisionRect().W, e.CollisionRect().H
+	res = e.World.Collides(model.NewRect(newPos.X, newPos.Y, w, h), e.ID)
+	if res.Collides() {
+		logz.Println(e.DisplayName, "updateMovement: next position is colliding! cancelling movement")
+		e.StopMovement()
+		return
+	}
+
 	e.X = newPos.X
 	e.Y = newPos.Y
 
@@ -339,12 +355,15 @@ func (e *Entity) updateMovement() {
 	e.TilePos = model.ConvertPxToTilePos(int(e.X), int(e.Y))
 
 	if target.Equals(newPos) {
+		// we don't use StopMovement here since we might want to keep the animation going (if the entity has another target)
 		e.Movement.IsMoving = false
+		//logz.Println(e.DisplayName, "movement light stop")
 		if len(e.Movement.TargetPath) == 0 {
 			e.Body.StopAnimation()
 		}
 	}
 
+	// footstep sound effects
 	e.footstepSFX.TicksUntilNextPlay--
 	if e.footstepSFX.TicksUntilNextPlay <= 0 {
 		groundMaterial := e.World.GetGroundMaterial(e.TilePos.X, e.TilePos.Y)
@@ -374,7 +393,19 @@ func (e *Entity) updateMovement() {
 			panic("ground material not recognized: " + groundMaterial)
 		}
 	}
+}
 
+func (e *Entity) StopMovement() {
+	if !e.Movement.IsMoving {
+		panic("told to stop movement, but entity is not moving?")
+	}
+	logz.Println(e.DisplayName, "Stopping movement")
+	e.TargetX = e.X
+	e.TargetY = e.Y
+	e.Movement.IsMoving = false
+	if e.Body.IsMoving() {
+		e.Body.StopAnimation()
+	}
 }
 
 func moveTowards(pos, target model.Vec2, speed float64) model.Vec2 {
@@ -436,7 +467,7 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		AnimationName:         body.ANIM_WALK,
 		AnimationTickInterval: e.Movement.WalkAnimationTickInterval,
 	})
-	if !animRes.Success {
+	if !animRes.Success && !animRes.AlreadySet {
 		logz.Println(e.DisplayName, "trySetNextTargetPath: failed to set animation:", animRes)
 	}
 

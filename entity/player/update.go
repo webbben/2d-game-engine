@@ -97,7 +97,8 @@ func (p *Player) handleMovement() {
 		}
 		e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y), speed)
 		if !e.Success {
-			logz.Println(p.Entity.DisplayName, e)
+			logz.Println(p.Entity.DisplayName, "player failed to move:", e)
+			p.Entity.Body.StopAnimation()
 		}
 	}
 	if !p.Entity.Body.IsAttacking() {

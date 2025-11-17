@@ -108,13 +108,16 @@ func (t *FightTask) startFollowing() {
 	t.FollowTask = NewFollowTask(t.targetEntity, 0)
 	t.FollowTask.SetOwner(t.Owner)
 	t.FollowTask.Start()
+	if !t.FollowTask.IsActive() {
+		logz.Panicf("follow subtask should've started, but appears inactive (%s)", t.FollowTask.GetStatus())
+	}
 
 	t.status = fight_status_follow
 }
 
 func (t *FightTask) stopFollowing() {
 	if t.status != fight_status_follow {
-		panic("trying to stop following, but not in the following state")
+		logz.Panic("trying to stop following, but not in the following state")
 	}
 	if !t.FollowTask.IsActive() {
 		// if the follow task appears to already be active, then that's also a problem
@@ -144,8 +147,6 @@ func (t *FightTask) Update() {
 		if !t.FollowTask.IsActive() {
 			logz.Panicf("supposed to be following, but follow task is inactive? (followTask status=%s)", t.FollowTask.GetStatus())
 		}
-		t.FollowTask.Update()
-
 		// check if we are close enough to end follow stage
 		pathLen := len(t.Owner.Entity.Movement.TargetPath)
 		if pathLen < 3 {
@@ -153,6 +154,7 @@ func (t *FightTask) Update() {
 			t.startCombat()
 			return
 		}
+		t.FollowTask.Update()
 	case fight_status_combat:
 		// the real "meat and potatoes" of this task's logic
 		t.handleCombat()
@@ -174,18 +176,27 @@ func (t *FightTask) handleCombat() {
 		return
 	}
 
+	dist := t.Owner.Entity.DistFromEntity(*t.targetEntity)
+	if dist > config.TileSize*5 {
+		t.status = fight_status_idle
+		t.startFollowing()
+		return
+	}
+
 	t.Owner.Entity.FaceTowardsEntity(*t.targetEntity)
 
-	if t.Owner.Entity.DistFromEntity(*t.targetEntity) > config.TileSize*2 {
+	if dist > config.TileSize*2 {
 		// creep forward
 		if !t.Owner.Entity.Movement.IsMoving {
 			speed := t.Owner.Entity.Movement.WalkSpeed / 2
 			tickInterval := t.Owner.Entity.Movement.WalkAnimationTickInterval * 2
-			moveError := t.Owner.Entity.TryMoveTowardsEntity(*t.targetEntity, config.TileSize, speed, entity.AnimationOptions{
-				AnimationName:         body.ANIM_WALK,
-				AnimationTickInterval: tickInterval,
-			})
-			if !moveError.Success {
+			moveError := t.Owner.Entity.TryMoveTowardsEntity(*t.targetEntity, config.TileSize, speed)
+			if moveError.Success {
+				t.Owner.Entity.SetAnimation(entity.AnimationOptions{
+					AnimationName:         body.ANIM_WALK,
+					AnimationTickInterval: tickInterval,
+				})
+			} else {
 				logz.Println(t.Owner.DisplayName, "handleCombat: creep forward failed:", moveError)
 			}
 		}
@@ -194,7 +205,6 @@ func (t *FightTask) handleCombat() {
 
 	// once close, attack
 	t.Owner.Entity.StartMeleeAttack()
-
 }
 
 func (t *FightTask) End() {

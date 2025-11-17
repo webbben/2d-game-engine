@@ -2,7 +2,6 @@ package game
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/webbben/2d-game-engine/definitions"
@@ -85,7 +84,8 @@ func InitialStartUp() error {
 	}
 
 	// set logs to show microseconds in timestamps
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	//log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	// Since we now log the update tick, I don't think this is that useful anymore
 
 	return nil
 }
