@@ -81,7 +81,7 @@ func (e *Entity) StartMeleeAttack() {
 	}
 	animationInterval := 6
 	e.Body.SetAnimationTickCount(animationInterval)
-	res := e.Body.SetAnimation(body.ANIM_SLASH, body.SetAnimationOps{DoOnce: true, PreventSkip: true})
+	res := e.Body.SetAnimation(body.ANIM_SLASH, body.SetAnimationOps{DoOnce: true})
 	if !res.Success {
 		if !res.AlreadySet {
 			// if not already attacking, then just wait to do the attack once whatever the current animation is finishes

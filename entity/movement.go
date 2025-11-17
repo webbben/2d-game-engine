@@ -117,13 +117,27 @@ func (e *Entity) FaceTowards(dx, dy float64) {
 	e.Body.SetDirection(e.Movement.Direction)
 }
 
+func (e *Entity) SetAnimation(animOps AnimationOptions) body.SetAnimationResult {
+	animRes := e.Body.SetAnimation(animOps.AnimationName, animOps.SetAnimationOps)
+	if animRes.Success {
+		e.Body.SetAnimationTickCount(animOps.AnimationTickInterval)
+	} else {
+		if !animRes.AlreadySet {
+			if e.Body.GetCurrentAnimation() == "" {
+				panic("failed to set movement animation, but current animation seems to be empty...?")
+			}
+		}
+	}
+	return animRes
+}
+
 // same as TryMovePx, but lets the entity still move in the direction even if a collision is encountered,
 // as long as there is some space in that direction
-func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64, animOps AnimationOptions) MoveError {
+func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64) MoveError {
 	if dx == 0 && dy == 0 {
 		panic("TryMoveMaxPx called with no distance given")
 	}
-	moveError := e.TryMovePx(dx, dy, speed, animOps)
+	moveError := e.TryMovePx(dx, dy, speed)
 	if moveError.Collision {
 		// a collision occurred; try to adjust the target by the intersection area
 		cr := moveError.CollisionResult
@@ -237,12 +251,12 @@ func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64, animOps AnimationOption
 			return moveError
 		}
 
-		return e.TryMovePx(dx, dy, speed, animOps)
+		return e.TryMovePx(dx, dy, speed)
 	}
 	return moveError
 }
 
-func (e *Entity) TryMovePx(dx, dy int, speed float64, animOps AnimationOptions) MoveError {
+func (e *Entity) TryMovePx(dx, dy int, speed float64) MoveError {
 	if dx == 0 && dy == 0 {
 		panic("TryMovePx: dx and dy are both 0")
 	}
@@ -264,24 +278,11 @@ func (e *Entity) TryMovePx(dx, dy int, speed float64, animOps AnimationOptions) 
 		}
 	}
 
-	animRes := e.Body.SetAnimation(animOps.AnimationName, animOps.SetAnimationOps)
-	if !animRes.Success && !animRes.AlreadySet {
-		if animRes.Queued {
-			panic("queued a movement animation - not supposed to do that")
-		}
-		// failed to set movement animation - perhaps a different animation, like an attack, is currently active
-		if e.Body.GetCurrentAnimation() == "" {
-			panic("failed to set movement animation, but current animation seems to be empty...?")
-		}
-		return MoveError{Cancelled: true}
-	}
-
 	e.Movement.IsMoving = true
 	e.Position.TargetX = float64(x)
 	e.Position.TargetY = float64(y)
 
 	e.Movement.Speed = speed
-	e.Body.SetAnimationTickCount(animOps.AnimationTickInterval)
 
 	if e.Movement.Speed == 0 {
 		panic("movement speed is 0")
@@ -297,13 +298,19 @@ func (e *Entity) TryBumpBack(px int, speed float64, forceOrigin model.Vec2, anim
 	dx := dest.X - origin.X
 	dy := dest.Y - origin.Y
 
-	return e.TryMoveMaxPx(int(dx), int(dy), speed, AnimationOptions{
+	animRes := e.SetAnimation(AnimationOptions{
 		AnimationName:         anim,
 		AnimationTickInterval: animTickInterval,
 		SetAnimationOps: body.SetAnimationOps{
 			Force: true,
 		},
 	})
+	if !animRes.Success && !animRes.AlreadySet {
+		logz.Println(e.DisplayName, "TryBumpBack: failed to set animation:", animRes)
+		return MoveError{Cancelled: true}
+	}
+
+	return e.TryMoveMaxPx(int(dx), int(dy), speed)
 }
 
 func (e *Entity) updateMovement() {
@@ -419,13 +426,18 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		return MoveError{Cancelled: true}
 	}
 
-	moveError := e.TryMovePx(int(dPos.X), int(dPos.Y), e.Movement.WalkSpeed, AnimationOptions{
-		AnimationName:         body.ANIM_WALK,
-		AnimationTickInterval: e.Movement.WalkAnimationTickInterval,
-	})
+	moveError := e.TryMovePx(int(dPos.X), int(dPos.Y), e.Movement.WalkSpeed)
 
 	if !moveError.Success {
 		return moveError
+	}
+
+	animRes := e.SetAnimation(AnimationOptions{
+		AnimationName:         body.ANIM_WALK,
+		AnimationTickInterval: e.Movement.WalkAnimationTickInterval,
+	})
+	if !animRes.Success {
+		logz.Println(e.DisplayName, "trySetNextTargetPath: failed to set animation:", animRes)
 	}
 
 	e.FaceTowards(dPos.X, dPos.Y)

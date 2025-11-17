@@ -48,6 +48,10 @@ func (n *NPC) SetFollowTask(target *entity.Entity, distance int, force bool) err
 }
 
 func (t *FollowTask) End() {
+	if len(t.Owner.Entity.Movement.TargetPath) > 0 {
+		t.Owner.Entity.CancelCurrentPath()
+	}
+
 	t.Status = TASK_STATUS_END
 }
 func (t FollowTask) IsComplete() bool {

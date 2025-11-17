@@ -32,6 +32,10 @@ func (p *Player) Update() {
 }
 
 func (p *Player) handleMovement() {
+	if p.Entity.Body.IsAttacking() {
+		return
+	}
+
 	curPos := model.Vec2{X: p.Entity.X, Y: p.Entity.Y}
 	targetPos := model.Vec2{X: p.Entity.TargetX, Y: p.Entity.TargetY}
 
@@ -83,10 +87,15 @@ func (p *Player) handleMovement() {
 	}
 
 	if v.X != 0 || v.Y != 0 {
-		e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y), speed, entity.AnimationOptions{
+		animRes := p.Entity.SetAnimation(entity.AnimationOptions{
 			AnimationName:         animation,
 			AnimationTickInterval: animationTickInterval,
 		})
+		if !animRes.Success && !animRes.AlreadySet {
+			logz.Println(p.Entity.DisplayName, "failed to set movement animation:", animRes)
+			return
+		}
+		e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y), speed)
 		if !e.Success {
 			logz.Println(p.Entity.DisplayName, e)
 		}

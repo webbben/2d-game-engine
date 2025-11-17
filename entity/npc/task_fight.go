@@ -170,21 +170,30 @@ func (t *FightTask) handleCombat() {
 		panic("status is not set to combat")
 	}
 
+	if t.Owner.Entity.Body.IsAttacking() {
+		return
+	}
+
+	t.Owner.Entity.FaceTowardsEntity(*t.targetEntity)
+
 	if t.Owner.Entity.DistFromEntity(*t.targetEntity) > config.TileSize*2 {
 		// creep forward
 		if !t.Owner.Entity.Movement.IsMoving {
 			speed := t.Owner.Entity.Movement.WalkSpeed / 2
 			tickInterval := t.Owner.Entity.Movement.WalkAnimationTickInterval * 2
-			t.Owner.Entity.TryMoveTowardsEntity(*t.targetEntity, config.TileSize, speed, entity.AnimationOptions{
+			moveError := t.Owner.Entity.TryMoveTowardsEntity(*t.targetEntity, config.TileSize, speed, entity.AnimationOptions{
 				AnimationName:         body.ANIM_WALK,
 				AnimationTickInterval: tickInterval,
 			})
+			if !moveError.Success {
+				logz.Println(t.Owner.DisplayName, "handleCombat: creep forward failed:", moveError)
+			}
 		}
-		t.Owner.Entity.FaceTowardsEntity(*t.targetEntity)
 		return
 	}
 
-	// once close, mill about a little
+	// once close, attack
+	t.Owner.Entity.StartMeleeAttack()
 
 }
 

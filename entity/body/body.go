@@ -25,7 +25,6 @@ type EntityBodySet struct {
 
 	animation                 string `json:"-"`
 	nextAnimation             string `json:"-"`
-	preventAnimationSkip      bool   `json:"-"` // if set, the current animation cannot be skipped
 	stopAnimationOnCompletion bool   `json:"-"`
 	animationTickCount        int    `json:"-"`
 	ticks                     int    `json:"-"` // number of ticks elapsed
@@ -501,7 +500,6 @@ func (eb *EntityBodySet) Update() {
 	// detect end of animation
 	if eb.animationFinished() {
 		eb.resetCurrentAnimation()
-		eb.preventAnimationSkip = false
 		if eb.stopAnimationOnCompletion {
 			eb.StopAnimation()
 			eb.stopAnimationOnCompletion = false
@@ -514,17 +512,20 @@ func (eb *EntityBodySet) Update() {
 }
 
 type SetAnimationOps struct {
-	Force       bool
-	QueueNext   bool
-	PreventSkip bool
-	DoOnce      bool
+	Force     bool
+	QueueNext bool
+	DoOnce    bool
 }
 
 type SetAnimationResult struct {
-	AlreadySet  bool
-	FailedToSet bool
-	Queued      bool
-	Success     bool
+	AlreadySet  bool // this animation is already set
+	FailedToSet bool // this animation failed to set for some reason
+	Queued      bool // this animation was queued up for next
+	Success     bool // this animation successfully set
+}
+
+func (res SetAnimationResult) String() string {
+	return fmt.Sprintf("%#v", res)
 }
 
 // sets an animation. returns if animation was successfully set.
@@ -532,16 +533,16 @@ func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) Set
 	if animation == eb.animation {
 		return SetAnimationResult{AlreadySet: true}
 	}
-	if eb.animation != "" && (!ops.Force || eb.preventAnimationSkip) {
+	if eb.animation != "" && !ops.Force {
 		if ops.QueueNext && eb.nextAnimation == "" {
 			eb.nextAnimation = animation
 			logz.Println(eb.Name, "next animation queued:", animation)
 			return SetAnimationResult{Queued: true}
 		}
-		logz.Println(eb.Name, "animation already set, and force is not enabled")
+		logz.Println(eb.Name, "Force:", ops.Force)
+		logz.Println(eb.Name, "attempted to set animation:", animation, "animation already set:", eb.animation)
 		return SetAnimationResult{FailedToSet: true}
 	}
-	eb.preventAnimationSkip = ops.PreventSkip
 	eb.stopAnimationOnCompletion = ops.DoOnce
 	eb.animation = animation
 	eb.resetCurrentAnimation()
@@ -556,6 +557,7 @@ func (eb *EntityBodySet) StopAnimation() {
 		Force: true,
 	})
 	if res.FailedToSet {
+		logz.Println(eb.Name, res)
 		panic("failed to stop animation?")
 	}
 	if eb.animation != "" {
@@ -591,6 +593,10 @@ func (eb *EntityBodySet) RotateRight() {
 
 func (eb *EntityBodySet) SetDirection(dir byte) {
 	if dir == eb.currentDirection {
+		return
+	}
+	if eb.IsAttacking() {
+		// can't change directions while attacking
 		return
 	}
 

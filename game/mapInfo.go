@@ -513,6 +513,11 @@ func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
 			n.Entity.ReceiveAttack(attackInfo)
 		}
 	}
+	if mi.PlayerRef != nil && !slices.Contains(attackInfo.ExcludeEntIds, mi.PlayerRef.Entity.ID) {
+		if attackInfo.TargetRect.Intersects(mi.PlayerRef.Entity.CollisionRect()) {
+			mi.PlayerRef.Entity.ReceiveAttack(attackInfo)
+		}
+	}
 }
 
 // attempts to activate an object or npc in an area. if an activation occurs, true is returned.
