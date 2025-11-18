@@ -118,6 +118,7 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 		return
 	}
 
+	// unset all attacks or pending attack logic
 	if e.Body.IsAttacking() {
 		// attack animations should be interrupted
 		e.Body.StopAnimation()
@@ -126,6 +127,7 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 		// if an attack is interrupted, clear the queued damage signal
 		e.attackManager.clearAttack()
 	}
+	e.attackManager.waitingToAttack = false
 
 	e.Vitals.Health.CurrentVal -= attack.Damage
 	logz.Println(e.DisplayName, "current health:", e.Vitals.Health.CurrentVal)
@@ -135,6 +137,9 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	moveError := e.TryBumpBack(config.TileSize, defaultRunSpeed, attack.Origin, "", 0)
 	if !moveError.Success {
 		logz.Println(e.DisplayName, "failed to bump back:", moveError)
+		if !moveError.Collision {
+			logz.Panic("bump back failed, but it wasn't due to a collision. the bump back should always succeed unless the entity is up against a wall")
+		}
 	}
 
 	if attack.StunTicks > 0 {

@@ -17,22 +17,27 @@ type MoveError struct {
 	Cancelled       bool
 	Success         bool
 	CollisionResult model.CollisionResult
+	Info            string
 }
 
 func (me MoveError) String() string {
+	info := ""
+	if me.Info != "" {
+		info = fmt.Sprintf(" (info: %s)", me.Info)
+	}
 	if me.Success {
-		return "Success"
+		return "Success" + info
 	}
 	if me.Collision {
-		return "Collision"
+		return "Collision" + info
 	}
 	if me.AlreadyMoving {
-		return "Already Moving"
+		return "Already Moving" + info
 	}
 	if me.Cancelled {
-		return "Cancelled"
+		return "Cancelled" + info
 	}
-	return "No value set"
+	return "No value set" + info
 }
 
 // Attempts to put the entity on a path to reach the given target.
@@ -48,20 +53,20 @@ func (e *Entity) GoToPos(c model.Coords, closeEnough bool) (model.Coords, MoveEr
 	}
 	if e.TilePos.Equals(c) {
 		logz.Errorln(e.DisplayName, "entity attempted to GoToPos for position it is already in")
-		return c, MoveError{Cancelled: true}
+		return c, MoveError{Cancelled: true, Info: "already in target position"}
 	}
 
 	path, found := e.World.FindPath(e.TilePos, c)
 	if !found {
 		if !closeEnough {
-			return c, MoveError{Cancelled: true}
+			return c, MoveError{Cancelled: true, Info: "path not found, and 'close enough' not enabled"}
 		}
 		logz.Warnln(e.DisplayName, "going a partial path since original path is blocked.", "start:", e.TilePos, "path:", path, "original goal:", c)
 	}
 	if len(path) == 0 {
 		fmt.Println("tile pos:", e.TilePos, "goal:", c)
 		logz.Warnln(e.DisplayName, "GoToPos: calculated path is empty. Is the entity completely blocked in?")
-		return c, MoveError{Cancelled: true}
+		return c, MoveError{Cancelled: true, Info: "calculated path is empty"}
 	}
 
 	e.Movement.TargetPath = path
@@ -261,12 +266,19 @@ func (e *Entity) TryMovePx(dx, dy int, speed float64) MoveError {
 	}
 
 	if e.IsStunned() {
-		return MoveError{Cancelled: true}
+		return MoveError{Cancelled: true, Info: "stunned"}
 	}
 
 	if e.Body.IsAttacking() || e.attackManager.waitingToAttack {
 		// cannot move (or change directions) while attacking
-		return MoveError{Cancelled: true}
+		info := ""
+		if e.Body.IsAttacking() {
+			info = "body is attacking;"
+		}
+		if e.attackManager.waitingToAttack {
+			info += " waiting to attack"
+		}
+		return MoveError{Cancelled: true, Info: info}
 	}
 
 	x := int(e.TargetX) + dx
@@ -310,7 +322,7 @@ func (e *Entity) TryBumpBack(px int, speed float64, forceOrigin model.Vec2, anim
 	})
 	if !animRes.Success && !animRes.AlreadySet {
 		logz.Println(e.DisplayName, "TryBumpBack: failed to set animation:", animRes)
-		return MoveError{Cancelled: true}
+		return MoveError{Cancelled: true, Info: "failed to set animation"}
 	}
 
 	return e.TryMoveMaxPx(int(dx), int(dy), speed)
@@ -442,7 +454,7 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		e.TargetX = float64(e.TilePos.X * config.TileSize)
 		e.TargetY = float64(e.TilePos.Y * config.TileSize)
 		e.Movement.IsMoving = true
-		return MoveError{Cancelled: true}
+		return MoveError{Cancelled: true, Info: "entity was unexpectedly not at its tile position - possibly bumped by an enemy attack or something?"}
 	}
 
 	curPos := model.Vec2{X: e.X, Y: e.Y}
@@ -454,7 +466,7 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		logz.Println(e.DisplayName, "curPos:", curPos, "target:", target, "dist:", dist)
 		logz.Println(e.DisplayName, "trySetNextTargetPath: next target is not an adjacent tile (dist > 16). Clearing target path.")
 		e.Movement.TargetPath = []model.Coords{}
-		return MoveError{Cancelled: true}
+		return MoveError{Cancelled: true, Info: "next target was not an adjacent tile (dist > tilesize)"}
 	}
 
 	moveError := e.TryMovePx(int(dPos.X), int(dPos.Y), e.Movement.WalkSpeed)
