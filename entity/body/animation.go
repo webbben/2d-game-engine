@@ -1,6 +1,8 @@
 package body
 
 import (
+	"fmt"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/rendering"
@@ -49,6 +51,10 @@ type Animation struct {
 	StepsOffsetY []int
 }
 
+func (a Animation) debugString() string {
+	return fmt.Sprintf("Name: %s Skip: %v tileStepsLen: %v", a.Name, a.Skip, len(a.TileSteps))
+}
+
 func (a Animation) validate() {
 	if a.Skip {
 		return
@@ -87,6 +93,9 @@ func (a *Animation) reset() {
 func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 	if a.Skip {
 		return nil
+	}
+	if animationIndex < 0 {
+		logz.Panicf("animation index is negative? %v", animationIndex)
 	}
 
 	switch dir {

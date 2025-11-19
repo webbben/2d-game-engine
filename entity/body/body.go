@@ -26,7 +26,7 @@ type EntityBodySet struct {
 	animation                 string `json:"-"`
 	nextAnimation             string `json:"-"`
 	stopAnimationOnCompletion bool   `json:"-"`
-	animationTickCount        int    `json:"-"`
+	animationTickCount        int    `json:"-"` // the "duration" of ticks until the next animation frame should trigger
 	ticks                     int    `json:"-"` // number of ticks elapsed
 	currentDirection          byte   `json:"-"` // L R U D
 	cropHairToHead            bool   `json:"-"`
@@ -53,7 +53,21 @@ type EntityBodySet struct {
 	WeaponFxSet  BodyPartSet
 
 	globalOffsetY  float64 `json:"-"` // amount to offset placement of (non-body) parts by, when body is taller or shorter
-	nonBodyYOffset int     `json:"-"`
+	nonBodyYOffset int     `json:"-"` // amount to offset placement of (non-body) parts by, simply dictated by the body's movements
+}
+
+func (eb EntityBodySet) GetDebugString() string {
+	s := fmt.Sprintf("ANIM: %s DIR: %s (next: %s, stopOnComp: %v)\n", eb.animation, string(eb.currentDirection), eb.nextAnimation, eb.stopAnimationOnCompletion)
+	s += fmt.Sprintf("ticks: %v tickCount: %v globalOffY: %v nonBodyOffY: %v cropHair: %v\n", eb.ticks, eb.animationTickCount, eb.globalOffsetY, eb.nonBodyYOffset, eb.cropHairToHead)
+	// get a single line status for each bodypart
+	s += eb.BodySet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
+	s += eb.ArmsSet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
+	s += eb.EyesSet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
+	s += eb.HairSet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
+	s += eb.EquipBodySet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
+	s += eb.EquipHeadSet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
+	s += eb.WeaponSet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
+	return s
 }
 
 func (eb *EntityBodySet) Load() {
@@ -344,13 +358,17 @@ func (eb *EntityBodySet) subtractArms() {
 	cropper(&eb.ArmsSet.WalkAnimation, eb.EquipBodySet.WalkAnimation)
 	cropper(&eb.ArmsSet.RunAnimation, eb.EquipBodySet.RunAnimation)
 	cropper(&eb.ArmsSet.SlashAnimation, eb.EquipBodySet.SlashAnimation)
+	cropper(&eb.ArmsSet.BackslashAnimation, eb.EquipBodySet.BackslashAnimation)
 }
 
 func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64) {
+	// Warning: Do not use characterScale anywhere except the bottom - where we draw stagingImg onto screen!
+	// we first make a "staging image" which is drawn without scale, and then we draw that image into screen using characterScale.
 	eb.stagingImg.Clear()
 	//eb.stagingImg.Fill(color.RGBA{100, 0, 0, 50})  // for testing
+
 	// render order decisions (for not so obvious things):
-	// - Arms: after equip body, equip head, hair so that hands show when doing U slash
+	// - Arms: after equip body, equip head, hair so that hands show when doing U slash (we subtract arms by equip_body)
 	renderOrder := []string{"body", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_weapon"}
 
 	yOff := eb.globalOffsetY
@@ -361,7 +379,7 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	equipBodyYOffset := 0.0
 	if eb.EquipBodySet.stretchY%2 != 0 {
 		// if stretchY is an odd number, offset equip body by -1
-		equipBodyYOffset = -characterScale
+		equipBodyYOffset = -1
 	}
 	equipBodyY := bodyY + yOff + equipBodyYOffset
 
@@ -461,6 +479,14 @@ func (eb *EntityBodySet) resetCurrentAnimation() {
 }
 
 func (eb *EntityBodySet) Update() {
+	// FOR DEBUG TICK-BY-TICK
+	//
+	// if ebiten.IsKeyPressed(ebiten.KeyShiftLeft) {
+	// 	speed := 500
+	// 	logz.Println("SLOW UPDATE TICK", "tick ms:", speed)
+	// 	fmt.Println(eb.GetDebugString())
+	// 	time.Sleep(time.Millisecond * time.Duration(speed))
+	// }
 	if eb.animation != "" {
 		eb.ticks++
 		if eb.ticks > eb.animationTickCount {
@@ -497,6 +523,10 @@ func (eb *EntityBodySet) Update() {
 	eb.WeaponSet.setCurrentFrame(eb.currentDirection, eb.animation)
 	eb.WeaponFxSet.setCurrentFrame(eb.currentDirection, eb.animation)
 
+	// Warning: Keep this immediately after the above setCurrentFrame calls! This must be set based on whatever image is actually showing.
+	// (there was a bug where the body appeared out of place for a single update tick, and the cause was this being after resetCurrentAnimation below)
+	eb.nonBodyYOffset = eb.BodySet.getCurrentYOffset(eb.animation)
+
 	// detect end of animation
 	if eb.animationFinished() {
 		eb.resetCurrentAnimation()
@@ -507,8 +537,6 @@ func (eb *EntityBodySet) Update() {
 	}
 
 	eb.dmgFlicker.update()
-
-	eb.nonBodyYOffset = eb.BodySet.getCurrentYOffset(eb.animation)
 }
 
 type SetAnimationOps struct {

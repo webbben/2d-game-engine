@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/logz"
 )
 
 // represents either the head, body, eyes, or hair of an entity.
@@ -12,27 +13,52 @@ import (
 // The actual body part definitions (which tiles to show for hair, eyes, etc) are defined by the TilesetSrc and start indices, and can be set
 // using the set functions.
 type BodyPartSet struct {
-	sourceSet bool
-	// tileset and image source definitions
-	PartSrc SelectedPartDef
+	sourceSet bool            // indicates if a source has been set yet (tilesetSrc, etc)
+	PartSrc   SelectedPartDef // tileset and image source definitions
+
+	// TODO do we need TilesetSrc etc here? it seems they are present in PartSrc...
 
 	TilesetSrc                     string
 	RStart, LStart, UStart, DStart int
 	FlipRForL                      bool
-	None                           bool
+	None                           bool // if set, this body part set is effectively turned off and not drawn or involved in any animations
 	stretchX, stretchY             int
 
 	// animation definitions
 
-	animIndex          int
-	reachedLastFrame   bool
+	animIndex          int  // index or "step" of the animation we are currently on
+	reachedLastFrame   bool // used to detect when an animation has finished (if all sets are at last frame, entire animation is done)
 	WalkAnimation      Animation
 	RunAnimation       Animation
 	SlashAnimation     Animation
 	BackslashAnimation Animation
-	HasUp              bool
+	HasUp              bool // if true, this set has an "up" direction animation. some don't since they will be covered by the body (such as eyes)
 
 	img *ebiten.Image `json:"-"`
+}
+
+func (bps BodyPartSet) animationDebugString(anim string, dir byte) string {
+	if bps.None {
+		return fmt.Sprintf("[%s] NONE", bps.TilesetSrc)
+	}
+	if !bps.HasUp && dir == 'U' {
+		return fmt.Sprintf("[%s] No Up", bps.TilesetSrc)
+	}
+
+	s := fmt.Sprintf("[%s] animIndex: %v lastframe: %v strX: %v strY: %v", bps.TilesetSrc, bps.animIndex, bps.reachedLastFrame, bps.stretchX, bps.stretchY)
+
+	switch anim {
+	case ANIM_WALK:
+		s += "\n  " + bps.WalkAnimation.debugString()
+	case ANIM_RUN:
+		s += "\n  " + bps.RunAnimation.debugString()
+	case ANIM_SLASH:
+		s += "\n  " + bps.SlashAnimation.debugString()
+	case ANIM_BACKSLASH:
+		s += "\n  " + bps.BackslashAnimation.debugString()
+	}
+
+	return s
 }
 
 func (bps BodyPartSet) validate() {
@@ -152,29 +178,37 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 	if set.None {
 		return
 	}
+	if animationName == "" {
+		logz.Panic("called nextFrame on empty animation")
+	}
 
 	set.animIndex++
 	set.reachedLastFrame = false
+	numSteps := 0
 	switch animationName {
 	case ANIM_WALK:
-		if set.animIndex >= len(set.WalkAnimation.TileSteps) {
-			set.reachedLastFrame = true
-			set.animIndex = len(set.WalkAnimation.TileSteps) - 1
-		}
+		numSteps = len(set.WalkAnimation.TileSteps)
 	case ANIM_RUN:
-		if set.animIndex >= len(set.RunAnimation.TileSteps) {
-			set.reachedLastFrame = true
-			set.animIndex = len(set.RunAnimation.TileSteps) - 1
-		}
+		numSteps = len(set.RunAnimation.TileSteps)
 	case ANIM_SLASH:
-		if set.animIndex >= len(set.SlashAnimation.TileSteps) {
-			set.reachedLastFrame = true
-			set.animIndex = len(set.SlashAnimation.TileSteps) - 1
-		}
+		numSteps = len(set.SlashAnimation.TileSteps)
 	case ANIM_BACKSLASH:
-		if set.animIndex >= len(set.BackslashAnimation.TileSteps) {
+		numSteps = len(set.BackslashAnimation.TileSteps)
+	default:
+		logz.Panicln(set.TilesetSrc, "nextFrame: animation name has no registered animation sequence:", animationName)
+	}
+
+	if numSteps == 0 {
+		set.animIndex = 0
+		set.reachedLastFrame = true
+	} else {
+		if set.animIndex >= numSteps {
 			set.reachedLastFrame = true
-			set.animIndex = len(set.BackslashAnimation.TileSteps) - 1
+			set.animIndex = numSteps - 1
 		}
+	}
+
+	if set.animIndex < 0 {
+		logz.Panicf("nextFrame: somehow animIndex became negative")
 	}
 }

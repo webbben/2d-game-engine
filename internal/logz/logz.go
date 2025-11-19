@@ -57,6 +57,11 @@ func Panicf(formatString string, args ...any) {
 	panic(fmt.Sprintf(formatString, args...))
 }
 
+func Panicln(category string, args ...any) {
+	Println(category, args...)
+	panic("Panic!")
+}
+
 func Panic(s string) {
 	Println("Panic!")
 	panic(s)
