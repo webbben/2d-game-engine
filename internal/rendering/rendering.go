@@ -117,13 +117,20 @@ func CropImageByOtherImage(img, otherImage *ebiten.Image) *ebiten.Image {
 	return result
 }
 
-func SubtractImageByOtherImage(img, otherImage *ebiten.Image) *ebiten.Image {
+func SubtractImageByOtherImage(img, otherImage *ebiten.Image, imgOffsetY, otherOffsetY int) *ebiten.Image {
 	result := ebiten.NewImage(img.Bounds().Dx(), img.Bounds().Dy())
-	result.DrawImage(img, nil)
+	imgOps := ebiten.DrawImageOptions{}
+	if imgOffsetY != 0 {
+		imgOps.GeoM.Translate(0, float64(imgOffsetY))
+	}
+	result.DrawImage(img, &imgOps)
 
-	ops := ebiten.DrawImageOptions{}
-	ops.Blend = ebiten.BlendDestinationOut
-	result.DrawImage(otherImage, &ops)
+	otherOps := ebiten.DrawImageOptions{}
+	if otherOffsetY != 0 {
+		otherOps.GeoM.Translate(0, float64(otherOffsetY))
+	}
+	otherOps.Blend = ebiten.BlendDestinationOut
+	result.DrawImage(otherImage, &otherOps)
 
 	return result
 }

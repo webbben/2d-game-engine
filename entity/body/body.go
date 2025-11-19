@@ -208,22 +208,24 @@ func (eb *EntityBodySet) SetBody(bodyDef, armDef SelectedPartDef) {
 
 	eb.BodySet.setImageSource(bodyDef)
 
-	// arms are directly set with body
-	eb.ArmsSet.setImageSource(armDef)
-	if eb.EquipBodySet.sourceSet {
-		// subtract arms by equip body image (remove parts hidden by it)
-		eb.subtractArms()
-	}
-
-	eb.globalOffsetY = float64(bodyDef.OffsetY)
-
 	// reload any body parts that are influenced by stretch properties
+	// ensure these stretch values are set before calling subtract arms, since it uses equipBodyStretchY
 	eb.HairSet.stretchX, eb.HairSet.stretchY = bodyDef.StretchX, 0
 	eb.HairSet.load()
 	eb.EquipHeadSet.stretchX, eb.EquipHeadSet.stretchY = bodyDef.StretchX, 0
 	eb.EquipHeadSet.load()
 	eb.EquipBodySet.stretchX, eb.EquipBodySet.stretchY = bodyDef.StretchX, bodyDef.StretchY
 	eb.EquipBodySet.load()
+
+	// ensure this is set before calling subtractArms, since it uses this value
+	eb.globalOffsetY = float64(bodyDef.OffsetY)
+
+	// arms are directly set with body
+	eb.ArmsSet.setImageSource(armDef)
+	if eb.EquipBodySet.sourceSet {
+		// subtract arms by equip body image (remove parts hidden by it)
+		eb.subtractArms()
+	}
 }
 
 func (eb *EntityBodySet) SetEyes(def SelectedPartDef) {
@@ -337,21 +339,22 @@ func (eb *EntityBodySet) cropHair() {
 func (eb *EntityBodySet) subtractArms() {
 	fmt.Println("subtract arms")
 	cropper := func(a *Animation, subtractorA Animation) {
+		equipBodyOffsetY := int(eb.globalOffsetY + eb.getEquipBodyOffsetY())
 		for i, img := range a.L {
 			equipBodyImg := subtractorA.L[i]
-			a.L[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg)
+			a.L[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
 		}
 		for i, img := range a.R {
 			equipBodyImg := subtractorA.R[i]
-			a.R[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg)
+			a.R[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
 		}
 		for i, img := range a.U {
 			equipBodyImg := subtractorA.U[i]
-			a.U[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg)
+			a.U[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
 		}
 		for i, img := range a.D {
 			equipBodyImg := subtractorA.D[i]
-			a.D[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg)
+			a.D[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
 		}
 	}
 
@@ -376,12 +379,7 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	bodyX := float64(config.TileSize * 2)
 	bodyY := float64(config.TileSize)
 
-	equipBodyYOffset := 0.0
-	if eb.EquipBodySet.stretchY%2 != 0 {
-		// if stretchY is an odd number, offset equip body by -1
-		equipBodyYOffset = -1
-	}
-	equipBodyY := bodyY + yOff + equipBodyYOffset
+	equipBodyY := bodyY + yOff + eb.getEquipBodyOffsetY()
 
 	eyesY := bodyY + (float64(eb.nonBodyYOffset)) + yOff
 	hairY := bodyY + (float64(eb.nonBodyYOffset)) + yOff
@@ -433,6 +431,15 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	drawX := x - (scaledTilesize * 2)
 	drawY := y - scaledTilesize
 	rendering.DrawImageWithOps(screen, eb.stagingImg, drawX, drawY, characterScale, &ops)
+}
+
+// made this into a function since it will be needed when subtracting arms by equipBody
+func (eb EntityBodySet) getEquipBodyOffsetY() float64 {
+	if eb.EquipBodySet.stretchY%2 != 0 {
+		// if stretchY is an odd number, offset equip body by -1
+		return -1
+	}
+	return 0
 }
 
 func (eb *EntityBodySet) animationFinished() bool {
