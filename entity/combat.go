@@ -80,7 +80,7 @@ func (e Entity) GetFrontRect() model.Rect {
 }
 
 func (e *Entity) StartMeleeAttack() {
-	if e.Body.WeaponSet.None {
+	if e.Body.WeaponSet.PartSrc.None {
 		panic("tried to swing weapon, but no weapon is equiped")
 	}
 	if e.IsStunned() {
@@ -159,8 +159,8 @@ func (e *Entity) UnequipWeaponFromBody() {
 	if e.IsStunned() {
 		return
 	}
-	e.Body.WeaponSet.None = true
-	e.Body.WeaponFxSet.None = true
+	e.Body.WeaponSet.PartSrc.None = true
+	e.Body.WeaponFxSet.PartSrc.None = true
 	e.Body.Load()
 }
 
@@ -172,5 +172,5 @@ func (e *Entity) EquipWeapon(weaponDef body.SelectedPartDef, weaponFxDef body.Se
 }
 
 func (e Entity) IsWeaponEquiped() bool {
-	return !e.Body.WeaponSet.None
+	return !e.Body.WeaponSet.PartSrc.None
 }

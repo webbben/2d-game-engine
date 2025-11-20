@@ -159,15 +159,6 @@ func NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBod
 	if hairHSV == nil {
 		hairHSV = &Default
 	}
-	if bodySet.None {
-		panic("body must not be none")
-	}
-	if armsSet.None {
-		panic("arms must not be none")
-	}
-	if eyesSet.None {
-		panic("eyes must not be none")
-	}
 
 	eb := EntityBodySet{
 		animation:          "",
@@ -269,10 +260,11 @@ func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
 }
 
 func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
-	if eb.WeaponSet.None {
+	if eb.WeaponSet.PartSrc.None {
 		return
 	}
-	if eb.WeaponFxSet.None {
+	if eb.WeaponFxSet.PartSrc.None {
+		// TODO why do we check this? shouldn't we only care about the incoming def?
 		panic("no weaponFx set when setting weapon!")
 	}
 	eb.WeaponSet.setImageSource(weaponDef)
@@ -297,8 +289,8 @@ type SelectedPartDef struct {
 
 	// body-specific props
 
-	StretchX int // amount to stretch hair and equip body on X axis
-	StretchY int // amount to stretch equip body on the Y axis
+	StretchX int // amount to stretch hair and equip body on X axis. Defined here, this represents the value that is applied to ALL (applicable) parts - not to this one.
+	StretchY int // amount to stretch equip body on the Y axis. Defined here, this represents the value that is applied to ALL (applicable) parts - not to this one.
 	OffsetY  int // amount to offset positions of hair, eyes, equip body, etc on the Y axis
 
 	// headwear-specific props
@@ -449,7 +441,7 @@ func (eb *EntityBodySet) animationFinished() bool {
 	if !eb.ArmsSet.reachedLastFrame {
 		return false
 	}
-	if !eb.WeaponSet.None {
+	if !eb.WeaponSet.PartSrc.None {
 		if !eb.WeaponSet.reachedLastFrame {
 			return false
 		}
@@ -457,7 +449,7 @@ func (eb *EntityBodySet) animationFinished() bool {
 			return false
 		}
 	}
-	if !eb.EquipBodySet.None {
+	if !eb.EquipBodySet.PartSrc.None {
 		if !eb.EquipBodySet.reachedLastFrame {
 			return false
 		}

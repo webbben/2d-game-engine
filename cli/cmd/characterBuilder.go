@@ -231,84 +231,85 @@ func characterBuilder() {
 	weaponSlashTileSteps := []int{0, 5, 6, 7, 8}
 	weaponBackslashTileSteps := []int{8, 9, 10, 11}
 
-	bodySet := body.BodyPartSet{
-		WalkAnimation: body.Animation{
+	bodySet := body.NewBodyPartSet(body.BodyPartSetParams{
+		IsBody: true,
+		HasUp:  true,
+		WalkParams: body.AnimationParams{
 			TileSteps:    walkTileSteps,
 			StepsOffsetY: []int{0, 1, 0, 1},
 		},
-		RunAnimation: body.Animation{
+		RunParams: body.AnimationParams{
 			TileSteps:    runTileSteps,
 			StepsOffsetY: []int{0, 0, 1, 0, 0, 1},
 		},
-		SlashAnimation: body.Animation{
+		SlashParams: body.AnimationParams{
 			TileSteps:    slashTileSteps,
 			StepsOffsetY: []int{0, 1, 2, 2, 2},
 		},
-		BackslashAnimation: body.Animation{
+		BackslashParams: body.AnimationParams{
 			TileSteps:    backslashTileSteps,
 			StepsOffsetY: []int{2, 2, 1, 1},
 		},
+	})
+	armsSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		HasUp: true,
-	}
-	armsSet := body.BodyPartSet{
-		WalkAnimation: body.Animation{
+		WalkParams: body.AnimationParams{
 			TileSteps: walkTileSteps,
 		},
-		RunAnimation: body.Animation{
+		RunParams: body.AnimationParams{
 			TileSteps: runTileSteps,
 		},
-		SlashAnimation: body.Animation{
+		SlashParams: body.AnimationParams{
 			TileSteps: slashTileSteps,
 		},
-		BackslashAnimation: body.Animation{
+		BackslashParams: body.AnimationParams{
 			TileSteps: backslashTileSteps,
 		},
+	})
+	eyesSet := body.NewBodyPartSet(body.BodyPartSetParams{})
+	hairSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true})
+	equipBodySet := body.NewBodyPartSet(body.BodyPartSetParams{
 		HasUp: true,
-	}
-	eyesSet := body.BodyPartSet{}
-	hairSet := body.BodyPartSet{HasUp: true}
-	equipBodySet := body.BodyPartSet{
-		WalkAnimation: body.Animation{
+		WalkParams: body.AnimationParams{
 			TileSteps: walkTileSteps,
 		},
-		RunAnimation: body.Animation{
+		RunParams: body.AnimationParams{
 			TileSteps: runTileSteps,
 		},
-		SlashAnimation: body.Animation{
+		SlashParams: body.AnimationParams{
 			TileSteps: slashTileSteps,
 		},
-		BackslashAnimation: body.Animation{
+		BackslashParams: body.AnimationParams{
 			TileSteps: backslashTileSteps,
 		},
+	})
+	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true})
+	weaponSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		HasUp: true,
-	}
-	equipHeadSet := body.BodyPartSet{HasUp: true}
-	weaponSet := body.BodyPartSet{
-		WalkAnimation: body.Animation{
+		WalkParams: body.AnimationParams{
 			TileSteps: weaponWalkTileSteps,
 		},
-		RunAnimation: body.Animation{
+		RunParams: body.AnimationParams{
 			TileSteps: weaponRunTileSteps,
 		},
-		SlashAnimation: body.Animation{
+		SlashParams: body.AnimationParams{
 			TileSteps: weaponSlashTileSteps,
 		},
-		BackslashAnimation: body.Animation{
+		BackslashParams: body.AnimationParams{
 			TileSteps: weaponBackslashTileSteps,
 		},
-		HasUp: true,
-	}
-	weaponFxSet := body.BodyPartSet{
-		SlashAnimation: body.Animation{
+	})
+	weaponFxSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		HasUp:      true,
+		WalkParams: body.AnimationParams{Skip: true},
+		RunParams:  body.AnimationParams{Skip: true},
+		SlashParams: body.AnimationParams{
 			TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
 		},
-		BackslashAnimation: body.Animation{
+		BackslashParams: body.AnimationParams{
 			TileSteps: []int{-1, 3, 4, 5},
 		},
-		WalkAnimation: body.Animation{Skip: true},
-		RunAnimation:  body.Animation{Skip: true},
-		HasUp:         true,
-	}
+	})
 
 	weaponOptions := []weaponOption{
 		{

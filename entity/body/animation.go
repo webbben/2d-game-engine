@@ -40,15 +40,42 @@ func (eb EntityBodySet) IsMoving() bool {
 	}
 }
 
+// Defines an animation for a specific bodyPartSet: which frames to show in which order, etc.
 type Animation struct {
-	Name         string
-	Skip         bool            // if true, this animation does not get defined
-	L            []*ebiten.Image `json:"-"`
-	R            []*ebiten.Image `json:"-"`
-	U            []*ebiten.Image `json:"-"`
-	D            []*ebiten.Image `json:"-"`
+	Name string
+	Skip bool            // if true, this animation does not get defined
+	L    []*ebiten.Image `json:"-"`
+	R    []*ebiten.Image `json:"-"`
+	U    []*ebiten.Image `json:"-"`
+	D    []*ebiten.Image `json:"-"`
+
+	// defines how many ID "steps" from the origin (for a given direction) to get to each animation frame.
+	// therefore, it's assumed that each direction of an animation has the same relative pattern of "tile steps".
+	// this just makes it easier programmatically; if the pattern were to change, it would be a pain in the ass to
+	// have to redo each number for each direction. with this system, you just have to keep the pattern and the start index correct.
+	TileSteps    []int
+	StepsOffsetY []int // Only set by the body set
+}
+
+type AnimationParams struct {
+	Skip         bool
 	TileSteps    []int
 	StepsOffsetY []int
+}
+
+func NewAnimation(params AnimationParams) Animation {
+	if len(params.StepsOffsetY) != 0 {
+		if len(params.StepsOffsetY) != len(params.TileSteps) {
+			panic("if stepsOffsetY is defined, it should be the same length as tileSteps")
+		}
+	}
+	a := Animation{
+		TileSteps:    params.TileSteps,
+		StepsOffsetY: params.StepsOffsetY,
+		Skip:         params.Skip,
+	}
+
+	return a
 }
 
 func (a Animation) debugString() string {

@@ -18,16 +18,13 @@ type BodyPartSet struct {
 
 	// TODO do we need TilesetSrc etc here? it seems they are present in PartSrc...
 
-	TilesetSrc                     string
-	RStart, LStart, UStart, DStart int
-	FlipRForL                      bool
-	None                           bool // if set, this body part set is effectively turned off and not drawn or involved in any animations
-	stretchX, stretchY             int
+	stretchX, stretchY int // the amount THIS body part is stretched (the values in PartSrc would set these values, if a body set were applying a stretch effect)
 
 	// animation definitions
 
-	animIndex          int  // index or "step" of the animation we are currently on
-	reachedLastFrame   bool // used to detect when an animation has finished (if all sets are at last frame, entire animation is done)
+	animIndex        int  // index or "step" of the animation we are currently on
+	reachedLastFrame bool // used to detect when an animation has finished (if all sets are at last frame, entire animation is done)
+	//IdleAnimation      Animation
 	WalkAnimation      Animation
 	RunAnimation       Animation
 	SlashAnimation     Animation
@@ -37,15 +34,50 @@ type BodyPartSet struct {
 	img *ebiten.Image `json:"-"`
 }
 
-func (bps BodyPartSet) animationDebugString(anim string, dir byte) string {
-	if bps.None {
-		return fmt.Sprintf("[%s] NONE", bps.TilesetSrc)
+type BodyPartSetParams struct {
+	IsBody          bool // if true, this body part set will be treated as the main body set. this allows things like StepsOffsetY to be used.
+	HasUp           bool // if true, this set has animation frames for "up". some may not, since they might be covered up (e.g. the eyes set)
+	WalkParams      AnimationParams
+	RunParams       AnimationParams
+	SlashParams     AnimationParams
+	BackslashParams AnimationParams
+}
+
+func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
+	if !params.IsBody {
+		if len(params.WalkParams.StepsOffsetY) != 0 {
+			logz.Panic("non-body sets should not define a stepsOffsetY; that is only for the main body set to define.")
+		}
+		if len(params.RunParams.StepsOffsetY) != 0 {
+			logz.Panic("non-body sets should not define a stepsOffsetY; that is only for the main body set to define.")
+		}
+		if len(params.SlashParams.StepsOffsetY) != 0 {
+			logz.Panic("non-body sets should not define a stepsOffsetY; that is only for the main body set to define.")
+		}
+		if len(params.BackslashParams.StepsOffsetY) != 0 {
+			logz.Panic("non-body sets should not define a stepsOffsetY; that is only for the main body set to define.")
+		}
 	}
-	if !bps.HasUp && dir == 'U' {
-		return fmt.Sprintf("[%s] No Up", bps.TilesetSrc)
+	bps := BodyPartSet{
+		WalkAnimation:      NewAnimation(params.WalkParams),
+		RunAnimation:       NewAnimation(params.RunParams),
+		SlashAnimation:     NewAnimation(params.SlashParams),
+		BackslashAnimation: NewAnimation(params.BackslashParams),
+		HasUp:              params.HasUp,
 	}
 
-	s := fmt.Sprintf("[%s] animIndex: %v lastframe: %v strX: %v strY: %v", bps.TilesetSrc, bps.animIndex, bps.reachedLastFrame, bps.stretchX, bps.stretchY)
+	return bps
+}
+
+func (bps BodyPartSet) animationDebugString(anim string, dir byte) string {
+	if bps.PartSrc.None {
+		return fmt.Sprintf("[%s] NONE", bps.PartSrc.TilesetSrc)
+	}
+	if !bps.HasUp && dir == 'U' {
+		return fmt.Sprintf("[%s] No Up", bps.PartSrc.TilesetSrc)
+	}
+
+	s := fmt.Sprintf("[%s] animIndex: %v lastframe: %v strX: %v strY: %v", bps.PartSrc.TilesetSrc, bps.animIndex, bps.reachedLastFrame, bps.stretchX, bps.stretchY)
 
 	switch anim {
 	case ANIM_WALK:
@@ -62,17 +94,17 @@ func (bps BodyPartSet) animationDebugString(anim string, dir byte) string {
 }
 
 func (bps BodyPartSet) validate() {
-	if bps.None {
+	if bps.PartSrc.None {
 		return
 	}
-	fmt.Println(bps.TilesetSrc)
+	if !bps.sourceSet {
+		panic("source not set!")
+	}
+	fmt.Println(bps.PartSrc.TilesetSrc)
 	bps.WalkAnimation.validate()
 	bps.RunAnimation.validate()
 	bps.SlashAnimation.validate()
 }
-
-// for no body part
-var NONE BodyPartSet = BodyPartSet{None: true}
 
 func (bps *BodyPartSet) unsetAllImages() {
 	bps.WalkAnimation.reset()
@@ -82,13 +114,15 @@ func (bps *BodyPartSet) unsetAllImages() {
 }
 
 func (bps *BodyPartSet) setImageSource(def SelectedPartDef) {
-	bps.TilesetSrc = def.TilesetSrc
-	bps.LStart = def.LStart
-	bps.RStart = def.RStart
-	bps.UStart = def.UStart
-	bps.DStart = def.DStart
-	bps.FlipRForL = def.FlipRForL
-	bps.None = def.None
+	// NOTE: we purposefully do NOT set CropHairToHead here, since that is an EquipHead specific function (and is handled in that setter function).
+	// setting it here could falsely overwrite the value whenever a non-equipHead part is set.
+	bps.PartSrc.TilesetSrc = def.TilesetSrc
+	bps.PartSrc.LStart = def.LStart
+	bps.PartSrc.RStart = def.RStart
+	bps.PartSrc.UStart = def.UStart
+	bps.PartSrc.DStart = def.DStart
+	bps.PartSrc.FlipRForL = def.FlipRForL
+	bps.PartSrc.None = def.None
 
 	// set this so the part can be reloaded later
 	bps.PartSrc = def
@@ -103,30 +137,30 @@ func (set *BodyPartSet) load() {
 	set.RunAnimation.reset()
 	set.SlashAnimation.reset()
 
-	if set.None {
+	if set.PartSrc.None {
 		return
 	}
-
+	// leaving this below the above None check, since it makes it easier to define a None set without having to actually do the load process.
 	if !set.sourceSet {
 		panic("source not set before attempting to load")
 	}
-	if set.TilesetSrc == "" {
+	if set.PartSrc.TilesetSrc == "" {
 		panic("no TilesetSrc set in BodyPartSet")
 	}
 
-	set.WalkAnimation.Name = fmt.Sprintf("%s/walk", set.TilesetSrc)
-	set.RunAnimation.Name = fmt.Sprintf("%s/run", set.TilesetSrc)
-	set.SlashAnimation.Name = fmt.Sprintf("%s/slash", set.TilesetSrc)
-	set.BackslashAnimation.Name = fmt.Sprintf("%s/backslash", set.TilesetSrc)
+	set.WalkAnimation.Name = fmt.Sprintf("%s/walk", set.PartSrc.TilesetSrc)
+	set.RunAnimation.Name = fmt.Sprintf("%s/run", set.PartSrc.TilesetSrc)
+	set.SlashAnimation.Name = fmt.Sprintf("%s/slash", set.PartSrc.TilesetSrc)
+	set.BackslashAnimation.Name = fmt.Sprintf("%s/backslash", set.PartSrc.TilesetSrc)
 
-	set.WalkAnimation.loadFrames(set.TilesetSrc, set.RStart, set.LStart, set.UStart, set.DStart, set.stretchX, set.stretchY, set.FlipRForL, set.HasUp)
-	set.RunAnimation.loadFrames(set.TilesetSrc, set.RStart, set.LStart, set.UStart, set.DStart, set.stretchX, set.stretchY, set.FlipRForL, set.HasUp)
-	set.SlashAnimation.loadFrames(set.TilesetSrc, set.RStart, set.LStart, set.UStart, set.DStart, set.stretchX, set.stretchY, set.FlipRForL, set.HasUp)
-	set.BackslashAnimation.loadFrames(set.TilesetSrc, set.RStart, set.LStart, set.UStart, set.DStart, set.stretchX, set.stretchY, set.FlipRForL, set.HasUp)
+	set.WalkAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp)
+	set.RunAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp)
+	set.SlashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp)
+	set.BackslashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp)
 }
 
 func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string) {
-	if set.None {
+	if set.PartSrc.None {
 		set.img = nil
 		return
 	}
@@ -175,8 +209,11 @@ func (set BodyPartSet) getCurrentYOffset(animationName string) int {
 }
 
 func (set *BodyPartSet) nextFrame(animationName string) {
-	if set.None {
+	if set.PartSrc.None {
 		return
+	}
+	if !set.sourceSet {
+		panic("source not set!")
 	}
 	if animationName == "" {
 		logz.Panic("called nextFrame on empty animation")
@@ -195,7 +232,7 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 	case ANIM_BACKSLASH:
 		numSteps = len(set.BackslashAnimation.TileSteps)
 	default:
-		logz.Panicln(set.TilesetSrc, "nextFrame: animation name has no registered animation sequence:", animationName)
+		logz.Panicln(set.PartSrc.TilesetSrc, "nextFrame: animation name has no registered animation sequence:", animationName)
 	}
 
 	if numSteps == 0 {
