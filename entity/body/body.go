@@ -51,6 +51,7 @@ type EntityBodySet struct {
 	EquipHeadSet BodyPartSet
 	WeaponSet    BodyPartSet
 	WeaponFxSet  BodyPartSet
+	AuxItemSet   BodyPartSet
 
 	globalOffsetY  float64 `json:"-"` // amount to offset placement of (non-body) parts by, when body is taller or shorter
 	nonBodyYOffset int     `json:"-"` // amount to offset placement of (non-body) parts by, simply dictated by the body's movements
@@ -77,9 +78,10 @@ func (eb *EntityBodySet) Load() {
 	eb.SetEquipHead(eb.EquipHeadSet.PartSrc)
 	eb.SetBody(eb.BodySet.PartSrc, eb.ArmsSet.PartSrc)
 	eb.SetWeapon(eb.WeaponSet.PartSrc, eb.WeaponFxSet.PartSrc)
+	eb.SetAuxiliary(eb.AuxItemSet.PartSrc)
 
 	// set an initial direction and ensure img is set
-	eb.animation = ""
+	eb.animation = ANIM_IDLE
 	eb.SetDirection(model.Directions.Down)
 	if eb.BodySet.img == nil {
 		panic("body image is nil!")
@@ -93,6 +95,9 @@ func (eb *EntityBodySet) Load() {
 	eb.BodySet.validate()
 	eb.WeaponSet.validate()
 	eb.WeaponFxSet.validate()
+	eb.AuxItemSet.validate()
+
+	eb.validateAuxFrames()
 
 	tilesize := config.TileSize
 	eb.stagingImg = ebiten.NewImage(tilesize*5, tilesize*5)
@@ -149,7 +154,7 @@ func (eb EntityBodySet) GetHairHSV() (h, s, v float64) {
 }
 
 // creates a base body set, without anything equiped
-func NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet BodyPartSet, bodyHSV, eyesHSV, hairHSV *HSV) EntityBodySet {
+func NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet BodyPartSet, bodyHSV, eyesHSV, hairHSV *HSV) EntityBodySet {
 	if bodyHSV == nil {
 		bodyHSV = &Default
 	}
@@ -161,7 +166,7 @@ func NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBod
 	}
 
 	eb := EntityBodySet{
-		animation:          "",
+		animation:          ANIM_IDLE,
 		animationTickCount: 15,
 		currentDirection:   'D',
 		BodySet:            bodySet,
@@ -175,6 +180,7 @@ func NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBod
 		EquipHeadSet:       equipHeadSet,
 		WeaponSet:          weaponSet,
 		WeaponFxSet:        weaponFxSet,
+		AuxItemSet:         auxSet,
 		stagingImg:         ebiten.NewImage(config.TileSize*5, config.TileSize*5),
 	}
 
@@ -259,6 +265,15 @@ func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
 	}
 }
 
+func (eb *EntityBodySet) SetAuxiliary(def SelectedPartDef) {
+	eb.AuxItemSet.setImageSource(def)
+}
+
+// determines if an aux item is currently equiped
+func (eb EntityBodySet) IsAuxEquipped() bool {
+	return !eb.AuxItemSet.PartSrc.None
+}
+
 func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
 	if eb.WeaponSet.PartSrc.None {
 		return
@@ -296,6 +311,14 @@ type SelectedPartDef struct {
 	// headwear-specific props
 
 	CropHairToHead bool // set to have hair not go outside the head image. used for helmets or certain hats.
+
+	// aux-specific props
+
+	// if body has aux enabled, this field indicates the step (from origin) to get the first aux frame.
+	// for context: when aux is enabled, we replace the 0-index frame with a different frame,
+	// since aux animations only have a different first frame from the regular animations.
+	// If set to 0, effectively nothing happens, and no aux frame is built.
+	AuxFirstFrameStep int
 }
 
 func (eb *EntityBodySet) cropHair() {
@@ -354,6 +377,29 @@ func (eb *EntityBodySet) subtractArms() {
 	cropper(&eb.ArmsSet.RunAnimation, eb.EquipBodySet.RunAnimation)
 	cropper(&eb.ArmsSet.SlashAnimation, eb.EquipBodySet.SlashAnimation)
 	cropper(&eb.ArmsSet.BackslashAnimation, eb.EquipBodySet.BackslashAnimation)
+
+	eb.validateAuxFrames()
+
+	equipBodyOffsetY := int(eb.globalOffsetY + eb.getEquipBodyOffsetY())
+	eb.ArmsSet.IdleAnimation.leftAux = rendering.SubtractImageByOtherImage(eb.ArmsSet.IdleAnimation.leftAux, eb.EquipBodySet.IdleAnimation.leftAux, 0, equipBodyOffsetY)
+	eb.ArmsSet.IdleAnimation.rightAux = rendering.SubtractImageByOtherImage(eb.ArmsSet.IdleAnimation.rightAux, eb.EquipBodySet.IdleAnimation.rightAux, 0, equipBodyOffsetY)
+	eb.ArmsSet.IdleAnimation.upAux = rendering.SubtractImageByOtherImage(eb.ArmsSet.IdleAnimation.upAux, eb.EquipBodySet.IdleAnimation.upAux, 0, equipBodyOffsetY)
+	eb.ArmsSet.IdleAnimation.downAux = rendering.SubtractImageByOtherImage(eb.ArmsSet.IdleAnimation.downAux, eb.EquipBodySet.IdleAnimation.downAux, 0, equipBodyOffsetY)
+}
+
+func (eb EntityBodySet) validateAuxFrames() {
+	if eb.ArmsSet.IdleAnimation.leftAux == nil ||
+		eb.ArmsSet.IdleAnimation.rightAux == nil ||
+		eb.ArmsSet.IdleAnimation.upAux == nil ||
+		eb.ArmsSet.IdleAnimation.downAux == nil {
+		logz.Panicln(eb.Name, "one or more arms aux frames are nil")
+	}
+	if eb.EquipBodySet.IdleAnimation.leftAux == nil ||
+		eb.EquipBodySet.IdleAnimation.rightAux == nil ||
+		eb.EquipBodySet.IdleAnimation.upAux == nil ||
+		eb.EquipBodySet.IdleAnimation.downAux == nil {
+		logz.Panicln(eb.Name, "one or more equipBody aux frames are nil")
+	}
 }
 
 func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64) {
@@ -364,7 +410,10 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 
 	// render order decisions (for not so obvious things):
 	// - Arms: after equip body, equip head, hair so that hands show when doing U slash (we subtract arms by equip_body)
-	renderOrder := []string{"body", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_weapon"}
+	renderOrder := []string{"body", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_weapon", "aux"}
+	if eb.currentDirection == 'U' {
+		renderOrder = []string{"aux", "body", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_weapon"}
+	}
 
 	yOff := eb.globalOffsetY
 
@@ -406,6 +455,10 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 				if eb.WeaponFxSet.img != nil {
 					rendering.DrawImage(eb.stagingImg, eb.WeaponFxSet.img, weaponX, weaponY, 0)
 				}
+			}
+		case "aux":
+			if eb.AuxItemSet.img != nil {
+				rendering.DrawImage(eb.stagingImg, eb.AuxItemSet.img, bodyX, bodyY, 0)
 			}
 		default:
 			panic("unrecognized part name: " + part)
@@ -454,6 +507,11 @@ func (eb *EntityBodySet) animationFinished() bool {
 			return false
 		}
 	}
+	if !eb.AuxItemSet.PartSrc.None {
+		if !eb.AuxItemSet.reachedLastFrame {
+			return false
+		}
+	}
 	return true
 }
 
@@ -466,6 +524,7 @@ func (eb *EntityBodySet) resetCurrentAnimation() {
 	eb.EquipHeadSet.animIndex = 0
 	eb.WeaponSet.animIndex = 0
 	eb.WeaponFxSet.animIndex = 0
+	eb.AuxItemSet.animIndex = 0
 
 	eb.BodySet.reachedLastFrame = false
 	eb.EyesSet.reachedLastFrame = false
@@ -475,6 +534,7 @@ func (eb *EntityBodySet) resetCurrentAnimation() {
 	eb.EquipHeadSet.reachedLastFrame = false
 	eb.WeaponSet.reachedLastFrame = false
 	eb.WeaponFxSet.reachedLastFrame = false
+	eb.AuxItemSet.reachedLastFrame = false
 }
 
 func (eb *EntityBodySet) Update() {
@@ -486,41 +546,41 @@ func (eb *EntityBodySet) Update() {
 	// 	fmt.Println(eb.GetDebugString())
 	// 	time.Sleep(time.Millisecond * time.Duration(speed))
 	// }
-	if eb.animation != "" {
-		eb.ticks++
-		if eb.ticks > eb.animationTickCount {
-			// SETS: next frame
-			eb.ticks = 0
-			eb.BodySet.nextFrame(eb.animation)
-			eb.ArmsSet.nextFrame(eb.animation)
-			eb.EquipBodySet.nextFrame(eb.animation)
-			eb.EquipHeadSet.nextFrame(eb.animation)
-			eb.WeaponSet.nextFrame(eb.animation)
-			eb.WeaponFxSet.nextFrame(eb.animation)
+	eb.ticks++
+	if eb.ticks > eb.animationTickCount {
+		// SETS: next frame
+		eb.ticks = 0
+		eb.BodySet.nextFrame(eb.animation)
+		eb.ArmsSet.nextFrame(eb.animation)
+		eb.EquipBodySet.nextFrame(eb.animation)
+		eb.EquipHeadSet.nextFrame(eb.animation)
+		eb.WeaponSet.nextFrame(eb.animation)
+		eb.WeaponFxSet.nextFrame(eb.animation)
+		eb.AuxItemSet.nextFrame(eb.animation)
+	}
+	// check for a queued animation; and if we are idle, switch to that
+	if eb.animation == ANIM_IDLE && eb.nextAnimation != "" {
+		res := eb.SetAnimation(eb.nextAnimation, SetAnimationOps{})
+		if res.FailedToSet {
+			panic("failed to set next animation?")
 		}
-	} else {
-		if eb.nextAnimation != "" {
-			res := eb.SetAnimation(eb.nextAnimation, SetAnimationOps{})
-			if res.FailedToSet {
-				panic("failed to set next animation?")
-			}
-			if eb.animation != eb.nextAnimation {
-				panic("next animation wasn't set?")
-			}
-			eb.nextAnimation = ""
+		if eb.animation != eb.nextAnimation {
+			panic("next animation wasn't set?")
 		}
+		eb.nextAnimation = ""
 	}
 
 	// SETS: get current frame
-	eb.BodySet.setCurrentFrame(eb.currentDirection, eb.animation)
-	eb.EyesSet.setCurrentFrame(eb.currentDirection, eb.animation)
-	eb.HairSet.setCurrentFrame(eb.currentDirection, eb.animation)
-	eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
+	eb.BodySet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	eb.EyesSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	eb.HairSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
 
-	eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation)
-	eb.EquipHeadSet.setCurrentFrame(eb.currentDirection, eb.animation)
-	eb.WeaponSet.setCurrentFrame(eb.currentDirection, eb.animation)
-	eb.WeaponFxSet.setCurrentFrame(eb.currentDirection, eb.animation)
+	eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	eb.EquipHeadSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	eb.WeaponSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	eb.WeaponFxSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	eb.AuxItemSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
 
 	// Warning: Keep this immediately after the above setCurrentFrame calls! This must be set based on whatever image is actually showing.
 	// (there was a bug where the body appeared out of place for a single update tick, and the cause was this being after resetCurrentAnimation below)
@@ -557,10 +617,11 @@ func (res SetAnimationResult) String() string {
 
 // sets an animation. returns if animation was successfully set.
 func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) SetAnimationResult {
+	validateAnimation(animation)
 	if animation == eb.animation {
 		return SetAnimationResult{AlreadySet: true}
 	}
-	if eb.animation != "" && !ops.Force {
+	if eb.animation != ANIM_IDLE && !ops.Force {
 		if ops.QueueNext && eb.nextAnimation == "" {
 			eb.nextAnimation = animation
 			logz.Println(eb.Name, "next animation queued:", animation)
@@ -577,20 +638,20 @@ func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) Set
 }
 
 func (eb *EntityBodySet) StopAnimation() {
-	if eb.animation == "" {
+	if eb.animation == ANIM_IDLE {
 		if eb.nextAnimation != "" {
-			logz.Println(eb.Name, "stop animation: next animation exists - should we be clearing this??")
+			logz.Warnln(eb.Name, "stop animation: next animation exists - should we be clearing this??")
 		}
 		return
 	}
-	res := eb.SetAnimation("", SetAnimationOps{
+	res := eb.SetAnimation(ANIM_IDLE, SetAnimationOps{
 		Force: true,
 	})
 	if res.FailedToSet {
 		logz.Println(eb.Name, res)
 		panic("failed to stop animation?")
 	}
-	if eb.animation != "" {
+	if eb.animation != ANIM_IDLE {
 		panic("animation is not stopped?")
 	}
 }
@@ -630,6 +691,8 @@ func (eb *EntityBodySet) SetDirection(dir byte) {
 		return
 	}
 
+	eb.currentDirection = dir
+
 	// SETS: reset animation index
 	eb.BodySet.animIndex = 0
 	eb.EyesSet.animIndex = 0
@@ -640,16 +703,16 @@ func (eb *EntityBodySet) SetDirection(dir byte) {
 	eb.EquipHeadSet.animIndex = 0
 	eb.WeaponSet.animIndex = 0
 	eb.WeaponFxSet.animIndex = 0
-
-	eb.currentDirection = dir
+	eb.AuxItemSet.animIndex = 0
 
 	// SETS: set to first frame of walking animation
-	eb.BodySet.setCurrentFrame(dir, ANIM_WALK)
-	eb.EyesSet.setCurrentFrame(dir, ANIM_WALK)
-	eb.HairSet.setCurrentFrame(dir, ANIM_WALK)
-	eb.ArmsSet.setCurrentFrame(dir, ANIM_WALK)
-	eb.EquipBodySet.setCurrentFrame(dir, ANIM_WALK)
-	eb.EquipHeadSet.setCurrentFrame(dir, ANIM_WALK)
-	eb.WeaponSet.setCurrentFrame(dir, ANIM_WALK)
-	eb.WeaponFxSet.setCurrentFrame(dir, ANIM_WALK)
+	eb.BodySet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())
+	eb.EyesSet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())
+	eb.HairSet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())
+	eb.ArmsSet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())
+	eb.EquipBodySet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())
+	eb.EquipHeadSet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())
+	eb.WeaponSet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())
+	eb.WeaponFxSet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())
+	eb.AuxItemSet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())
 }

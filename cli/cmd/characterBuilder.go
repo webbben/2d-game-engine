@@ -106,6 +106,7 @@ func characterBuilder() {
 	equipHeadTileset := "items/equiped_head_01.tsj"
 	equipWeaponTileset := "items/weapon_frames.tsj"
 	weaponFxTileset := "items/weapon_fx_frames.tsj"
+	auxTileset := "items/equiped_aux.tsj"
 
 	bgTileset := "buildings/walls.tsj"
 
@@ -115,78 +116,87 @@ func characterBuilder() {
 	bodyUStart := 51
 	bodyOptions := []body.SelectedPartDef{
 		{
-			TilesetSrc: bodyTileset,
-			DStart:     0,
-			RStart:     bodyRStart,
-			LStart:     bodyLStart,
-			UStart:     bodyUStart,
+			TilesetSrc:        bodyTileset,
+			DStart:            0,
+			RStart:            bodyRStart,
+			LStart:            bodyLStart,
+			UStart:            bodyUStart,
+			AuxFirstFrameStep: 1,
 		},
 		{
-			TilesetSrc: bodyTileset,
-			DStart:     0 + (bodyRowLength),
-			RStart:     bodyRStart + (bodyRowLength),
-			LStart:     bodyLStart + (bodyRowLength),
-			UStart:     bodyUStart + (bodyRowLength),
-			StretchY:   -1,
-			OffsetY:    2,
+			TilesetSrc:        bodyTileset,
+			DStart:            0 + (bodyRowLength),
+			RStart:            bodyRStart + (bodyRowLength),
+			LStart:            bodyLStart + (bodyRowLength),
+			UStart:            bodyUStart + (bodyRowLength),
+			StretchY:          -1,
+			OffsetY:           2,
+			AuxFirstFrameStep: 1,
 		},
 		{
-			TilesetSrc: bodyTileset,
-			DStart:     0 + (bodyRowLength * 2),
-			RStart:     bodyRStart + (bodyRowLength * 2),
-			LStart:     bodyLStart + (bodyRowLength * 2),
-			UStart:     bodyUStart + (bodyRowLength * 2),
-			StretchX:   2,
+			TilesetSrc:        bodyTileset,
+			DStart:            0 + (bodyRowLength * 2),
+			RStart:            bodyRStart + (bodyRowLength * 2),
+			LStart:            bodyLStart + (bodyRowLength * 2),
+			UStart:            bodyUStart + (bodyRowLength * 2),
+			StretchX:          2,
+			AuxFirstFrameStep: 1,
 		},
 		{
-			TilesetSrc: bodyTileset,
-			DStart:     0 + (bodyRowLength * 3),
-			RStart:     bodyRStart + (bodyRowLength * 3),
-			LStart:     bodyLStart + (bodyRowLength * 3),
-			UStart:     bodyUStart + (bodyRowLength * 3),
-			StretchX:   2,
-			StretchY:   -1,
-			OffsetY:    2,
+			TilesetSrc:        bodyTileset,
+			DStart:            0 + (bodyRowLength * 3),
+			RStart:            bodyRStart + (bodyRowLength * 3),
+			LStart:            bodyLStart + (bodyRowLength * 3),
+			UStart:            bodyUStart + (bodyRowLength * 3),
+			StretchX:          2,
+			StretchY:          -1,
+			OffsetY:           2,
+			AuxFirstFrameStep: 1,
 		},
 	}
 	armsOptions := []body.SelectedPartDef{
 		{
-			TilesetSrc: armsTileset,
-			DStart:     0,
-			RStart:     bodyRStart,
-			LStart:     bodyLStart,
-			UStart:     bodyUStart,
+			TilesetSrc:        armsTileset,
+			DStart:            0,
+			RStart:            bodyRStart,
+			LStart:            bodyLStart,
+			UStart:            bodyUStart,
+			AuxFirstFrameStep: 1,
 		},
 		{
-			TilesetSrc: armsTileset,
-			DStart:     0 + (bodyRowLength),
-			RStart:     bodyRStart + (bodyRowLength),
-			LStart:     bodyLStart + (bodyRowLength),
-			UStart:     bodyUStart + (bodyRowLength),
+			TilesetSrc:        armsTileset,
+			DStart:            0 + (bodyRowLength),
+			RStart:            bodyRStart + (bodyRowLength),
+			LStart:            bodyLStart + (bodyRowLength),
+			UStart:            bodyUStart + (bodyRowLength),
+			AuxFirstFrameStep: 1,
 		},
 		{
-			TilesetSrc: armsTileset,
-			DStart:     0 + (bodyRowLength * 2),
-			RStart:     bodyRStart + (bodyRowLength * 2),
-			LStart:     bodyLStart + (bodyRowLength * 2),
-			UStart:     bodyUStart + (bodyRowLength * 2),
+			TilesetSrc:        armsTileset,
+			DStart:            0 + (bodyRowLength * 2),
+			RStart:            bodyRStart + (bodyRowLength * 2),
+			LStart:            bodyLStart + (bodyRowLength * 2),
+			UStart:            bodyUStart + (bodyRowLength * 2),
+			AuxFirstFrameStep: 1,
 		},
 		{
-			TilesetSrc: armsTileset,
-			DStart:     0 + (bodyRowLength * 3),
-			RStart:     bodyRStart + (bodyRowLength * 3),
-			LStart:     bodyLStart + (bodyRowLength * 3),
-			UStart:     bodyUStart + (bodyRowLength * 3),
+			TilesetSrc:        armsTileset,
+			DStart:            0 + (bodyRowLength * 3),
+			RStart:            bodyRStart + (bodyRowLength * 3),
+			LStart:            bodyLStart + (bodyRowLength * 3),
+			UStart:            bodyUStart + (bodyRowLength * 3),
+			AuxFirstFrameStep: 1,
 		},
 	}
 	equipBodyOptions := []body.SelectedPartDef{}
 	for i := range 4 {
 		equipBodyOptions = append(equipBodyOptions, body.SelectedPartDef{
-			TilesetSrc: equipBodyTileset,
-			DStart:     (i * bodyRowLength),
-			RStart:     (i * bodyRowLength) + bodyRStart,
-			LStart:     (i * bodyRowLength) + bodyLStart,
-			UStart:     (i * bodyRowLength) + bodyUStart,
+			TilesetSrc:        equipBodyTileset,
+			DStart:            (i * bodyRowLength),
+			RStart:            (i * bodyRowLength) + bodyRStart,
+			LStart:            (i * bodyRowLength) + bodyLStart,
+			UStart:            (i * bodyRowLength) + bodyUStart,
+			AuxFirstFrameStep: 1,
 		})
 	}
 	eyesOptions := []body.SelectedPartDef{}
@@ -303,6 +313,7 @@ func characterBuilder() {
 		HasUp:      true,
 		WalkParams: body.AnimationParams{Skip: true},
 		RunParams:  body.AnimationParams{Skip: true},
+		IdleParams: body.AnimationParams{Skip: true},
 		SlashParams: body.AnimationParams{
 			TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
 		},
@@ -310,6 +321,31 @@ func characterBuilder() {
 			TileSteps: []int{-1, 3, 4, 5},
 		},
 	})
+	auxSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		HasUp: true,
+		IdleParams: body.AnimationParams{
+			TileSteps: []int{0, 1, 2, 3},
+		},
+		WalkParams: body.AnimationParams{
+			TileSteps: []int{0, 5, 0, 7},
+		},
+		RunParams: body.AnimationParams{
+			TileSteps: []int{0, 4, 5, 0, 6, 7},
+		},
+		SlashParams: body.AnimationParams{
+			TileSteps: []int{0, 8, 9, 10, 10},
+		},
+		BackslashParams: body.AnimationParams{
+			TileSteps: []int{11, 12, 13, 14},
+		},
+	})
+	auxOp := body.SelectedPartDef{
+		TilesetSrc: auxTileset,
+		DStart:     0,
+		RStart:     19,
+		LStart:     38,
+		UStart:     57,
+	}
 
 	weaponOptions := []weaponOption{
 		{
@@ -330,7 +366,7 @@ func characterBuilder() {
 		},
 	}
 
-	entBody := body.NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, nil, nil, nil)
+	entBody := body.NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
 
 	g := builderGame{
 		bodySetOptions:      bodyOptions,
@@ -350,6 +386,7 @@ func characterBuilder() {
 	g.SetEquipHeadIndex(0)
 	g.SetBodyIndex(0)
 	g.SetWeaponIndex(0)
+	g.entityBody.SetAuxiliary(auxOp)
 
 	// create the backdrop
 	t := float64(config.TileSize)
@@ -397,7 +434,7 @@ func characterBuilder() {
 
 	g.animationSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
-		Options:               []string{"", body.ANIM_WALK, body.ANIM_RUN, body.ANIM_SLASH, body.ANIM_BACKSLASH},
+		Options:               []string{body.ANIM_IDLE, body.ANIM_WALK, body.ANIM_RUN, body.ANIM_SLASH, body.ANIM_BACKSLASH},
 		InitialOptionIndex:    0,
 		TilesetSrc:            "ui/ui-components.tsj",
 		OriginIndex:           288,

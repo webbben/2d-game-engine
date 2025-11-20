@@ -22,9 +22,9 @@ type BodyPartSet struct {
 
 	// animation definitions
 
-	animIndex        int  // index or "step" of the animation we are currently on
-	reachedLastFrame bool // used to detect when an animation has finished (if all sets are at last frame, entire animation is done)
-	//IdleAnimation      Animation
+	animIndex          int  // index or "step" of the animation we are currently on
+	reachedLastFrame   bool // used to detect when an animation has finished (if all sets are at last frame, entire animation is done)
+	IdleAnimation      Animation
 	WalkAnimation      Animation
 	RunAnimation       Animation
 	SlashAnimation     Animation
@@ -41,6 +41,7 @@ type BodyPartSetParams struct {
 	RunParams       AnimationParams
 	SlashParams     AnimationParams
 	BackslashParams AnimationParams
+	IdleParams      AnimationParams
 }
 
 func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
@@ -63,6 +64,7 @@ func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
 		RunAnimation:       NewAnimation(params.RunParams),
 		SlashAnimation:     NewAnimation(params.SlashParams),
 		BackslashAnimation: NewAnimation(params.BackslashParams),
+		IdleAnimation:      NewAnimation(params.IdleParams),
 		HasUp:              params.HasUp,
 	}
 
@@ -104,6 +106,7 @@ func (bps BodyPartSet) validate() {
 	bps.WalkAnimation.validate()
 	bps.RunAnimation.validate()
 	bps.SlashAnimation.validate()
+	bps.IdleAnimation.validate()
 }
 
 func (bps *BodyPartSet) unsetAllImages() {
@@ -114,21 +117,8 @@ func (bps *BodyPartSet) unsetAllImages() {
 }
 
 func (bps *BodyPartSet) setImageSource(def SelectedPartDef) {
-	// NOTE: we purposefully do NOT set CropHairToHead here, since that is an EquipHead specific function (and is handled in that setter function).
-	// setting it here could falsely overwrite the value whenever a non-equipHead part is set.
-	bps.PartSrc.TilesetSrc = def.TilesetSrc
-	bps.PartSrc.LStart = def.LStart
-	bps.PartSrc.RStart = def.RStart
-	bps.PartSrc.UStart = def.UStart
-	bps.PartSrc.DStart = def.DStart
-	bps.PartSrc.FlipRForL = def.FlipRForL
-	bps.PartSrc.None = def.None
-
-	// set this so the part can be reloaded later
 	bps.PartSrc = def
-
 	bps.sourceSet = true
-
 	bps.load()
 }
 
@@ -136,6 +126,7 @@ func (set *BodyPartSet) load() {
 	set.WalkAnimation.reset()
 	set.RunAnimation.reset()
 	set.SlashAnimation.reset()
+	set.IdleAnimation.reset()
 
 	if set.PartSrc.None {
 		return
@@ -152,14 +143,19 @@ func (set *BodyPartSet) load() {
 	set.RunAnimation.Name = fmt.Sprintf("%s/run", set.PartSrc.TilesetSrc)
 	set.SlashAnimation.Name = fmt.Sprintf("%s/slash", set.PartSrc.TilesetSrc)
 	set.BackslashAnimation.Name = fmt.Sprintf("%s/backslash", set.PartSrc.TilesetSrc)
+	set.IdleAnimation.Name = fmt.Sprintf("%s/idle", set.PartSrc.TilesetSrc)
 
-	set.WalkAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp)
-	set.RunAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp)
-	set.SlashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp)
-	set.BackslashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp)
+	set.WalkAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+	set.RunAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+	set.SlashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+	set.BackslashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+	set.IdleAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
 }
 
-func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string) {
+func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string, aux bool) {
+	if animationName == "" {
+		panic("animation is unset")
+	}
 	if set.PartSrc.None {
 		set.img = nil
 		return
@@ -171,15 +167,15 @@ func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string) {
 
 	switch animationName {
 	case ANIM_WALK:
-		set.img = set.WalkAnimation.getFrame(dir, set.animIndex)
+		set.img = set.WalkAnimation.getFrame(dir, set.animIndex, aux)
 	case ANIM_RUN:
-		set.img = set.RunAnimation.getFrame(dir, set.animIndex)
+		set.img = set.RunAnimation.getFrame(dir, set.animIndex, aux)
 	case ANIM_SLASH:
-		set.img = set.SlashAnimation.getFrame(dir, set.animIndex)
+		set.img = set.SlashAnimation.getFrame(dir, set.animIndex, aux)
 	case ANIM_BACKSLASH:
-		set.img = set.BackslashAnimation.getFrame(dir, set.animIndex)
-	case "":
-		set.img = set.WalkAnimation.getFrame(dir, 0)
+		set.img = set.BackslashAnimation.getFrame(dir, set.animIndex, aux)
+	case ANIM_IDLE:
+		set.img = set.IdleAnimation.getFrame(dir, set.animIndex, aux)
 	default:
 		panic("unrecognized animation name: " + animationName)
 	}
@@ -203,6 +199,10 @@ func (set BodyPartSet) getCurrentYOffset(animationName string) int {
 		if len(set.BackslashAnimation.StepsOffsetY) > 0 {
 			return set.BackslashAnimation.StepsOffsetY[set.animIndex]
 		}
+	case ANIM_IDLE:
+		if len(set.IdleAnimation.StepsOffsetY) > 0 {
+			return set.IdleAnimation.StepsOffsetY[set.animIndex]
+		}
 	}
 
 	return 0
@@ -216,7 +216,7 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 		panic("source not set!")
 	}
 	if animationName == "" {
-		logz.Panic("called nextFrame on empty animation")
+		logz.Panic("called nextFrame on empty animation. should this be the idle animation?")
 	}
 
 	set.animIndex++
@@ -231,6 +231,8 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 		numSteps = len(set.SlashAnimation.TileSteps)
 	case ANIM_BACKSLASH:
 		numSteps = len(set.BackslashAnimation.TileSteps)
+	case ANIM_IDLE:
+		numSteps = len(set.IdleAnimation.TileSteps)
 	default:
 		logz.Panicln(set.PartSrc.TilesetSrc, "nextFrame: animation name has no registered animation sequence:", animationName)
 	}
