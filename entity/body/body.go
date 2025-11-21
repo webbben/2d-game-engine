@@ -377,6 +377,7 @@ func (eb *EntityBodySet) subtractArms() {
 	cropper(&eb.ArmsSet.RunAnimation, eb.EquipBodySet.RunAnimation)
 	cropper(&eb.ArmsSet.SlashAnimation, eb.EquipBodySet.SlashAnimation)
 	cropper(&eb.ArmsSet.BackslashAnimation, eb.EquipBodySet.BackslashAnimation)
+	cropper(&eb.ArmsSet.IdleAnimation, eb.EquipBodySet.IdleAnimation)
 
 	eb.validateAuxFrames()
 
