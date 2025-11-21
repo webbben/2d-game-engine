@@ -396,6 +396,10 @@ func (eb *EntityBodySet) subtractArms() {
 			equipBodyImg := subtractorA.D[i]
 			a.D[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
 		}
+		a.leftAux = rendering.SubtractImageByOtherImage(a.leftAux, subtractorA.leftAux, 0, equipBodyOffsetY)
+		a.rightAux = rendering.SubtractImageByOtherImage(a.rightAux, subtractorA.rightAux, 0, equipBodyOffsetY)
+		a.upAux = rendering.SubtractImageByOtherImage(a.upAux, subtractorA.upAux, 0, equipBodyOffsetY)
+		a.downAux = rendering.SubtractImageByOtherImage(a.downAux, subtractorA.downAux, 0, equipBodyOffsetY)
 	}
 
 	cropper(&eb.ArmsSet.WalkAnimation, eb.EquipBodySet.WalkAnimation)
@@ -405,12 +409,6 @@ func (eb *EntityBodySet) subtractArms() {
 	cropper(&eb.ArmsSet.IdleAnimation, eb.EquipBodySet.IdleAnimation)
 
 	eb.validateAuxFrames()
-
-	equipBodyOffsetY := int(eb.globalOffsetY + eb.getEquipBodyOffsetY())
-	eb.ArmsSet.IdleAnimation.leftAux = rendering.SubtractImageByOtherImage(eb.ArmsSet.IdleAnimation.leftAux, eb.EquipBodySet.IdleAnimation.leftAux, 0, equipBodyOffsetY)
-	eb.ArmsSet.IdleAnimation.rightAux = rendering.SubtractImageByOtherImage(eb.ArmsSet.IdleAnimation.rightAux, eb.EquipBodySet.IdleAnimation.rightAux, 0, equipBodyOffsetY)
-	eb.ArmsSet.IdleAnimation.upAux = rendering.SubtractImageByOtherImage(eb.ArmsSet.IdleAnimation.upAux, eb.EquipBodySet.IdleAnimation.upAux, 0, equipBodyOffsetY)
-	eb.ArmsSet.IdleAnimation.downAux = rendering.SubtractImageByOtherImage(eb.ArmsSet.IdleAnimation.downAux, eb.EquipBodySet.IdleAnimation.downAux, 0, equipBodyOffsetY)
 }
 
 func (eb EntityBodySet) validateAuxFrames() {
