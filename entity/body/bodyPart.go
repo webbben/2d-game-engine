@@ -13,8 +13,9 @@ import (
 // The actual body part definitions (which tiles to show for hair, eyes, etc) are defined by the TilesetSrc and start indices, and can be set
 // using the set functions.
 type BodyPartSet struct {
-	sourceSet bool            // indicates if a source has been set yet (tilesetSrc, etc)
-	PartSrc   SelectedPartDef // tileset and image source definitions
+	sourceSet   bool            // indicates if a source has been set yet (tilesetSrc, etc)
+	PartSrc     SelectedPartDef // tileset and image source definitions
+	IsRemovable bool            // if true, this body part set can be removed or hidden (i.e. have None set to true).
 
 	// TODO do we need TilesetSrc etc here? it seems they are present in PartSrc...
 
@@ -37,6 +38,7 @@ type BodyPartSet struct {
 type BodyPartSetParams struct {
 	IsBody          bool // if true, this body part set will be treated as the main body set. this allows things like StepsOffsetY to be used.
 	HasUp           bool // if true, this set has animation frames for "up". some may not, since they might be covered up (e.g. the eyes set)
+	IsRemovable     bool // if true, this set can be removed or hidden from rendering
 	WalkParams      AnimationParams
 	RunParams       AnimationParams
 	SlashParams     AnimationParams
@@ -59,6 +61,9 @@ func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
 			logz.Panic("non-body sets should not define a stepsOffsetY; that is only for the main body set to define.")
 		}
 	}
+	if params.IsBody && params.IsRemovable {
+		panic("body set cannot be removed")
+	}
 	bps := BodyPartSet{
 		WalkAnimation:      NewAnimation(params.WalkParams),
 		RunAnimation:       NewAnimation(params.RunParams),
@@ -66,6 +71,7 @@ func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
 		BackslashAnimation: NewAnimation(params.BackslashParams),
 		IdleAnimation:      NewAnimation(params.IdleParams),
 		HasUp:              params.HasUp,
+		IsRemovable:        params.IsRemovable,
 	}
 
 	return bps
@@ -113,6 +119,7 @@ func (bps *BodyPartSet) unsetAllImages() {
 	bps.WalkAnimation.reset()
 	bps.RunAnimation.reset()
 	bps.SlashAnimation.reset()
+	bps.IdleAnimation.reset()
 	bps.img = nil
 }
 
@@ -123,10 +130,7 @@ func (bps *BodyPartSet) setImageSource(def SelectedPartDef) {
 }
 
 func (set *BodyPartSet) load() {
-	set.WalkAnimation.reset()
-	set.RunAnimation.reset()
-	set.SlashAnimation.reset()
-	set.IdleAnimation.reset()
+	set.unsetAllImages()
 
 	if set.PartSrc.None {
 		return
@@ -250,4 +254,23 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 	if set.animIndex < 0 {
 		logz.Panicf("nextFrame: somehow animIndex became negative")
 	}
+}
+
+// complete removes the definition and images of the body part (clears PartSrc and all animation frames).
+// should be used when actually removing an item from the entity's body.
+func (set *BodyPartSet) Remove() {
+	if !set.IsRemovable {
+		logz.Panic("set is not removable!")
+	}
+	set.setImageSource(SelectedPartDef{None: true})
+}
+
+// hides the body part (without actually clearing PartSrc).
+// basically meant for toggling on and off a part from rendering, such as when a weapon is sheathed or unsheathed.
+func (set *BodyPartSet) Hide() {
+	if !set.IsRemovable {
+		logz.Panic("set is not removable!")
+	}
+	set.PartSrc.None = true
+	set.setImageSource(set.PartSrc)
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/internal/ui/button"
 	"github.com/webbben/2d-game-engine/internal/ui/dropdown"
+	"github.com/webbben/2d-game-engine/internal/ui/popup"
 	"github.com/webbben/2d-game-engine/internal/ui/slider"
 	"github.com/webbben/2d-game-engine/internal/ui/stepper"
 	"github.com/webbben/2d-game-engine/internal/ui/textfield"
@@ -66,17 +67,23 @@ type builderGame struct {
 
 	weaponOptions []weaponOption
 
+	equipedAux string
+	auxTorch   body.SelectedPartDef
+
 	// entity body animation parts (in entity)
 
 	entityBody body.EntityBodySet
 
 	// UI components
 
+	popupMgr popup.Manager
+
 	turnLeft          *button.Button
 	turnRight         *button.Button
 	speedSlider       slider.Slider
 	scaleSlider       slider.Slider
 	animationSelector dropdown.OptionSelect
+	auxiliarySelector dropdown.OptionSelect
 
 	bodyCtl      stepper.Stepper
 	hairCtl      stepper.Stepper
@@ -295,7 +302,8 @@ func characterBuilder() {
 	})
 	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true})
 	weaponSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		HasUp: true,
+		HasUp:       true,
+		IsRemovable: true,
 		WalkParams: body.AnimationParams{
 			TileSteps: weaponWalkTileSteps,
 		},
@@ -310,10 +318,11 @@ func characterBuilder() {
 		},
 	})
 	weaponFxSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		HasUp:      true,
-		WalkParams: body.AnimationParams{Skip: true},
-		RunParams:  body.AnimationParams{Skip: true},
-		IdleParams: body.AnimationParams{Skip: true},
+		HasUp:       true,
+		IsRemovable: true,
+		WalkParams:  body.AnimationParams{Skip: true},
+		RunParams:   body.AnimationParams{Skip: true},
+		IdleParams:  body.AnimationParams{Skip: true},
 		SlashParams: body.AnimationParams{
 			TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
 		},
@@ -322,7 +331,8 @@ func characterBuilder() {
 		},
 	})
 	auxSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		HasUp: true,
+		HasUp:       true,
+		IsRemovable: true,
 		IdleParams: body.AnimationParams{
 			TileSteps: []int{0, 1, 2, 3},
 		},
@@ -377,6 +387,8 @@ func characterBuilder() {
 		equipHeadSetOptions: equipHeadOptions,
 		weaponOptions:       weaponOptions,
 		entityBody:          entBody,
+
+		auxTorch: auxOp,
 	}
 
 	// SETS: load data
@@ -386,7 +398,7 @@ func characterBuilder() {
 	g.SetEquipHeadIndex(0)
 	g.SetBodyIndex(0)
 	g.SetWeaponIndex(0)
-	g.entityBody.SetAuxiliary(auxOp)
+	g.entityBody.AuxItemSet.Hide()
 
 	// create the backdrop
 	t := float64(config.TileSize)
@@ -432,6 +444,8 @@ func characterBuilder() {
 		StepSize:      1,
 	})
 
+	g.popupMgr = popup.NewPopupManager()
+
 	g.animationSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
 		Options:               []string{body.ANIM_IDLE, body.ANIM_WALK, body.ANIM_RUN, body.ANIM_SLASH, body.ANIM_BACKSLASH},
@@ -440,7 +454,16 @@ func characterBuilder() {
 		OriginIndex:           288,
 		DropDownBoxTilesetSrc: "boxes/boxes.tsj",
 		DropDownBoxOrigin:     128,
-	})
+	}, &g.popupMgr)
+	g.auxiliarySelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
+		Font:                  config.DefaultFont,
+		Options:               []string{"None", "Torch"},
+		InitialOptionIndex:    0,
+		TilesetSrc:            "ui/ui-components.tsj",
+		OriginIndex:           288,
+		DropDownBoxTilesetSrc: "boxes/boxes.tsj",
+		DropDownBoxOrigin:     128,
+	}, &g.popupMgr)
 
 	g.bodyCtl = stepper.NewStepper(stepper.StepperParams{
 		MinVal:               0,
@@ -683,6 +706,9 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	sliderY += tileSize * 2
 	text.DrawShadowText(screen, "Animation", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	bg.animationSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
+	sliderY += tileSize * 2
+	text.DrawShadowText(screen, "Auxiliary", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	bg.auxiliarySelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 
 	saveX := sliderX
 	saveY := display.SCREEN_HEIGHT - tileSize*2
@@ -725,9 +751,16 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	text.DrawShadowText(screen, "Eye Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	ctlY += tileSize / 8
 	bg.eyeColorSliders.Draw(screen, float64(ctlX), float64(ctlY))
+
+	bg.popupMgr.Draw(screen)
 }
 
 func (bg *builderGame) Update() error {
+	if bg.popupMgr.IsPopupActive() {
+		bg.popupMgr.Update()
+		return nil
+	}
+
 	if bg.turnLeft.Update().Clicked {
 		bg.entityBody.RotateLeft()
 	} else if bg.turnRight.Update().Clicked {
@@ -782,6 +815,11 @@ func (bg *builderGame) Update() error {
 	if selectorValue != bg.entityBody.GetCurrentAnimation() {
 		bg.entityBody.SetAnimation(selectorValue, body.SetAnimationOps{Force: true})
 	}
+	bg.auxiliarySelector.Update()
+	selectorValue = bg.auxiliarySelector.GetCurrentValue()
+	if selectorValue != bg.equipedAux {
+		bg.handleChangeAux(selectorValue)
+	}
 
 	bg.entityBody.SetAnimationTickCount(bg.speedSlider.GetValue())
 
@@ -793,6 +831,18 @@ func (bg *builderGame) Update() error {
 	bg.entityBody.Update()
 
 	return nil
+}
+
+func (bg *builderGame) handleChangeAux(val string) {
+	switch val {
+	case "None":
+		// remove aux item
+		bg.entityBody.AuxItemSet.Remove()
+	case "Torch":
+		bg.entityBody.SetAuxiliary(bg.auxTorch)
+	default:
+		panic("unrecognized aux value: " + val)
+	}
 }
 
 func (bg *builderGame) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {

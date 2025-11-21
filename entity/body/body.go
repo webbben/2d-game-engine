@@ -88,6 +88,13 @@ func (eb *EntityBodySet) Load() {
 	}
 
 	// make sure everything looks correct
+	eb.validate()
+
+	tilesize := config.TileSize
+	eb.stagingImg = ebiten.NewImage(tilesize*5, tilesize*5)
+}
+
+func (eb EntityBodySet) validate() {
 	eb.HairSet.validate()
 	eb.EyesSet.validate()
 	eb.EquipBodySet.validate()
@@ -98,9 +105,6 @@ func (eb *EntityBodySet) Load() {
 	eb.AuxItemSet.validate()
 
 	eb.validateAuxFrames()
-
-	tilesize := config.TileSize
-	eb.stagingImg = ebiten.NewImage(tilesize*5, tilesize*5)
 }
 
 func ReadJSON(jsonFilePath string) (EntityBodySet, error) {
@@ -275,12 +279,8 @@ func (eb EntityBodySet) IsAuxEquipped() bool {
 }
 
 func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
-	if eb.WeaponSet.PartSrc.None {
-		return
-	}
-	if eb.WeaponFxSet.PartSrc.None {
-		// TODO why do we check this? shouldn't we only care about the incoming def?
-		panic("no weaponFx set when setting weapon!")
+	if weaponDef.None != weaponFxDef.None {
+		logz.Panicln("SetWeapon", "weapon and weaponFx should have the same None value (so they always equip or unequip together)", "weapon:", weaponDef.None, "weaponFx:", weaponFxDef.None)
 	}
 	eb.WeaponSet.setImageSource(weaponDef)
 	eb.WeaponFxSet.setImageSource(weaponFxDef)

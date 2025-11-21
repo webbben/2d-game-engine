@@ -131,6 +131,10 @@ func (a *Animation) reset() {
 	a.R = make([]*ebiten.Image, 0)
 	a.U = make([]*ebiten.Image, 0)
 	a.D = make([]*ebiten.Image, 0)
+	a.leftAux = nil
+	a.rightAux = nil
+	a.upAux = nil
+	a.downAux = nil
 }
 
 func (a Animation) getFrame(dir byte, animationIndex int, aux bool) *ebiten.Image {
