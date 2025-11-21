@@ -34,7 +34,7 @@ func (am *attackManager) queueAttack(attackInfo AttackInfo, delayTicks int) {
 
 func (e *Entity) updateAttackManager() {
 	if e.waitingToAttack {
-		if !e.Movement.IsMoving && e.Body.GetCurrentAnimation() == "" {
+		if !e.Movement.IsMoving && e.Body.GetCurrentAnimation() == body.ANIM_IDLE {
 			e.StartMeleeAttack()
 			e.waitingToAttack = false
 		}
@@ -134,7 +134,7 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 
 	e.Body.SetDamageFlicker(15)
 
-	moveError := e.TryBumpBack(config.TileSize, defaultRunSpeed, attack.Origin, "", 0)
+	moveError := e.TryBumpBack(config.TileSize, defaultRunSpeed, attack.Origin, body.ANIM_IDLE, 0)
 	if !moveError.Success {
 		logz.Println(e.DisplayName, "failed to bump back:", moveError)
 		if !moveError.Collision {

@@ -127,7 +127,7 @@ func (e *Entity) SetAnimation(animOps AnimationOptions) body.SetAnimationResult 
 		e.Body.SetAnimationTickCount(animOps.AnimationTickInterval)
 	} else {
 		if !animRes.AlreadySet {
-			if e.Body.GetCurrentAnimation() == "" {
+			if e.Body.GetCurrentAnimation() == body.ANIM_IDLE {
 				panic("failed to set movement animation, but current animation seems to be empty...?")
 			}
 		}

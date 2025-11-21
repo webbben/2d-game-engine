@@ -107,6 +107,19 @@ func (a Animation) validate() {
 		panic("no animation name")
 	}
 
+	// even if an animation only has a single frame (i.e. no TileSteps) it should still have a single frame for each direction
+	if len(a.L) == 0 {
+		logz.Panicln(a.Name, "left animation is empty")
+	}
+	if len(a.R) == 0 {
+		logz.Panicln(a.Name, "right animation is empty")
+	}
+	// Up might be empty, if set is !hasUp.  TODO add this as a property to Animation so we can verify here?
+
+	if len(a.D) == 0 {
+		logz.Panicln(a.Name, "down animation is empty")
+	}
+
 	// no animation defined; this just shows a single frame
 	if len(a.TileSteps) == 0 {
 		return

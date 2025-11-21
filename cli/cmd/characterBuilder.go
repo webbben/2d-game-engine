@@ -249,6 +249,7 @@ func characterBuilder() {
 	weaponBackslashTileSteps := []int{8, 9, 10, 11}
 
 	bodySet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:   "bodySet",
 		IsBody: true,
 		HasUp:  true,
 		WalkParams: body.AnimationParams{
@@ -269,6 +270,7 @@ func characterBuilder() {
 		},
 	})
 	armsSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:  "armsSet",
 		HasUp: true,
 		WalkParams: body.AnimationParams{
 			TileSteps: walkTileSteps,
@@ -283,9 +285,10 @@ func characterBuilder() {
 			TileSteps: backslashTileSteps,
 		},
 	})
-	eyesSet := body.NewBodyPartSet(body.BodyPartSetParams{})
-	hairSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true})
+	eyesSet := body.NewBodyPartSet(body.BodyPartSetParams{Name: "eyesSet"})
+	hairSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true, Name: "hairSet"})
 	equipBodySet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:  "equipBodySet",
 		HasUp: true,
 		WalkParams: body.AnimationParams{
 			TileSteps: walkTileSteps,
@@ -300,8 +303,9 @@ func characterBuilder() {
 			TileSteps: backslashTileSteps,
 		},
 	})
-	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true})
+	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true, Name: "equipHeadSet"})
 	weaponSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:        "weaponSet",
 		HasUp:       true,
 		IsRemovable: true,
 		WalkParams: body.AnimationParams{
@@ -318,6 +322,7 @@ func characterBuilder() {
 		},
 	})
 	weaponFxSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:        "weaponFxSet",
 		HasUp:       true,
 		IsRemovable: true,
 		WalkParams:  body.AnimationParams{Skip: true},
@@ -331,6 +336,7 @@ func characterBuilder() {
 		},
 	})
 	auxSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:        "auxSet",
 		HasUp:       true,
 		IsRemovable: true,
 		IdleParams: body.AnimationParams{
@@ -391,14 +397,19 @@ func characterBuilder() {
 		auxTorch: auxOp,
 	}
 
-	// SETS: load data
+	// Set each bodyPartSet with their initial data.
+	// We do this in a "weird" way here since this is the character builder screen.
+	// In the actual game, we use the Load function instead, since all the PartSrc's are already set (from the JSON data).
+	g.SetBodyIndex(0)
+	g.SetEquipHeadIndex(0)
 	g.SetHairIndex(0)
 	g.SetEyesIndex(0)
 	g.SetEquipBodyIndex(0)
-	g.SetEquipHeadIndex(0)
-	g.SetBodyIndex(0)
 	g.SetWeaponIndex(0)
 	g.entityBody.AuxItemSet.Hide()
+
+	// run this just to confirm that the regular loading process also still works (as used in the actual game)
+	g.entityBody.Load()
 
 	// create the backdrop
 	t := float64(config.TileSize)

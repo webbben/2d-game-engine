@@ -33,6 +33,8 @@ type EntityBodySet struct {
 
 	dmgFlicker damageFlickerFX `json:"-"`
 
+	stretchX, stretchY int // amount to stretch certain body parts - set by body set
+
 	// actual body definition - not including equiped items
 
 	stagingImg *ebiten.Image // just for putting everything together before drawing to screen (for adding flicker fx)
@@ -71,18 +73,21 @@ func (eb EntityBodySet) GetDebugString() string {
 	return s
 }
 
+// for loading all body parts, assuming that they all alrady have PartSrc set. E.g. for after loading from JSON.
 func (eb *EntityBodySet) Load() {
+	// load body first, since it dictates stretchX and stretchY (which impact several sets)
+	eb.SetBody(eb.BodySet.PartSrc, eb.ArmsSet.PartSrc)
+	// load head second, since it impacts the hair set
+	eb.SetEquipHead(eb.EquipHeadSet.PartSrc)
 	eb.SetHair(eb.HairSet.PartSrc)
 	eb.SetEyes(eb.EyesSet.PartSrc)
 	eb.SetEquipBody(eb.EquipBodySet.PartSrc)
-	eb.SetEquipHead(eb.EquipHeadSet.PartSrc)
-	eb.SetBody(eb.BodySet.PartSrc, eb.ArmsSet.PartSrc)
 	eb.SetWeapon(eb.WeaponSet.PartSrc, eb.WeaponFxSet.PartSrc)
 	eb.SetAuxiliary(eb.AuxItemSet.PartSrc)
 
 	// set an initial direction and ensure img is set
 	eb.animation = ANIM_IDLE
-	eb.SetDirection(model.Directions.Down)
+	eb._initializeDirection(model.Directions.Down)
 	if eb.BodySet.img == nil {
 		panic("body image is nil!")
 	}
@@ -95,6 +100,16 @@ func (eb *EntityBodySet) Load() {
 }
 
 func (eb EntityBodySet) validate() {
+	if eb.BodySet.PartSrc.None {
+		panic("body cannot be None")
+	}
+	if eb.ArmsSet.PartSrc.None {
+		panic("arms cannot be None")
+	}
+	if eb.EyesSet.PartSrc.None {
+		panic("eyes cannot be None")
+	}
+
 	eb.HairSet.validate()
 	eb.EyesSet.validate()
 	eb.EquipBodySet.validate()
@@ -207,22 +222,27 @@ func (eb *EntityBodySet) SetBody(bodyDef, armDef SelectedPartDef) {
 		panic("arms must be defined")
 	}
 
-	eb.BodySet.setImageSource(bodyDef)
+	eb.BodySet.setImageSource(bodyDef, 0, 0)
 
 	// reload any body parts that are influenced by stretch properties
 	// ensure these stretch values are set before calling subtract arms, since it uses equipBodyStretchY
-	eb.HairSet.stretchX, eb.HairSet.stretchY = bodyDef.StretchX, 0
-	eb.HairSet.load()
-	eb.EquipHeadSet.stretchX, eb.EquipHeadSet.stretchY = bodyDef.StretchX, 0
-	eb.EquipHeadSet.load()
-	eb.EquipBodySet.stretchX, eb.EquipBodySet.stretchY = bodyDef.StretchX, bodyDef.StretchY
-	eb.EquipBodySet.load()
+	eb.stretchX = bodyDef.StretchX
+	eb.stretchY = bodyDef.StretchY
+	if eb.HairSet.HasLoaded() {
+		eb.HairSet.load(eb.stretchX, 0)
+	}
+	if eb.EquipHeadSet.HasLoaded() {
+		eb.EquipHeadSet.load(eb.stretchX, 0)
+	}
+	if eb.EquipBodySet.HasLoaded() {
+		eb.EquipBodySet.load(eb.stretchX, eb.stretchY)
+	}
 
 	// ensure this is set before calling subtractArms, since it uses this value
 	eb.globalOffsetY = float64(bodyDef.OffsetY)
 
 	// arms are directly set with body
-	eb.ArmsSet.setImageSource(armDef)
+	eb.ArmsSet.setImageSource(armDef, 0, 0)
 	if eb.EquipBodySet.sourceSet {
 		// subtract arms by equip body image (remove parts hidden by it)
 		eb.subtractArms()
@@ -233,44 +253,42 @@ func (eb *EntityBodySet) SetEyes(def SelectedPartDef) {
 	if def.None {
 		panic("eyes must be defined")
 	}
-	eb.EyesSet.setImageSource(def)
+	eb.EyesSet.setImageSource(def, 0, 0)
 }
 
 func (eb *EntityBodySet) SetHair(def SelectedPartDef) {
-	eb.HairSet.setImageSource(def)
+	eb.HairSet.setImageSource(def, eb.stretchX, 0)
 	if eb.cropHairToHead {
 		eb.cropHair()
 	}
 }
 
+// Requires BodySet to be loaded first
 func (eb *EntityBodySet) SetEquipHead(def SelectedPartDef) {
-	eb.EquipHeadSet.setImageSource(def)
+	eb.EquipHeadSet.setImageSource(def, eb.stretchX, 0)
+	eb.cropHairToHead = def.CropHairToHead
 
-	// since some head equipment may cause hair to be cropped, always reload hair when head is equiped
-	if eb.HairSet.sourceSet {
-		eb.HairSet.load()
-
-		if def.CropHairToHead {
-			eb.cropHairToHead = true
+	// always reload hair when equiping head, since it could either need to crop or un-crop the hair
+	if eb.HairSet.HasLoaded() {
+		eb.HairSet.load(eb.stretchX, 0)
+		if eb.cropHairToHead {
 			eb.cropHair()
-		} else {
-			eb.cropHairToHead = false
 		}
 	}
 }
 
 func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
-	eb.EquipBodySet.setImageSource(def)
+	eb.EquipBodySet.setImageSource(def, eb.stretchX, eb.stretchY)
 
 	// redo the arms subtraction
-	if eb.ArmsSet.sourceSet {
-		eb.ArmsSet.load()
+	if eb.ArmsSet.HasLoaded() {
+		eb.ArmsSet.load(0, 0)
 		eb.subtractArms()
 	}
 }
 
 func (eb *EntityBodySet) SetAuxiliary(def SelectedPartDef) {
-	eb.AuxItemSet.setImageSource(def)
+	eb.AuxItemSet.setImageSource(def, 0, 0)
 }
 
 // determines if an aux item is currently equiped
@@ -282,8 +300,8 @@ func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
 	if weaponDef.None != weaponFxDef.None {
 		logz.Panicln("SetWeapon", "weapon and weaponFx should have the same None value (so they always equip or unequip together)", "weapon:", weaponDef.None, "weaponFx:", weaponFxDef.None)
 	}
-	eb.WeaponSet.setImageSource(weaponDef)
-	eb.WeaponFxSet.setImageSource(weaponFxDef)
+	eb.WeaponSet.setImageSource(weaponDef, 0, 0)
+	eb.WeaponFxSet.setImageSource(weaponFxDef, 0, 0)
 }
 
 func (eb EntityBodySet) GetCurrentAnimation() string {
@@ -321,7 +339,10 @@ type SelectedPartDef struct {
 	AuxFirstFrameStep int
 }
 
+// Requires BodySet and HairSet to be loaded already
 func (eb *EntityBodySet) cropHair() {
+	eb.BodySet.validate()
+	eb.HairSet.validate()
 	leftHead := ebiten.NewImage(config.TileSize, config.TileSize)
 	leftHead.DrawImage(eb.BodySet.WalkAnimation.L[0], nil)
 	rightHead := ebiten.NewImage(config.TileSize, config.TileSize)
@@ -349,6 +370,7 @@ func (eb *EntityBodySet) cropHair() {
 	cropper(&eb.HairSet.WalkAnimation)
 	cropper(&eb.HairSet.RunAnimation)
 	cropper(&eb.HairSet.SlashAnimation)
+	cropper(&eb.HairSet.IdleAnimation)
 }
 
 func (eb *EntityBodySet) subtractArms() {
@@ -481,7 +503,7 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 
 // made this into a function since it will be needed when subtracting arms by equipBody
 func (eb EntityBodySet) getEquipBodyOffsetY() float64 {
-	if eb.EquipBodySet.stretchY%2 != 0 {
+	if eb.stretchY%2 != 0 {
 		// if stretchY is an odd number, offset equip body by -1
 		return -1
 	}
@@ -692,9 +714,14 @@ func (eb *EntityBodySet) SetDirection(dir byte) {
 		return
 	}
 
+	eb._initializeDirection(dir)
+}
+
+// Warning: Only use within SetDirection or Load!
+// does all the direction changing logic, without the checks to quit early.
+func (eb *EntityBodySet) _initializeDirection(dir byte) {
 	eb.currentDirection = dir
 
-	// SETS: reset animation index
 	eb.BodySet.animIndex = 0
 	eb.EyesSet.animIndex = 0
 	eb.HairSet.animIndex = 0
@@ -706,7 +733,6 @@ func (eb *EntityBodySet) SetDirection(dir byte) {
 	eb.WeaponFxSet.animIndex = 0
 	eb.AuxItemSet.animIndex = 0
 
-	// SETS: set to first frame of walking animation
 	eb.BodySet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())
 	eb.EyesSet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())
 	eb.HairSet.setCurrentFrame(dir, ANIM_WALK, eb.IsAuxEquipped())

@@ -13,13 +13,10 @@ import (
 // The actual body part definitions (which tiles to show for hair, eyes, etc) are defined by the TilesetSrc and start indices, and can be set
 // using the set functions.
 type BodyPartSet struct {
+	Name        string
 	sourceSet   bool            // indicates if a source has been set yet (tilesetSrc, etc)
 	PartSrc     SelectedPartDef // tileset and image source definitions
 	IsRemovable bool            // if true, this body part set can be removed or hidden (i.e. have None set to true).
-
-	// TODO do we need TilesetSrc etc here? it seems they are present in PartSrc...
-
-	stretchX, stretchY int // the amount THIS body part is stretched (the values in PartSrc would set these values, if a body set were applying a stretch effect)
 
 	// animation definitions
 
@@ -35,6 +32,10 @@ type BodyPartSet struct {
 	img *ebiten.Image `json:"-"`
 }
 
+func (bps BodyPartSet) HasLoaded() bool {
+	return bps.sourceSet
+}
+
 type BodyPartSetParams struct {
 	IsBody          bool // if true, this body part set will be treated as the main body set. this allows things like StepsOffsetY to be used.
 	HasUp           bool // if true, this set has animation frames for "up". some may not, since they might be covered up (e.g. the eyes set)
@@ -44,6 +45,7 @@ type BodyPartSetParams struct {
 	SlashParams     AnimationParams
 	BackslashParams AnimationParams
 	IdleParams      AnimationParams
+	Name            string
 }
 
 func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
@@ -64,6 +66,9 @@ func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
 	if params.IsBody && params.IsRemovable {
 		panic("body set cannot be removed")
 	}
+	if params.Name == "" {
+		panic("must set name for bodyPartSet (for debugging purposes)")
+	}
 	bps := BodyPartSet{
 		WalkAnimation:      NewAnimation(params.WalkParams),
 		RunAnimation:       NewAnimation(params.RunParams),
@@ -72,6 +77,7 @@ func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
 		IdleAnimation:      NewAnimation(params.IdleParams),
 		HasUp:              params.HasUp,
 		IsRemovable:        params.IsRemovable,
+		Name:               params.Name,
 	}
 
 	return bps
@@ -85,7 +91,7 @@ func (bps BodyPartSet) animationDebugString(anim string, dir byte) string {
 		return fmt.Sprintf("[%s] No Up", bps.PartSrc.TilesetSrc)
 	}
 
-	s := fmt.Sprintf("[%s] animIndex: %v lastframe: %v strX: %v strY: %v", bps.PartSrc.TilesetSrc, bps.animIndex, bps.reachedLastFrame, bps.stretchX, bps.stretchY)
+	s := fmt.Sprintf("[%s] animIndex: %v lastframe: %v", bps.PartSrc.TilesetSrc, bps.animIndex, bps.reachedLastFrame)
 
 	switch anim {
 	case ANIM_WALK:
@@ -108,6 +114,9 @@ func (bps BodyPartSet) validate() {
 	if !bps.sourceSet {
 		panic("source not set!")
 	}
+	if bps.Name == "" {
+		panic("no name set")
+	}
 	fmt.Println(bps.PartSrc.TilesetSrc)
 	bps.WalkAnimation.validate()
 	bps.RunAnimation.validate()
@@ -123,13 +132,13 @@ func (bps *BodyPartSet) unsetAllImages() {
 	bps.img = nil
 }
 
-func (bps *BodyPartSet) setImageSource(def SelectedPartDef) {
+func (bps *BodyPartSet) setImageSource(def SelectedPartDef, stretchX, stretchY int) {
 	bps.PartSrc = def
 	bps.sourceSet = true
-	bps.load()
+	bps.load(stretchX, stretchY)
 }
 
-func (set *BodyPartSet) load() {
+func (set *BodyPartSet) load(stretchX, stretchY int) {
 	set.unsetAllImages()
 
 	if set.PartSrc.None {
@@ -149,11 +158,11 @@ func (set *BodyPartSet) load() {
 	set.BackslashAnimation.Name = fmt.Sprintf("%s/backslash", set.PartSrc.TilesetSrc)
 	set.IdleAnimation.Name = fmt.Sprintf("%s/idle", set.PartSrc.TilesetSrc)
 
-	set.WalkAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
-	set.RunAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
-	set.SlashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
-	set.BackslashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
-	set.IdleAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, set.stretchX, set.stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+	set.WalkAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+	set.RunAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+	set.SlashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+	set.BackslashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+	set.IdleAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
 }
 
 func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string, aux bool) {
@@ -262,7 +271,7 @@ func (set *BodyPartSet) Remove() {
 	if !set.IsRemovable {
 		logz.Panic("set is not removable!")
 	}
-	set.setImageSource(SelectedPartDef{None: true})
+	set.setImageSource(SelectedPartDef{None: true}, 0, 0)
 }
 
 // hides the body part (without actually clearing PartSrc).
@@ -272,5 +281,5 @@ func (set *BodyPartSet) Hide() {
 		logz.Panic("set is not removable!")
 	}
 	set.PartSrc.None = true
-	set.setImageSource(set.PartSrc)
+	set.setImageSource(set.PartSrc, 0, 0)
 }
