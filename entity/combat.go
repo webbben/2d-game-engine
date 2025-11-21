@@ -134,7 +134,7 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 
 	e.Body.SetDamageFlicker(15)
 
-	moveError := e.TryBumpBack(config.TileSize, defaultRunSpeed, attack.Origin, body.ANIM_IDLE, 0)
+	moveError := e.TryBumpBack(config.TileSize, defaultRunSpeed, attack.Origin, body.ANIM_IDLE, defaultIdleAnimationTickInterval)
 	if !moveError.Success {
 		logz.Println(e.DisplayName, "failed to bump back:", moveError)
 		if !moveError.Collision {

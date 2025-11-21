@@ -19,6 +19,7 @@ var (
 	defaultRunSpeed                  float64 = float64(config.TileSize) / 12
 	defaultWalkAnimationTickInterval         = 10
 	defaultRunAnimationTickInterval          = 6
+	defaultIdleAnimationTickInterval         = 10
 )
 
 func GetDefaultWalkSpeed() float64 {
@@ -188,6 +189,7 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 	// prepare initial image frames
 	ent.Movement.Direction = 'D'
 	ent.Body.Load()
+	ent.Body.SetAnimationTickCount(defaultIdleAnimationTickInterval)
 	ent.Body.Name = general.DisplayName
 	ent.Movement.IsMoving = false
 

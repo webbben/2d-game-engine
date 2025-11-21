@@ -309,6 +309,9 @@ func (eb EntityBodySet) GetCurrentAnimation() string {
 }
 
 func (eb *EntityBodySet) SetAnimationTickCount(tickCount int) {
+	if tickCount == 0 {
+		logz.Panic("tick count cannot be 0")
+	}
 	eb.animationTickCount = tickCount
 }
 
@@ -569,6 +572,9 @@ func (eb *EntityBodySet) Update() {
 	// 	fmt.Println(eb.GetDebugString())
 	// 	time.Sleep(time.Millisecond * time.Duration(speed))
 	// }
+	if eb.animationTickCount == 0 {
+		logz.Panic("animationTickCount appears to be unset")
+	}
 	eb.ticks++
 	if eb.ticks > eb.animationTickCount {
 		// SETS: next frame
