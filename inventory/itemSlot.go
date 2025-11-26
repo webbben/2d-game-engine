@@ -32,14 +32,14 @@ type ItemSlot struct {
 	tooltip      string
 	hoverTooltip textwindow.HoverTooltip
 
-	allowedItemTypes []string // each item type in this array will be allowed; if nothing is set here, all items are allowed
+	allowedItemTypes []item.ItemType // each item type in this array will be allowed; if nothing is set here, all items are allowed
 }
 
 type ItemSlotParams struct {
 	ItemSlotTiles    ItemSlotTiles
 	Enabled          bool
 	Tooltip          string
-	AllowedItemTypes []string // each item type in this array will be allowed; if nothing is set here, all items are allowed
+	AllowedItemTypes []item.ItemType // each item type in this array will be allowed; if nothing is set here, all items are allowed
 }
 
 func NewItemSlot(params ItemSlotParams, hoverWindowParams textwindow.TextWindowParams) *ItemSlot {
@@ -78,7 +78,7 @@ func NewItemSlot(params ItemSlotParams, hoverWindowParams textwindow.TextWindowP
 	return &itemSlot
 }
 
-func (is ItemSlot) CanTakeItemType(itemType string) bool {
+func (is ItemSlot) CanTakeItemType(itemType item.ItemType) bool {
 	if len(is.allowedItemTypes) == 0 {
 		return true
 	}

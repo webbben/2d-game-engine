@@ -188,7 +188,7 @@ func (t *FightTask) handleCombat() {
 	if dist > config.TileSize*2 {
 		// creep forward
 		if !t.Owner.Entity.Movement.IsMoving {
-			speed := t.Owner.Entity.Movement.WalkSpeed / 2
+			speed := t.Owner.Entity.WalkSpeed / 2
 			tickInterval := t.Owner.Entity.Movement.WalkAnimationTickInterval * 2
 			moveError := t.Owner.Entity.TryMoveTowardsEntity(*t.targetEntity, config.TileSize, speed)
 			if moveError.Success {

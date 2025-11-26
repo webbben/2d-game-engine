@@ -69,7 +69,7 @@ type InventoryParams struct {
 
 	HoverWindowParams textwindow.TextWindowParams
 
-	AllowedItemTypes []string // if set, all slots in this inventory will only allow items in this list of item IDs
+	AllowedItemTypes []item.ItemType // if set, all slots in this inventory will only allow items in this list of item IDs
 }
 
 func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams) Inventory {

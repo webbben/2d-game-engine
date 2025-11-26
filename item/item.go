@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
@@ -20,17 +21,27 @@ type ItemDef interface {
 	GetTileImg() *ebiten.Image        // gets the "tile image", i.e. the image used in places like the inventory slots
 	GetEquipedTiles() []*ebiten.Image // gets the tiles for the equiped view of this item (if equipable)
 
+	GetBodyPartDef() *body.SelectedPartDef
+
 	// if true, item can be grouped together with other same items in inventories
 	// this tends to be true for items that don't have durability, like potions or arrows, but not for weapons and armor.
 	IsGroupable() bool
 	// if true, this item is treated as an equipable weapon that is held
 	IsWeapon() bool
 	// if true, this item is treated as an equipable piece of armor that is worn
-	IsArmor() bool
-	// if true, this item is treated as an equipable accessory (amulet, ring, etc) that is worn
-	IsAccessory() bool
+	IsHeadwear() bool
+	// if true, this item is equipable on the body
+	IsBodywear() bool
+	// if true, this item is equipable on the feet
+	IsFootwear() bool
+	// if true, this item is an amulet
+	IsAmulet() bool
+	// if true, this item is a ring
+	IsRing() bool
 	// if true, this item is treated as an equipable ammunition type (arrows, etc)
 	IsAmmunition() bool
+	// if true, this item is an "auxiliary" item which is held in the left hand (torches, shields, etc)
+	IsAuxiliary() bool
 	// if true, this item is treated as an item that can be consumed (food, potions, etc)
 	IsConsumable() bool
 	// if true, this item has no specific use or utility; it just exists in your inventory and may have value or weight
@@ -40,21 +51,27 @@ type ItemDef interface {
 	// determines if this item can be equiped
 	IsEquipable() bool
 
-	GetItemType() string // gives a string representation of the item type (IsWeapon, IsArmor, etc). Used for direct comparisons of item types.
+	GetItemType() ItemType // returns the item type; to simply confirm a single item type, use the specific Is<itemType> functions instead.
 
 	Load() // load things like images
 
 	Validate() // checks if item def is properly defined
 }
 
+type ItemType string
+
 const (
-	TypeWeapon     = "WEAPON"
-	TypeArmor      = "ARMOR"
-	TypeAccessory  = "ACCESSORY"
-	TypeAmmunition = "AMMUNITION"
-	TypeConsumable = "CONSUMABLE"
-	TypeMisc       = "MISC"
-	TypeCurrency   = "CURRENCY"
+	TypeWeapon     ItemType = "WEAPON"
+	TypeBodywear   ItemType = "BODYWEAR"
+	TypeHeadwear   ItemType = "HEADWEAR"
+	TypeFootwear   ItemType = "FOOTWEAR"
+	TypeAmulet     ItemType = "AMULET"
+	TypeRing       ItemType = "RING"
+	TypeAmmunition ItemType = "AMMUNITION"
+	TypeAuxiliary  ItemType = "AUXILIARY" // TODO
+	TypeConsumable ItemType = "CONSUMABLE"
+	TypeMisc       ItemType = "MISC"
+	TypeCurrency   ItemType = "CURRENCY"
 )
 
 // includes the basic functions required for an item to implement the ItemDef interface.
@@ -64,25 +81,49 @@ type ItemBase struct {
 	ID            string
 	Name          string
 	Description   string
+	Type          ItemType
 	Value         int
 	Weight        float64
 	MaxDurability int
 	Groupable     bool
 
-	Weapon     bool
-	Armor      bool
-	Accessory  bool
-	Ammunition bool
-	Consumable bool
-	MiscItem   bool
-	Currency   bool
+	TileImgTilesetSrc       string // tileset where tile image is found
+	TileImgIndex            int    // index of tile image in tileset
+	TileImg                 *ebiten.Image
+	OriginIndexEquipedTiles int // index of origin where equiped tiles are in tileset
+	EquipedTiles            []*ebiten.Image
 
-	TilesetSourceTileImg      string // tileset where tile image is found
-	TileImgIndex              int    // index of tile image in tileset
-	TileImg                   *ebiten.Image
-	TilesetSourceEquipedTiles string // tileset where equiped tiles are found
-	OriginIndexEquipedTiles   int    // index of origin where equiped tiles are in tileset
-	EquipedTiles              []*ebiten.Image
+	BodyPartDef *body.SelectedPartDef // made it a pointer so it can be nil-able
+}
+
+type ItemBaseParams struct {
+	ID, Name, Description string
+	Type                  ItemType
+	Weight                float64
+	Value, MaxDurability  int
+	TileImgTilesetSrc     string
+	TileImgIndex          int
+	Groupable             bool
+	BodyPartDef           *body.SelectedPartDef
+}
+
+func NewItemBase(params ItemBaseParams) *ItemBase {
+	ib := ItemBase{
+		ID:                params.ID,
+		Name:              params.Name,
+		Description:       params.Description,
+		Type:              params.Type,
+		Value:             params.Value,
+		Weight:            params.Weight,
+		MaxDurability:     params.MaxDurability,
+		TileImgTilesetSrc: params.TileImgTilesetSrc,
+		TileImgIndex:      params.TileImgIndex,
+		Groupable:         params.Groupable,
+		BodyPartDef:       params.BodyPartDef,
+	}
+
+	ib.Validate()
+	return &ib
 }
 
 func (ib ItemBase) Validate() {
@@ -99,44 +140,21 @@ func (ib ItemBase) Validate() {
 	if ib.Description == "" {
 		logz.Panicf("[%s] %s", name, "item has no description")
 	}
-	i := 0
-	if ib.Weapon {
-		i++
-	}
-	if ib.Armor {
-		i++
-	}
-	if ib.Accessory {
-		i++
-	}
-	if ib.Ammunition {
-		i++
-	}
-	if ib.Consumable {
-		i++
-	}
-	if ib.MiscItem {
-		i++
-	}
-	if ib.Currency {
-		i++
-	}
-	if i == 0 {
-		logz.Panicf("[%s] %s", name, "item has no designated type")
-	}
-	if i > 1 {
-		logz.Panicf("[%s] %s", name, "item has more than one designated type")
-	}
-	if ib.TilesetSourceTileImg == "" {
+	if ib.TileImgTilesetSrc == "" {
 		logz.Panicf("[%s] %s", name, "item has no tileset source for tile image")
 	}
 	if ib.MaxDurability != 0 && ib.Groupable {
 		logz.Panicf("[%s] %s", name, "items with durability cannot be groupable")
 	}
-	if ib.IsEquipable() {
-		if ib.TilesetSourceEquipedTiles == "" {
-			logz.Panicf("[%s] %s", name, "equipable items must have an equiped tiles tileset")
+	if ib.Type == "" {
+		panic("type is empty!")
+	}
+	if ib.Type == TypeBodywear || ib.Type == TypeHeadwear || ib.Type == TypeFootwear || ib.Type == TypeAuxiliary || ib.Type == TypeWeapon {
+		if ib.BodyPartDef == nil {
+			panic("item is a visible equipable item, but no bodyPartDef is set")
 		}
+	} else if ib.BodyPartDef != nil {
+		panic("item is not a visible equipable item, but it has a defined bodyPartDef")
 	}
 }
 
@@ -168,61 +186,63 @@ func (ib ItemBase) IsGroupable() bool {
 	return ib.Groupable
 }
 func (ib ItemBase) IsWeapon() bool {
-	return ib.Weapon
+	return ib.Type == TypeWeapon
 }
-func (ib ItemBase) IsArmor() bool {
-	return ib.Armor
+func (ib ItemBase) IsBodywear() bool {
+	return ib.Type == TypeBodywear
 }
-func (ib ItemBase) IsAccessory() bool {
-	return ib.Accessory
+func (ib ItemBase) IsHeadwear() bool {
+	return ib.Type == TypeHeadwear
+}
+func (ib ItemBase) IsFootwear() bool {
+	return ib.Type == TypeFootwear
+}
+func (ib ItemBase) IsAmulet() bool {
+	return ib.Type == TypeAmulet
+}
+func (ib ItemBase) IsRing() bool {
+	return ib.Type == TypeRing
 }
 func (ib ItemBase) IsAmmunition() bool {
-	return ib.Ammunition
+	return ib.Type == TypeAmmunition
+}
+func (ib ItemBase) IsAuxiliary() bool {
+	return ib.Type == TypeAuxiliary
 }
 func (ib ItemBase) IsConsumable() bool {
-	return ib.Consumable
+	return ib.Type == TypeConsumable
 }
 func (ib ItemBase) IsMiscItem() bool {
-	return ib.MiscItem
+	return ib.Type == TypeMisc
 }
 func (ib ItemBase) IsCurrencyItem() bool {
-	return ib.Currency
+	return ib.Type == TypeCurrency
 }
 func (ib ItemBase) IsEquipable() bool {
-	return ib.Armor || ib.Weapon || ib.Accessory || ib.Ammunition
+	switch ib.Type {
+	case TypeBodywear, TypeHeadwear, TypeFootwear, TypeWeapon, TypeAmulet, TypeRing, TypeAmmunition:
+		return true
+	default:
+		return false
+	}
 }
-func (ib ItemBase) GetItemType() string {
-	if ib.IsWeapon() {
-		return TypeWeapon
-	}
-	if ib.IsArmor() {
-		return TypeArmor
-	}
-	if ib.IsAccessory() {
-		return TypeAccessory
-	}
-	if ib.IsAmmunition() {
-		return TypeAmmunition
-	}
-	if ib.IsConsumable() {
-		return TypeConsumable
-	}
-	if ib.IsMiscItem() {
-		return TypeMisc
-	}
-	if ib.IsCurrencyItem() {
-		return TypeCurrency
-	}
-	panic("unknown item type; one of the item types must be set for all items")
+func (ib ItemBase) GetItemType() ItemType {
+	return ib.Type
+}
+
+// gets the body part def for equiping this item visibly on the body.
+// panics if the item is not equipable.
+func (ib ItemBase) GetBodyPartDef() *body.SelectedPartDef {
+	return ib.BodyPartDef
 }
 
 func (ib *ItemBase) Load() {
-	if ib.TilesetSourceTileImg == "" {
+	if ib.TileImgTilesetSrc == "" {
 		panic("no tileset source defined for item tile image")
 	}
 
 	// load tile image
-	tileset, err := tiled.LoadTileset(ib.TilesetSourceTileImg)
+	tileset, err := tiled.LoadTileset(ib.TileImgTilesetSrc)
 	if err != nil {
 		logz.Panicf("error while loading tileset for item tile image: %s", err)
 	}
@@ -231,21 +251,6 @@ func (ib *ItemBase) Load() {
 		logz.Panicf("error while getting item tile image: %s", err)
 	}
 	ib.TileImg = img
-
-	// load equiped tiles
-	if ib.IsEquipable() {
-		tileset, err = tiled.LoadTileset(ib.TilesetSourceEquipedTiles)
-		if err != nil {
-			logz.Panicf("error while loading tileset for item equiped tiles: %s", err)
-		}
-		for i := range 4 {
-			img, err := tileset.GetTileImage(ib.OriginIndexEquipedTiles + i)
-			if err != nil {
-				logz.Panicf("error while loading item equiped tile: %s", err)
-			}
-			ib.EquipedTiles = append(ib.EquipedTiles, img)
-		}
-	}
 
 	ib.init = true
 }
@@ -265,6 +270,8 @@ type WeaponDef struct {
 	ItemBase
 	Damage        int     // damage per attack
 	HitsPerSecond float64 // speed of attacks, in terms of number of attacks possible per second
+
+	FxPartDef *body.SelectedPartDef // only defined for weapon items
 }
 
 // ItemDef for armor

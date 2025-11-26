@@ -9,6 +9,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/spf13/cobra"
+	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
@@ -22,6 +23,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/slider"
 	"github.com/webbben/2d-game-engine/internal/ui/stepper"
 	"github.com/webbben/2d-game-engine/internal/ui/textfield"
+	"github.com/webbben/2d-game-engine/item"
 )
 
 // characterBuilderCmd represents the characterBuilder command
@@ -70,9 +72,9 @@ type builderGame struct {
 	equipedAux string
 	auxTorch   body.SelectedPartDef
 
-	// entity body animation parts (in entity)
+	// character info and entity body
 
-	entityBody body.EntityBodySet
+	characterData entity.CharacterData
 
 	// UI components
 
@@ -109,11 +111,6 @@ func characterBuilder() {
 	armsTileset := "entities/parts/arms.tsj"
 	eyesTileset := "entities/parts/eyes.tsj"
 	hairTileset := "entities/parts/hair.tsj"
-	equipBodyTileset := "items/equiped_body_01.tsj"
-	equipHeadTileset := "items/equiped_head_01.tsj"
-	equipWeaponTileset := "items/weapon_frames.tsj"
-	weaponFxTileset := "items/weapon_fx_frames.tsj"
-	auxTileset := "items/equiped_aux.tsj"
 
 	bgTileset := "buildings/walls.tsj"
 
@@ -121,6 +118,39 @@ func characterBuilder() {
 	bodyRStart := 17
 	bodyLStart := 34
 	bodyUStart := 51
+
+	itemDefs := GetItemDefs()
+
+	equipBodyOptions := []body.SelectedPartDef{}
+	equipHeadOptions := []body.SelectedPartDef{{None: true}}
+	weaponOptions := []weaponOption{}
+	auxOptions := []body.SelectedPartDef{}
+
+	for _, itemDef := range itemDefs {
+		bodyPartDef := itemDef.GetBodyPartDef()
+		if bodyPartDef == nil {
+			continue
+		}
+
+		switch itemDef.GetItemType() {
+		case item.TypeBodywear:
+			equipBodyOptions = append(equipBodyOptions, *bodyPartDef)
+		case item.TypeHeadwear:
+			equipHeadOptions = append(equipHeadOptions, *bodyPartDef)
+		case item.TypeWeapon:
+			asWeaponDef, ok := itemDef.(*item.WeaponDef)
+			if !ok {
+				panic("failed to assert to weapon def struct")
+			}
+
+			weaponOptions = append(weaponOptions, weaponOption{
+				weaponPartDef: *bodyPartDef,
+				weaponFxDef:   *asWeaponDef.FxPartDef,
+			})
+		case item.TypeAuxiliary:
+			auxOptions = append(auxOptions, *bodyPartDef)
+		}
+	}
 	bodyOptions := []body.SelectedPartDef{
 		{
 			TilesetSrc:        bodyTileset,
@@ -195,17 +225,7 @@ func characterBuilder() {
 			AuxFirstFrameStep: 1,
 		},
 	}
-	equipBodyOptions := []body.SelectedPartDef{}
-	for i := range 4 {
-		equipBodyOptions = append(equipBodyOptions, body.SelectedPartDef{
-			TilesetSrc:        equipBodyTileset,
-			DStart:            (i * bodyRowLength),
-			RStart:            (i * bodyRowLength) + bodyRStart,
-			LStart:            (i * bodyRowLength) + bodyLStart,
-			UStart:            (i * bodyRowLength) + bodyUStart,
-			AuxFirstFrameStep: 1,
-		})
-	}
+
 	eyesOptions := []body.SelectedPartDef{}
 	for i := range 14 {
 		eyesOptions = append(eyesOptions, body.SelectedPartDef{
@@ -223,19 +243,6 @@ func characterBuilder() {
 			RStart:     (i * 32) + 1,
 			LStart:     (i * 32) + 2,
 			UStart:     (i * 32) + 3,
-		})
-	}
-	equipHeadOptions := []body.SelectedPartDef{{None: true}}
-	for i := range 3 {
-		index := i * 4
-		cropHair, found := tiled.GetTileBoolProperty(equipHeadTileset, index, "COVER_HAIR")
-		equipHeadOptions = append(equipHeadOptions, body.SelectedPartDef{
-			TilesetSrc:     equipHeadTileset,
-			DStart:         (i * 4),
-			RStart:         (i * 4) + 1,
-			LStart:         (i * 4) + 2,
-			UStart:         (i * 4) + 3,
-			CropHairToHead: found && cropHair,
 		})
 	}
 
@@ -355,32 +362,6 @@ func characterBuilder() {
 			TileSteps: []int{11, 12, 13, 14},
 		},
 	})
-	auxOp := body.SelectedPartDef{
-		TilesetSrc: auxTileset,
-		DStart:     0,
-		RStart:     19,
-		LStart:     38,
-		UStart:     57,
-	}
-
-	weaponOptions := []weaponOption{
-		{
-			weaponPartDef: body.SelectedPartDef{
-				TilesetSrc: equipWeaponTileset,
-				DStart:     0,
-				RStart:     16,
-				LStart:     32,
-				UStart:     48,
-			},
-			weaponFxDef: body.SelectedPartDef{
-				TilesetSrc: weaponFxTileset,
-				DStart:     0,
-				RStart:     9,
-				LStart:     18,
-				UStart:     27,
-			},
-		},
-	}
 
 	entBody := body.NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
 
@@ -392,9 +373,11 @@ func characterBuilder() {
 		equipBodySetOptions: equipBodyOptions,
 		equipHeadSetOptions: equipHeadOptions,
 		weaponOptions:       weaponOptions,
-		entityBody:          entBody,
+		characterData: entity.CharacterData{
+			Body: entBody,
+		},
 
-		auxTorch: auxOp,
+		auxTorch: auxOptions[0],
 	}
 
 	// Set each bodyPartSet with their initial data.
@@ -406,10 +389,10 @@ func characterBuilder() {
 	g.SetEyesIndex(0)
 	g.SetEquipBodyIndex(0)
 	g.SetWeaponIndex(0)
-	g.entityBody.AuxItemSet.Hide()
+	g.characterData.Body.AuxItemSet.Hide()
 
 	// run this just to confirm that the regular loading process also still works (as used in the actual game)
-	g.entityBody.Load()
+	g.characterData.Body.Load()
 
 	// create the backdrop
 	t := float64(config.TileSize)
@@ -426,7 +409,7 @@ func characterBuilder() {
 	rendering.DrawImage(g.bgImg, tiled.GetTileImage(bgTileset, 215), t, t*2, 0)
 	rendering.DrawImage(g.bgImg, tiled.GetTileImage(bgTileset, 216), t*2, t*2, 0)
 
-	g.entityBody.SetDirection('D')
+	g.characterData.Body.SetDirection('D')
 
 	turnLeftImg := tiled.GetTileImage("ui/ui-components.tsj", 224)
 	turnLeftImg = rendering.ScaleImage(turnLeftImg, config.UIScale, config.UIScale)
@@ -611,7 +594,7 @@ func (bg builderGame) saveCharacter() {
 
 	basePath := "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/" + outputFileName + ".json"
 
-	bg.entityBody.WriteToJSON(basePath)
+	bg.characterData.Body.WriteToJSON(basePath)
 }
 
 // SETS: Set Index Functions
@@ -630,7 +613,7 @@ func (bg *builderGame) SetBodyIndex(i int) {
 	bg.armsSetIndex = i
 	armDef := bg.armsSetOptions[i]
 
-	bg.entityBody.SetBody(bodyDef, armDef)
+	bg.characterData.Body.SetBody(bodyDef, armDef)
 }
 func (bg *builderGame) SetEyesIndex(i int) {
 	if i < 0 || i >= len(bg.eyesSetOptions) {
@@ -638,7 +621,7 @@ func (bg *builderGame) SetEyesIndex(i int) {
 	}
 	bg.eyesSetIndex = i
 	op := bg.eyesSetOptions[i]
-	bg.entityBody.SetEyes(op)
+	bg.characterData.Body.SetEyes(op)
 }
 func (bg *builderGame) SetHairIndex(i int) {
 	if i < 0 || i >= len(bg.hairSetOptions) {
@@ -646,7 +629,7 @@ func (bg *builderGame) SetHairIndex(i int) {
 	}
 	bg.hairSetIndex = i
 	op := bg.hairSetOptions[i]
-	bg.entityBody.SetHair(op)
+	bg.characterData.Body.SetHair(op)
 }
 func (bg *builderGame) SetEquipBodyIndex(i int) {
 	if i < 0 || i >= len(bg.equipBodySetOptions) {
@@ -654,7 +637,7 @@ func (bg *builderGame) SetEquipBodyIndex(i int) {
 	}
 	bg.equipBodySetIndex = i
 	op := bg.equipBodySetOptions[i]
-	bg.entityBody.SetEquipBody(op)
+	bg.characterData.Body.SetEquipBody(op)
 }
 
 // DEPENDS ON:
@@ -666,7 +649,7 @@ func (bg *builderGame) SetEquipHeadIndex(i int) {
 	}
 	bg.equipHeadSetIndex = i
 	op := bg.equipHeadSetOptions[i]
-	bg.entityBody.SetEquipHead(op)
+	bg.characterData.Body.SetEquipHead(op)
 }
 func (bg *builderGame) SetWeaponIndex(i int) {
 	if i < 0 || i > len(bg.weaponOptions) {
@@ -674,7 +657,7 @@ func (bg *builderGame) SetWeaponIndex(i int) {
 	}
 	bg.weaponSetIndex = i
 	op := bg.weaponOptions[i]
-	bg.entityBody.SetWeapon(op.weaponPartDef, op.weaponFxDef)
+	bg.characterData.Body.SetWeapon(op.weaponPartDef, op.weaponFxDef)
 }
 
 func (bg *builderGame) Draw(screen *ebiten.Image) {
@@ -683,7 +666,7 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 
 	tileSize := int(config.TileSize * config.UIScale)
 
-	bodyDx, bodyDy := bg.entityBody.Dimensions()
+	bodyDx, bodyDy := bg.characterData.Body.Dimensions()
 	bodyWidth := float64(bodyDx) * characterScale
 	bodyHeight := float64(bodyDy) * characterScale
 
@@ -694,7 +677,7 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	rendering.DrawImage(screen, bg.bgImg, bodyX-characterTileSize, bodyY-characterTileSize, characterScale)
 
 	// Character body
-	bg.entityBody.Draw(screen, bodyX, bodyY, characterScale)
+	bg.characterData.Body.Draw(screen, bodyX, bodyY, characterScale)
 
 	buttonsY := bodyY + (bodyHeight) + 20
 	buttonLX := (display.SCREEN_WIDTH / 2) - bg.turnLeft.Width - 20
@@ -773,9 +756,9 @@ func (bg *builderGame) Update() error {
 	}
 
 	if bg.turnLeft.Update().Clicked {
-		bg.entityBody.RotateLeft()
+		bg.characterData.Body.RotateLeft()
 	} else if bg.turnRight.Update().Clicked {
-		bg.entityBody.RotateRight()
+		bg.characterData.Body.RotateRight()
 	}
 
 	bg.bodyCtl.Update()
@@ -802,17 +785,17 @@ func (bg *builderGame) Update() error {
 	bg.hairColorSliders.Update()
 	bg.eyeColorSliders.Update()
 
-	bg.entityBody.SetBodyHSV(
+	bg.characterData.Body.SetBodyHSV(
 		float64(bg.bodyColorSliders.GetValue("H"))/256,
 		float64(bg.bodyColorSliders.GetValue("S"))/256,
 		float64(bg.bodyColorSliders.GetValue("V"))/256,
 	)
-	bg.entityBody.SetHairHSV(
+	bg.characterData.Body.SetHairHSV(
 		float64(bg.hairColorSliders.GetValue("H"))/256,
 		float64(bg.hairColorSliders.GetValue("S"))/256,
 		float64(bg.hairColorSliders.GetValue("V"))/256,
 	)
-	bg.entityBody.SetEyesHSV(
+	bg.characterData.Body.SetEyesHSV(
 		float64(bg.eyeColorSliders.GetValue("H"))/256,
 		float64(bg.eyeColorSliders.GetValue("S"))/256,
 		float64(bg.eyeColorSliders.GetValue("V"))/256,
@@ -823,8 +806,8 @@ func (bg *builderGame) Update() error {
 
 	bg.animationSelector.Update()
 	selectorValue := bg.animationSelector.GetCurrentValue()
-	if selectorValue != bg.entityBody.GetCurrentAnimation() {
-		bg.entityBody.SetAnimation(selectorValue, body.SetAnimationOps{Force: true})
+	if selectorValue != bg.characterData.Body.GetCurrentAnimation() {
+		bg.characterData.Body.SetAnimation(selectorValue, body.SetAnimationOps{Force: true})
 	}
 	bg.auxiliarySelector.Update()
 	selectorValue = bg.auxiliarySelector.GetCurrentValue()
@@ -832,14 +815,14 @@ func (bg *builderGame) Update() error {
 		bg.handleChangeAux(selectorValue)
 	}
 
-	bg.entityBody.SetAnimationTickCount(bg.speedSlider.GetValue())
+	bg.characterData.Body.SetAnimationTickCount(bg.speedSlider.GetValue())
 
 	bg.textField.Update()
 	if bg.saveButton.Update().Clicked {
 		bg.saveCharacter()
 	}
 
-	bg.entityBody.Update()
+	bg.characterData.Body.Update()
 
 	return nil
 }
@@ -848,9 +831,9 @@ func (bg *builderGame) handleChangeAux(val string) {
 	switch val {
 	case "None":
 		// remove aux item
-		bg.entityBody.AuxItemSet.Remove()
+		bg.characterData.Body.AuxItemSet.Remove()
 	case "Torch":
-		bg.entityBody.SetAuxiliary(bg.auxTorch)
+		bg.characterData.Body.SetAuxiliary(bg.auxTorch)
 	default:
 		panic("unrecognized aux value: " + val)
 	}

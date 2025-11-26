@@ -70,11 +70,11 @@ func (p *Player) handleMovement() {
 
 	animationTickInterval := p.Entity.Movement.WalkAnimationTickInterval
 	animation := body.ANIM_WALK
-	speed := p.Entity.Movement.WalkSpeed
+	speed := p.Entity.WalkSpeed
 	if running {
 		animationTickInterval = p.Entity.Movement.RunAnimationTickInterval
 		animation = body.ANIM_RUN
-		speed = p.Entity.Movement.RunSpeed
+		speed = p.Entity.RunSpeed
 	}
 
 	travelDistance := speed * 2

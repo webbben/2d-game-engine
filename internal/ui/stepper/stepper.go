@@ -37,7 +37,7 @@ func NewStepper(params StepperParams) Stepper {
 		params.Font = config.DefaultFont
 	}
 	if params.MinVal >= params.MaxVal {
-		panic("invalid min/max values")
+		logz.Panicln("NewStepper", "invalid min/max values:", "min:", params.MinVal, "max:", params.MaxVal)
 	}
 	s := Stepper{
 		decrementButton: button.NewImageButton("", config.DefaultFont, params.DecrementButtonImage),

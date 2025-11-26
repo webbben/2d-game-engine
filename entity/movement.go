@@ -469,7 +469,7 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		return MoveError{Cancelled: true, Info: "next target was not an adjacent tile (dist > tilesize)"}
 	}
 
-	moveError := e.TryMovePx(int(dPos.X), int(dPos.Y), e.Movement.WalkSpeed)
+	moveError := e.TryMovePx(int(dPos.X), int(dPos.Y), e.WalkSpeed)
 
 	if !moveError.Success {
 		return moveError

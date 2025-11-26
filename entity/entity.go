@@ -36,7 +36,6 @@ func GetDefaultRunSpeed() float64 {
 }
 
 type Entity struct {
-	EntityInfo
 	Loaded   bool     `json:"-"` // if the entity has been loaded into memory fully yet
 	Movement Movement `json:"movement"`
 	Position
@@ -45,17 +44,30 @@ type Entity struct {
 
 	footstepSFX audio.FootstepSFX
 
-	Body body.EntityBodySet
-
 	attackManager
 
 	World WorldContext `json:"-"`
 
-	Vitals     Vitals
-	Attributes Attributes
-	stunTicks  int
+	stunTicks int
 
-	// Inventory and Items
+	CharacterData
+}
+
+// contains all the info and data about a character, excluding things like mechanics and flags, etc.
+//
+// Things like the character's identity (name, ID, etc), the character's body state (visible appearance, hair, eyes, etc),
+// the items the character has in its inventory, etc. Basically, all the data needed to actually save and load this character.
+//
+// The inner mechanisms used for things like movement, combat, etc are not included here.
+type CharacterData struct {
+	// Name, Identity
+
+	DisplayName string `json:"display_name"`
+	ID          string `json:"id"`
+	Source      string `json:"-"` // JSON source file for this entity
+	IsPlayer    bool   `json:"-"` // flag indicating if this entity is the player
+
+	// Inventory and items
 
 	InventoryItems []*item.InventoryItem
 
@@ -67,6 +79,18 @@ type Entity struct {
 	EquipedRing2     *item.InventoryItem
 	EquipedAmmo      *item.InventoryItem
 	EquipedAuxiliary *item.InventoryItem
+
+	// Body
+
+	Body body.EntityBodySet
+
+	// Attributes, Skills
+
+	Vitals     Vitals
+	Attributes Attributes
+
+	WalkSpeed float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
+	RunSpeed  float64 `json:"run_speed"`
 }
 
 func (e Entity) CollisionRect() model.Rect {
@@ -85,28 +109,6 @@ func (e Entity) CollisionRect() model.Rect {
 func (e *Entity) LoadFootstepSFX(source audio.FootstepSFX) {
 	e.footstepSFX = source
 	e.footstepSFX.Load()
-}
-
-// TODO this probably doesn't work anymore
-//
-// create a duplicate entity from this one.
-// both entities will share the same references to tiles and animations and such, but will be able to have different
-// positions, movement targets, etc.
-// Useful for when you need a bunch of NPC entities of the same kind
-func (e Entity) Duplicate() Entity {
-	copyEnt := Entity{
-		EntityInfo: e.EntityInfo,
-		World:      e.World,
-	}
-
-	copyEnt.IsPlayer = false // cannot have duplicate players
-
-	copyEnt.Movement = e.Movement
-	copyEnt.Movement.TargetPath = []model.Coords{}
-	copyEnt.Movement.TargetTile = model.Coords{}
-	copyEnt.Movement.IsMoving = false
-
-	return copyEnt
 }
 
 type WorldContext interface {
@@ -162,18 +164,20 @@ func NewEntity(general GeneralProps, mv MovementProps, ap AudioProps) Entity {
 	}
 
 	ent := Entity{
-		EntityInfo: EntityInfo{
-			IsPlayer:    general.IsPlayer,
-			DisplayName: general.DisplayName,
+		CharacterData: CharacterData{
 			ID:          general_util.GenerateUUID(),
+			DisplayName: general.DisplayName,
+			IsPlayer:    general.IsPlayer,
+
+			InventoryItems: make([]*item.InventoryItem, general.InventorySize),
+
+			WalkSpeed: mv.WalkSpeed,
+			RunSpeed:  mv.RunSpeed,
 		},
 		Movement: Movement{
-			WalkSpeed:                 mv.WalkSpeed,
-			RunSpeed:                  mv.RunSpeed,
 			WalkAnimationTickInterval: mv.WalkAnimationTickInterval,
 			RunAnimationTickInterval:  mv.RunAnimationTickInterval,
 		},
-		InventoryItems: make([]*item.InventoryItem, general.InventorySize),
 	}
 
 	// load body
@@ -219,9 +223,9 @@ func OpenEntity(source string) (Entity, error) {
 		return Entity{}, fmt.Errorf("error while unmarshalling entity json data: %w", err)
 	}
 
-	if ent.Movement.WalkSpeed == 0 {
+	if ent.WalkSpeed == 0 {
 		logz.Warnln(ent.DisplayName, "loaded entity does not have a walking speed; setting default value.")
-		ent.Movement.WalkSpeed = GetDefaultWalkSpeed()
+		ent.WalkSpeed = GetDefaultWalkSpeed()
 	}
 
 	return ent, nil
@@ -245,9 +249,7 @@ type Movement struct {
 	Direction byte `json:"-"` // L R U D
 
 	IsMoving                  bool    `json:"-"`
-	Interrupted               bool    `json:"-"`          // flag for if this entity's movement was stopped unexpectedly (e.g. by a collision)
-	WalkSpeed                 float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
-	RunSpeed                  float64
+	Interrupted               bool    `json:"-"` // flag for if this entity's movement was stopped unexpectedly (e.g. by a collision)
 	Speed                     float64 `json:"-"` // actual speed the entity is moving at
 	WalkAnimationTickInterval int
 	RunAnimationTickInterval  int
