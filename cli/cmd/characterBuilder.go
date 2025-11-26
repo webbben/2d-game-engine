@@ -26,6 +26,8 @@ import (
 	"github.com/webbben/2d-game-engine/item"
 )
 
+const noneOp = "< None >"
+
 // characterBuilderCmd represents the characterBuilder command
 var characterBuilderCmd = &cobra.Command{
 	Use:   "characterBuilder",
@@ -64,13 +66,12 @@ type builderGame struct {
 
 	bodySetOptions, eyesSetOptions, hairSetOptions, armsSetOptions []body.SelectedPartDef
 	bodySetIndex, eyesSetIndex, hairSetIndex, armsSetIndex         int
-	equipBodySetOptions, equipHeadSetOptions                       []body.SelectedPartDef
-	equipBodySetIndex, equipHeadSetIndex, weaponSetIndex           int
+	bodywearItems, headwearItems                                   []item.ItemDef
+	equipedBodywear, equipedHeadwear, equipedWeapon, equipedAux    string // IDs of equiped items
 
-	weaponOptions []weaponOption
+	weaponItems []item.ItemDef
 
-	equipedAux string
-	auxTorch   body.SelectedPartDef
+	auxItems []item.ItemDef
 
 	// character info and entity body
 
@@ -86,12 +87,13 @@ type builderGame struct {
 	scaleSlider       slider.Slider
 	animationSelector dropdown.OptionSelect
 	auxiliarySelector dropdown.OptionSelect
+	bodywearSelector  dropdown.OptionSelect
+	headwearSelector  dropdown.OptionSelect
+	weaponSelector    dropdown.OptionSelect
 
-	bodyCtl      stepper.Stepper
-	hairCtl      stepper.Stepper
-	eyesCtl      stepper.Stepper
-	equipBodyCtl stepper.Stepper
-	equipHeadCtl stepper.Stepper
+	bodyCtl stepper.Stepper
+	hairCtl stepper.Stepper
+	eyesCtl stepper.Stepper
 
 	bodyColorSliders slider.SliderGroup
 	hairColorSliders slider.SliderGroup
@@ -121,34 +123,22 @@ func characterBuilder() {
 
 	itemDefs := GetItemDefs()
 
-	equipBodyOptions := []body.SelectedPartDef{}
-	equipHeadOptions := []body.SelectedPartDef{{None: true}}
-	weaponOptions := []weaponOption{}
-	auxOptions := []body.SelectedPartDef{}
+	bodywearItems := []item.ItemDef{}
+	headwearItems := []item.ItemDef{}
+	weaponItems := []item.ItemDef{}
+	auxItems := []item.ItemDef{}
 
 	for _, itemDef := range itemDefs {
-		bodyPartDef := itemDef.GetBodyPartDef()
-		if bodyPartDef == nil {
-			continue
-		}
 
 		switch itemDef.GetItemType() {
 		case item.TypeBodywear:
-			equipBodyOptions = append(equipBodyOptions, *bodyPartDef)
+			bodywearItems = append(bodywearItems, itemDef)
 		case item.TypeHeadwear:
-			equipHeadOptions = append(equipHeadOptions, *bodyPartDef)
+			headwearItems = append(headwearItems, itemDef)
 		case item.TypeWeapon:
-			asWeaponDef, ok := itemDef.(*item.WeaponDef)
-			if !ok {
-				panic("failed to assert to weapon def struct")
-			}
-
-			weaponOptions = append(weaponOptions, weaponOption{
-				weaponPartDef: *bodyPartDef,
-				weaponFxDef:   *asWeaponDef.FxPartDef,
-			})
+			weaponItems = append(weaponItems, itemDef)
 		case item.TypeAuxiliary:
-			auxOptions = append(auxOptions, *bodyPartDef)
+			auxItems = append(auxItems, itemDef)
 		}
 	}
 	bodyOptions := []body.SelectedPartDef{
@@ -295,8 +285,9 @@ func characterBuilder() {
 	eyesSet := body.NewBodyPartSet(body.BodyPartSetParams{Name: "eyesSet"})
 	hairSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true, Name: "hairSet"})
 	equipBodySet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:  "equipBodySet",
-		HasUp: true,
+		Name:        "equipBodySet",
+		HasUp:       true,
+		IsRemovable: true,
 		WalkParams: body.AnimationParams{
 			TileSteps: walkTileSteps,
 		},
@@ -310,7 +301,11 @@ func characterBuilder() {
 			TileSteps: backslashTileSteps,
 		},
 	})
-	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true, Name: "equipHeadSet"})
+	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		HasUp:       true,
+		Name:        "equipHeadSet",
+		IsRemovable: true,
+	})
 	weaponSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		Name:        "weaponSet",
 		HasUp:       true,
@@ -366,29 +361,26 @@ func characterBuilder() {
 	entBody := body.NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
 
 	g := builderGame{
-		bodySetOptions:      bodyOptions,
-		armsSetOptions:      armsOptions,
-		eyesSetOptions:      eyesOptions,
-		hairSetOptions:      hairOptions,
-		equipBodySetOptions: equipBodyOptions,
-		equipHeadSetOptions: equipHeadOptions,
-		weaponOptions:       weaponOptions,
+		bodySetOptions: bodyOptions,
+		armsSetOptions: armsOptions,
+		eyesSetOptions: eyesOptions,
+		hairSetOptions: hairOptions,
+		bodywearItems:  bodywearItems,
+		headwearItems:  headwearItems,
+		weaponItems:    weaponItems,
 		characterData: entity.CharacterData{
 			Body: entBody,
 		},
 
-		auxTorch: auxOptions[0],
+		auxItems: auxItems,
 	}
 
 	// Set each bodyPartSet with their initial data.
 	// We do this in a "weird" way here since this is the character builder screen.
 	// In the actual game, we use the Load function instead, since all the PartSrc's are already set (from the JSON data).
 	g.SetBodyIndex(0)
-	g.SetEquipHeadIndex(0)
 	g.SetHairIndex(0)
 	g.SetEyesIndex(0)
-	g.SetEquipBodyIndex(0)
-	g.SetWeaponIndex(0)
 	g.characterData.Body.AuxItemSet.Hide()
 
 	// run this just to confirm that the regular loading process also still works (as used in the actual game)
@@ -449,9 +441,54 @@ func characterBuilder() {
 		DropDownBoxTilesetSrc: "boxes/boxes.tsj",
 		DropDownBoxOrigin:     128,
 	}, &g.popupMgr)
+
+	auxOptions := []string{noneOp}
+	for _, auxItem := range g.auxItems {
+		auxOptions = append(auxOptions, auxItem.GetID())
+	}
 	g.auxiliarySelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
-		Options:               []string{"None", "Torch"},
+		Options:               auxOptions,
+		InitialOptionIndex:    0,
+		TilesetSrc:            "ui/ui-components.tsj",
+		OriginIndex:           288,
+		DropDownBoxTilesetSrc: "boxes/boxes.tsj",
+		DropDownBoxOrigin:     128,
+	}, &g.popupMgr)
+
+	headwearOptions := []string{noneOp}
+	for _, i := range g.headwearItems {
+		headwearOptions = append(headwearOptions, i.GetID())
+	}
+	g.headwearSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
+		Font:                  config.DefaultFont,
+		Options:               headwearOptions,
+		InitialOptionIndex:    0,
+		TilesetSrc:            "ui/ui-components.tsj",
+		OriginIndex:           288,
+		DropDownBoxTilesetSrc: "boxes/boxes.tsj",
+		DropDownBoxOrigin:     128,
+	}, &g.popupMgr)
+	bodywearOptions := []string{noneOp}
+	for _, i := range g.bodywearItems {
+		bodywearOptions = append(bodywearOptions, i.GetID())
+	}
+	g.bodywearSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
+		Font:                  config.DefaultFont,
+		Options:               bodywearOptions,
+		InitialOptionIndex:    0,
+		TilesetSrc:            "ui/ui-components.tsj",
+		OriginIndex:           288,
+		DropDownBoxTilesetSrc: "boxes/boxes.tsj",
+		DropDownBoxOrigin:     128,
+	}, &g.popupMgr)
+	weaponOptions := []string{noneOp}
+	for _, i := range g.weaponItems {
+		weaponOptions = append(weaponOptions, i.GetID())
+	}
+	g.weaponSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
+		Font:                  config.DefaultFont,
+		Options:               weaponOptions,
 		InitialOptionIndex:    0,
 		TilesetSrc:            "ui/ui-components.tsj",
 		OriginIndex:           288,
@@ -480,24 +517,6 @@ func characterBuilder() {
 	g.eyesCtl = stepper.NewStepper(stepper.StepperParams{
 		MinVal:               0,
 		MaxVal:               len(eyesOptions) - 1,
-		Font:                 config.DefaultTitleFont,
-		FontFg:               color.White,
-		FontBg:               color.Black,
-		DecrementButtonImage: turnLeftImg,
-		IncrementButtonImage: turnRightImg,
-	})
-	g.equipBodyCtl = stepper.NewStepper(stepper.StepperParams{
-		MinVal:               0,
-		MaxVal:               len(equipBodyOptions) - 1,
-		Font:                 config.DefaultTitleFont,
-		FontFg:               color.White,
-		FontBg:               color.Black,
-		DecrementButtonImage: turnLeftImg,
-		IncrementButtonImage: turnRightImg,
-	})
-	g.equipHeadCtl = stepper.NewStepper(stepper.StepperParams{
-		MinVal:               0,
-		MaxVal:               len(equipHeadOptions) - 1,
 		Font:                 config.DefaultTitleFont,
 		FontFg:               color.White,
 		FontBg:               color.Black,
@@ -631,34 +650,6 @@ func (bg *builderGame) SetHairIndex(i int) {
 	op := bg.hairSetOptions[i]
 	bg.characterData.Body.SetHair(op)
 }
-func (bg *builderGame) SetEquipBodyIndex(i int) {
-	if i < 0 || i >= len(bg.equipBodySetOptions) {
-		panic("out of bounds")
-	}
-	bg.equipBodySetIndex = i
-	op := bg.equipBodySetOptions[i]
-	bg.characterData.Body.SetEquipBody(op)
-}
-
-// DEPENDS ON:
-//
-// hairSet
-func (bg *builderGame) SetEquipHeadIndex(i int) {
-	if i < 0 || i >= len(bg.equipHeadSetOptions) {
-		panic("out of bounds")
-	}
-	bg.equipHeadSetIndex = i
-	op := bg.equipHeadSetOptions[i]
-	bg.characterData.Body.SetEquipHead(op)
-}
-func (bg *builderGame) SetWeaponIndex(i int) {
-	if i < 0 || i > len(bg.weaponOptions) {
-		panic("out of bounds")
-	}
-	bg.weaponSetIndex = i
-	op := bg.weaponOptions[i]
-	bg.characterData.Body.SetWeapon(op.weaponPartDef, op.weaponFxDef)
-}
 
 func (bg *builderGame) Draw(screen *ebiten.Image) {
 	var characterScale float64 = float64(bg.scaleSlider.GetValue())
@@ -686,15 +677,15 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	bg.turnRight.Draw(screen, buttonRX, int(buttonsY))
 
 	// UI controls - Left side
-	sliderX := 100
+	sliderX := 50
 	sliderY := 50
 	text.DrawShadowText(screen, "Ticks Per Frame", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
-	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.speedSlider.GetValue()), config.DefaultFont, sliderX-40, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
+	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.speedSlider.GetValue()), config.DefaultFont, sliderX-30, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
 	bg.speedSlider.Draw(screen, float64(sliderX), float64(sliderY))
 
 	sliderY += tileSize * 2
 	text.DrawShadowText(screen, "Scale", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
-	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.scaleSlider.GetValue()), config.DefaultFont, sliderX-40, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
+	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.scaleSlider.GetValue()), config.DefaultFont, sliderX-30, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
 	bg.scaleSlider.Draw(screen, float64(sliderX), float64(sliderY))
 
 	sliderY += tileSize * 2
@@ -703,6 +694,16 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	sliderY += tileSize * 2
 	text.DrawShadowText(screen, "Auxiliary", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	bg.auxiliarySelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
+
+	sliderY += tileSize * 2
+	text.DrawShadowText(screen, "Headwear", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	bg.headwearSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
+	sliderY += tileSize * 2
+	text.DrawShadowText(screen, "Bodywear", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	bg.bodywearSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
+	sliderY += tileSize * 2
+	text.DrawShadowText(screen, "Weapon", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	bg.weaponSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 
 	saveX := sliderX
 	saveY := display.SCREEN_HEIGHT - tileSize*2
@@ -722,15 +723,8 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	ctlX += 200
 	text.DrawShadowText(screen, "Eyes", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	bg.eyesCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
-	ctlY += 100
-	ctlX -= 200
-	text.DrawShadowText(screen, "Equip Head", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
-	bg.equipHeadCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
-	ctlX += 200
-	text.DrawShadowText(screen, "Equip Body", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
-	bg.equipBodyCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
-	ctlX -= 200
 
+	ctlX -= 200
 	ctlY += 150
 	text.DrawShadowText(screen, "Body Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	ctlY += tileSize / 8
@@ -773,14 +767,7 @@ func (bg *builderGame) Update() error {
 	if bg.eyesCtl.GetValue() != bg.eyesSetIndex {
 		bg.SetEyesIndex(bg.eyesCtl.GetValue())
 	}
-	bg.equipHeadCtl.Update()
-	if bg.equipHeadCtl.GetValue() != bg.equipHeadSetIndex {
-		bg.SetEquipHeadIndex(bg.equipHeadCtl.GetValue())
-	}
-	bg.equipBodyCtl.Update()
-	if bg.equipBodyCtl.GetValue() != bg.equipBodySetIndex {
-		bg.SetEquipBodyIndex(bg.equipBodyCtl.GetValue())
-	}
+
 	bg.bodyColorSliders.Update()
 	bg.hairColorSliders.Update()
 	bg.eyeColorSliders.Update()
@@ -814,6 +801,21 @@ func (bg *builderGame) Update() error {
 	if selectorValue != bg.equipedAux {
 		bg.handleChangeAux(selectorValue)
 	}
+	bg.headwearSelector.Update()
+	selectorValue = bg.headwearSelector.GetCurrentValue()
+	if selectorValue != bg.equipedHeadwear {
+		bg.handleChangeHeadwear(selectorValue)
+	}
+	bg.bodywearSelector.Update()
+	selectorValue = bg.bodywearSelector.GetCurrentValue()
+	if selectorValue != bg.equipedBodywear {
+		bg.handleChangeBodywear(selectorValue)
+	}
+	bg.weaponSelector.Update()
+	selectorValue = bg.weaponSelector.GetCurrentValue()
+	if selectorValue != bg.equipedWeapon {
+		bg.handleChangeWeapon(selectorValue)
+	}
 
 	bg.characterData.Body.SetAnimationTickCount(bg.speedSlider.GetValue())
 
@@ -828,15 +830,92 @@ func (bg *builderGame) Update() error {
 }
 
 func (bg *builderGame) handleChangeAux(val string) {
-	switch val {
-	case "None":
-		// remove aux item
+	bg.equipedAux = val
+
+	if val == noneOp {
 		bg.characterData.Body.AuxItemSet.Remove()
-	case "Torch":
-		bg.characterData.Body.SetAuxiliary(bg.auxTorch)
-	default:
-		panic("unrecognized aux value: " + val)
+		return
 	}
+	for _, auxItem := range bg.auxItems {
+		if auxItem.GetID() == val {
+			bp := auxItem.GetBodyPartDef()
+			if bp == nil {
+				panic("item doesn't have body part")
+			}
+			bg.characterData.Body.SetAuxiliary(*bp)
+			return
+		}
+	}
+	panic("val doesn't seem to match an item ID: " + val)
+}
+
+func (bg *builderGame) handleChangeHeadwear(val string) {
+	bg.equipedHeadwear = val
+
+	if val == noneOp {
+		bg.characterData.Body.EquipHeadSet.Remove()
+		return
+	}
+	for _, i := range bg.headwearItems {
+		if i.GetID() == val {
+			bp := i.GetBodyPartDef()
+			if bp == nil {
+				panic("item doesn't have body part")
+			}
+			bg.characterData.Body.SetEquipHead(*bp)
+			return
+		}
+	}
+	panic("val doesn't seem to match an item ID: " + val)
+}
+
+func (bg *builderGame) handleChangeBodywear(val string) {
+	bg.equipedBodywear = val
+
+	if val == noneOp {
+		bg.characterData.Body.EquipBodySet.Remove()
+		return
+	}
+	for _, i := range bg.bodywearItems {
+		if i.GetID() == val {
+			bp := i.GetBodyPartDef()
+			if bp == nil {
+				panic("item doesn't have body part")
+			}
+			bg.characterData.Body.SetEquipBody(*bp)
+			return
+		}
+	}
+	panic("val doesn't seem to match an item ID: " + val)
+}
+
+func (bg *builderGame) handleChangeWeapon(val string) {
+	bg.equipedWeapon = val
+
+	if val == noneOp {
+		bg.characterData.Body.WeaponSet.Remove()
+		bg.characterData.Body.WeaponFxSet.Remove()
+		return
+	}
+	for _, i := range bg.weaponItems {
+		if i.GetID() == val {
+			bp := i.GetBodyPartDef()
+			if bp == nil {
+				panic("item doesn't have body part")
+			}
+			asWeapon, ok := i.(*item.WeaponDef)
+			if !ok {
+				panic("item can't be asserted as weapon def")
+			}
+			fx := asWeapon.FxPartDef
+			if fx == nil {
+				panic("fx part is nil")
+			}
+			bg.characterData.Body.SetWeapon(*bp, *fx)
+			return
+		}
+	}
+	panic("val doesn't seem to match an item ID: " + val)
 }
 
 func (bg *builderGame) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {

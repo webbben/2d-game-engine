@@ -78,6 +78,8 @@ func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
 		HasUp:              params.HasUp,
 		IsRemovable:        params.IsRemovable,
 		Name:               params.Name,
+		// all parts start off as being "none"/disabled. a partSrc can be added later.
+		PartSrc: SelectedPartDef{None: true},
 	}
 
 	return bps
@@ -149,7 +151,7 @@ func (set *BodyPartSet) load(stretchX, stretchY int) {
 		panic("source not set before attempting to load")
 	}
 	if set.PartSrc.TilesetSrc == "" {
-		panic("no TilesetSrc set in BodyPartSet")
+		logz.Panicln(set.Name, "no TilesetSrc set in BodyPartSet")
 	}
 
 	set.WalkAnimation.Name = fmt.Sprintf("%s/walk", set.PartSrc.TilesetSrc)

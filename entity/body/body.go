@@ -73,7 +73,7 @@ func (eb EntityBodySet) GetDebugString() string {
 	return s
 }
 
-// for loading all body parts, assuming that they all alrady have PartSrc set. E.g. for after loading from JSON.
+// for loading all body parts, assuming that they all already have PartSrc set. E.g. for after loading from JSON.
 func (eb *EntityBodySet) Load() {
 	// load body first, since it dictates stretchX and stretchY (which impact several sets)
 	eb.SetBody(eb.BodySet.PartSrc, eb.ArmsSet.PartSrc)
@@ -243,7 +243,7 @@ func (eb *EntityBodySet) SetBody(bodyDef, armDef SelectedPartDef) {
 
 	// arms are directly set with body
 	eb.ArmsSet.setImageSource(armDef, 0, 0)
-	if eb.EquipBodySet.sourceSet {
+	if eb.EquipBodySet.sourceSet && !eb.EquipBodySet.PartSrc.None {
 		// subtract arms by equip body image (remove parts hidden by it)
 		eb.subtractArms()
 	}
@@ -283,7 +283,9 @@ func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
 	// redo the arms subtraction
 	if eb.ArmsSet.HasLoaded() {
 		eb.ArmsSet.load(0, 0)
-		eb.subtractArms()
+		if !eb.EquipBodySet.PartSrc.None {
+			eb.subtractArms()
+		}
 	}
 }
 
@@ -377,6 +379,9 @@ func (eb *EntityBodySet) cropHair() {
 }
 
 func (eb *EntityBodySet) subtractArms() {
+	if eb.EquipBodySet.PartSrc.None {
+		panic("trying to subtract arms, but no bodywear is set")
+	}
 	fmt.Println("subtract arms")
 	cropper := func(a *Animation, subtractorA Animation) {
 		equipBodyOffsetY := int(eb.globalOffsetY + eb.getEquipBodyOffsetY())
@@ -418,11 +423,13 @@ func (eb EntityBodySet) validateAuxFrames() {
 		eb.ArmsSet.IdleAnimation.downAux == nil {
 		logz.Panicln(eb.Name, "one or more arms aux frames are nil")
 	}
-	if eb.EquipBodySet.IdleAnimation.leftAux == nil ||
-		eb.EquipBodySet.IdleAnimation.rightAux == nil ||
-		eb.EquipBodySet.IdleAnimation.upAux == nil ||
-		eb.EquipBodySet.IdleAnimation.downAux == nil {
-		logz.Panicln(eb.Name, "one or more equipBody aux frames are nil")
+	if !eb.EquipBodySet.PartSrc.None {
+		if eb.EquipBodySet.IdleAnimation.leftAux == nil ||
+			eb.EquipBodySet.IdleAnimation.rightAux == nil ||
+			eb.EquipBodySet.IdleAnimation.upAux == nil ||
+			eb.EquipBodySet.IdleAnimation.downAux == nil {
+			logz.Panicln(eb.Name, "one or more equipBody aux frames are nil")
+		}
 	}
 }
 
@@ -459,7 +466,9 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 		case "arms":
 			rendering.DrawHSVImage(eb.stagingImg, eb.ArmsSet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, 0)
 		case "equip_body":
-			rendering.DrawImage(eb.stagingImg, eb.EquipBodySet.img, bodyX, equipBodyY, 0)
+			if eb.EquipBodySet.img != nil {
+				rendering.DrawImage(eb.stagingImg, eb.EquipBodySet.img, bodyX, equipBodyY, 0)
+			}
 		case "eyes":
 			if eb.EyesSet.img != nil {
 				rendering.DrawHSVImage(eb.stagingImg, eb.EyesSet.img, eb.EyesHSV.H, eb.EyesHSV.S, eb.EyesHSV.V, bodyX, eyesY, 0)

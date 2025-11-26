@@ -244,5 +244,16 @@ func GetItemDefs() []item.ItemDef {
 			Type:              item.TypeBodywear,
 			BodyPartDef:       &equipBodyOptions[0],
 		}),
+		item.NewItemBase(item.ItemBaseParams{
+			ID:                "laurel_wreath",
+			Name:              "Laurel Wreath",
+			Description:       "A wreath of laurel branches, ceremonially worn by triumphant generals, athletes, and poets alike. It's just leaves and branches though.",
+			Value:             50,
+			Weight:            0.5,
+			TileImgTilesetSrc: "items/items_01.tsj",
+			TileImgIndex:      70,
+			Type:              item.TypeHeadwear,
+			BodyPartDef:       &equipHeadOptions[0],
+		}),
 	}
 }
