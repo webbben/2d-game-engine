@@ -41,10 +41,10 @@ to quickly create a Cobra application.`,
 		config.ShowPlayerCoords = true
 		config.ShowGameDebugInfo = true
 		//config.DrawGridLines = true
-		//config.ShowEntityPositions = true
+		config.ShowEntityPositions = true
 		//config.TrackMemoryUsage = true
 		//config.HourSpeed = time.Second * 20
-		//config.ShowCollisions = true
+		config.ShowCollisions = true
 		//config.ShowNPCPaths = true
 
 		config.GameDataPathOverride = "/Users/benwebb/dev/personal/ancient-rome"
@@ -68,9 +68,6 @@ to quickly create a Cobra application.`,
 
 		// get our testrun game state
 		gameState := setupGameState()
-
-		itemDefs := GetItemDefs()
-		gameState.DefinitionManager.LoadItemDefs(itemDefs)
 
 		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("longsword_01", 1))
 		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("potion_herculean_strength", 2))
@@ -102,6 +99,10 @@ func init() {
 
 func setupGameState() *game.Game {
 	g := game.NewGame(10)
+
+	itemDefs := GetItemDefs()
+	g.DefinitionManager.LoadItemDefs(itemDefs)
+
 	err := g.SetupMap("village_surano", &game.OpenMapOptions{
 		RunNPCManager:    true,
 		RegenerateImages: true,
@@ -129,25 +130,19 @@ func setupGameState() *game.Game {
 
 	// make the player
 	playerEnt := entity.NewEntity(entity.GeneralProps{
-		DisplayName:   "Caius Cosades",
-		EntityBodySrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json",
-		IsPlayer:      true,
-		InventorySize: 18,
-	}, entity.MovementProps{
-		WalkSpeed: 0,
-	}, footstepSFX)
+		CharacterDataSrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json",
+		IsPlayer:         true,
+		InventorySize:    18,
+	}, footstepSFX, g.DefinitionManager)
 
 	p := player.NewPlayer(g.DefinitionManager, &playerEnt)
 
 	g.PlacePlayerAtSpawnPoint(&p, 0)
 
 	npcEnt := entity.NewEntity(entity.GeneralProps{
-		DisplayName:   "Legionary",
-		EntityBodySrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_02.json",
-		InventorySize: 18,
-	}, entity.MovementProps{
-		WalkSpeed: 0,
-	}, footstepSFX)
+		CharacterDataSrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_02.json",
+		InventorySize:    18,
+	}, footstepSFX, g.DefinitionManager)
 	n := npc.New(npc.NPC{
 		Entity: &npcEnt,
 		NPCInfo: npc.NPCInfo{

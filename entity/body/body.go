@@ -33,11 +33,11 @@ type EntityBodySet struct {
 
 	dmgFlicker damageFlickerFX `json:"-"`
 
-	stretchX, stretchY int // amount to stretch certain body parts - set by body set
+	stretchX, stretchY int `json:"-"` // amount to stretch certain body parts - set by body set
 
 	// actual body definition - not including equiped items
 
-	stagingImg *ebiten.Image // just for putting everything together before drawing to screen (for adding flicker fx)
+	stagingImg *ebiten.Image `json:"-"` // just for putting everything together before drawing to screen (for adding flicker fx)
 
 	BodyHSV HSV
 	BodySet BodyPartSet
@@ -140,6 +140,7 @@ func ReadJSON(jsonFilePath string) (EntityBodySet, error) {
 	return eb, nil
 }
 
+// TODO delete?
 func (eb EntityBodySet) WriteToJSON(outputFilePath string) error {
 	if !filepath.IsAbs(outputFilePath) {
 		return fmt.Errorf("given path is not abs (%s); please pass an absolute path", outputFilePath)
@@ -342,6 +343,30 @@ type SelectedPartDef struct {
 	// since aux animations only have a different first frame from the regular animations.
 	// If set to 0, effectively nothing happens, and no aux frame is built.
 	AuxFirstFrameStep int
+}
+
+// checks if the two are equal. mainly used for validation.
+func (def SelectedPartDef) IsEqual(other SelectedPartDef) bool {
+	// Q: should we factor None into this? if None is true (for both) do we still want to check other fields?
+	if def.TilesetSrc != other.TilesetSrc {
+		return false
+	}
+	if !(def.RStart == other.RStart && def.LStart == other.LStart && def.UStart == other.UStart && def.DStart == other.DStart) {
+		return false
+	}
+	if def.FlipRForL != other.FlipRForL {
+		return false
+	}
+	if !(def.StretchX == other.StretchX && def.StretchY == other.StretchY && def.OffsetY == other.OffsetY) {
+		return false
+	}
+	if def.CropHairToHead != other.CropHairToHead {
+		return false
+	}
+	if def.AuxFirstFrameStep != other.AuxFirstFrameStep {
+		return false
+	}
+	return true
 }
 
 // Requires BodySet and HairSet to be loaded already

@@ -16,6 +16,24 @@ type InventoryItem struct {
 	Quantity int
 }
 
+// use the one in definitionManager to actually get an inventory item from the game state. this just puts the pieces together correctly.
+func NewInventoryItem(def ItemDef, quantity int) InventoryItem {
+	if def == nil {
+		panic("def is nil")
+	}
+	invItem := InventoryItem{
+		Instance: ItemInstance{
+			DefID:      def.GetID(),
+			Durability: def.GetMaxDurability(),
+		},
+		Def:      def,
+		Quantity: quantity,
+	}
+
+	invItem.Validate()
+	return invItem
+}
+
 func (invItem *InventoryItem) String() string {
 	return fmt.Sprintf("{DefID: %s, Name: %s, Quant: %v}", invItem.Instance.DefID, invItem.Def.GetName(), invItem.Quantity)
 }

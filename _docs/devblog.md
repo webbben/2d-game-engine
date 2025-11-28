@@ -1,3 +1,12 @@
+# 11/27/2025
+
+A little snapshot of the current state of the Character Builder. I made this to facilitate creating new characters and NPCs in the game.
+I've realized that this will probably be a very key thing for the future development of this game, so I'll be investing some time in making it work well,
+adding new customizations and inputs, etc. Ultimately, something very similar will probably be used when players are starting a new playthrough and
+designing their own characters.
+
+![Character Builder in early stages](20251127.png)
+
 # 11/21/2025
 
 Starting this development blog to document the journey of creating this game. By now, development is already well underway, but also
