@@ -214,11 +214,13 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	if !mi.Loaded {
 		panic("map not loaded yet. use SetupMap before using this.")
 	}
+	w := n.Entity.CollisionRect().W
+	h := n.Entity.CollisionRect().H
 	r := model.Rect{
 		X: float64(startPos.X * config.TileSize),
 		Y: float64(startPos.Y * config.TileSize),
-		W: config.TileSize,
-		H: config.TileSize,
+		W: w,
+		H: h,
 	}
 	if res := mi.Collides(r, ""); res.Collides() {
 		panic("npc added to map on colliding tile")

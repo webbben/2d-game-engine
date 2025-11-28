@@ -47,18 +47,7 @@ func (def *DefinitionManager) NewInventoryItem(defID string, quantity int) item.
 		panic("item def is nil")
 	}
 
-	invItem := item.InventoryItem{
-		Instance: item.ItemInstance{
-			DefID:      defID,
-			Durability: itemDef.GetMaxDurability(),
-		},
-		Def:      itemDef,
-		Quantity: quantity,
-	}
-
-	invItem.Validate()
-
-	return invItem
+	return item.NewInventoryItem(itemDef, quantity)
 }
 
 func (def *DefinitionManager) LoadShopkeeper(shopkeeperID string, shopkeeper Shopkeeper) {

@@ -220,7 +220,7 @@ func (ib ItemBase) IsCurrencyItem() bool {
 }
 func (ib ItemBase) IsEquipable() bool {
 	switch ib.Type {
-	case TypeBodywear, TypeHeadwear, TypeFootwear, TypeWeapon, TypeAmulet, TypeRing, TypeAmmunition:
+	case TypeBodywear, TypeHeadwear, TypeFootwear, TypeWeapon, TypeAmulet, TypeRing, TypeAmmunition, TypeAuxiliary:
 		return true
 	default:
 		return false
@@ -272,6 +272,25 @@ type WeaponDef struct {
 	HitsPerSecond float64 // speed of attacks, in terms of number of attacks possible per second
 
 	FxPartDef *body.SelectedPartDef // only defined for weapon items
+}
+
+// gets the two bodyPartDefs for a weapon: the actual weapon, and the fx.
+// Panics if given item is not a weaponDef, or if either part is not found.
+func GetWeaponParts(i ItemDef) (weaponPart body.SelectedPartDef, fxPart body.SelectedPartDef) {
+	part := i.GetBodyPartDef()
+	if part == nil {
+		logz.Panicln("GetWeaponParts", "weapon part is nil:", i.GetID())
+	}
+	weaponDef, ok := i.(*WeaponDef)
+	if !ok {
+		logz.Panicln("GetWeaponParts", "failed to assert as weapon:", i.GetID())
+	}
+	fx := weaponDef.FxPartDef
+	if fx == nil {
+		logz.Panicln("GetWeaponParts", "fx part is nil:", i.GetID())
+	}
+
+	return *part, *fx
 }
 
 // ItemDef for armor

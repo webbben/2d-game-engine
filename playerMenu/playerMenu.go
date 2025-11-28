@@ -93,7 +93,6 @@ func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.Definit
 			DisplayName: "Misc Stats",
 		},
 	})
-	pm.pageTabs.Load()
 
 	pm.pageTabsX = pm.x + tileSize
 	pm.pageTabsY = pm.y

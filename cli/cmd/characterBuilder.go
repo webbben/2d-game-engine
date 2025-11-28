@@ -9,11 +9,13 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/spf13/cobra"
+	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/tiled"
@@ -27,6 +29,8 @@ import (
 )
 
 const noneOp = "< None >"
+
+var loadFile string
 
 // characterBuilderCmd represents the characterBuilder command
 var characterBuilderCmd = &cobra.Command{
@@ -51,11 +55,13 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			panic(err)
 		}
-		characterBuilder()
+		characterBuilder(loadFile)
 	},
 }
 
 func init() {
+	characterBuilderCmd.PersistentFlags().StringVar(&loadFile, "load", "", "set this flag to load an existing character json file. directory path and extension (.json) should be omitted - just the filename (character ID).")
+
 	rootCmd.AddCommand(characterBuilderCmd)
 }
 
@@ -76,6 +82,7 @@ type builderGame struct {
 	// character info and entity body
 
 	characterData entity.CharacterData
+	defMgr        *definitions.DefinitionManager
 
 	// UI components
 
@@ -99,8 +106,10 @@ type builderGame struct {
 	hairColorSliders slider.SliderGroup
 	eyeColorSliders  slider.SliderGroup
 
-	textField  textfield.TextField
 	saveButton *button.Button
+
+	nameField textfield.TextField
+	idField   textfield.TextField
 }
 
 type weaponOption struct {
@@ -108,7 +117,7 @@ type weaponOption struct {
 	weaponFxDef   body.SelectedPartDef
 }
 
-func characterBuilder() {
+func characterBuilder(fileToLoad string) {
 	bodyTileset := "entities/parts/body.tsj"
 	armsTileset := "entities/parts/arms.tsj"
 	eyesTileset := "entities/parts/eyes.tsj"
@@ -121,7 +130,9 @@ func characterBuilder() {
 	bodyLStart := 34
 	bodyUStart := 51
 
+	defMgr := definitions.NewDefinitionManager()
 	itemDefs := GetItemDefs()
+	defMgr.LoadItemDefs(itemDefs)
 
 	bodywearItems := []item.ItemDef{}
 	headwearItems := []item.ItemDef{}
@@ -236,129 +247,17 @@ func characterBuilder() {
 		})
 	}
 
-	walkTileSteps := []int{0, 3, 0, 5}
-	runTileSteps := []int{0, 2, 3, 0, 4, 5}
-	slashTileSteps := []int{0, 6, 7, 8, 9}
-	backslashTileSteps := []int{9, 10, 11, 12}
-	weaponWalkTileSteps := []int{0, 2, 0, 4}
-	weaponRunTileSteps := []int{0, 1, 2, 0, 3, 4}
-	weaponSlashTileSteps := []int{0, 5, 6, 7, 8}
-	weaponBackslashTileSteps := []int{8, 9, 10, 11}
-
-	bodySet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:   "bodySet",
-		IsBody: true,
-		HasUp:  true,
-		WalkParams: body.AnimationParams{
-			TileSteps:    walkTileSteps,
-			StepsOffsetY: []int{0, 1, 0, 1},
-		},
-		RunParams: body.AnimationParams{
-			TileSteps:    runTileSteps,
-			StepsOffsetY: []int{0, 0, 1, 0, 0, 1},
-		},
-		SlashParams: body.AnimationParams{
-			TileSteps:    slashTileSteps,
-			StepsOffsetY: []int{0, 1, 2, 2, 2},
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps:    backslashTileSteps,
-			StepsOffsetY: []int{2, 2, 1, 1},
-		},
-	})
-	armsSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:  "armsSet",
-		HasUp: true,
-		WalkParams: body.AnimationParams{
-			TileSteps: walkTileSteps,
-		},
-		RunParams: body.AnimationParams{
-			TileSteps: runTileSteps,
-		},
-		SlashParams: body.AnimationParams{
-			TileSteps: slashTileSteps,
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps: backslashTileSteps,
-		},
-	})
-	eyesSet := body.NewBodyPartSet(body.BodyPartSetParams{Name: "eyesSet"})
-	hairSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true, Name: "hairSet"})
-	equipBodySet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:        "equipBodySet",
-		HasUp:       true,
-		IsRemovable: true,
-		WalkParams: body.AnimationParams{
-			TileSteps: walkTileSteps,
-		},
-		RunParams: body.AnimationParams{
-			TileSteps: runTileSteps,
-		},
-		SlashParams: body.AnimationParams{
-			TileSteps: slashTileSteps,
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps: backslashTileSteps,
-		},
-	})
-	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		HasUp:       true,
-		Name:        "equipHeadSet",
-		IsRemovable: true,
-	})
-	weaponSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:        "weaponSet",
-		HasUp:       true,
-		IsRemovable: true,
-		WalkParams: body.AnimationParams{
-			TileSteps: weaponWalkTileSteps,
-		},
-		RunParams: body.AnimationParams{
-			TileSteps: weaponRunTileSteps,
-		},
-		SlashParams: body.AnimationParams{
-			TileSteps: weaponSlashTileSteps,
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps: weaponBackslashTileSteps,
-		},
-	})
-	weaponFxSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:        "weaponFxSet",
-		HasUp:       true,
-		IsRemovable: true,
-		WalkParams:  body.AnimationParams{Skip: true},
-		RunParams:   body.AnimationParams{Skip: true},
-		IdleParams:  body.AnimationParams{Skip: true},
-		SlashParams: body.AnimationParams{
-			TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps: []int{-1, 3, 4, 5},
-		},
-	})
-	auxSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:        "auxSet",
-		HasUp:       true,
-		IsRemovable: true,
-		IdleParams: body.AnimationParams{
-			TileSteps: []int{0, 1, 2, 3},
-		},
-		WalkParams: body.AnimationParams{
-			TileSteps: []int{0, 5, 0, 7},
-		},
-		RunParams: body.AnimationParams{
-			TileSteps: []int{0, 4, 5, 0, 6, 7},
-		},
-		SlashParams: body.AnimationParams{
-			TileSteps: []int{0, 8, 9, 10, 10},
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps: []int{11, 12, 13, 14},
-		},
-	})
-
-	entBody := body.NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
+	var characterData entity.CharacterData
+	if fileToLoad != "" {
+		var err error
+		fileToLoad = resolveCharacterJsonPath(fileToLoad)
+		characterData, err = entity.LoadCharacterDataJSON(fileToLoad, defMgr)
+		if err != nil {
+			logz.Panicln("Character Builder", "load character data:", err)
+		}
+	} else {
+		characterData = getNewCharacter()
+	}
 
 	g := builderGame{
 		bodySetOptions: bodyOptions,
@@ -368,20 +267,22 @@ func characterBuilder() {
 		bodywearItems:  bodywearItems,
 		headwearItems:  headwearItems,
 		weaponItems:    weaponItems,
-		characterData: entity.CharacterData{
-			Body: entBody,
-		},
+		characterData:  characterData,
+		auxItems:       auxItems,
 
-		auxItems: auxItems,
+		defMgr: defMgr,
 	}
 
-	// Set each bodyPartSet with their initial data.
-	// We do this in a "weird" way here since this is the character builder screen.
-	// In the actual game, we use the Load function instead, since all the PartSrc's are already set (from the JSON data).
-	g.SetBodyIndex(0)
-	g.SetHairIndex(0)
-	g.SetEyesIndex(0)
-	g.characterData.Body.AuxItemSet.Hide()
+	// do this if using a new, empty slate character body
+	if fileToLoad == "" {
+		// Set each bodyPartSet with their initial data.
+		// We do this in a "weird" way here since this is the character builder screen.
+		// In the actual game, we use the Load function instead, since all the PartSrc's are already set (from the JSON data).
+		g.SetBodyIndex(0)
+		g.SetHairIndex(0)
+		g.SetEyesIndex(0)
+		g.characterData.Body.AuxItemSet.Hide()
+	}
 
 	// run this just to confirm that the regular loading process also still works (as used in the actual game)
 	g.characterData.Body.Load()
@@ -425,7 +326,7 @@ func characterBuilder() {
 		TilesetOrigin: 256,
 		TileWidth:     4,
 		MinVal:        3,
-		MaxVal:        10,
+		MaxVal:        8,
 		InitialValue:  8,
 		StepSize:      1,
 	})
@@ -589,31 +490,181 @@ func characterBuilder() {
 		},
 	})
 
-	g.textField = *textfield.NewTextField(textfield.TextFieldParams{
+	g.nameField = *textfield.NewTextField(textfield.TextFieldParams{
 		FontFace:     config.DefaultFont,
-		WidthPx:      500,
+		WidthPx:      200,
+		AllowSpecial: true,
+		TextColor:    color.White,
+		BorderColor:  color.White,
+		BgColor:      color.Black,
+	})
+	g.idField = *textfield.NewTextField(textfield.TextFieldParams{
+		FontFace:     config.DefaultFont,
+		WidthPx:      200,
 		AllowSpecial: true,
 		TextColor:    color.White,
 		BorderColor:  color.White,
 		BgColor:      color.Black,
 	})
 
-	g.saveButton = button.NewLinearBoxButton("Save JSON", "ui/ui-components.tsj", 352, config.DefaultTitleFont)
+	g.saveButton = button.NewLinearBoxButton("Save", "ui/ui-components.tsj", 352, config.DefaultTitleFont)
 
 	if err := ebiten.RunGame(&g); err != nil {
 		panic(err)
 	}
 }
 
+func getNewCharacter() entity.CharacterData {
+	walkTileSteps := []int{0, 3, 0, 5}
+	runTileSteps := []int{0, 2, 3, 0, 4, 5}
+	slashTileSteps := []int{0, 6, 7, 8, 9}
+	backslashTileSteps := []int{9, 10, 11, 12}
+	weaponWalkTileSteps := []int{0, 2, 0, 4}
+	weaponRunTileSteps := []int{0, 1, 2, 0, 3, 4}
+	weaponSlashTileSteps := []int{0, 5, 6, 7, 8}
+	weaponBackslashTileSteps := []int{8, 9, 10, 11}
+
+	bodySet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:   "bodySet",
+		IsBody: true,
+		HasUp:  true,
+		WalkParams: body.AnimationParams{
+			TileSteps:    walkTileSteps,
+			StepsOffsetY: []int{0, 1, 0, 1},
+		},
+		RunParams: body.AnimationParams{
+			TileSteps:    runTileSteps,
+			StepsOffsetY: []int{0, 0, 1, 0, 0, 1},
+		},
+		SlashParams: body.AnimationParams{
+			TileSteps:    slashTileSteps,
+			StepsOffsetY: []int{0, 1, 2, 2, 2},
+		},
+		BackslashParams: body.AnimationParams{
+			TileSteps:    backslashTileSteps,
+			StepsOffsetY: []int{2, 2, 1, 1},
+		},
+	})
+	armsSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:  "armsSet",
+		HasUp: true,
+		WalkParams: body.AnimationParams{
+			TileSteps: walkTileSteps,
+		},
+		RunParams: body.AnimationParams{
+			TileSteps: runTileSteps,
+		},
+		SlashParams: body.AnimationParams{
+			TileSteps: slashTileSteps,
+		},
+		BackslashParams: body.AnimationParams{
+			TileSteps: backslashTileSteps,
+		},
+	})
+	eyesSet := body.NewBodyPartSet(body.BodyPartSetParams{Name: "eyesSet"})
+	hairSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true, Name: "hairSet"})
+	equipBodySet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:        "equipBodySet",
+		HasUp:       true,
+		IsRemovable: true,
+		WalkParams: body.AnimationParams{
+			TileSteps: walkTileSteps,
+		},
+		RunParams: body.AnimationParams{
+			TileSteps: runTileSteps,
+		},
+		SlashParams: body.AnimationParams{
+			TileSteps: slashTileSteps,
+		},
+		BackslashParams: body.AnimationParams{
+			TileSteps: backslashTileSteps,
+		},
+	})
+	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		HasUp:       true,
+		Name:        "equipHeadSet",
+		IsRemovable: true,
+	})
+	weaponSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:        "weaponSet",
+		HasUp:       true,
+		IsRemovable: true,
+		WalkParams: body.AnimationParams{
+			TileSteps: weaponWalkTileSteps,
+		},
+		RunParams: body.AnimationParams{
+			TileSteps: weaponRunTileSteps,
+		},
+		SlashParams: body.AnimationParams{
+			TileSteps: weaponSlashTileSteps,
+		},
+		BackslashParams: body.AnimationParams{
+			TileSteps: weaponBackslashTileSteps,
+		},
+	})
+	weaponFxSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:        "weaponFxSet",
+		HasUp:       true,
+		IsRemovable: true,
+		WalkParams:  body.AnimationParams{Skip: true},
+		RunParams:   body.AnimationParams{Skip: true},
+		IdleParams:  body.AnimationParams{Skip: true},
+		SlashParams: body.AnimationParams{
+			TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
+		},
+		BackslashParams: body.AnimationParams{
+			TileSteps: []int{-1, 3, 4, 5},
+		},
+	})
+	auxSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:        "auxSet",
+		HasUp:       true,
+		IsRemovable: true,
+		IdleParams: body.AnimationParams{
+			TileSteps: []int{0, 1, 2, 3},
+		},
+		WalkParams: body.AnimationParams{
+			TileSteps: []int{0, 5, 0, 7},
+		},
+		RunParams: body.AnimationParams{
+			TileSteps: []int{0, 4, 5, 0, 6, 7},
+		},
+		SlashParams: body.AnimationParams{
+			TileSteps: []int{0, 8, 9, 10, 10},
+		},
+		BackslashParams: body.AnimationParams{
+			TileSteps: []int{11, 12, 13, 14},
+		},
+	})
+
+	entBody := body.NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
+
+	cd := entity.CharacterData{
+		Body: entBody,
+	}
+	return cd
+}
+
 func (bg builderGame) saveCharacter() {
-	outputFileName := bg.textField.GetText()
-	if outputFileName == "" {
+	id := bg.idField.GetText()
+	if id == "" {
+		return
+	}
+	name := bg.nameField.GetText()
+	if name == "" {
 		return
 	}
 
-	basePath := "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/" + outputFileName + ".json"
+	basePath := resolveCharacterJsonPath(id)
 
-	bg.characterData.Body.WriteToJSON(basePath)
+	bg.characterData.ID = id
+	bg.characterData.DisplayName = name
+
+	bg.characterData.WriteToJSON(basePath)
+}
+
+func resolveCharacterJsonPath(id string) string {
+	return fmt.Sprintf("/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/%s.json", id)
 }
 
 // SETS: Set Index Functions
@@ -683,59 +734,71 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.speedSlider.GetValue()), config.DefaultFont, sliderX-30, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
 	bg.speedSlider.Draw(screen, float64(sliderX), float64(sliderY))
 
-	sliderY += tileSize * 2
+	sliderY += tileSize * 3 / 2
 	text.DrawShadowText(screen, "Scale", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.scaleSlider.GetValue()), config.DefaultFont, sliderX-30, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
 	bg.scaleSlider.Draw(screen, float64(sliderX), float64(sliderY))
 
-	sliderY += tileSize * 2
+	sliderY += tileSize * 5 / 3
 	text.DrawShadowText(screen, "Animation", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	bg.animationSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
-	sliderY += tileSize * 2
+	sliderY += tileSize * 5 / 3
 	text.DrawShadowText(screen, "Auxiliary", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	bg.auxiliarySelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 
-	sliderY += tileSize * 2
+	sliderY += tileSize * 5 / 3
 	text.DrawShadowText(screen, "Headwear", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	bg.headwearSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
-	sliderY += tileSize * 2
+	sliderY += tileSize * 5 / 3
 	text.DrawShadowText(screen, "Bodywear", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	bg.bodywearSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
-	sliderY += tileSize * 2
+	sliderY += tileSize * 5 / 3
 	text.DrawShadowText(screen, "Weapon", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	bg.weaponSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 
-	saveX := sliderX
-	saveY := display.SCREEN_HEIGHT - tileSize*2
-	bg.textField.Draw(screen, float64(saveX), float64(saveY))
-	textFieldDx, _ := bg.textField.Dimensions()
-	saveX += textFieldDx + tileSize
-	bg.saveButton.Draw(screen, saveX, saveY)
+	// Character Info Input - Middle Top
+	drawX := (display.SCREEN_WIDTH / 3) - 100
+	drawY := 50
+	text.DrawShadowText(screen, "Character Info", config.DefaultTitleFont, drawX, drawY, color.White, nil, 0, 0)
+	drawY += 50
+	text.DrawShadowText(screen, "Name", config.DefaultFont, drawX, drawY, color.White, nil, 0, 0)
+	drawX += 100
+	bg.nameField.Draw(screen, float64(drawX), float64(drawY-25))
+	drawX -= 100
+	drawY += 50
+	text.DrawShadowText(screen, "ID", config.DefaultFont, drawX, drawY, color.White, nil, 0, 0)
+	drawX += 100
+	bg.idField.Draw(screen, float64(drawX), float64(drawY-25))
+	drawX = (display.SCREEN_WIDTH / 3) + 350
+	drawY = 150
+	bg.saveButton.Draw(screen, drawX, drawY)
 
 	// UI controls - Right side
-	ctlX := (display.SCREEN_WIDTH * 3 / 4)
+	ctlX := (display.SCREEN_WIDTH * 3 / 4) - 100
 	ctlY := 50
 	text.DrawShadowText(screen, "Body", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	bg.bodyCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
-	ctlY += 100
-	text.DrawShadowText(screen, "Hair", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
-	bg.hairCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
-	ctlX += 200
-	text.DrawShadowText(screen, "Eyes", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
-	bg.eyesCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
-
-	ctlX -= 200
-	ctlY += 150
+	ctlX += 170
 	text.DrawShadowText(screen, "Body Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	ctlY += tileSize / 8
 	bg.bodyColorSliders.Draw(screen, float64(ctlX), float64(ctlY))
 	_, dy := bg.bodyColorSliders.Dimensions()
-	ctlY += dy + (tileSize / 2)
+	ctlY += dy + (tileSize)
+	ctlX -= 170
+
+	text.DrawShadowText(screen, "Hair", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	bg.hairCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
+	ctlX += 170
 	text.DrawShadowText(screen, "Hair Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	ctlY += tileSize / 8
 	bg.hairColorSliders.Draw(screen, float64(ctlX), float64(ctlY))
 	_, dy = bg.hairColorSliders.Dimensions()
-	ctlY += dy + (tileSize / 2)
+	ctlY += dy + (tileSize)
+	ctlX -= 170
+
+	text.DrawShadowText(screen, "Eyes", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	bg.eyesCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
+	ctlX += 170
 	text.DrawShadowText(screen, "Eye Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	ctlY += tileSize / 8
 	bg.eyeColorSliders.Draw(screen, float64(ctlX), float64(ctlY))
@@ -819,7 +882,9 @@ func (bg *builderGame) Update() error {
 
 	bg.characterData.Body.SetAnimationTickCount(bg.speedSlider.GetValue())
 
-	bg.textField.Update()
+	bg.nameField.Update()
+	bg.idField.Update()
+
 	if bg.saveButton.Update().Clicked {
 		bg.saveCharacter()
 	}
@@ -833,16 +898,14 @@ func (bg *builderGame) handleChangeAux(val string) {
 	bg.equipedAux = val
 
 	if val == noneOp {
+		bg.characterData.EquipedAuxiliary = nil
 		bg.characterData.Body.AuxItemSet.Remove()
 		return
 	}
 	for _, auxItem := range bg.auxItems {
 		if auxItem.GetID() == val {
-			bp := auxItem.GetBodyPartDef()
-			if bp == nil {
-				panic("item doesn't have body part")
-			}
-			bg.characterData.Body.SetAuxiliary(*bp)
+			bg.characterData.EquipedAuxiliary = nil // unset the previous value so it's not added to inventory
+			bg.characterData.EquipItem(item.NewInventoryItem(auxItem, 1))
 			return
 		}
 	}
@@ -853,16 +916,14 @@ func (bg *builderGame) handleChangeHeadwear(val string) {
 	bg.equipedHeadwear = val
 
 	if val == noneOp {
+		bg.characterData.EquipedHeadwear = nil
 		bg.characterData.Body.EquipHeadSet.Remove()
 		return
 	}
 	for _, i := range bg.headwearItems {
 		if i.GetID() == val {
-			bp := i.GetBodyPartDef()
-			if bp == nil {
-				panic("item doesn't have body part")
-			}
-			bg.characterData.Body.SetEquipHead(*bp)
+			bg.characterData.EquipedHeadwear = nil
+			bg.characterData.EquipItem(item.NewInventoryItem(i, 1))
 			return
 		}
 	}
@@ -873,16 +934,14 @@ func (bg *builderGame) handleChangeBodywear(val string) {
 	bg.equipedBodywear = val
 
 	if val == noneOp {
+		bg.characterData.EquipedBodywear = nil
 		bg.characterData.Body.EquipBodySet.Remove()
 		return
 	}
 	for _, i := range bg.bodywearItems {
 		if i.GetID() == val {
-			bp := i.GetBodyPartDef()
-			if bp == nil {
-				panic("item doesn't have body part")
-			}
-			bg.characterData.Body.SetEquipBody(*bp)
+			bg.characterData.EquipedBodywear = nil
+			bg.characterData.EquipItem(item.NewInventoryItem(i, 1))
 			return
 		}
 	}
@@ -899,19 +958,7 @@ func (bg *builderGame) handleChangeWeapon(val string) {
 	}
 	for _, i := range bg.weaponItems {
 		if i.GetID() == val {
-			bp := i.GetBodyPartDef()
-			if bp == nil {
-				panic("item doesn't have body part")
-			}
-			asWeapon, ok := i.(*item.WeaponDef)
-			if !ok {
-				panic("item can't be asserted as weapon def")
-			}
-			fx := asWeapon.FxPartDef
-			if fx == nil {
-				panic("fx part is nil")
-			}
-			bg.characterData.Body.SetWeapon(*bp, *fx)
+			bg.characterData.EquipItem(item.NewInventoryItem(i, 1))
 			return
 		}
 	}
