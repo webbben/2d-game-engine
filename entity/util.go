@@ -9,7 +9,7 @@ func (e Entity) DistFromEntity(otherEnt Entity) float64 {
 	return general_util.EuclideanDistCenter(e.CollisionRect(), otherEnt.CollisionRect())
 }
 
-// Warning: not a trivial calculation (uses path finding algorithm)
+// GetPathToEntity gets a path to another entity. Warning: not a trivial calculation (uses path finding algorithm)
 func (e Entity) GetPathToEntity(otherEnt Entity) (path []model.Coords, found bool) {
 	return e.World.FindPath(e.TilePos, otherEnt.TilePos)
 }

@@ -19,28 +19,17 @@ func (e *Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	drawX *= config.GameScale
 	drawY *= config.GameScale
 	e.Body.Draw(screen, drawX, drawY, config.GameScale)
-	e.Position.drawX = drawX
-	e.Position.drawY = drawY
+	e.drawX = drawX
+	e.drawY = drawY
 }
 
-// returns the actual absolute position where the entity will be drawn
+// DrawPos returns the actual absolute position where the entity will be drawn
 func (e Entity) DrawPos(offsetX, offsetY float64) (drawX, drawY float64) {
 	dx, dy := e.Body.Dimensions()
 	rect := model.NewRect(0, 0, float64(dx), float64(dy))
 	drawX, drawY = rendering.GetRectDrawPos(rect, e.X, e.Y, offsetX, offsetY)
 	drawY -= 6 // move up a little, since we want the entity to look like its standing in the middle of the tile
 	return drawX, drawY
-}
-
-// returns the absolute position where the "extent" of the entity's image lies.
-// by "extent", we basically mean just the position of the end of the actual image rectangle, when the image is positioned for drawing.
-// you would use this (along with DrawPos) when checking if an entity is actually touching or overlapping physically with something
-func (e Entity) ExtentPos(offsetX, offsetY float64) (extentX, extentY float64) {
-	extentX, extentY = e.DrawPos(offsetX, offsetY)
-	dx, dy := e.Body.Dimensions()
-	extentX += float64(dx)
-	extentY += float64(dy)
-	return extentX, extentY
 }
 
 func (e Entity) GetDrawRect() model.Rect {
