@@ -1,12 +1,7 @@
+// Package entity contains all the logic for an entity
 package entity
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/audio"
@@ -30,6 +25,7 @@ func GetDefaultWalkSpeed() float64 {
 	}
 	return defaultWalkSpeed
 }
+
 func GetDefaultRunSpeed() float64 {
 	if defaultRunSpeed == 0 {
 		panic("default run speed is 0?")
@@ -55,145 +51,6 @@ type Entity struct {
 	CharacterData
 }
 
-// contains all the info and data about a character, excluding things like mechanics and flags, etc.
-//
-// Things like the character's identity (name, ID, etc), the character's body state (visible appearance, hair, eyes, etc),
-// the items the character has in its inventory, etc. Basically, all the data needed to actually save and load this character.
-// (For example, the character builder only saves the data in this struct, and doesn't refer to anything else in an entity)
-//
-// The inner mechanisms used for things like movement, combat, etc are not included here.
-type CharacterData struct {
-	// Name, Identity
-
-	DisplayName string // the actual name of the entity, as displayed in game to players
-	ID          string // the unique identifier of this entity (not usually seen by players - only by developers)
-	IsPlayer    bool   `json:"-"` // flag indicating if this entity is the player
-
-	// Inventory and items
-
-	InventoryItems []*item.InventoryItem
-
-	EquipedHeadwear  *item.InventoryItem
-	EquipedBodywear  *item.InventoryItem
-	EquipedFootwear  *item.InventoryItem
-	EquipedAmulet    *item.InventoryItem
-	EquipedRing1     *item.InventoryItem
-	EquipedRing2     *item.InventoryItem
-	EquipedAmmo      *item.InventoryItem
-	EquipedAuxiliary *item.InventoryItem
-
-	// Body
-
-	Body body.EntityBodySet
-
-	// Attributes, Skills
-
-	Vitals     Vitals
-	Attributes Attributes
-
-	WalkSpeed float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
-	RunSpeed  float64 `json:"run_speed"`
-}
-
-func (cd CharacterData) WriteToJSON(outputFilePath string) error {
-	if !filepath.IsAbs(outputFilePath) {
-		return fmt.Errorf("given path is not abs (%s); please pass an absolute path", outputFilePath)
-	}
-
-	// ItemDefs (interfaces in general) can't be loaded from JSON, so lets nullify each of the ItemDefs.
-	// Then, during loading, we can use the definitionManager to load ItemDefs by ID.
-	if cd.EquipedAmmo != nil {
-		cd.EquipedAmmo.Def = nil
-	}
-	if cd.EquipedAmulet != nil {
-		cd.EquipedAmulet.Def = nil
-	}
-	if cd.EquipedAuxiliary != nil {
-		cd.EquipedAuxiliary.Def = nil
-	}
-	if cd.EquipedBodywear != nil {
-		cd.EquipedBodywear.Def = nil
-	}
-	if cd.EquipedFootwear != nil {
-		cd.EquipedFootwear.Def = nil
-	}
-	if cd.EquipedHeadwear != nil {
-		cd.EquipedHeadwear.Def = nil
-	}
-	if cd.EquipedRing1 != nil {
-		cd.EquipedRing1.Def = nil
-	}
-	if cd.EquipedRing2 != nil {
-		cd.EquipedRing2.Def = nil
-	}
-
-	for _, i := range cd.InventoryItems {
-		if i == nil {
-			continue
-		}
-		i.Def = nil
-	}
-
-	data, err := json.MarshalIndent(cd, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-
-	return os.WriteFile(outputFilePath, data, 0644)
-}
-
-func LoadCharacterDataJSON(src string, defMgr *definitions.DefinitionManager) (CharacterData, error) {
-	if !config.FileExists(src) {
-		return CharacterData{}, errors.New("no file found at path: " + src)
-	}
-
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return CharacterData{}, fmt.Errorf("failed to read file data: %w", err)
-	}
-
-	var cd CharacterData
-	err = json.Unmarshal(data, &cd)
-	if err != nil {
-		return CharacterData{}, fmt.Errorf("failed to unmarshal data: %w", err)
-	}
-
-	// Load actual ItemDefs from DefinitionManager
-	if cd.EquipedAmmo != nil {
-		cd.EquipedAmmo.Def = defMgr.GetItemDef(cd.EquipedAmmo.Instance.DefID)
-	}
-	if cd.EquipedAmulet != nil {
-		cd.EquipedAmulet.Def = defMgr.GetItemDef(cd.EquipedAmulet.Instance.DefID)
-	}
-	if cd.EquipedAuxiliary != nil {
-		cd.EquipedAuxiliary.Def = defMgr.GetItemDef(cd.EquipedAuxiliary.Instance.DefID)
-	}
-	if cd.EquipedBodywear != nil {
-		cd.EquipedBodywear.Def = defMgr.GetItemDef(cd.EquipedBodywear.Instance.DefID)
-	}
-	if cd.EquipedFootwear != nil {
-		cd.EquipedFootwear.Def = defMgr.GetItemDef(cd.EquipedFootwear.Instance.DefID)
-	}
-	if cd.EquipedHeadwear != nil {
-		cd.EquipedHeadwear.Def = defMgr.GetItemDef(cd.EquipedHeadwear.Instance.DefID)
-	}
-	if cd.EquipedRing1 != nil {
-		cd.EquipedRing1.Def = defMgr.GetItemDef(cd.EquipedRing1.Instance.DefID)
-	}
-	if cd.EquipedRing2 != nil {
-		cd.EquipedRing2.Def = defMgr.GetItemDef(cd.EquipedRing2.Instance.DefID)
-	}
-
-	for _, i := range cd.InventoryItems {
-		if i == nil {
-			continue
-		}
-		i.Def = defMgr.GetItemDef(i.Instance.DefID)
-	}
-
-	return cd, nil
-}
-
 func (e Entity) CollisionRect() model.Rect {
 	if e.width == 0 {
 		panic("entity width is unset or unexpectedly 0!")
@@ -213,7 +70,7 @@ func (e *Entity) LoadFootstepSFX(source audio.FootstepSFX) {
 }
 
 type WorldContext interface {
-	Collides(r model.Rect, excludeEntityId string) model.CollisionResult
+	Collides(r model.Rect, excludeEntityID string) model.CollisionResult
 	FindPath(start, goal model.Coords) ([]model.Coords, bool)
 	MapDimensions() (width int, height int)
 	GetGroundMaterial(tileX, tileY int) string
@@ -231,7 +88,7 @@ type GeneralProps struct {
 	InventorySize    int
 }
 
-// Create a new entity from a character data JSON file
+// NewEntity Create a new entity from a character data JSON file
 func NewEntity(general GeneralProps, ap AudioProps, defMgr *definitions.DefinitionManager) Entity {
 	if general.CharacterDataSrc == "" {
 		panic("no character data source JSON specified")
@@ -254,21 +111,21 @@ func NewEntity(general GeneralProps, ap AudioProps, defMgr *definitions.Definiti
 	}
 	ent.CharacterData = characterData
 
-	ent.CharacterData.IsPlayer = general.IsPlayer
+	ent.IsPlayer = general.IsPlayer
 
-	if len(ent.CharacterData.InventoryItems) == 0 {
-		ent.CharacterData.InventoryItems = make([]*item.InventoryItem, general.InventorySize)
+	if len(ent.InventoryItems) == 0 {
+		ent.InventoryItems = make([]*item.InventoryItem, general.InventorySize)
 	}
-	if ent.CharacterData.WalkSpeed == 0 {
+	if ent.WalkSpeed == 0 {
 		logz.Warnln("", "loaded entity does not have a walking speed; setting default value.")
-		ent.CharacterData.WalkSpeed = GetDefaultWalkSpeed()
+		ent.WalkSpeed = GetDefaultWalkSpeed()
 	}
-	if ent.CharacterData.RunSpeed == 0 {
+	if ent.RunSpeed == 0 {
 		logz.Warnln("", "loaded entity does not have a run speed; setting default value.")
-		ent.CharacterData.RunSpeed = GetDefaultRunSpeed()
+		ent.RunSpeed = GetDefaultRunSpeed()
 	}
 
-	ent.CharacterData.Validate()
+	ent.Validate()
 
 	// load sounds
 	ent.LoadFootstepSFX(ap.FootstepSFX)
@@ -361,7 +218,7 @@ type Movement struct {
 	SuggestedTargetPath []model.Coords `json:"-"` // a suggested path for this entity to consider merging into the target path
 }
 
-// for setting a tile position
+// SetPosition sets a tile position
 func (e *Entity) SetPosition(c model.Coords) {
 	mapWidth, mapHeight := e.World.MapDimensions()
 	if c.X > mapWidth {
@@ -383,94 +240,4 @@ func (e *Entity) SetPositionPx(x, y float64) {
 	e.Y = y
 	e.TargetX = e.X
 	e.TargetY = e.Y
-}
-
-// for setting the entire inventory
-func (e *Entity) SetInventoryItems(invItems []*item.InventoryItem) {
-	e.InventoryItems = make([]*item.InventoryItem, 0)
-
-	for _, newItem := range invItems {
-		if newItem == nil {
-			e.InventoryItems = append(e.InventoryItems, nil)
-			continue
-		}
-		e.InventoryItems = append(e.InventoryItems, &item.InventoryItem{
-			Instance: newItem.Instance,
-			Def:      newItem.Def,
-			Quantity: newItem.Quantity,
-		})
-	}
-}
-
-func (cd *CharacterData) AddItemToInventory(invItem item.InventoryItem) (bool, item.InventoryItem) {
-	return item.AddItemToInventory(invItem, cd.InventoryItems)
-}
-
-func (cd *CharacterData) RemoveItemFromInventory(itemToRemove item.InventoryItem) (bool, item.InventoryItem) {
-	return item.RemoveItemFromInventory(itemToRemove, cd.InventoryItems)
-}
-
-// Equips a weapon, body armor, clothes, or other equipable items that go onto the entity's body or equipment slots
-func (cd *CharacterData) EquipItem(i item.InventoryItem) (success bool) {
-	i.Validate()
-	if !i.Def.IsEquipable() {
-		logz.Panicln(cd.DisplayName, "tried to equip an inequipable item:", i.Def.GetID())
-	}
-
-	switch i.Def.GetItemType() {
-	case item.TypeHeadwear:
-		if cd.EquipedHeadwear != nil {
-			// already equiped; remove it and put it in a regular inventory slot
-			succ, _ := cd.AddItemToInventory(*cd.EquipedHeadwear)
-			if !succ {
-				return false
-			}
-		}
-		cd.EquipedHeadwear = &i
-		part := i.Def.GetBodyPartDef()
-		if part == nil {
-			logz.Panicln(cd.DisplayName, "tried to equip an item with no part def:", i.Def.GetID())
-		}
-		cd.Body.SetEquipHead(*part)
-		return true
-	case item.TypeBodywear:
-		if cd.EquipedBodywear != nil {
-			// already equiped; remove it and put it in a regular inventory slot
-			succ, _ := cd.AddItemToInventory(*cd.EquipedBodywear)
-			if !succ {
-				return false
-			}
-		}
-		cd.EquipedBodywear = &i
-		part := i.Def.GetBodyPartDef()
-		if part == nil {
-			logz.Panicln(cd.DisplayName, "tried to equip an item with no part def:", i.Def.GetID())
-		}
-		cd.Body.SetEquipBody(*part)
-		return true
-	case item.TypeWeapon:
-		// weapons don't have an "equiped slot", so as of now there is no swapping to do here
-		part, fxPart := item.GetWeaponParts(i.Def)
-
-		cd.Body.SetWeapon(part, fxPart)
-		return true
-	case item.TypeAuxiliary:
-		if cd.EquipedAuxiliary != nil {
-			// already equiped; remove it and put it in a regular inventory slot
-			succ, _ := cd.AddItemToInventory(*cd.EquipedAuxiliary)
-			if !succ {
-				return false
-			}
-		}
-		cd.EquipedAuxiliary = &i
-		part := i.Def.GetBodyPartDef()
-		if part == nil {
-			logz.Panicln(cd.DisplayName, "tried to equip an item with no part def:", i.Def.GetID())
-		}
-		cd.Body.SetAuxiliary(*part)
-		return true
-	default:
-		logz.Panicln(cd.DisplayName, "tried to equip item, but it's type didn't match in the switch statement... (this probably should be caught by the IsEquipable check)")
-	}
-	return false
 }

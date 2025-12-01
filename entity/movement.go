@@ -40,7 +40,7 @@ func (me MoveError) String() string {
 	return "No value set" + info
 }
 
-// Attempts to put the entity on a path to reach the given target.
+// GoToPos Attempts to put the entity on a path to reach the given target.
 // If the path to the target is blocked, you can conditionally go as close as possible with the "close enough" flag.
 // Returns the actual goal target (in case it was changed due to a conflict and the "close enough" flag).
 func (e *Entity) GoToPos(c model.Coords, closeEnough bool) (model.Coords, MoveError) {
@@ -73,7 +73,7 @@ func (e *Entity) GoToPos(c model.Coords, closeEnough bool) (model.Coords, MoveEr
 	return path[len(path)-1], MoveError{Success: true}
 }
 
-// Tells the entity to stop moving along its set path once it has finished its current tile movement.
+// CancelCurrentPath Tells the entity to stop moving along its set path once it has finished its current tile movement.
 func (e *Entity) CancelCurrentPath() {
 	if len(e.Movement.TargetPath) == 0 {
 		logz.Warnln("tried to cancel path for an entity that has no path")
@@ -94,7 +94,7 @@ type AnimationOptions struct {
 	SetAnimationOps       body.SetAnimationOps
 }
 
-// This function points the entity in the direction corresponding to the given movement.
+// FaceTowards points the entity in the direction corresponding to the given movement.
 // Ex: dx=-1 and dy=0 corresponds to facing left, and dx=0 dy=-1 corresponds to facing up.
 func (e *Entity) FaceTowards(dx, dy float64) {
 	if dx == 0 && dy == 0 {
@@ -135,7 +135,7 @@ func (e *Entity) SetAnimation(animOps AnimationOptions) body.SetAnimationResult 
 	return animRes
 }
 
-// same as TryMovePx, but lets the entity still move in the direction even if a collision is encountered,
+// TryMoveMaxPx is the same as TryMovePx, but lets the entity still move in the direction even if a collision is encountered,
 // as long as there is some space in that direction
 func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64) MoveError {
 	if dx == 0 && dy == 0 {
@@ -269,13 +269,13 @@ func (e *Entity) TryMovePx(dx, dy int, speed float64) MoveError {
 		return MoveError{Cancelled: true, Info: "stunned"}
 	}
 
-	if e.Body.IsAttacking() || e.attackManager.waitingToAttack {
+	if e.Body.IsAttacking() || e.waitingToAttack {
 		// cannot move (or change directions) while attacking
 		info := ""
 		if e.Body.IsAttacking() {
 			info = "body is attacking;"
 		}
-		if e.attackManager.waitingToAttack {
+		if e.waitingToAttack {
 			info += " waiting to attack"
 		}
 		return MoveError{Cancelled: true, Info: info}
@@ -294,8 +294,8 @@ func (e *Entity) TryMovePx(dx, dy int, speed float64) MoveError {
 	}
 
 	e.Movement.IsMoving = true
-	e.Position.TargetX = float64(x)
-	e.Position.TargetY = float64(y)
+	e.TargetX = float64(x)
+	e.TargetY = float64(y)
 
 	e.Movement.Speed = speed
 
@@ -369,7 +369,7 @@ func (e *Entity) updateMovement() {
 	if target.Equals(newPos) {
 		// we don't use StopMovement here since we might want to keep the animation going (if the entity has another target)
 		e.Movement.IsMoving = false
-		//logz.Println(e.DisplayName, "movement light stop")
+		// logz.Println(e.DisplayName, "movement light stop")
 		if len(e.Movement.TargetPath) == 0 {
 			e.Body.StopAnimation()
 		}
@@ -512,7 +512,7 @@ func (e *Entity) tryMergeSuggestedPath(newPath []model.Coords) bool {
 		if c.Equals(newPath[0]) {
 			// new path starts from this target path position; merge it in by replacing this position
 			e.Movement.TargetPath = append(e.Movement.TargetPath[:i], newPath...)
-			//logz.Println("tryMergeSuggestedPath", "merged suggested path into current target path")
+			// logz.Println("tryMergeSuggestedPath", "merged suggested path into current target path")
 			return true
 		}
 		if c.IsAdjacent(newPath[0]) {

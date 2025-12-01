@@ -39,14 +39,14 @@ func (e *Entity) updateAttackManager() {
 			e.waitingToAttack = false
 		}
 	}
-	if !e.attackManager.attackQueued {
+	if !e.attackQueued {
 		return
 	}
 
-	e.attackManager.attackTicksRemaining--
-	if e.attackManager.attackTicksRemaining <= 0 {
-		e.World.AttackArea(e.attackManager.queuedAttack)
-		e.attackManager.clearAttack()
+	e.attackTicksRemaining--
+	if e.attackTicksRemaining <= 0 {
+		e.World.AttackArea(e.queuedAttack)
+		e.clearAttack()
 	}
 }
 
@@ -58,7 +58,7 @@ type AttackInfo struct {
 	Origin        model.Vec2
 }
 
-// returns the tile rect that is right in front of the entity
+// GetFrontRect returns the tile rect that is right in front of the entity
 func (e Entity) GetFrontRect() model.Rect {
 	targetRect := model.Rect{
 		W: config.TileSize,
@@ -99,7 +99,7 @@ func (e *Entity) StartMeleeAttack() {
 		return
 	}
 
-	e.attackManager.queueAttack(AttackInfo{
+	e.queueAttack(AttackInfo{
 		Damage:        10,
 		StunTicks:     20,
 		TargetRect:    e.GetFrontRect(),
@@ -123,11 +123,11 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 		// attack animations should be interrupted
 		e.Body.StopAnimation()
 	}
-	if e.attackManager.attackQueued {
+	if e.attackQueued {
 		// if an attack is interrupted, clear the queued damage signal
-		e.attackManager.clearAttack()
+		e.clearAttack()
 	}
-	e.attackManager.waitingToAttack = false
+	e.waitingToAttack = false
 
 	e.Vitals.Health.CurrentVal -= attack.Damage
 	logz.Println(e.DisplayName, "current health:", e.Vitals.Health.CurrentVal)
