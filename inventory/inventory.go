@@ -1,3 +1,4 @@
+// Package inventory contains logic for item inventories
 package inventory
 
 import (

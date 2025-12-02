@@ -7,7 +7,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/logz"
 )
 
-// represents either the head, body, eyes, or hair of an entity.
+// BodyPartSet represents either the head, body, eyes, or hair of an entity.
 //
 // Defines the animation patterns for each body part, so this is required to be defined for each entity.
 // The actual body part definitions (which tiles to show for hair, eyes, etc) are defined by the TilesetSrc and start indices, and can be set
@@ -132,6 +132,7 @@ func (bps *BodyPartSet) unsetAllImages() {
 	bps.SlashAnimation.reset()
 	bps.IdleAnimation.reset()
 	bps.img = nil
+	logz.Println(bps.Name, "unsetting all images")
 }
 
 func (bps *BodyPartSet) setImageSource(def SelectedPartDef, stretchX, stretchY int) {
@@ -142,6 +143,7 @@ func (bps *BodyPartSet) setImageSource(def SelectedPartDef, stretchX, stretchY i
 
 func (set *BodyPartSet) load(stretchX, stretchY int) {
 	set.unsetAllImages()
+	logz.Println(set.Name, "loading bodyPartSet")
 
 	if set.PartSrc.None {
 		return
@@ -165,6 +167,8 @@ func (set *BodyPartSet) load(stretchX, stretchY int) {
 	set.SlashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
 	set.BackslashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
 	set.IdleAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+
+	set.validate()
 }
 
 func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string, aux bool) {
@@ -267,7 +271,7 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 	}
 }
 
-// complete removes the definition and images of the body part (clears PartSrc and all animation frames).
+// Remove completely removes the definition and images of the body part (clears PartSrc and all animation frames).
 // should be used when actually removing an item from the entity's body.
 func (set *BodyPartSet) Remove() {
 	if !set.IsRemovable {
@@ -276,7 +280,7 @@ func (set *BodyPartSet) Remove() {
 	set.setImageSource(SelectedPartDef{None: true}, 0, 0)
 }
 
-// hides the body part (without actually clearing PartSrc).
+// Hide hides the body part (without actually clearing PartSrc).
 // basically meant for toggling on and off a part from rendering, such as when a weapon is sheathed or unsheathed.
 func (set *BodyPartSet) Hide() {
 	if !set.IsRemovable {

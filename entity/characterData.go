@@ -247,3 +247,33 @@ func (cd *CharacterData) EquipItem(i item.InventoryItem) (success bool) {
 	cd.Validate()
 	return true
 }
+
+func (cd *CharacterData) UnequipHeadwear() {
+	if cd.EquipedHeadwear == nil {
+		logz.Panicln(cd.DisplayName, "tried to unequip headwear, but equiped headwear is nil")
+	}
+
+	cd.EquipedHeadwear = nil
+	cd.Body.EquipHeadSet.Remove()
+	// reload hair too, since it may have been cropped by the previously equiped headwear
+	cd.Body.ReloadHair()
+}
+
+func (cd *CharacterData) UnequipBodywear() {
+	if cd.EquipedBodywear == nil {
+		logz.Panicln(cd.DisplayName, "tried to unequip bodywear, but equiped bodywear is nil")
+	}
+
+	cd.EquipedBodywear = nil
+	cd.Body.EquipBodySet.Remove()
+	cd.Body.ReloadArms()
+}
+
+func (cd *CharacterData) UnequipAuxiliary() {
+	if cd.EquipedAuxiliary == nil {
+		logz.Panicln(cd.DisplayName, "tried to unequip auxiliary, but equiped auxiliary is nil")
+	}
+
+	cd.EquipedAuxiliary = nil
+	cd.Body.AuxItemSet.Remove()
+}

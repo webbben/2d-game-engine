@@ -5,6 +5,7 @@ import (
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
@@ -50,7 +51,7 @@ type InventoryPage struct {
 	defMgr *definitions.DefinitionManager
 }
 
-// for first time loading
+// Load loads the inventory page for first time loading
 func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Player, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
 	if playerRef == nil {
 		panic("player ref is nil")
@@ -169,6 +170,7 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 	ip.init = true
 }
 
+// SyncPlayerItems syncs the player's items into the inventory item slots
 func (ip *InventoryPage) SyncPlayerItems() {
 	// set equiped items
 	setInventoryItem(ip.EquipedHead, ip.playerRef.Entity.EquipedHeadwear)
@@ -210,6 +212,8 @@ func (ip *InventoryPage) Update() {
 		panic("inventory page not initialized")
 	}
 	ip.PlayerInventory.Update()
+
+	// update equiped item slots
 	ip.EquipedHead.Update()
 	ip.EquipedBody.Update()
 	ip.EquipedFeet.Update()
@@ -220,6 +224,46 @@ func (ip *InventoryPage) Update() {
 	ip.EquipedRing2.Update()
 
 	ip.itemMover.Update()
+
+	// check if any differences exist between equiped item slots and actual equiped items
+	// if so, update the playerRef version to match the equiped item slots
+	if ip.EquipedHead.Item == nil {
+		if ip.playerRef.Entity.EquipedHeadwear != nil {
+			ip.playerRef.Entity.UnequipHeadwear()
+		}
+	} else {
+		if ip.playerRef.Entity.EquipedHeadwear == nil {
+			logz.Println(ip.playerRef.Entity.DisplayName, "equiping headwear:", ip.EquipedHead.Item.Def.GetID())
+			succ := ip.playerRef.Entity.EquipItem(*ip.EquipedHead.Item)
+			if !succ {
+				logz.Panicln(ip.playerRef.Entity.DisplayName, "somehow failed to equip headwear")
+			}
+		} else if ip.playerRef.Entity.EquipedHeadwear.Def.GetID() != ip.EquipedHead.Item.Def.GetID() {
+			logz.Panicln(ip.playerRef.Entity.DisplayName, "somehow, equiped headwear slot in inventory does not match equiped headwear on body")
+		}
+	}
+	if ip.EquipedBody.Item == nil {
+		if ip.playerRef.Entity.EquipedBodywear != nil {
+			ip.playerRef.Entity.UnequipBodywear()
+		}
+	} else {
+		if ip.playerRef.Entity.EquipedBodywear == nil {
+			ip.playerRef.Entity.EquipItem(*ip.EquipedBody.Item)
+		} else if ip.playerRef.Entity.EquipedBodywear.Def.GetID() != ip.EquipedBody.Item.Def.GetID() {
+			logz.Panicln(ip.playerRef.Entity.DisplayName, "somehow, equiped bodywear slot in inventory does not match equiped bodywear on body")
+		}
+	}
+	if ip.EquipedAuxiliary.Item == nil {
+		if ip.playerRef.Entity.EquipedAuxiliary != nil {
+			ip.playerRef.Entity.UnequipAuxiliary()
+		}
+	} else {
+		if ip.playerRef.Entity.EquipedAuxiliary == nil {
+			ip.playerRef.Entity.EquipItem(*ip.EquipedAuxiliary.Item)
+		} else if ip.playerRef.Entity.EquipedAuxiliary.Def.GetID() != ip.EquipedAuxiliary.Item.Def.GetID() {
+			logz.Panicln(ip.playerRef.Entity.DisplayName, "somehow, equiped auxiliary slot in inventory does not match equiped auxiliary on body")
+		}
+	}
 
 	// gold counter and coin purse
 	ip.goldCount.Update()
@@ -311,7 +355,7 @@ func (ip InventoryPage) CountMoney() int {
 	return sum
 }
 
-// saves the currently set player inventory to the player's actual items list (done when inventory session closed)
+// SavePlayerInventory saves the currently set player inventory to the player's actual items list (done when inventory session closed)
 func (ip *InventoryPage) SavePlayerInventory() {
 	ip.playerRef.Entity.SetInventoryItems(ip.PlayerInventory.GetInventoryItems())
 
