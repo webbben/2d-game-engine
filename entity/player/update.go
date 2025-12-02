@@ -69,11 +69,11 @@ func (p *Player) handleMovement() {
 	isDiagonal := v.X != 0 && v.Y != 0
 
 	animationTickInterval := p.Entity.Movement.WalkAnimationTickInterval
-	animation := body.ANIM_WALK
+	animation := body.AnimWalk
 	speed := p.Entity.WalkSpeed
 	if running {
 		animationTickInterval = p.Entity.Movement.RunAnimationTickInterval
-		animation = body.ANIM_RUN
+		animation = body.AnimRun
 		speed = p.Entity.RunSpeed
 	}
 

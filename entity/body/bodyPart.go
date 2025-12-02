@@ -96,13 +96,13 @@ func (bps BodyPartSet) animationDebugString(anim string, dir byte) string {
 	s := fmt.Sprintf("[%s] animIndex: %v lastframe: %v", bps.PartSrc.TilesetSrc, bps.animIndex, bps.reachedLastFrame)
 
 	switch anim {
-	case ANIM_WALK:
+	case AnimWalk:
 		s += "\n  " + bps.WalkAnimation.debugString()
-	case ANIM_RUN:
+	case AnimRun:
 		s += "\n  " + bps.RunAnimation.debugString()
-	case ANIM_SLASH:
+	case AnimSlash:
 		s += "\n  " + bps.SlashAnimation.debugString()
-	case ANIM_BACKSLASH:
+	case AnimBackslash:
 		s += "\n  " + bps.BackslashAnimation.debugString()
 	}
 
@@ -185,15 +185,15 @@ func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string, aux bool
 	}
 
 	switch animationName {
-	case ANIM_WALK:
+	case AnimWalk:
 		set.img = set.WalkAnimation.getFrame(dir, set.animIndex, aux)
-	case ANIM_RUN:
+	case AnimRun:
 		set.img = set.RunAnimation.getFrame(dir, set.animIndex, aux)
-	case ANIM_SLASH:
+	case AnimSlash:
 		set.img = set.SlashAnimation.getFrame(dir, set.animIndex, aux)
-	case ANIM_BACKSLASH:
+	case AnimBackslash:
 		set.img = set.BackslashAnimation.getFrame(dir, set.animIndex, aux)
-	case ANIM_IDLE:
+	case AnimIdle:
 		set.img = set.IdleAnimation.getFrame(dir, set.animIndex, aux)
 	default:
 		panic("unrecognized animation name: " + animationName)
@@ -202,23 +202,23 @@ func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string, aux bool
 
 func (set BodyPartSet) getCurrentYOffset(animationName string) int {
 	switch animationName {
-	case ANIM_WALK:
+	case AnimWalk:
 		if len(set.WalkAnimation.StepsOffsetY) > 0 {
 			return set.WalkAnimation.StepsOffsetY[set.animIndex]
 		}
-	case ANIM_RUN:
+	case AnimRun:
 		if len(set.RunAnimation.StepsOffsetY) > 0 {
 			return set.RunAnimation.StepsOffsetY[set.animIndex]
 		}
-	case ANIM_SLASH:
+	case AnimSlash:
 		if len(set.SlashAnimation.StepsOffsetY) > 0 {
 			return set.SlashAnimation.StepsOffsetY[set.animIndex]
 		}
-	case ANIM_BACKSLASH:
+	case AnimBackslash:
 		if len(set.BackslashAnimation.StepsOffsetY) > 0 {
 			return set.BackslashAnimation.StepsOffsetY[set.animIndex]
 		}
-	case ANIM_IDLE:
+	case AnimIdle:
 		if len(set.IdleAnimation.StepsOffsetY) > 0 {
 			return set.IdleAnimation.StepsOffsetY[set.animIndex]
 		}
@@ -242,15 +242,15 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 	set.reachedLastFrame = false
 	numSteps := 0
 	switch animationName {
-	case ANIM_WALK:
+	case AnimWalk:
 		numSteps = len(set.WalkAnimation.TileSteps)
-	case ANIM_RUN:
+	case AnimRun:
 		numSteps = len(set.RunAnimation.TileSteps)
-	case ANIM_SLASH:
+	case AnimSlash:
 		numSteps = len(set.SlashAnimation.TileSteps)
-	case ANIM_BACKSLASH:
+	case AnimBackslash:
 		numSteps = len(set.BackslashAnimation.TileSteps)
-	case ANIM_IDLE:
+	case AnimIdle:
 		numSteps = len(set.IdleAnimation.TileSteps)
 	default:
 		logz.Panicln(set.PartSrc.TilesetSrc, "nextFrame: animation name has no registered animation sequence:", animationName)

@@ -193,7 +193,7 @@ func (t *FightTask) handleCombat() {
 			moveError := t.Owner.Entity.TryMoveTowardsEntity(*t.targetEntity, config.TileSize, speed)
 			if moveError.Success {
 				t.Owner.Entity.SetAnimation(entity.AnimationOptions{
-					AnimationName:         body.ANIM_WALK,
+					AnimationName:         body.AnimWalk,
 					AnimationTickInterval: tickInterval,
 				})
 			} else {

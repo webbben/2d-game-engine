@@ -335,7 +335,7 @@ func characterBuilder(fileToLoad string) {
 
 	g.animationSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
-		Options:               []string{body.ANIM_IDLE, body.ANIM_WALK, body.ANIM_RUN, body.ANIM_SLASH, body.ANIM_BACKSLASH},
+		Options:               []string{body.AnimIdle, body.AnimWalk, body.AnimRun, body.AnimSlash, body.AnimBackslash},
 		InitialOptionIndex:    0,
 		TilesetSrc:            "ui/ui-components.tsj",
 		OriginIndex:           288,
