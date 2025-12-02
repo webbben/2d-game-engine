@@ -1,3 +1,4 @@
+// Package body contains all drawing and update logic for entity bodies for moving in worlds
 package body
 
 import (
@@ -5,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
@@ -29,7 +29,6 @@ type EntityBodySet struct {
 	animationTickCount        int    `json:"-"` // the "duration" of ticks until the next animation frame should trigger
 	ticks                     int    `json:"-"` // number of ticks elapsed
 	currentDirection          byte   `json:"-"` // L R U D
-	cropHairToHead            bool   `json:"-"`
 
 	dmgFlicker damageFlickerFX `json:"-"`
 
@@ -59,9 +58,16 @@ type EntityBodySet struct {
 	nonBodyYOffset int     `json:"-"` // amount to offset placement of (non-body) parts by, simply dictated by the body's movements
 }
 
+func (eb EntityBodySet) shouldCropHair() bool {
+	if eb.EquipHeadSet.PartSrc.None {
+		return false
+	}
+	return eb.EquipHeadSet.PartSrc.CropHairToHead
+}
+
 func (eb EntityBodySet) GetDebugString() string {
 	s := fmt.Sprintf("ANIM: %s DIR: %s (next: %s, stopOnComp: %v)\n", eb.animation, string(eb.currentDirection), eb.nextAnimation, eb.stopAnimationOnCompletion)
-	s += fmt.Sprintf("ticks: %v tickCount: %v globalOffY: %v nonBodyOffY: %v cropHair: %v\n", eb.ticks, eb.animationTickCount, eb.globalOffsetY, eb.nonBodyYOffset, eb.cropHairToHead)
+	s += fmt.Sprintf("ticks: %v tickCount: %v globalOffY: %v nonBodyOffY: %v cropHair: %v\n", eb.ticks, eb.animationTickCount, eb.globalOffsetY, eb.nonBodyYOffset, eb.shouldCropHair())
 	// get a single line status for each bodypart
 	s += eb.BodySet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
 	s += eb.ArmsSet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
@@ -73,7 +79,7 @@ func (eb EntityBodySet) GetDebugString() string {
 	return s
 }
 
-// for loading all body parts, assuming that they all already have PartSrc set. E.g. for after loading from JSON.
+// Load is for loading all body parts, assuming that they all already have PartSrc set. E.g. for after loading from JSON.
 func (eb *EntityBodySet) Load() {
 	// load body first, since it dictates stretchX and stretchY (which impact several sets)
 	eb.SetBody(eb.BodySet.PartSrc, eb.ArmsSet.PartSrc)
@@ -109,6 +115,10 @@ func (eb EntityBodySet) validate() {
 	if eb.EyesSet.PartSrc.None {
 		panic("eyes cannot be None")
 	}
+	if eb.HairSet.PartSrc.None {
+		// TODO should we allow no hair to be set?
+		panic("hair cannot be None")
+	}
 
 	eb.HairSet.validate()
 	eb.EyesSet.validate()
@@ -140,40 +150,31 @@ func ReadJSON(jsonFilePath string) (EntityBodySet, error) {
 	return eb, nil
 }
 
-// TODO delete?
-func (eb EntityBodySet) WriteToJSON(outputFilePath string) error {
-	if !filepath.IsAbs(outputFilePath) {
-		return fmt.Errorf("given path is not abs (%s); please pass an absolute path", outputFilePath)
-	}
-
-	data, err := json.MarshalIndent(eb, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-
-	return os.WriteFile(outputFilePath, data, 0644)
-}
-
 func (eb *EntityBodySet) SetBodyHSV(h, s, v float64) {
 	eb.BodyHSV = HSV{h, s, v}
 }
+
 func (eb EntityBodySet) GetBodyHSV() (h, s, v float64) {
 	return eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V
 }
+
 func (eb *EntityBodySet) SetEyesHSV(h, s, v float64) {
 	eb.EyesHSV = HSV{h, s, v}
 }
+
 func (eb EntityBodySet) GetEyesHSV() (h, s, v float64) {
 	return eb.EyesHSV.H, eb.EyesHSV.S, eb.EyesHSV.V
 }
+
 func (eb *EntityBodySet) SetHairHSV(h, s, v float64) {
 	eb.HairHSV = HSV{h, s, v}
 }
+
 func (eb EntityBodySet) GetHairHSV() (h, s, v float64) {
 	return eb.HairHSV.H, eb.HairHSV.S, eb.HairHSV.V
 }
 
-// creates a base body set, without anything equiped
+// NewEntityBodySet creates a base body set, without anything equiped
 func NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet BodyPartSet, bodyHSV, eyesHSV, hairHSV *HSV) EntityBodySet {
 	if bodyHSV == nil {
 		bodyHSV = &Default
@@ -259,22 +260,51 @@ func (eb *EntityBodySet) SetEyes(def SelectedPartDef) {
 
 func (eb *EntityBodySet) SetHair(def SelectedPartDef) {
 	eb.HairSet.setImageSource(def, eb.stretchX, 0)
-	if eb.cropHairToHead {
+	if eb.shouldCropHair() {
 		eb.cropHair()
 	}
 }
 
-// Requires BodySet to be loaded first
+func (eb *EntityBodySet) ReloadHair() {
+	if !eb.HairSet.HasLoaded() {
+		logz.Panicln(eb.Name, "tried to reload hair, but hair hasn't been loaded yet")
+	}
+
+	eb.HairSet.load(eb.stretchX, 0)
+	if eb.shouldCropHair() {
+		eb.cropHair()
+	}
+
+	eb.HairSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+}
+
 func (eb *EntityBodySet) SetEquipHead(def SelectedPartDef) {
 	eb.EquipHeadSet.setImageSource(def, eb.stretchX, 0)
-	eb.cropHairToHead = def.CropHairToHead
 
 	// always reload hair when equiping head, since it could either need to crop or un-crop the hair
 	if eb.HairSet.HasLoaded() {
-		eb.HairSet.load(eb.stretchX, 0)
-		if eb.cropHairToHead {
-			eb.cropHair()
-		}
+		eb.ReloadHair()
+	}
+	// if we are already in game (animation has been defined) then ensure first frame is set.
+	// We do this here for a couple reasons: firstly, so that in the inventory screen, the change is visible immediately.
+	// But also, for sets like Hair, if it's nil in draw we panic. So, this ensures that it's not ever nil when the draw function is called.
+	if eb.animation != "" {
+		eb.EquipHeadSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	}
+}
+
+func (eb *EntityBodySet) ReloadArms() {
+	if !eb.ArmsSet.HasLoaded() {
+		logz.Panicln(eb.Name, "trying to reload arms, but they haven't been loaded yet")
+	}
+
+	eb.ArmsSet.load(0, 0)
+	if !eb.EquipBodySet.PartSrc.None {
+		eb.subtractArms()
+	}
+
+	if eb.animation != "" {
+		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
 	}
 }
 
@@ -283,10 +313,11 @@ func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
 
 	// redo the arms subtraction
 	if eb.ArmsSet.HasLoaded() {
-		eb.ArmsSet.load(0, 0)
-		if !eb.EquipBodySet.PartSrc.None {
-			eb.subtractArms()
-		}
+		eb.ReloadArms()
+	}
+
+	if eb.animation != "" {
+		eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
 	}
 }
 
@@ -294,7 +325,7 @@ func (eb *EntityBodySet) SetAuxiliary(def SelectedPartDef) {
 	eb.AuxItemSet.setImageSource(def, 0, 0)
 }
 
-// determines if an aux item is currently equiped
+// IsAuxEquipped determines if an aux item is currently equiped
 func (eb EntityBodySet) IsAuxEquipped() bool {
 	return !eb.AuxItemSet.PartSrc.None
 }
@@ -318,8 +349,7 @@ func (eb *EntityBodySet) SetAnimationTickCount(tickCount int) {
 	eb.animationTickCount = tickCount
 }
 
-// TODO choose a better name. Maybe BodyPartDef?
-// represents the currently selected body part and it's individual definition
+// SelectedPartDef represents the currently selected body part and it's individual definition
 type SelectedPartDef struct {
 	None                           bool // if true, this part will not be shown
 	TilesetSrc                     string
@@ -345,7 +375,7 @@ type SelectedPartDef struct {
 	AuxFirstFrameStep int
 }
 
-// checks if the two are equal. mainly used for validation.
+// IsEqual checks if the two are equal. mainly used for validation.
 func (def SelectedPartDef) IsEqual(other SelectedPartDef) bool {
 	// Q: should we factor None into this? if None is true (for both) do we still want to check other fields?
 	if def.TilesetSrc != other.TilesetSrc {
@@ -462,7 +492,7 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	// Warning: Do not use characterScale anywhere except the bottom - where we draw stagingImg onto screen!
 	// we first make a "staging image" which is drawn without scale, and then we draw that image into screen using characterScale.
 	eb.stagingImg.Clear()
-	//eb.stagingImg.Fill(color.RGBA{100, 0, 0, 50})  // for testing
+	// eb.stagingImg.Fill(color.RGBA{100, 0, 0, 50})  // for testing
 
 	// render order decisions (for not so obvious things):
 	// - Arms: after equip body, equip head, hair so that hands show when doing U slash (we subtract arms by equip_body)
@@ -500,7 +530,7 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 			}
 		case "hair":
 			if eb.HairSet.img == nil {
-				panic("hair img is nil")
+				logz.Panicln(eb.Name, "hair img is nil")
 			}
 			rendering.DrawHSVImage(eb.stagingImg, eb.HairSet.img, eb.HairHSV.H, eb.HairHSV.S, eb.HairHSV.V, bodyX, hairY, 0)
 		case "equip_head":
@@ -643,6 +673,7 @@ func (eb *EntityBodySet) Update() {
 	eb.WeaponFxSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
 	eb.AuxItemSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
 
+	eb.validate()
 	// Warning: Keep this immediately after the above setCurrentFrame calls! This must be set based on whatever image is actually showing.
 	// (there was a bug where the body appeared out of place for a single update tick, and the cause was this being after resetCurrentAnimation below)
 	eb.nonBodyYOffset = eb.BodySet.getCurrentYOffset(eb.animation)
@@ -676,7 +707,7 @@ func (res SetAnimationResult) String() string {
 	return fmt.Sprintf("%#v", res)
 }
 
-// sets an animation. returns if animation was successfully set.
+// SetAnimation sets an animation. returns if animation was successfully set.
 func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) SetAnimationResult {
 	validateAnimation(animation)
 	if animation == eb.animation {
@@ -688,8 +719,8 @@ func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) Set
 			logz.Println(eb.Name, "next animation queued:", animation)
 			return SetAnimationResult{Queued: true}
 		}
-		//logz.Println(eb.Name, "Force:", ops.Force)
-		//logz.Println(eb.Name, "attempted to set animation:", animation, "animation already set:", eb.animation)
+		// logz.Println(eb.Name, "Force:", ops.Force)
+		// logz.Println(eb.Name, "attempted to set animation:", animation, "animation already set:", eb.animation)
 		return SetAnimationResult{FailedToSet: true}
 	}
 	eb.stopAnimationOnCompletion = ops.DoOnce

@@ -1,3 +1,4 @@
+// Package playermenu is a UI screen for the player's menu (inventory page, maps, etc)
 package playermenu
 
 import (
@@ -53,7 +54,7 @@ func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.Definit
 	pm.playerRef = playerRef
 
 	pm.Box = box.NewBox(pm.BoxTilesetSource, pm.BoxOriginIndex)
-	tileSize := pm.Box.TileSize()
+	tileSize := pm.TileSize()
 
 	// determine full size of player menu
 	pm.width = display.SCREEN_WIDTH * 2 / 3
@@ -109,7 +110,7 @@ func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.Definit
 	pm.mainContentBoxWidth = pm.width
 
 	// generate box image for main content area
-	pm.boxImage = pm.Box.BuildBoxImage(pm.mainContentBoxWidth, pm.mainContentBoxHeight)
+	pm.boxImage = pm.BuildBoxImage(pm.mainContentBoxWidth, pm.mainContentBoxHeight)
 
 	longestTitle := ""
 	longestTitleWidth := 0
@@ -135,7 +136,7 @@ func (pm *PlayerMenu) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 	if !pm.init {
 		panic("player menu drawing before being initialized")
 	}
-	tileSize := pm.Box.TileSize()
+	tileSize := pm.TileSize()
 
 	// menu box
 	rendering.DrawImage(screen, pm.boxImage, float64(pm.boxX), float64(pm.boxY), 0)
