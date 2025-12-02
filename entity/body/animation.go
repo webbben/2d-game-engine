@@ -10,16 +10,16 @@ import (
 )
 
 const (
-	ANIM_IDLE      = "idle"
-	ANIM_WALK      = "walk"
-	ANIM_RUN       = "run"
-	ANIM_SLASH     = "slash"
-	ANIM_BACKSLASH = "backslash"
+	AnimIdle      = "idle"
+	AnimWalk      = "walk"
+	AnimRun       = "run"
+	AnimSlash     = "slash"
+	AnimBackslash = "backslash"
 )
 
 func validateAnimation(anim string) {
 	switch anim {
-	case ANIM_IDLE, ANIM_WALK, ANIM_RUN, ANIM_SLASH, ANIM_BACKSLASH:
+	case AnimIdle, AnimWalk, AnimRun, AnimSlash, AnimBackslash:
 		return
 	case "":
 		panic("animation name is empty (this is not supported; for 'no animation' use the idle animation)")
@@ -28,31 +28,31 @@ func validateAnimation(anim string) {
 	}
 }
 
-// if the body is currently doing an attack animation
+// IsAttacking determines if the body is currently doing an attack animation
 func (eb EntityBodySet) IsAttacking() bool {
 	switch eb.animation {
-	case ANIM_SLASH:
+	case AnimSlash:
 		return true
-	case ANIM_BACKSLASH:
+	case AnimBackslash:
 		return true
 	default:
 		return false
 	}
 }
 
-// if the body is currently running, walking, or doing a purposeful movement animation
+// IsMoving determines if the body is currently running, walking, or doing a purposeful movement animation
 func (eb EntityBodySet) IsMoving() bool {
 	switch eb.animation {
-	case ANIM_WALK:
+	case AnimWalk:
 		return true
-	case ANIM_RUN:
+	case AnimRun:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines an animation for a specific bodyPartSet: which frames to show in which order, etc.
+// Animation defines an animation for a specific bodyPartSet: which frames to show in which order, etc.
 type Animation struct {
 	Name string
 	Skip bool            // if true, this animation does not get defined

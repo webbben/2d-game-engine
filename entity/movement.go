@@ -127,7 +127,7 @@ func (e *Entity) SetAnimation(animOps AnimationOptions) body.SetAnimationResult 
 		e.Body.SetAnimationTickCount(animOps.AnimationTickInterval)
 	} else {
 		if !animRes.AlreadySet {
-			if e.Body.GetCurrentAnimation() == body.ANIM_IDLE {
+			if e.Body.GetCurrentAnimation() == body.AnimIdle {
 				panic("failed to set movement animation, but current animation seems to be empty...?")
 			}
 		}
@@ -476,7 +476,7 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 	}
 
 	animRes := e.SetAnimation(AnimationOptions{
-		AnimationName:         body.ANIM_WALK,
+		AnimationName:         body.AnimWalk,
 		AnimationTickInterval: e.Movement.WalkAnimationTickInterval,
 	})
 	if !animRes.Success && !animRes.AlreadySet {
