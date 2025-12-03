@@ -37,14 +37,16 @@ func (bps BodyPartSet) HasLoaded() bool {
 }
 
 type BodyPartSetParams struct {
-	IsBody          bool // if true, this body part set will be treated as the main body set. this allows things like StepsOffsetY to be used.
-	HasUp           bool // if true, this set has animation frames for "up". some may not, since they might be covered up (e.g. the eyes set)
-	IsRemovable     bool // if true, this set can be removed or hidden from rendering
+	IsBody      bool // if true, this body part set will be treated as the main body set. this allows things like StepsOffsetY to be used.
+	HasUp       bool // if true, this set has animation frames for "up". some may not, since they might be covered up (e.g. the eyes set)
+	IsRemovable bool // if true, this set can be removed or hidden from rendering
+
+	// Note: IdleParams is not defined here; it's defined in the SelectedPartDef since Idle animations are a bit different (see body.md)
+
 	WalkParams      AnimationParams
 	RunParams       AnimationParams
 	SlashParams     AnimationParams
 	BackslashParams AnimationParams
-	IdleParams      AnimationParams
 	Name            string
 }
 
@@ -69,12 +71,25 @@ func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
 	if params.Name == "" {
 		panic("must set name for bodyPartSet (for debugging purposes)")
 	}
+
+	if params.WalkParams.Name == "" {
+		params.WalkParams.Name = "walk"
+	}
+	if params.RunParams.Name == "" {
+		params.RunParams.Name = "run"
+	}
+	if params.SlashParams.Name == "" {
+		params.SlashParams.Name = "slash"
+	}
+	if params.BackslashParams.Name == "" {
+		params.BackslashParams.Name = "backslash"
+	}
+
 	bps := BodyPartSet{
 		WalkAnimation:      NewAnimation(params.WalkParams),
 		RunAnimation:       NewAnimation(params.RunParams),
 		SlashAnimation:     NewAnimation(params.SlashParams),
 		BackslashAnimation: NewAnimation(params.BackslashParams),
-		IdleAnimation:      NewAnimation(params.IdleParams),
 		HasUp:              params.HasUp,
 		IsRemovable:        params.IsRemovable,
 		Name:               params.Name,
@@ -145,6 +160,8 @@ func (set *BodyPartSet) load(stretchX, stretchY int) {
 	set.unsetAllImages()
 	logz.Println(set.Name, "loading bodyPartSet")
 
+	set.animIndex = 0
+
 	if set.PartSrc.None {
 		return
 	}
@@ -166,6 +183,9 @@ func (set *BodyPartSet) load(stretchX, stretchY int) {
 	set.RunAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
 	set.SlashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
 	set.BackslashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+
+	set.PartSrc.IdleAnimation.Name = "idle"
+	set.IdleAnimation = NewAnimation(set.PartSrc.IdleAnimation)
 	set.IdleAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
 
 	set.validate()

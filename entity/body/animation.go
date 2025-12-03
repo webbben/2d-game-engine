@@ -74,6 +74,7 @@ type Animation struct {
 }
 
 type AnimationParams struct {
+	Name         string
 	Skip         bool
 	TileSteps    []int
 	StepsOffsetY []int
@@ -85,10 +86,14 @@ func NewAnimation(params AnimationParams) Animation {
 			panic("if stepsOffsetY is defined, it should be the same length as tileSteps")
 		}
 	}
+	if params.Name == "" {
+		panic("name is empty")
+	}
 	a := Animation{
 		TileSteps:    params.TileSteps,
 		StepsOffsetY: params.StepsOffsetY,
 		Skip:         params.Skip,
+		Name:         params.Name,
 	}
 
 	return a
@@ -168,7 +173,7 @@ func (a Animation) getFrame(dir byte, animationIndex int, aux bool) *ebiten.Imag
 			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.L) {
-			panic("past last index")
+			logz.Panicln(a.Name, "past last index")
 		}
 		if auxCondition && a.leftAux != nil {
 			return a.leftAux
@@ -179,7 +184,7 @@ func (a Animation) getFrame(dir byte, animationIndex int, aux bool) *ebiten.Imag
 			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.R) {
-			panic("past last index")
+			logz.Panicln(a.Name, "past last index")
 		}
 		if auxCondition && a.rightAux != nil {
 			return a.rightAux
@@ -190,7 +195,7 @@ func (a Animation) getFrame(dir byte, animationIndex int, aux bool) *ebiten.Imag
 			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.U) {
-			panic("past last index")
+			logz.Panicln(a.Name, "past last index")
 		}
 		if auxCondition && a.upAux != nil {
 			return a.upAux
@@ -201,7 +206,7 @@ func (a Animation) getFrame(dir byte, animationIndex int, aux bool) *ebiten.Imag
 			logz.Panicf("%s: no frames?", a.Name)
 		}
 		if animationIndex >= len(a.D) {
-			panic("past last index")
+			logz.Panicln(a.Name, "past last index")
 		}
 		if auxCondition && a.downAux != nil {
 			return a.downAux

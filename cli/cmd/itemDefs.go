@@ -64,12 +64,24 @@ func GetItemDefs() []item.ItemDef {
 		},
 	}
 
-	auxOp := body.SelectedPartDef{
+	torchOp := body.SelectedPartDef{
 		TilesetSrc: auxTileset,
 		DStart:     0,
 		RStart:     19,
 		LStart:     38,
 		UStart:     57,
+		IdleAnimation: body.AnimationParams{
+			TileSteps: []int{0, 1, 2, 3},
+		},
+	}
+	shieldOps := []body.SelectedPartDef{
+		{
+			TilesetSrc: auxTileset,
+			DStart:     0 + 76,
+			RStart:     19 + 76,
+			LStart:     38 + 76,
+			UStart:     57 + 76,
+		},
 	}
 
 	return []item.ItemDef{
@@ -231,8 +243,22 @@ func GetItemDefs() []item.ItemDef {
 			TileImgTilesetSrc: "items/items_01.tsj",
 			TileImgIndex:      97,
 			Type:              item.TypeAuxiliary,
-			BodyPartDef:       &auxOp,
+			BodyPartDef:       &torchOp,
 		}),
+		&item.ArmorDef{
+			ItemBase: *item.NewItemBase(item.ItemBaseParams{
+				ID:                "legionary_shield",
+				Name:              "Legionary Shield",
+				Description:       "A standard-issue shield used by Roman legionaries.",
+				Value:             80,
+				Weight:            10,
+				TileImgTilesetSrc: "items/items_01.tsj",
+				TileImgIndex:      97,
+				Type:              item.TypeAuxiliary,
+				BodyPartDef:       &shieldOps[0],
+			}),
+			Protection: 8,
+		},
 		item.NewItemBase(item.ItemBaseParams{
 			ID:                "toga_white",
 			Name:              "Toga",

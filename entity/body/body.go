@@ -334,6 +334,11 @@ func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
 	if weaponDef.None != weaponFxDef.None {
 		logz.Panicln("SetWeapon", "weapon and weaponFx should have the same None value (so they always equip or unequip together)", "weapon:", weaponDef.None, "weaponFx:", weaponFxDef.None)
 	}
+
+	// as of now, we are assuming that weaponFx will never have an idle animation, so setting it to skip here.
+	// this is to prevent the weaponFx frames from showing while idle is active.
+	weaponFxDef.IdleAnimation.Skip = true
+
 	eb.WeaponSet.setImageSource(weaponDef, 0, 0)
 	eb.WeaponFxSet.setImageSource(weaponFxDef, 0, 0)
 }
@@ -356,6 +361,9 @@ type SelectedPartDef struct {
 	RStart, LStart, UStart, DStart int
 	FlipRForL                      bool // if true, instead of using an L source, we just flip the frames for right
 
+	// Idle animation def
+	IdleAnimation AnimationParams // this is defined separately from other animations, since it behaves uniquely (see body.md)
+
 	// body-specific props
 
 	StretchX int // amount to stretch hair and equip body on X axis. Defined here, this represents the value that is applied to ALL (applicable) parts - not to this one.
@@ -374,9 +382,6 @@ type SelectedPartDef struct {
 	// since aux animations only have a different first frame from the regular animations.
 	// If set to 0, effectively nothing happens, and no aux frame is built.
 	AuxFirstFrameStep int
-
-	// TODO should I merge this struct with bodyPartSet - or at least move the animation sequence definition here?
-	// This is because some auxiliary items don't have idle animations (like shields) while some do (like torches).
 }
 
 // IsEqual checks if the two are equal. mainly used for validation.

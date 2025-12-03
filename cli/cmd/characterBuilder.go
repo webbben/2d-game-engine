@@ -140,7 +140,6 @@ func characterBuilder(fileToLoad string) {
 	auxItems := []item.ItemDef{}
 
 	for _, itemDef := range itemDefs {
-
 		switch itemDef.GetItemType() {
 		case item.TypeBodywear:
 			bodywearItems = append(bodywearItems, itemDef)
@@ -608,7 +607,6 @@ func getNewCharacter() entity.CharacterData {
 		IsRemovable: true,
 		WalkParams:  body.AnimationParams{Skip: true},
 		RunParams:   body.AnimationParams{Skip: true},
-		IdleParams:  body.AnimationParams{Skip: true},
 		SlashParams: body.AnimationParams{
 			TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
 		},
@@ -620,9 +618,9 @@ func getNewCharacter() entity.CharacterData {
 		Name:        "auxSet",
 		HasUp:       true,
 		IsRemovable: true,
-		IdleParams: body.AnimationParams{
-			TileSteps: []int{0, 1, 2, 3},
-		},
+		// IdleParams: body.AnimationParams{
+		// 	TileSteps: []int{0, 1, 2, 3},
+		// },
 		WalkParams: body.AnimationParams{
 			TileSteps: []int{0, 5, 0, 7},
 		},
@@ -639,8 +637,15 @@ func getNewCharacter() entity.CharacterData {
 
 	entBody := body.NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
 
+	// Setting these various fields just to prevent validation errors (e.g. WalkSpeed). But, these values are eventually overwritten
+	// when used in the actual game.
 	cd := entity.CharacterData{
-		Body: entBody,
+		ID:             "newCharacter",
+		DisplayName:    "newCharacter",
+		Body:           entBody,
+		WalkSpeed:      1,
+		RunSpeed:       1,
+		InventoryItems: make([]*item.InventoryItem, 1),
 	}
 	return cd
 }
@@ -685,6 +690,7 @@ func (bg *builderGame) SetBodyIndex(i int) {
 
 	bg.characterData.Body.SetBody(bodyDef, armDef)
 }
+
 func (bg *builderGame) SetEyesIndex(i int) {
 	if i < 0 || i >= len(bg.eyesSetOptions) {
 		panic("out of bounds")
@@ -693,6 +699,7 @@ func (bg *builderGame) SetEyesIndex(i int) {
 	op := bg.eyesSetOptions[i]
 	bg.characterData.Body.SetEyes(op)
 }
+
 func (bg *builderGame) SetHairIndex(i int) {
 	if i < 0 || i >= len(bg.hairSetOptions) {
 		panic("out of bounds")
