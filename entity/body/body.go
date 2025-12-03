@@ -439,6 +439,8 @@ func (eb *EntityBodySet) cropHair() {
 	cropper(&eb.HairSet.WalkAnimation)
 	cropper(&eb.HairSet.RunAnimation)
 	cropper(&eb.HairSet.SlashAnimation)
+	cropper(&eb.HairSet.BackslashAnimation)
+	cropper(&eb.HairSet.ShieldAnimation)
 	cropper(&eb.HairSet.IdleAnimation)
 }
 
@@ -475,6 +477,7 @@ func (eb *EntityBodySet) subtractArms() {
 	cropper(&eb.ArmsSet.RunAnimation, eb.EquipBodySet.RunAnimation)
 	cropper(&eb.ArmsSet.SlashAnimation, eb.EquipBodySet.SlashAnimation)
 	cropper(&eb.ArmsSet.BackslashAnimation, eb.EquipBodySet.BackslashAnimation)
+	cropper(&eb.ArmsSet.ShieldAnimation, eb.EquipBodySet.ShieldAnimation)
 	cropper(&eb.ArmsSet.IdleAnimation, eb.EquipBodySet.IdleAnimation)
 
 	eb.validateAuxFrames()
