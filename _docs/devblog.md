@@ -1,3 +1,31 @@
+# 2025-12-03
+
+Making more progress on the entity body animations and mechanics; I've added an additional "auxiliary" item type: the shield.
+
+Shields use the same arm image as torches do, but they differ in a few ways:
+
+1. they don't have an idle animation
+2. they have an additional animation they support: blocking. torches can't do this, so I'll have to add some logic somewhere to handle preventing torches from running the blocking animation.
+
+This just adds another case of special handling to the existing logic of the entity body and its animations, so it makes me wonder if I should review the code
+and look for a way to further simplify or streamline things like animations. Currently, each animation is enumerated as specific fields of a BodyPart.
+But, I'm wondering if it would be smarter and more scalable to instead make some kind of animations map where new animations can be simply registered in a single place,
+and then in each location in the code where things like animations are handled, we can just iterate over the map of animations.
+
+Anyway, I'm guessing I'll be spending the rest of this week and possibly next week finalizing some of these animations and entity body mechanics.
+I want to get it working rock solid before I completely move on to other things. For one, if I narrow all the animations down now, then I will be able to make armor and weapons
+more safely (without the risk of needing to redo or touch them up later).
+
+I'm also thinking through how shields will work with combat. I think I have a few ideas to nerf them a bit, so that they aren't too overpowered (we don't want people to just
+hold the block key forever until the enemy hits, and then just attack the enemy while they are stunned).
+
+- While blocking, entities can't move. So, you sacrifice mobility for safety
+- When holding up the shield, it takes a split second for the shield to actually reach its real effectiveness. This prevents players from just quickly spamming the block right as an attack is landing.
+- if the entity is out of stamina, the shield can no longer withstand power attacks. power attacks sap the stamina from the blocking entity, and a power attack on a blocking enemy does not stagger the attacker. So, if someone is being stubborn and just sitting there holding the shield, an attacker can just hack away with power attacks if they want to break through (and they have the stamina).
+- perfectly timed blocks (right at the instant of the strike, about) could trigger a "parry" where the defender counters the attack with an attack of his own.
+
+Not sure if I'll use all of these ideas, but just wanted to brainstorm some real quick. Hopefully I can get the blocking combat mechanics working soon.
+
 # 11/27/2025
 
 A little snapshot of the current state of the Character Builder. I made this to facilitate creating new characters and NPCs in the game.
