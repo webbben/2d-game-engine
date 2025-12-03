@@ -59,39 +59,8 @@ func (cd CharacterData) WriteToJSON(outputFilePath string) error {
 		return fmt.Errorf("given path is not abs (%s); please pass an absolute path", outputFilePath)
 	}
 
-	// ItemDefs (interfaces in general) can't be loaded from JSON, so lets nullify each of the ItemDefs.
-	// Then, during loading, we can use the definitionManager to load ItemDefs by ID.
-	if cd.EquipedAmmo != nil {
-		cd.EquipedAmmo.Def = nil
-	}
-	if cd.EquipedAmulet != nil {
-		cd.EquipedAmulet.Def = nil
-	}
-	if cd.EquipedAuxiliary != nil {
-		cd.EquipedAuxiliary.Def = nil
-	}
-	if cd.EquipedBodywear != nil {
-		cd.EquipedBodywear.Def = nil
-	}
-	if cd.EquipedFootwear != nil {
-		cd.EquipedFootwear.Def = nil
-	}
-	if cd.EquipedHeadwear != nil {
-		cd.EquipedHeadwear.Def = nil
-	}
-	if cd.EquipedRing1 != nil {
-		cd.EquipedRing1.Def = nil
-	}
-	if cd.EquipedRing2 != nil {
-		cd.EquipedRing2.Def = nil
-	}
-
-	for _, i := range cd.InventoryItems {
-		if i == nil {
-			continue
-		}
-		i.Def = nil
-	}
+	// Note: ItemDefs are not allowed to be written to JSONs since they can't be loaded from JSON properly.
+	// That is handled by setting the Def field of inventoryItems to json:"-"
 
 	data, err := json.MarshalIndent(cd, "", "  ")
 	if err != nil {

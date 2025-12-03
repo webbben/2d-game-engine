@@ -12,11 +12,11 @@ import (
 
 type InventoryItem struct {
 	Instance ItemInstance
-	Def      ItemDef
+	Def      ItemDef `json:"-"` // since this interface can't be properly loaded from JSON, lets exclude it from JSONs
 	Quantity int
 }
 
-// use the one in definitionManager to actually get an inventory item from the game state. this just puts the pieces together correctly.
+// NewInventoryItem puts the pieces of an inventoryItem together; use the one in definitionManager to actually get an inventory item from the game state.
 func NewInventoryItem(def ItemDef, quantity int) InventoryItem {
 	if def == nil {
 		panic("def is nil")

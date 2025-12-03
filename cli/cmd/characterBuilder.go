@@ -681,7 +681,10 @@ func (bg builderGame) saveCharacter() {
 	bg.characterData.ID = id
 	bg.characterData.DisplayName = name
 
-	bg.characterData.WriteToJSON(basePath)
+	err := bg.characterData.WriteToJSON(basePath)
+	if err != nil {
+		logz.Panicln("saveCharacter", "error occurred while saving character data to JSON:", err)
+	}
 }
 
 func resolveCharacterJsonPath(id string) string {

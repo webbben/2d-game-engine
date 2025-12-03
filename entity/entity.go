@@ -176,6 +176,9 @@ func (cd CharacterData) Validate() {
 				logz.Panicln(cd.DisplayName, "equipment is nil, but body part is not set to None")
 			}
 		} else {
+			if equipedItem.Def == nil {
+				logz.Panicln(cd.DisplayName, "equipment item def was found to be nil")
+			}
 			equiped := equipedItem.Def.GetBodyPartDef()
 			if equiped == nil {
 				logz.Panicln(cd.DisplayName, "equipment body part def was found to be nil")
