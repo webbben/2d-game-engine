@@ -334,7 +334,7 @@ func characterBuilder(fileToLoad string) {
 
 	g.animationSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
-		Options:               []string{body.AnimIdle, body.AnimWalk, body.AnimRun, body.AnimSlash, body.AnimBackslash},
+		Options:               []string{body.AnimIdle, body.AnimWalk, body.AnimRun, body.AnimSlash, body.AnimBackslash, body.AnimShield},
 		InitialOptionIndex:    0,
 		TilesetSrc:            "ui/ui-components.tsj",
 		OriginIndex:           288,
@@ -518,10 +518,12 @@ func getNewCharacter() entity.CharacterData {
 	runTileSteps := []int{0, 2, 3, 0, 4, 5}
 	slashTileSteps := []int{0, 6, 7, 8, 9}
 	backslashTileSteps := []int{9, 10, 11, 12}
+	shieldTileSteps := []int{13}
 	weaponWalkTileSteps := []int{0, 2, 0, 4}
 	weaponRunTileSteps := []int{0, 1, 2, 0, 3, 4}
 	weaponSlashTileSteps := []int{0, 5, 6, 7, 8}
 	weaponBackslashTileSteps := []int{8, 9, 10, 11}
+	weaponShieldTileSteps := []int{12}
 
 	bodySet := body.NewBodyPartSet(body.BodyPartSetParams{
 		Name:   "bodySet",
@@ -543,6 +545,10 @@ func getNewCharacter() entity.CharacterData {
 			TileSteps:    backslashTileSteps,
 			StepsOffsetY: []int{2, 2, 1, 1},
 		},
+		ShieldParams: body.AnimationParams{
+			TileSteps:    shieldTileSteps,
+			StepsOffsetY: []int{1},
+		},
 	})
 	armsSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		Name:  "armsSet",
@@ -558,6 +564,9 @@ func getNewCharacter() entity.CharacterData {
 		},
 		BackslashParams: body.AnimationParams{
 			TileSteps: backslashTileSteps,
+		},
+		ShieldParams: body.AnimationParams{
+			TileSteps: shieldTileSteps,
 		},
 	})
 	eyesSet := body.NewBodyPartSet(body.BodyPartSetParams{Name: "eyesSet"})
@@ -577,6 +586,9 @@ func getNewCharacter() entity.CharacterData {
 		},
 		BackslashParams: body.AnimationParams{
 			TileSteps: backslashTileSteps,
+		},
+		ShieldParams: body.AnimationParams{
+			TileSteps: shieldTileSteps,
 		},
 	})
 	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{
@@ -600,6 +612,9 @@ func getNewCharacter() entity.CharacterData {
 		BackslashParams: body.AnimationParams{
 			TileSteps: weaponBackslashTileSteps,
 		},
+		ShieldParams: body.AnimationParams{
+			TileSteps: weaponShieldTileSteps,
+		},
 	})
 	weaponFxSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		Name:        "weaponFxSet",
@@ -613,14 +628,12 @@ func getNewCharacter() entity.CharacterData {
 		BackslashParams: body.AnimationParams{
 			TileSteps: []int{-1, 3, 4, 5},
 		},
+		ShieldParams: body.AnimationParams{Skip: true},
 	})
 	auxSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		Name:        "auxSet",
 		HasUp:       true,
 		IsRemovable: true,
-		// IdleParams: body.AnimationParams{
-		// 	TileSteps: []int{0, 1, 2, 3},
-		// },
 		WalkParams: body.AnimationParams{
 			TileSteps: []int{0, 5, 0, 7},
 		},
@@ -632,6 +645,9 @@ func getNewCharacter() entity.CharacterData {
 		},
 		BackslashParams: body.AnimationParams{
 			TileSteps: []int{11, 12, 13, 14},
+		},
+		ShieldParams: body.AnimationParams{
+			TileSteps: []int{15},
 		},
 	})
 

@@ -15,11 +15,12 @@ const (
 	AnimRun       = "run"
 	AnimSlash     = "slash"
 	AnimBackslash = "backslash"
+	AnimShield    = "shield"
 )
 
 func validateAnimation(anim string) {
 	switch anim {
-	case AnimIdle, AnimWalk, AnimRun, AnimSlash, AnimBackslash:
+	case AnimIdle, AnimWalk, AnimRun, AnimSlash, AnimBackslash, AnimShield:
 		return
 	case "":
 		panic("animation name is empty (this is not supported; for 'no animation' use the idle animation)")

@@ -27,6 +27,7 @@ type BodyPartSet struct {
 	RunAnimation       Animation
 	SlashAnimation     Animation
 	BackslashAnimation Animation
+	ShieldAnimation    Animation
 	HasUp              bool // if true, this set has an "up" direction animation. some don't since they will be covered by the body (such as eyes)
 
 	img *ebiten.Image `json:"-"`
@@ -47,6 +48,7 @@ type BodyPartSetParams struct {
 	RunParams       AnimationParams
 	SlashParams     AnimationParams
 	BackslashParams AnimationParams
+	ShieldParams    AnimationParams
 	Name            string
 }
 
@@ -84,12 +86,16 @@ func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
 	if params.BackslashParams.Name == "" {
 		params.BackslashParams.Name = "backslash"
 	}
+	if params.ShieldParams.Name == "" {
+		params.ShieldParams.Name = "shield"
+	}
 
 	bps := BodyPartSet{
 		WalkAnimation:      NewAnimation(params.WalkParams),
 		RunAnimation:       NewAnimation(params.RunParams),
 		SlashAnimation:     NewAnimation(params.SlashParams),
 		BackslashAnimation: NewAnimation(params.BackslashParams),
+		ShieldAnimation:    NewAnimation(params.ShieldParams),
 		HasUp:              params.HasUp,
 		IsRemovable:        params.IsRemovable,
 		Name:               params.Name,
@@ -119,6 +125,10 @@ func (bps BodyPartSet) animationDebugString(anim string, dir byte) string {
 		s += "\n  " + bps.SlashAnimation.debugString()
 	case AnimBackslash:
 		s += "\n  " + bps.BackslashAnimation.debugString()
+	case AnimIdle:
+		s += "\n  " + bps.IdleAnimation.debugString()
+	case AnimShield:
+		s += "\n  " + bps.ShieldAnimation.debugString()
 	}
 
 	return s
@@ -138,14 +148,18 @@ func (bps BodyPartSet) validate() {
 	bps.WalkAnimation.validate()
 	bps.RunAnimation.validate()
 	bps.SlashAnimation.validate()
+	bps.BackslashAnimation.validate()
 	bps.IdleAnimation.validate()
+	bps.ShieldAnimation.validate()
 }
 
 func (bps *BodyPartSet) unsetAllImages() {
 	bps.WalkAnimation.reset()
 	bps.RunAnimation.reset()
 	bps.SlashAnimation.reset()
+	bps.BackslashAnimation.reset()
 	bps.IdleAnimation.reset()
+	bps.ShieldAnimation.reset()
 	bps.img = nil
 	logz.Println(bps.Name, "unsetting all images")
 }
@@ -178,11 +192,13 @@ func (set *BodyPartSet) load(stretchX, stretchY int) {
 	set.SlashAnimation.Name = fmt.Sprintf("%s/slash", set.PartSrc.TilesetSrc)
 	set.BackslashAnimation.Name = fmt.Sprintf("%s/backslash", set.PartSrc.TilesetSrc)
 	set.IdleAnimation.Name = fmt.Sprintf("%s/idle", set.PartSrc.TilesetSrc)
+	set.ShieldAnimation.Name = fmt.Sprintf("%s/shield", set.PartSrc.TilesetSrc)
 
 	set.WalkAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
 	set.RunAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
 	set.SlashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
 	set.BackslashAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
+	set.ShieldAnimation.loadFrames(set.PartSrc.TilesetSrc, set.PartSrc.RStart, set.PartSrc.LStart, set.PartSrc.UStart, set.PartSrc.DStart, stretchX, stretchY, set.PartSrc.FlipRForL, set.HasUp, set.PartSrc.AuxFirstFrameStep)
 
 	set.PartSrc.IdleAnimation.Name = "idle"
 	set.IdleAnimation = NewAnimation(set.PartSrc.IdleAnimation)
@@ -215,6 +231,8 @@ func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string, aux bool
 		set.img = set.BackslashAnimation.getFrame(dir, set.animIndex, aux)
 	case AnimIdle:
 		set.img = set.IdleAnimation.getFrame(dir, set.animIndex, aux)
+	case AnimShield:
+		set.img = set.ShieldAnimation.getFrame(dir, set.animIndex, aux)
 	default:
 		panic("unrecognized animation name: " + animationName)
 	}
@@ -241,6 +259,10 @@ func (set BodyPartSet) getCurrentYOffset(animationName string) int {
 	case AnimIdle:
 		if len(set.IdleAnimation.StepsOffsetY) > 0 {
 			return set.IdleAnimation.StepsOffsetY[set.animIndex]
+		}
+	case AnimShield:
+		if len(set.ShieldAnimation.StepsOffsetY) > 0 {
+			return set.ShieldAnimation.StepsOffsetY[set.animIndex]
 		}
 	}
 
@@ -272,6 +294,8 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 		numSteps = len(set.BackslashAnimation.TileSteps)
 	case AnimIdle:
 		numSteps = len(set.IdleAnimation.TileSteps)
+	case AnimShield:
+		numSteps = len(set.ShieldAnimation.TileSteps)
 	default:
 		logz.Panicln(set.PartSrc.TilesetSrc, "nextFrame: animation name has no registered animation sequence:", animationName)
 	}
