@@ -244,5 +244,5 @@ func (cd *CharacterData) UnequipAuxiliary() {
 	}
 
 	cd.EquipedAuxiliary = nil
-	cd.Body.AuxItemSet.Remove()
+	cd.Body.RemoveAuxiliary()
 }

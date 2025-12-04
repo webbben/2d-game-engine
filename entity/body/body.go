@@ -323,6 +323,19 @@ func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
 
 func (eb *EntityBodySet) SetAuxiliary(def SelectedPartDef) {
 	eb.AuxItemSet.setImageSource(def, 0, 0)
+
+	if eb.animation != "" {
+		eb.AuxItemSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	}
+}
+
+func (eb *EntityBodySet) RemoveAuxiliary() {
+	eb.AuxItemSet.Remove()
+
+	if eb.animation != "" {
+		eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	}
 }
 
 // IsAuxEquipped determines if an aux item is currently equiped
