@@ -253,7 +253,7 @@ func GetItemDefs() []item.ItemDef {
 				Value:             80,
 				Weight:            10,
 				TileImgTilesetSrc: "items/items_01.tsj",
-				TileImgIndex:      97,
+				TileImgIndex:      35,
 				Type:              item.TypeAuxiliary,
 				BodyPartDef:       &shieldOps[0],
 			}),
