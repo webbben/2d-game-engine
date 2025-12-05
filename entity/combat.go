@@ -5,6 +5,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/item"
 )
 
 type attackManager struct {
@@ -115,6 +116,16 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	}
 	if attack.Damage == 0 {
 		// ineffectual attack
+		panic("attack had 0 damage")
+	}
+	if e.IsUsingShield() {
+		// attack was blocked; still some bump back, but no other change
+
+		moveError := e.TryBumpBack(config.TileSize/2, defaultWalkSpeed, attack.Origin, body.AnimShield, defaultIdleAnimationTickInterval)
+		if !moveError.Success {
+			// perhaps there was a collision?
+			logz.Println(e.DisplayName, "shielded bump back failed:", moveError)
+		}
 		return
 	}
 
@@ -173,4 +184,47 @@ func (e *Entity) EquipWeapon(weaponDef body.SelectedPartDef, weaponFxDef body.Se
 
 func (e Entity) IsWeaponEquiped() bool {
 	return !e.Body.WeaponSet.PartSrc.None
+}
+
+func (e Entity) IsShieldEquiped() bool {
+	if e.EquipedAuxiliary != nil {
+		if item.IsArmor(e.EquipedAuxiliary.Def) {
+			return true
+		}
+	}
+	return false
+}
+
+func (e *Entity) UseShield() {
+	if !e.IsShieldEquiped() {
+		logz.Panicln(e.DisplayName, "tried to use shield, but shield is not equipped")
+	}
+	if e.IsUsingShield() {
+		return
+	}
+	if e.IsStunned() {
+		return
+	}
+
+	res := e.Body.SetAnimation(body.AnimShield, body.SetAnimationOps{QueueNext: true})
+	if !res.Success {
+		// probably fails because shield is already set (or a different action like attack is ongoing).
+		// not adding checks unless I find weird behavior in the future
+		return
+	}
+}
+
+func (e *Entity) StopUsingShield() {
+	if !e.IsUsingShield() {
+		logz.Panicln(e.DisplayName, "trying to stop using shield, but shield isn't being used")
+	}
+
+	res := e.Body.SetAnimation(body.AnimIdle, body.SetAnimationOps{Force: true})
+	if !res.Success {
+		logz.Panicln(e.DisplayName, "failed to unset shield animation...")
+	}
+}
+
+func (e Entity) IsUsingShield() bool {
+	return e.Body.GetCurrentAnimation() == body.AnimShield
 }

@@ -144,7 +144,6 @@ func (bps BodyPartSet) validate() {
 	if bps.Name == "" {
 		panic("no name set")
 	}
-	fmt.Println(bps.PartSrc.TilesetSrc)
 	bps.WalkAnimation.validate()
 	bps.RunAnimation.validate()
 	bps.SlashAnimation.validate()
