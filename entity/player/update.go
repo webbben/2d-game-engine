@@ -1,3 +1,4 @@
+// Package player is the layer that contains all the logic for the player
 package player
 
 import (
@@ -11,7 +12,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/model"
 )
 
-// keep track of variables or state related to managing movement mechanics
+// MovementMechanics keep track of variables or state related to managing movement mechanics
 type MovementMechanics struct {
 	ticksSinceLastMouseDirect int
 }
@@ -86,6 +87,7 @@ func (p *Player) handleMovement() {
 		scaled.Y = math.Round(scaled.Y * 2)
 	}
 
+	// if there is movement input and we are not blocking with a shield, move
 	if v.X != 0 || v.Y != 0 {
 		animRes := p.Entity.SetAnimation(entity.AnimationOptions{
 			AnimationName:         animation,
@@ -129,6 +131,23 @@ func (p *Player) handleActions() {
 			return
 		}
 	}
+	if p.Entity.IsShieldEquiped() {
+		if p.Entity.IsUsingShield() {
+			// detect if we should stop using the shield
+			// - entity is moving
+			// - no longer holding the right click
+			if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonRight) || isTryingToMove() {
+				p.Entity.StopUsingShield()
+			}
+		} else {
+			// entity is not using shield; detect if we should start blocking
+			if ebiten.IsMouseButtonPressed(ebiten.MouseButtonRight) {
+				if !p.Entity.Movement.IsMoving {
+					p.Entity.UseShield()
+				}
+			}
+		}
+	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		if p.World.ActivateArea(p.Entity.GetFrontRect()) {
@@ -137,22 +156,14 @@ func (p *Player) handleActions() {
 	}
 
 	if !p.Entity.IsWeaponEquiped() {
-		// nearbyNPCs := p.World.GetNearbyNPCs(p.Entity.X, p.Entity.Y, config.TileSize*config.GameScale*1.5)
-
-		// for _, n := range nearbyNPCs {
-		// 	if n == nil {
-		// 		panic("npc is nil?")
-		// 	}
-		// 	if n.Entity.MouseBehavior.LeftClick.ClickReleased {
-		// 		logz.Println(p.Entity.DisplayName, "activating npc:", n.DisplayName)
-		// 		n.Activate()
-		// 		return
-		// 	}
-		// }
 		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 			mouseX, mouseY := ebiten.CursorPosition()
 			p.World.HandleMouseClick(mouseX, mouseY)
 		}
 	}
+}
 
+// isTryingToMove detects if there is currently input related to moving
+func isTryingToMove() bool {
+	return ebiten.IsKeyPressed(ebiten.KeyW) || ebiten.IsKeyPressed(ebiten.KeyA) || ebiten.IsKeyPressed(ebiten.KeyS) || ebiten.IsKeyPressed(ebiten.KeyD)
 }

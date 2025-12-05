@@ -161,63 +161,83 @@ func (ib ItemBase) Validate() {
 func (ib ItemBase) GetID() string {
 	return ib.ID
 }
+
 func (ib ItemBase) GetName() string {
 	return ib.Name
 }
+
 func (ib ItemBase) GetDescription() string {
 	return ib.Description
 }
+
 func (ib ItemBase) GetValue() int {
 	return ib.Value
 }
+
 func (ib ItemBase) GetWeight() float64 {
 	return ib.Weight
 }
+
 func (ib ItemBase) GetMaxDurability() int {
 	return ib.MaxDurability
 }
+
 func (ib ItemBase) GetTileImg() *ebiten.Image {
 	return ib.TileImg
 }
+
 func (ib ItemBase) GetEquipedTiles() []*ebiten.Image {
 	return ib.EquipedTiles
 }
+
 func (ib ItemBase) IsGroupable() bool {
 	return ib.Groupable
 }
+
 func (ib ItemBase) IsWeapon() bool {
 	return ib.Type == TypeWeapon
 }
+
 func (ib ItemBase) IsBodywear() bool {
 	return ib.Type == TypeBodywear
 }
+
 func (ib ItemBase) IsHeadwear() bool {
 	return ib.Type == TypeHeadwear
 }
+
 func (ib ItemBase) IsFootwear() bool {
 	return ib.Type == TypeFootwear
 }
+
 func (ib ItemBase) IsAmulet() bool {
 	return ib.Type == TypeAmulet
 }
+
 func (ib ItemBase) IsRing() bool {
 	return ib.Type == TypeRing
 }
+
 func (ib ItemBase) IsAmmunition() bool {
 	return ib.Type == TypeAmmunition
 }
+
 func (ib ItemBase) IsAuxiliary() bool {
 	return ib.Type == TypeAuxiliary
 }
+
 func (ib ItemBase) IsConsumable() bool {
 	return ib.Type == TypeConsumable
 }
+
 func (ib ItemBase) IsMiscItem() bool {
 	return ib.Type == TypeMisc
 }
+
 func (ib ItemBase) IsCurrencyItem() bool {
 	return ib.Type == TypeCurrency
 }
+
 func (ib ItemBase) IsEquipable() bool {
 	switch ib.Type {
 	case TypeBodywear, TypeHeadwear, TypeFootwear, TypeWeapon, TypeAmulet, TypeRing, TypeAmmunition, TypeAuxiliary:
@@ -226,11 +246,12 @@ func (ib ItemBase) IsEquipable() bool {
 		return false
 	}
 }
+
 func (ib ItemBase) GetItemType() ItemType {
 	return ib.Type
 }
 
-// gets the body part def for equiping this item visibly on the body.
+// GetBodyPartDef gets the body part def for equiping this item visibly on the body.
 // panics if the item is not equipable.
 func (ib ItemBase) GetBodyPartDef() *body.SelectedPartDef {
 	return ib.BodyPartDef
@@ -255,7 +276,6 @@ func (ib *ItemBase) Load() {
 	ib.init = true
 }
 
-// just for the compiler to automatically confirm each item type implements ItemDef interface
 func CompilerCheck() {
 	_ = append([]ItemDef{}, &WeaponDef{}, &PotionDef{}, &ArmorDef{})
 }
@@ -265,7 +285,6 @@ type ItemInstance struct {
 	Durability int    // the current condition of this item
 }
 
-// ItemDef for weapons
 type WeaponDef struct {
 	ItemBase
 	Damage        int     // damage per attack
@@ -274,7 +293,7 @@ type WeaponDef struct {
 	FxPartDef *body.SelectedPartDef // only defined for weapon items
 }
 
-// gets the two bodyPartDefs for a weapon: the actual weapon, and the fx.
+// GetWeaponParts gets the two bodyPartDefs for a weapon: the actual weapon, and the fx.
 // Panics if given item is not a weaponDef, or if either part is not found.
 func GetWeaponParts(i ItemDef) (weaponPart body.SelectedPartDef, fxPart body.SelectedPartDef) {
 	part := i.GetBodyPartDef()
@@ -293,13 +312,17 @@ func GetWeaponParts(i ItemDef) (weaponPart body.SelectedPartDef, fxPart body.Sel
 	return *part, *fx
 }
 
-// ItemDef for armor
 type ArmorDef struct {
 	ItemBase
 	Protection int // amount of protection this piece of armor gives
 }
 
-// ItemDef for potions
+// IsArmor determines if the given ItemDef is an instance of ArmorDef (i.e. is assertable to ArmorDef)
+func IsArmor(i ItemDef) bool {
+	_, ok := i.(*ArmorDef)
+	return ok
+}
+
 type PotionDef struct {
 	ItemBase
 	EffectDuration time.Duration
