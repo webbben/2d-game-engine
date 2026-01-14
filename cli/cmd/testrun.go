@@ -1,3 +1,4 @@
+// Package cmd - just some commands to run for testing
 package cmd
 
 import (
@@ -40,12 +41,12 @@ to quickly create a Cobra application.`,
 		// set config
 		config.ShowPlayerCoords = true
 		config.ShowGameDebugInfo = true
-		//config.DrawGridLines = true
+		// config.DrawGridLines = true
 		config.ShowEntityPositions = true
-		//config.TrackMemoryUsage = true
-		//config.HourSpeed = time.Second * 20
+		// config.TrackMemoryUsage = true
+		// config.HourSpeed = time.Second * 20
 		config.ShowCollisions = true
-		//config.ShowNPCPaths = true
+		// config.ShowNPCPaths = true
 
 		config.GameDataPathOverride = "/Users/benwebb/dev/personal/ancient-rome"
 

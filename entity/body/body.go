@@ -48,11 +48,11 @@ type EntityBodySet struct {
 
 	// currently equiped items
 
-	EquipBodySet BodyPartSet
-	EquipHeadSet BodyPartSet
-	WeaponSet    BodyPartSet
-	WeaponFxSet  BodyPartSet
-	AuxItemSet   BodyPartSet
+	EquipBodySet BodyPartSet // An equiped piece of body armor or shirt, on the entity's torso and arms.
+	EquipHeadSet BodyPartSet // An equiped helmet or hat, on the entity's head
+	WeaponSet    BodyPartSet // The weapon as shown in the entity's hands
+	WeaponFxSet  BodyPartSet // Fx from using a weapon or tool. For showing things like sword slash Fx
+	AuxItemSet   BodyPartSet // Item held in the left hand, such as a torch or shield.
 
 	globalOffsetY  float64 `json:"-"` // amount to offset placement of (non-body) parts by, when body is taller or shorter
 	nonBodyYOffset int     `json:"-"` // amount to offset placement of (non-body) parts by, simply dictated by the body's movements
@@ -69,13 +69,13 @@ func (eb EntityBodySet) GetDebugString() string {
 	s := fmt.Sprintf("ANIM: %s DIR: %s (next: %s, stopOnComp: %v)\n", eb.animation, string(eb.currentDirection), eb.nextAnimation, eb.stopAnimationOnCompletion)
 	s += fmt.Sprintf("ticks: %v tickCount: %v globalOffY: %v nonBodyOffY: %v cropHair: %v\n", eb.ticks, eb.animationTickCount, eb.globalOffsetY, eb.nonBodyYOffset, eb.shouldCropHair())
 	// get a single line status for each bodypart
-	s += eb.BodySet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
-	s += eb.ArmsSet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
-	s += eb.EyesSet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
-	s += eb.HairSet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
-	s += eb.EquipBodySet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
-	s += eb.EquipHeadSet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
-	s += eb.WeaponSet.animationDebugString(eb.animation, eb.currentDirection) + "\n"
+	s += eb.BodySet.animationDebugString(eb.currentDirection) + "\n"
+	s += eb.ArmsSet.animationDebugString(eb.currentDirection) + "\n"
+	s += eb.EyesSet.animationDebugString(eb.currentDirection) + "\n"
+	s += eb.HairSet.animationDebugString(eb.currentDirection) + "\n"
+	s += eb.EquipBodySet.animationDebugString(eb.currentDirection) + "\n"
+	s += eb.EquipHeadSet.animationDebugString(eb.currentDirection) + "\n"
+	s += eb.WeaponSet.animationDebugString(eb.currentDirection) + "\n"
 	return s
 }
 
@@ -128,8 +128,6 @@ func (eb EntityBodySet) validate() {
 	eb.WeaponSet.validate()
 	eb.WeaponFxSet.validate()
 	eb.AuxItemSet.validate()
-
-	eb.validateAuxFrames()
 }
 
 func ReadJSON(jsonFilePath string) (EntityBodySet, error) {
@@ -224,27 +222,27 @@ func (eb *EntityBodySet) SetBody(bodyDef, armDef SelectedPartDef) {
 		panic("arms must be defined")
 	}
 
-	eb.BodySet.setImageSource(bodyDef, 0, 0)
+	eb.BodySet.setImageSource(bodyDef, 0, 0, eb.IsAuxEquipped())
 
 	// reload any body parts that are influenced by stretch properties
 	// ensure these stretch values are set before calling subtract arms, since it uses equipBodyStretchY
 	eb.stretchX = bodyDef.StretchX
 	eb.stretchY = bodyDef.StretchY
 	if eb.HairSet.HasLoaded() {
-		eb.HairSet.load(eb.stretchX, 0)
+		eb.HairSet.load(eb.stretchX, 0, eb.IsAuxEquipped())
 	}
 	if eb.EquipHeadSet.HasLoaded() {
-		eb.EquipHeadSet.load(eb.stretchX, 0)
+		eb.EquipHeadSet.load(eb.stretchX, 0, eb.IsAuxEquipped())
 	}
 	if eb.EquipBodySet.HasLoaded() {
-		eb.EquipBodySet.load(eb.stretchX, eb.stretchY)
+		eb.EquipBodySet.load(eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
 	}
 
 	// ensure this is set before calling subtractArms, since it uses this value
 	eb.globalOffsetY = float64(bodyDef.OffsetY)
 
 	// arms are directly set with body
-	eb.ArmsSet.setImageSource(armDef, 0, 0)
+	eb.ArmsSet.setImageSource(armDef, 0, 0, eb.IsAuxEquipped())
 	if eb.EquipBodySet.sourceSet && !eb.EquipBodySet.PartSrc.None {
 		// subtract arms by equip body image (remove parts hidden by it)
 		eb.subtractArms()
@@ -255,11 +253,11 @@ func (eb *EntityBodySet) SetEyes(def SelectedPartDef) {
 	if def.None {
 		panic("eyes must be defined")
 	}
-	eb.EyesSet.setImageSource(def, 0, 0)
+	eb.EyesSet.setImageSource(def, 0, 0, eb.IsAuxEquipped())
 }
 
 func (eb *EntityBodySet) SetHair(def SelectedPartDef) {
-	eb.HairSet.setImageSource(def, eb.stretchX, 0)
+	eb.HairSet.setImageSource(def, eb.stretchX, 0, eb.IsAuxEquipped())
 	if eb.shouldCropHair() {
 		eb.cropHair()
 	}
@@ -270,16 +268,16 @@ func (eb *EntityBodySet) ReloadHair() {
 		logz.Panicln(eb.Name, "tried to reload hair, but hair hasn't been loaded yet")
 	}
 
-	eb.HairSet.load(eb.stretchX, 0)
+	eb.HairSet.load(eb.stretchX, 0, eb.IsAuxEquipped())
 	if eb.shouldCropHair() {
 		eb.cropHair()
 	}
 
-	eb.HairSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	eb.HairSet.setCurrentFrame(eb.currentDirection, eb.animation)
 }
 
 func (eb *EntityBodySet) SetEquipHead(def SelectedPartDef) {
-	eb.EquipHeadSet.setImageSource(def, eb.stretchX, 0)
+	eb.EquipHeadSet.setImageSource(def, eb.stretchX, 0, eb.IsAuxEquipped())
 
 	// always reload hair when equiping head, since it could either need to crop or un-crop the hair
 	if eb.HairSet.HasLoaded() {
@@ -289,7 +287,7 @@ func (eb *EntityBodySet) SetEquipHead(def SelectedPartDef) {
 	// We do this here for a couple reasons: firstly, so that in the inventory screen, the change is visible immediately.
 	// But also, for sets like Hair, if it's nil in draw we panic. So, this ensures that it's not ever nil when the draw function is called.
 	if eb.animation != "" {
-		eb.EquipHeadSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+		eb.EquipHeadSet.setCurrentFrame(eb.currentDirection, eb.animation)
 	}
 }
 
@@ -298,18 +296,18 @@ func (eb *EntityBodySet) ReloadArms() {
 		logz.Panicln(eb.Name, "trying to reload arms, but they haven't been loaded yet")
 	}
 
-	eb.ArmsSet.load(0, 0)
+	eb.ArmsSet.load(0, 0, eb.IsAuxEquipped())
 	if !eb.EquipBodySet.PartSrc.None {
 		eb.subtractArms()
 	}
 
 	if eb.animation != "" {
-		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
 	}
 }
 
 func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
-	eb.EquipBodySet.setImageSource(def, eb.stretchX, eb.stretchY)
+	eb.EquipBodySet.setImageSource(def, eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
 
 	// redo the arms subtraction
 	if eb.ArmsSet.HasLoaded() {
@@ -317,28 +315,40 @@ func (eb *EntityBodySet) SetEquipBody(def SelectedPartDef) {
 	}
 
 	if eb.animation != "" {
-		eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+		eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation)
 	}
 }
 
 func (eb *EntityBodySet) SetAuxiliary(def SelectedPartDef) {
-	eb.AuxItemSet.setImageSource(def, 0, 0)
+	eb.AuxItemSet.setImageSource(def, 0, 0, eb.IsAuxEquipped())
 
 	if eb.animation != "" {
-		eb.AuxItemSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+		eb.AuxItemSet.setCurrentFrame(eb.currentDirection, eb.animation)
 	}
+
+	eb.reloadAuxAffectedParts()
+}
+
+func (eb *EntityBodySet) reloadAuxAffectedParts() {
+	// body
+	eb.BodySet.load(0, 0, eb.IsAuxEquipped())
+	// equip body
+	eb.EquipBodySet.load(eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
+	// arms
+	eb.ReloadArms()
 }
 
 func (eb *EntityBodySet) RemoveAuxiliary() {
 	eb.AuxItemSet.Remove()
 
 	if eb.animation != "" {
-		eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
-		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+		eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation)
+		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
 	}
 }
 
-// IsAuxEquipped determines if an aux item is currently equiped
+// IsAuxEquipped determines if an aux item is currently equiped.
+// An "Aux" item is an item that is held in the left hand (e.g. a torch.).
 func (eb EntityBodySet) IsAuxEquipped() bool {
 	return !eb.AuxItemSet.PartSrc.None
 }
@@ -352,8 +362,8 @@ func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
 	// this is to prevent the weaponFx frames from showing while idle is active.
 	weaponFxDef.IdleAnimation.Skip = true
 
-	eb.WeaponSet.setImageSource(weaponDef, 0, 0)
-	eb.WeaponFxSet.setImageSource(weaponFxDef, 0, 0)
+	eb.WeaponSet.setImageSource(weaponDef, 0, 0, eb.IsAuxEquipped())
+	eb.WeaponFxSet.setImageSource(weaponFxDef, 0, 0, eb.IsAuxEquipped())
 }
 
 func (eb EntityBodySet) GetCurrentAnimation() string {
@@ -369,15 +379,20 @@ func (eb *EntityBodySet) SetAnimationTickCount(tickCount int) {
 
 // SelectedPartDef represents the currently selected body part and it's individual definition
 type SelectedPartDef struct {
-	None                           bool // if true, this part will not be shown
-	TilesetSrc                     string
-	RStart, LStart, UStart, DStart int
-	FlipRForL                      bool // if true, instead of using an L source, we just flip the frames for right
+	None      bool // if true, this part will not be shown
+	FlipRForL bool // if true, instead of using an L source, we just flip the frames for right
 
 	// Idle animation def
-	IdleAnimation AnimationParams // this is defined separately from other animations, since it behaves uniquely (see body.md)
+	IdleAnimation      AnimationParams // this is defined separately from other animations, since it behaves uniquely (see body.md)
+	WalkAnimation      AnimationParams
+	RunAnimation       AnimationParams
+	SlashAnimation     AnimationParams
+	BackslashAnimation AnimationParams
+	ShieldAnimation    AnimationParams
 
 	// body-specific props
+
+	// FYI: these are not currently being used anymore (but remain functional) since we don't have other body options (tall, short, fat, etc) anymore.
 
 	StretchX int // amount to stretch hair and equip body on X axis. Defined here, this represents the value that is applied to ALL (applicable) parts - not to this one.
 	StretchY int // amount to stretch equip body on the Y axis. Defined here, this represents the value that is applied to ALL (applicable) parts - not to this one.
@@ -386,24 +401,86 @@ type SelectedPartDef struct {
 	// headwear-specific props
 
 	CropHairToHead bool // set to have hair not go outside the head image. used for helmets or certain hats.
+}
 
-	// aux-specific props
+type PartDefParams struct {
+	None      bool
+	FlipRForL bool // if true, frames for Right directions will be flipped horizontally and reused for the Left direction.
 
-	// used by bodysets that need to offest their animations to accomodate for aux versions (e.g. arms, equipBody, etc)
-	// if body has aux enabled, this field indicates the step (from origin) to get the first aux frame.
-	// for context: when aux is enabled, we replace the 0-index frame with a different frame,
-	// since aux animations only have a different first frame from the regular animations.
-	// If set to 0, effectively nothing happens, and no aux frame is built.
-	AuxFirstFrameStep int
+	Idle, Walk, Run, Slash, Backslash, Shield *AnimationParams
+
+	StretchX, StretchY int
+	OffsetY            int
+
+	CropHairToHead bool
+}
+
+// NewPartDef creates a new SelectedPartDef, which essentially defines a specific body part's animations, visuals, etc.
+// Use this function to create a SelectedPartDef, rather than directly making the struct, since this will handle some important validation.
+func NewPartDef(params PartDefParams) SelectedPartDef {
+	if params.None {
+		return SelectedPartDef{None: true}
+	}
+	def := SelectedPartDef{
+		FlipRForL:          params.FlipRForL,
+		StretchX:           params.StretchX,
+		StretchY:           params.StretchY,
+		OffsetY:            params.OffsetY,
+		CropHairToHead:     params.CropHairToHead,
+		IdleAnimation:      AnimationParams{Skip: true},
+		WalkAnimation:      AnimationParams{Skip: true},
+		RunAnimation:       AnimationParams{Skip: true},
+		SlashAnimation:     AnimationParams{Skip: true},
+		BackslashAnimation: AnimationParams{Skip: true},
+		ShieldAnimation:    AnimationParams{Skip: true},
+	}
+	validateAnimParams := func(animParams AnimationParams) {
+		if animParams.Skip {
+			return
+		}
+		if animParams.TilesetSrc == "" {
+			panic("tilesetSrc must not be empty")
+		}
+	}
+
+	if params.Idle != nil {
+		def.IdleAnimation = *params.Idle
+		def.IdleAnimation.Name = "idle"
+	}
+	if params.Walk != nil {
+		def.WalkAnimation = *params.Walk
+		def.WalkAnimation.Name = "walk"
+	}
+	if params.Run != nil {
+		def.RunAnimation = *params.Run
+		def.RunAnimation.Name = "run"
+	}
+	if params.Slash != nil {
+		def.SlashAnimation = *params.Slash
+		def.SlashAnimation.Name = "slash"
+	}
+	if params.Backslash != nil {
+		def.BackslashAnimation = *params.Backslash
+		def.BackslashAnimation.Name = "backslash"
+	}
+	if params.Shield != nil {
+		def.ShieldAnimation = *params.Shield
+		def.ShieldAnimation.Name = "shield"
+	}
+
+	validateAnimParams(def.IdleAnimation)
+	validateAnimParams(def.WalkAnimation)
+	validateAnimParams(def.RunAnimation)
+	validateAnimParams(def.SlashAnimation)
+	validateAnimParams(def.BackslashAnimation)
+	validateAnimParams(def.ShieldAnimation)
+
+	return def
 }
 
 // IsEqual checks if the two are equal. mainly used for validation.
 func (def SelectedPartDef) IsEqual(other SelectedPartDef) bool {
-	// Q: should we factor None into this? if None is true (for both) do we still want to check other fields?
-	if def.TilesetSrc != other.TilesetSrc {
-		return false
-	}
-	if def.RStart != other.RStart || def.LStart != other.LStart || def.UStart != other.UStart || def.DStart != other.DStart {
+	if def.None != other.None {
 		return false
 	}
 	if def.FlipRForL != other.FlipRForL {
@@ -415,7 +492,22 @@ func (def SelectedPartDef) IsEqual(other SelectedPartDef) bool {
 	if def.CropHairToHead != other.CropHairToHead {
 		return false
 	}
-	if def.AuxFirstFrameStep != other.AuxFirstFrameStep {
+	if !def.IdleAnimation.IsEqual(other.IdleAnimation) {
+		return false
+	}
+	if !def.WalkAnimation.IsEqual(other.WalkAnimation) {
+		return false
+	}
+	if !def.RunAnimation.IsEqual(other.RunAnimation) {
+		return false
+	}
+	if !def.SlashAnimation.IsEqual(other.SlashAnimation) {
+		return false
+	}
+	if !def.BackslashAnimation.IsEqual(other.BackslashAnimation) {
+		return false
+	}
+	if !def.ShieldAnimation.IsEqual(other.ShieldAnimation) {
 		return false
 	}
 	return true
@@ -457,6 +549,14 @@ func (eb *EntityBodySet) cropHair() {
 	cropper(&eb.HairSet.IdleAnimation)
 }
 
+// subtractArms "subtracts" the arms from the equip body set. i.e. the arms are cut off anywhere the the body equipment overlaps.
+// this produces an arms set that is just the hands or lower arms, and allows for more careful placement of different body parts.
+// for example, when doing a sword slash while facing up, we need the body equipment to show "on top" of the arms, and the hair to show on top of the body equipment,
+// but we still need the arms (hands) to be visible as they are behind the head. So, this subtraction allows for that more fine grained control.
+//
+// Specific cases:
+// - facing up, doing a sword slash: the arm is cocked back behind the head. body equipment is "on top" of the arms, hair is on top of body equipment, but hands can still show
+// over the hair.
 func (eb *EntityBodySet) subtractArms() {
 	if eb.EquipBodySet.PartSrc.None {
 		panic("trying to subtract arms, but no bodywear is set")
@@ -480,10 +580,6 @@ func (eb *EntityBodySet) subtractArms() {
 			equipBodyImg := subtractorA.D[i]
 			a.D[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
 		}
-		a.leftAux = rendering.SubtractImageByOtherImage(a.leftAux, subtractorA.leftAux, 0, equipBodyOffsetY)
-		a.rightAux = rendering.SubtractImageByOtherImage(a.rightAux, subtractorA.rightAux, 0, equipBodyOffsetY)
-		a.upAux = rendering.SubtractImageByOtherImage(a.upAux, subtractorA.upAux, 0, equipBodyOffsetY)
-		a.downAux = rendering.SubtractImageByOtherImage(a.downAux, subtractorA.downAux, 0, equipBodyOffsetY)
 	}
 
 	cropper(&eb.ArmsSet.WalkAnimation, eb.EquipBodySet.WalkAnimation)
@@ -492,25 +588,6 @@ func (eb *EntityBodySet) subtractArms() {
 	cropper(&eb.ArmsSet.BackslashAnimation, eb.EquipBodySet.BackslashAnimation)
 	cropper(&eb.ArmsSet.ShieldAnimation, eb.EquipBodySet.ShieldAnimation)
 	cropper(&eb.ArmsSet.IdleAnimation, eb.EquipBodySet.IdleAnimation)
-
-	eb.validateAuxFrames()
-}
-
-func (eb EntityBodySet) validateAuxFrames() {
-	if eb.ArmsSet.IdleAnimation.leftAux == nil ||
-		eb.ArmsSet.IdleAnimation.rightAux == nil ||
-		eb.ArmsSet.IdleAnimation.upAux == nil ||
-		eb.ArmsSet.IdleAnimation.downAux == nil {
-		logz.Panicln(eb.Name, "one or more arms aux frames are nil")
-	}
-	if !eb.EquipBodySet.PartSrc.None {
-		if eb.EquipBodySet.IdleAnimation.leftAux == nil ||
-			eb.EquipBodySet.IdleAnimation.rightAux == nil ||
-			eb.EquipBodySet.IdleAnimation.upAux == nil ||
-			eb.EquipBodySet.IdleAnimation.downAux == nil {
-			logz.Panicln(eb.Name, "one or more equipBody aux frames are nil")
-		}
-	}
 }
 
 func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64) {
@@ -692,16 +769,16 @@ func (eb *EntityBodySet) Update() {
 	}
 
 	// SETS: get current frame
-	eb.BodySet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
-	eb.EyesSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
-	eb.HairSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
-	eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	eb.BodySet.setCurrentFrame(eb.currentDirection, eb.animation)
+	eb.EyesSet.setCurrentFrame(eb.currentDirection, eb.animation)
+	eb.HairSet.setCurrentFrame(eb.currentDirection, eb.animation)
+	eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
 
-	eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
-	eb.EquipHeadSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
-	eb.WeaponSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
-	eb.WeaponFxSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
-	eb.AuxItemSet.setCurrentFrame(eb.currentDirection, eb.animation, eb.IsAuxEquipped())
+	eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation)
+	eb.EquipHeadSet.setCurrentFrame(eb.currentDirection, eb.animation)
+	eb.WeaponSet.setCurrentFrame(eb.currentDirection, eb.animation)
+	eb.WeaponFxSet.setCurrentFrame(eb.currentDirection, eb.animation)
+	eb.AuxItemSet.setCurrentFrame(eb.currentDirection, eb.animation)
 
 	eb.validate()
 	// Warning: Keep this immediately after the above setCurrentFrame calls! This must be set based on whatever image is actually showing.
@@ -832,13 +909,13 @@ func (eb *EntityBodySet) _initializeDirection(dir byte) {
 	eb.WeaponFxSet.animIndex = 0
 	eb.AuxItemSet.animIndex = 0
 
-	eb.BodySet.setCurrentFrame(dir, AnimWalk, eb.IsAuxEquipped())
-	eb.EyesSet.setCurrentFrame(dir, AnimWalk, eb.IsAuxEquipped())
-	eb.HairSet.setCurrentFrame(dir, AnimWalk, eb.IsAuxEquipped())
-	eb.ArmsSet.setCurrentFrame(dir, AnimWalk, eb.IsAuxEquipped())
-	eb.EquipBodySet.setCurrentFrame(dir, AnimWalk, eb.IsAuxEquipped())
-	eb.EquipHeadSet.setCurrentFrame(dir, AnimWalk, eb.IsAuxEquipped())
-	eb.WeaponSet.setCurrentFrame(dir, AnimWalk, eb.IsAuxEquipped())
-	eb.WeaponFxSet.setCurrentFrame(dir, AnimWalk, eb.IsAuxEquipped())
-	eb.AuxItemSet.setCurrentFrame(dir, AnimWalk, eb.IsAuxEquipped())
+	eb.BodySet.setCurrentFrame(dir, AnimWalk)
+	eb.EyesSet.setCurrentFrame(dir, AnimWalk)
+	eb.HairSet.setCurrentFrame(dir, AnimWalk)
+	eb.ArmsSet.setCurrentFrame(dir, AnimWalk)
+	eb.EquipBodySet.setCurrentFrame(dir, AnimWalk)
+	eb.EquipHeadSet.setCurrentFrame(dir, AnimWalk)
+	eb.WeaponSet.setCurrentFrame(dir, AnimWalk)
+	eb.WeaponFxSet.setCurrentFrame(dir, AnimWalk)
+	eb.AuxItemSet.setCurrentFrame(dir, AnimWalk)
 }

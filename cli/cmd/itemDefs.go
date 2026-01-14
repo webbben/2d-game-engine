@@ -8,80 +8,232 @@ import (
 
 // At some point, these will probably be moved into the actual game repo. For now, defining here for testing.
 
+func offsetInts(input []int, offset int) []int {
+	newSlice := []int{}
+
+	for _, v := range input {
+		newSlice = append(newSlice, v+offset)
+	}
+
+	return newSlice
+}
+
 func GetItemDefs() []item.ItemDef {
-	equipBodyTileset := "items/equiped_body_01.tsj"
+	equipBodyTileset := "entities/parts/human_entity_parts.tsj"
 	equipHeadTileset := "items/equiped_head_01.tsj"
 	equipWeaponTileset := "items/weapon_frames.tsj"
 	weaponFxTileset := "items/weapon_fx_frames.tsj"
 	auxTileset := "items/equiped_aux.tsj"
 
-	bodyRowLength := 68
-	bodyRStart := 17
-	bodyLStart := 34
-	bodyUStart := 51
-
 	equipBodyOptions := []body.SelectedPartDef{}
-	for i := range 4 {
-		equipBodyOptions = append(equipBodyOptions, body.SelectedPartDef{
-			TilesetSrc:        equipBodyTileset,
-			DStart:            (i * bodyRowLength),
-			RStart:            (i * bodyRowLength) + bodyRStart,
-			LStart:            (i * bodyRowLength) + bodyLStart,
-			UStart:            (i * bodyRowLength) + bodyUStart,
-			AuxFirstFrameStep: 1,
+	for i := range 2 {
+		// first equipment item starts at row 5; each item's first row is the body equipment, second row is legs equipment.
+		offset := 73 * ((i * 2) + 4)
+		def := body.NewPartDef(body.PartDefParams{
+			Idle: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesLeft:  offsetInts([]int{37}, offset),
+				AuxLeft:    offsetInts([]int{38}, offset),
+				TilesRight: offsetInts([]int{19}, offset),
+				AuxRight:   offsetInts([]int{20}, offset),
+				TilesUp:    offsetInts([]int{55}, offset),
+				AuxUp:      offsetInts([]int{56}, offset),
+				TilesDown:  offsetInts([]int{0}, offset),
+				AuxDown:    offsetInts([]int{1}, offset),
+			},
+			Walk: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesDown:  offsetInts([]int{4, 0, 6, 0}, offset),
+				AuxDown:    offsetInts([]int{4, 1, 6, 1}, offset),
+				TilesRight: offsetInts([]int{23, 19, 25, 19}, offset),
+				AuxRight:   offsetInts([]int{23, 20, 25, 20}, offset),
+				TilesLeft:  offsetInts([]int{41, 37, 43, 37}, offset),
+				AuxLeft:    offsetInts([]int{41, 38, 43, 38}, offset),
+				TilesUp:    offsetInts([]int{59, 55, 61, 55}, offset),
+				AuxUp:      offsetInts([]int{59, 56, 61, 56}, offset),
+			},
+			Run: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesDown:  offsetInts([]int{3, 4, 0, 5, 6, 0}, offset),
+				AuxDown:    offsetInts([]int{3, 4, 1, 5, 6, 1}, offset),
+				TilesRight: offsetInts([]int{22, 23, 19, 24, 25, 19}, offset),
+				AuxRight:   offsetInts([]int{22, 23, 20, 24, 25, 20}, offset),
+				TilesLeft:  offsetInts([]int{40, 41, 37, 42, 43, 37}, offset),
+				AuxLeft:    offsetInts([]int{40, 41, 38, 42, 43, 38}, offset),
+				TilesUp:    offsetInts([]int{58, 59, 55, 60, 61, 55}, offset),
+				AuxUp:      offsetInts([]int{58, 59, 56, 60, 61, 56}, offset),
+			},
+			Slash: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesDown:  offsetInts([]int{7, 8, 9, 9}, offset),
+				TilesRight: offsetInts([]int{26, 27, 28, 28}, offset),
+				TilesLeft:  offsetInts([]int{44, 45, 46, 46}, offset),
+				TilesUp:    offsetInts([]int{62, 63, 64, 64}, offset),
+			},
+			Backslash: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesDown:  offsetInts([]int{10, 9, 8, 7}, offset),
+				TilesRight: offsetInts([]int{28, 27, 26, 26}, offset),
+				TilesLeft:  offsetInts([]int{46, 45, 44, 44}, offset),
+				TilesUp:    offsetInts([]int{64, 63, 62, 62}, offset),
+			},
+			Shield: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesDown:  offsetInts([]int{11}, offset),
+				TilesRight: offsetInts([]int{2929}, offset),
+				TilesLeft:  offsetInts([]int{47}, offset),
+				TilesUp:    offsetInts([]int{65}, offset),
+			},
 		})
+		equipBodyOptions = append(equipBodyOptions, def)
 	}
+
 	equipHeadOptions := []body.SelectedPartDef{}
-	for i := range 3 {
+	for i := range 10 {
 		index := i * 4
 		cropHair, found := tiled.GetTileBoolProperty(equipHeadTileset, index, "COVER_HAIR")
-		equipHeadOptions = append(equipHeadOptions, body.SelectedPartDef{
-			TilesetSrc:     equipHeadTileset,
-			DStart:         (i * 4),
-			RStart:         (i * 4) + 1,
-			LStart:         (i * 4) + 2,
-			UStart:         (i * 4) + 3,
+
+		offset := i * 4
+		animParams := body.AnimationParams{
+			TilesetSrc: equipHeadTileset,
+			TilesDown:  []int{0 + offset},
+			TilesRight: []int{1 + offset},
+			TilesLeft:  []int{2 + offset},
+			TilesUp:    []int{3 + offset},
+		}
+		def := body.NewPartDef(body.PartDefParams{
+			Idle:           &animParams,
+			Walk:           &animParams,
+			Run:            &animParams,
+			Slash:          &animParams,
+			Backslash:      &animParams,
+			Shield:         &animParams,
 			CropHairToHead: found && cropHair,
+		})
+		equipHeadOptions = append(equipHeadOptions, def)
+	}
+
+	weaponOptions := []weaponOption{}
+	oneHandedWeapons := []body.SelectedPartDef{}
+	for i := range 2 {
+		weaponOffset := 73 * (i + 1)
+		weaponDef := body.NewPartDef(body.PartDefParams{
+			Idle: &body.AnimationParams{
+				TilesetSrc: equipWeaponTileset,
+				TilesDown:  offsetInts([]int{0}, weaponOffset),
+				TilesRight: offsetInts([]int{19}, weaponOffset),
+				TilesLeft:  offsetInts([]int{37}, weaponOffset),
+				TilesUp:    offsetInts([]int{55}, weaponOffset),
+			},
+			Walk: &body.AnimationParams{
+				TilesetSrc: equipWeaponTileset,
+				TilesDown:  offsetInts([]int{4, 0, 6, 0}, weaponOffset),
+				TilesRight: offsetInts([]int{23, 20, 25, 20}, weaponOffset),
+				TilesLeft:  offsetInts([]int{41, 37, 43, 37}, weaponOffset),
+				TilesUp:    offsetInts([]int{59, 55, 61, 55}, weaponOffset),
+			},
+			Run: &body.AnimationParams{
+				TilesetSrc: equipWeaponTileset,
+				TilesDown:  offsetInts([]int{3, 4, 0, 5, 6, 0}, weaponOffset),
+				TilesRight: offsetInts([]int{22, 23, 20, 24, 25, 20}, weaponOffset),
+				TilesLeft:  offsetInts([]int{40, 41, 37, 42, 43, 37}, weaponOffset),
+				TilesUp:    offsetInts([]int{58, 59, 55, 60, 61, 55}, weaponOffset),
+			},
+			Slash: &body.AnimationParams{
+				TilesetSrc: equipWeaponTileset,
+				TilesDown:  offsetInts([]int{7, 8, 9, 9}, weaponOffset),
+				TilesRight: offsetInts([]int{26, 27, 28, 28}, weaponOffset),
+				TilesLeft:  offsetInts([]int{44, 45, 46, 46}, weaponOffset),
+				TilesUp:    offsetInts([]int{62, 63, 64, 64}, weaponOffset),
+			},
+			Backslash: &body.AnimationParams{
+				TilesetSrc: equipWeaponTileset,
+				TilesDown:  offsetInts([]int{10, 9, 8, 7}, weaponOffset),
+				TilesRight: offsetInts([]int{28, 27, 26, 26}, weaponOffset),
+				TilesLeft:  offsetInts([]int{46, 45, 44, 44}, weaponOffset),
+				TilesUp:    offsetInts([]int{64, 63, 62, 62}, weaponOffset),
+			},
+			Shield: &body.AnimationParams{
+				TilesetSrc: equipWeaponTileset,
+				TilesDown:  offsetInts([]int{11}, weaponOffset),
+				TilesRight: offsetInts([]int{29}, weaponOffset),
+				TilesLeft:  offsetInts([]int{47}, weaponOffset),
+				TilesUp:    offsetInts([]int{65}, weaponOffset),
+			},
+		})
+		oneHandedWeapons = append(oneHandedWeapons, weaponDef)
+	}
+	swordFx01 := body.NewPartDef(body.PartDefParams{
+		Idle:   &body.AnimationParams{Skip: true},
+		Walk:   &body.AnimationParams{Skip: true},
+		Run:    &body.AnimationParams{Skip: true},
+		Shield: &body.AnimationParams{Skip: true},
+		Slash: &body.AnimationParams{
+			TilesetSrc: weaponFxTileset,
+			TilesDown:  []int{-1, 0, 1, 2},
+			TilesRight: []int{-1, 9, 10, 11},
+			TilesLeft:  []int{-1, 18, 19, 20},
+			TilesUp:    []int{-1, 27, 28, 29},
+		},
+		Backslash: &body.AnimationParams{
+			TilesetSrc: weaponFxTileset,
+			TilesDown:  []int{-1, 3, 4, 5},
+			TilesRight: []int{-1, 12, 13, 14},
+			TilesLeft:  []int{-1, 21, 22, 23},
+			TilesUp:    []int{-1, 30, 31, 32},
+		},
+	})
+
+	for _, weaponDef := range oneHandedWeapons {
+		weaponOptions = append(weaponOptions, weaponOption{
+			weaponPartDef: weaponDef,
+			weaponFxDef:   swordFx01,
 		})
 	}
 
-	weaponOptions := []weaponOption{
-		{
-			weaponPartDef: body.SelectedPartDef{
-				TilesetSrc: equipWeaponTileset,
-				DStart:     0,
-				RStart:     16,
-				LStart:     32,
-				UStart:     48,
-			},
-			weaponFxDef: body.SelectedPartDef{
-				TilesetSrc: weaponFxTileset,
-				DStart:     0,
-				RStart:     9,
-				LStart:     18,
-				UStart:     27,
-			},
-		},
-	}
+	auxOptions := []body.SelectedPartDef{}
 
-	torchOp := body.SelectedPartDef{
-		TilesetSrc: auxTileset,
-		DStart:     0,
-		RStart:     19,
-		LStart:     38,
-		UStart:     57,
-		IdleAnimation: body.AnimationParams{
-			TileSteps: []int{0, 1, 2, 3},
-		},
-	}
-	shieldOps := []body.SelectedPartDef{
-		{
-			TilesetSrc: auxTileset,
-			DStart:     0 + 76,
-			RStart:     19 + 76,
-			LStart:     38 + 76,
-			UStart:     57 + 76,
-		},
+	for i := range 2 {
+		offset := i * 76
+		def := body.NewPartDef(body.PartDefParams{
+			Idle: &body.AnimationParams{
+				TilesetSrc: auxTileset,
+				TilesDown:  offsetInts([]int{0, 1, 2, 3}, offset),
+				TilesRight: offsetInts([]int{19, 20, 21, 22}, offset),
+				TilesLeft:  offsetInts([]int{38, 39, 40, 41}, offset),
+				TilesUp:    offsetInts([]int{57, 58, 59, 60}, offset),
+			},
+			Walk: &body.AnimationParams{
+				TilesetSrc: auxTileset,
+				TilesDown:  offsetInts([]int{5, 0, 7, 0}, offset),
+				TilesRight: offsetInts([]int{24, 19, 26, 19}, offset),
+				TilesLeft:  offsetInts([]int{43, 38, 46, 38}, offset),
+				TilesUp:    offsetInts([]int{62, 57, 64, 57}, offset),
+			},
+			Run: &body.AnimationParams{
+				TilesetSrc: auxTileset,
+				TilesDown:  offsetInts([]int{4, 5, 0, 6, 7, 0}, offset),
+				TilesRight: offsetInts([]int{23, 24, 19, 25, 26, 19}, offset),
+				TilesLeft:  offsetInts([]int{42, 43, 38, 44, 45, 38}, offset),
+				TilesUp:    offsetInts([]int{61, 62, 57, 63, 64, 57}, offset),
+			},
+			Slash: &body.AnimationParams{
+				TilesetSrc: auxTileset,
+				TilesDown:  offsetInts([]int{8, 9, 10, 10}, offset),
+				TilesRight: offsetInts([]int{27, 28, 29, 30}, offset),
+				TilesLeft:  offsetInts([]int{46, 47, 48, 49}, offset),
+				TilesUp:    offsetInts([]int{65, 66, 67, 68}, offset),
+			},
+			Backslash: &body.AnimationParams{
+				TilesetSrc: auxTileset,
+				TilesDown:  offsetInts([]int{11, 12, 13, 14}, offset),
+				TilesRight: offsetInts([]int{30, 31, 32, 33}, offset),
+				TilesLeft:  offsetInts([]int{49, 50, 51, 52}, offset),
+				TilesUp:    offsetInts([]int{68, 69, 70, 71}, offset),
+			},
+			Shield: &body.AnimationParams{Skip: true},
+		})
+		auxOptions = append(auxOptions, def)
 	}
 
 	return []item.ItemDef{
@@ -217,7 +369,7 @@ func GetItemDefs() []item.ItemDef {
 				TileImgTilesetSrc: "items/items_01.tsj",
 				TileImgIndex:      33,
 				Type:              item.TypeBodywear,
-				BodyPartDef:       &equipBodyOptions[3],
+				BodyPartDef:       &equipBodyOptions[0],
 			}),
 			Protection: 18,
 		},
@@ -243,7 +395,7 @@ func GetItemDefs() []item.ItemDef {
 			TileImgTilesetSrc: "items/items_01.tsj",
 			TileImgIndex:      97,
 			Type:              item.TypeAuxiliary,
-			BodyPartDef:       &torchOp,
+			BodyPartDef:       &auxOptions[0],
 		}),
 		&item.ArmorDef{
 			ItemBase: *item.NewItemBase(item.ItemBaseParams{
@@ -255,7 +407,7 @@ func GetItemDefs() []item.ItemDef {
 				TileImgTilesetSrc: "items/items_01.tsj",
 				TileImgIndex:      35,
 				Type:              item.TypeAuxiliary,
-				BodyPartDef:       &shieldOps[0],
+				BodyPartDef:       &auxOptions[1],
 			}),
 			Protection: 8,
 		},
