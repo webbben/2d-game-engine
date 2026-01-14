@@ -1,8 +1,6 @@
 package body
 
 import (
-	"fmt"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/rendering"
@@ -55,53 +53,75 @@ func (eb EntityBodySet) IsMoving() bool {
 
 // Animation defines an animation for a specific bodyPartSet: which frames to show in which order, etc.
 type Animation struct {
-	Name string
-	Skip bool            // if true, this animation does not get defined
-	L    []*ebiten.Image `json:"-"`
-	R    []*ebiten.Image `json:"-"`
-	U    []*ebiten.Image `json:"-"`
-	D    []*ebiten.Image `json:"-"`
-
-	// (initial) frames for each direction, for when an aux is equiped. (Generally only used for the arms set).
-	// currently, these are only used for the arms set and the equipedBody set.
-	leftAux, rightAux, upAux, downAux *ebiten.Image
-
-	// defines how many ID "steps" from the origin (for a given direction) to get to each animation frame.
-	// therefore, it's assumed that each direction of an animation has the same relative pattern of "tile steps".
-	// this just makes it easier programmatically; if the pattern were to change, it would be a pain in the ass to
-	// have to redo each number for each direction. with this system, you just have to keep the pattern and the start index correct.
-	TileSteps    []int
-	StepsOffsetY []int // Only set by the body set
+	Name         string
+	Skip         bool            // if true, this animation does not get defined
+	L            []*ebiten.Image `json:"-"`
+	R            []*ebiten.Image `json:"-"`
+	U            []*ebiten.Image `json:"-"`
+	D            []*ebiten.Image `json:"-"`
+	StepsOffsetY []int           // Only set by the body set
 }
 
 type AnimationParams struct {
-	Name         string
-	Skip         bool
-	TileSteps    []int
-	StepsOffsetY []int
+	Name                                      string
+	Skip                                      bool
+	TilesetSrc                                string
+	TilesLeft, TilesRight, TilesUp, TilesDown []int // indices of each frame of the animation
+	AuxLeft, AuxRight, AuxUp, AuxDown         []int // if aux influeces this animation, define the aux frames here
+	StepsOffsetY                              []int
 }
 
-func NewAnimation(params AnimationParams) Animation {
-	if len(params.StepsOffsetY) != 0 {
-		if len(params.StepsOffsetY) != len(params.TileSteps) {
-			panic("if stepsOffsetY is defined, it should be the same length as tileSteps")
+func (ap AnimationParams) IsEqual(other AnimationParams) bool {
+	if ap.Name != other.Name {
+		return false
+	}
+	if ap.Skip != other.Skip {
+		return false
+	}
+	if ap.TilesetSrc != other.TilesetSrc {
+		return false
+	}
+	slicesEqual := func(a, b []int) bool {
+		if len(a) != len(b) {
+			return false
 		}
-	}
-	if params.Name == "" {
-		panic("name is empty")
-	}
-	a := Animation{
-		TileSteps:    params.TileSteps,
-		StepsOffsetY: params.StepsOffsetY,
-		Skip:         params.Skip,
-		Name:         params.Name,
+		for i, v := range a {
+			if b[i] != v {
+				return false
+			}
+		}
+		return true
 	}
 
-	return a
-}
+	if !slicesEqual(ap.TilesLeft, other.TilesLeft) {
+		return false
+	}
+	if !slicesEqual(ap.TilesRight, other.TilesRight) {
+		return false
+	}
+	if !slicesEqual(ap.TilesUp, other.TilesUp) {
+		return false
+	}
+	if !slicesEqual(ap.TilesDown, other.TilesDown) {
+		return false
+	}
+	if !slicesEqual(ap.AuxLeft, other.AuxLeft) {
+		return false
+	}
+	if !slicesEqual(ap.AuxRight, other.AuxRight) {
+		return false
+	}
+	if !slicesEqual(ap.AuxUp, other.AuxUp) {
+		return false
+	}
+	if !slicesEqual(ap.AuxDown, other.AuxDown) {
+		return false
+	}
+	if !slicesEqual(ap.StepsOffsetY, other.StepsOffsetY) {
+		return false
+	}
 
-func (a Animation) debugString() string {
-	return fmt.Sprintf("Name: %s Skip: %v tileStepsLen: %v", a.Name, a.Skip, len(a.TileSteps))
+	return true
 }
 
 func (a Animation) validate() {
@@ -126,22 +146,10 @@ func (a Animation) validate() {
 		logz.Panicln(a.Name, "down animation is empty")
 	}
 
-	// no animation defined; this just shows a single frame
-	if len(a.TileSteps) == 0 {
-		return
-	}
-
-	if len(a.L) != len(a.TileSteps) {
-		panic(a.Name + ": animation frame count doesn't match TileSteps")
-	}
-	if len(a.R) != len(a.TileSteps) {
-		panic(a.Name + ": animation frame count doesn't match TileSteps")
-	}
-	if len(a.U) != len(a.TileSteps) {
-		panic(a.Name + ": animation frame count doesn't match TileSteps")
-	}
-	if len(a.D) != len(a.TileSteps) {
-		panic(a.Name + ": animation frame count doesn't match TileSteps")
+	// confirm all directions are the same length
+	if (len(a.L)+len(a.R)+len(a.D))/3 != len(a.L) {
+		// we leave out Up, since some sets don't have an Up direction for their animations.
+		logz.Panicln(a.Name, "animation directions don't appear to be equal in length")
 	}
 }
 
@@ -150,23 +158,15 @@ func (a *Animation) reset() {
 	a.R = make([]*ebiten.Image, 0)
 	a.U = make([]*ebiten.Image, 0)
 	a.D = make([]*ebiten.Image, 0)
-	a.leftAux = nil
-	a.rightAux = nil
-	a.upAux = nil
-	a.downAux = nil
 }
 
-func (a Animation) getFrame(dir byte, animationIndex int, aux bool) *ebiten.Image {
+func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 	if a.Skip {
 		return nil
 	}
 	if animationIndex < 0 {
 		logz.Panicf("animation index is negative? %v", animationIndex)
 	}
-
-	// check if we should show the aux frame:
-	// aux is set, and (if tileSteps is defined) the current step is 0. If there are no steps, then we also allow it.
-	auxCondition := aux && (len(a.TileSteps) == 0 || (len(a.TileSteps) > 0 && a.TileSteps[animationIndex] == 0))
 
 	switch dir {
 	case 'L':
@@ -176,9 +176,6 @@ func (a Animation) getFrame(dir byte, animationIndex int, aux bool) *ebiten.Imag
 		if animationIndex >= len(a.L) {
 			logz.Panicln(a.Name, "past last index")
 		}
-		if auxCondition && a.leftAux != nil {
-			return a.leftAux
-		}
 		return a.L[animationIndex]
 	case 'R':
 		if len(a.R) == 0 {
@@ -186,9 +183,6 @@ func (a Animation) getFrame(dir byte, animationIndex int, aux bool) *ebiten.Imag
 		}
 		if animationIndex >= len(a.R) {
 			logz.Panicln(a.Name, "past last index")
-		}
-		if auxCondition && a.rightAux != nil {
-			return a.rightAux
 		}
 		return a.R[animationIndex]
 	case 'U':
@@ -198,9 +192,6 @@ func (a Animation) getFrame(dir byte, animationIndex int, aux bool) *ebiten.Imag
 		if animationIndex >= len(a.U) {
 			logz.Panicln(a.Name, "past last index")
 		}
-		if auxCondition && a.upAux != nil {
-			return a.upAux
-		}
 		return a.U[animationIndex]
 	case 'D':
 		if len(a.D) == 0 {
@@ -209,69 +200,81 @@ func (a Animation) getFrame(dir byte, animationIndex int, aux bool) *ebiten.Imag
 		if animationIndex >= len(a.D) {
 			logz.Panicln(a.Name, "past last index")
 		}
-		if auxCondition && a.downAux != nil {
-			return a.downAux
-		}
 		return a.D[animationIndex]
 	}
 	panic("unrecognized direction: " + string(dir))
 }
 
-func (a *Animation) loadFrames(tilesetSrc string, rStart, lStart, uStart, dStart, stretchX, stretchY int, flip, hasUp bool, auxStep int) {
+// load loads the frames of an animation, given the animation params and other loading options like flipping, stretch, etc.
+//
+// flipRL: set to true to flip and reuse Right frames for the Left direction
+func (a *Animation) load(params AnimationParams, aux, hasUp, flipRL bool, stretchX, stretchY int) {
+	if params.Name == "" {
+		panic("name is empty")
+	}
+	a.StepsOffsetY = params.StepsOffsetY
+	a.Skip = params.Skip
+	a.Name = params.Name
 	if a.Skip {
 		return
 	}
 
-	a.leftAux = nil
-	a.rightAux = nil
-	a.upAux = nil
-	a.downAux = nil
+	if a.Name == "" {
+		panic("animation has no name")
+	}
 
-	if flip {
-		a.L = getAnimationFrames(tilesetSrc, rStart, a.TileSteps, true, stretchX, stretchY)
-		if auxStep != 0 {
-			a.leftAux = loadFrameImg(tilesetSrc, rStart+auxStep, true, stretchX, stretchY)
+	l := params.TilesLeft
+	r := params.TilesRight
+	u := params.TilesUp
+	d := params.TilesDown
+
+	if aux {
+		// only use different frames for aux if they are defined
+		if len(params.AuxLeft) != 0 {
+			l = params.AuxLeft
 		}
+		if len(params.AuxRight) != 0 {
+			r = params.AuxRight
+		}
+		if len(params.AuxUp) != 0 {
+			u = params.AuxUp
+		}
+		if len(params.AuxDown) != 0 {
+			d = params.AuxDown
+		}
+	}
+
+	// can flip Right flames to be reused for Left frames
+	if flipRL {
+		a.L = getAnimationFrames(params.TilesetSrc, r, true, stretchX, stretchY)
 	} else {
-		a.L = getAnimationFrames(tilesetSrc, lStart, a.TileSteps, false, stretchX, stretchY)
-		if auxStep != 0 {
-			a.leftAux = loadFrameImg(tilesetSrc, lStart+auxStep, false, stretchX, stretchY)
-		}
+		a.L = getAnimationFrames(params.TilesetSrc, l, false, stretchX, stretchY)
 	}
-	a.R = getAnimationFrames(tilesetSrc, rStart, a.TileSteps, false, stretchX, stretchY)
-	if auxStep != 0 {
-		a.rightAux = loadFrameImg(tilesetSrc, rStart+auxStep, false, stretchX, stretchY)
-	}
+	a.R = getAnimationFrames(params.TilesetSrc, r, false, stretchX, stretchY)
 	if hasUp {
-		a.U = getAnimationFrames(tilesetSrc, uStart, a.TileSteps, false, stretchX, stretchY)
-		if auxStep != 0 {
-			a.upAux = loadFrameImg(tilesetSrc, uStart+auxStep, false, stretchX, stretchY)
-		}
+		a.U = getAnimationFrames(params.TilesetSrc, u, false, stretchX, stretchY)
+	} else {
+		a.U = []*ebiten.Image{}
 	}
-	a.D = getAnimationFrames(tilesetSrc, dStart, a.TileSteps, false, stretchX, stretchY)
-	if auxStep != 0 {
-		a.downAux = loadFrameImg(tilesetSrc, dStart+auxStep, false, stretchX, stretchY)
-	}
+	a.D = getAnimationFrames(params.TilesetSrc, d, false, stretchX, stretchY)
 }
 
-func getAnimationFrames(tilesetSrc string, startIndex int, indexSteps []int, flip bool, stretchX, stretchY int) []*ebiten.Image {
+func getAnimationFrames(tilesetSrc string, indices []int, flip bool, stretchX, stretchY int) []*ebiten.Image {
 	if tilesetSrc == "" {
 		panic("no tilesetSrc passed")
 	}
 	frames := []*ebiten.Image{}
 
-	if len(indexSteps) == 0 {
-		// no animation defined; just use the start tile
-		img := loadFrameImg(tilesetSrc, startIndex, flip, stretchX, stretchY)
-		frames = append(frames, img)
+	if len(indices) == 0 {
+		panic("no indices given... must have at least one frame for an animation.")
 	}
-	for _, step := range indexSteps {
-		if step == -1 {
+	for _, i := range indices {
+		if i == -1 {
 			// indicates a skip frame
 			frames = append(frames, nil)
 			continue
 		}
-		img := loadFrameImg(tilesetSrc, startIndex+step, flip, stretchX, stretchY)
+		img := loadFrameImg(tilesetSrc, i, flip, stretchX, stretchY)
 		frames = append(frames, img)
 	}
 	return frames

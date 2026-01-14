@@ -1,6 +1,3 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -118,17 +115,12 @@ type weaponOption struct {
 }
 
 func characterBuilder(fileToLoad string) {
-	bodyTileset := "entities/parts/body.tsj"
-	armsTileset := "entities/parts/arms.tsj"
+	bodyTileset := "entities/parts/human_entity_parts.tsj"
+	armsTileset := "entities/parts/human_entity_parts.tsj"
 	eyesTileset := "entities/parts/eyes.tsj"
 	hairTileset := "entities/parts/hair.tsj"
 
 	bgTileset := "buildings/walls.tsj"
-
-	bodyRowLength := 68
-	bodyRStart := 17
-	bodyLStart := 34
-	bodyUStart := 51
 
 	defMgr := definitions.NewDefinitionManager()
 	itemDefs := GetItemDefs()
@@ -152,98 +144,141 @@ func characterBuilder(fileToLoad string) {
 		}
 	}
 	bodyOptions := []body.SelectedPartDef{
-		{
-			TilesetSrc:        bodyTileset,
-			DStart:            0,
-			RStart:            bodyRStart,
-			LStart:            bodyLStart,
-			UStart:            bodyUStart,
-			AuxFirstFrameStep: 1,
-		},
-		{
-			TilesetSrc:        bodyTileset,
-			DStart:            0 + (bodyRowLength),
-			RStart:            bodyRStart + (bodyRowLength),
-			LStart:            bodyLStart + (bodyRowLength),
-			UStart:            bodyUStart + (bodyRowLength),
-			StretchY:          -1,
-			OffsetY:           2,
-			AuxFirstFrameStep: 1,
-		},
-		{
-			TilesetSrc:        bodyTileset,
-			DStart:            0 + (bodyRowLength * 2),
-			RStart:            bodyRStart + (bodyRowLength * 2),
-			LStart:            bodyLStart + (bodyRowLength * 2),
-			UStart:            bodyUStart + (bodyRowLength * 2),
-			StretchX:          2,
-			AuxFirstFrameStep: 1,
-		},
-		{
-			TilesetSrc:        bodyTileset,
-			DStart:            0 + (bodyRowLength * 3),
-			RStart:            bodyRStart + (bodyRowLength * 3),
-			LStart:            bodyLStart + (bodyRowLength * 3),
-			UStart:            bodyUStart + (bodyRowLength * 3),
-			StretchX:          2,
-			StretchY:          -1,
-			OffsetY:           2,
-			AuxFirstFrameStep: 1,
-		},
+		body.NewPartDef(body.PartDefParams{
+			Idle: &body.AnimationParams{
+				TilesetSrc:   bodyTileset,
+				TilesDown:    []int{73},
+				TilesRight:   []int{92},
+				TilesLeft:    []int{110},
+				TilesUp:      []int{128},
+				StepsOffsetY: []int{0},
+			},
+			Walk: &body.AnimationParams{
+				TilesetSrc:   bodyTileset,
+				TilesDown:    []int{75, 73, 77, 73},
+				TilesRight:   []int{94, 92, 94, 92},
+				TilesLeft:    []int{112, 110, 112, 110},
+				TilesUp:      []int{130, 128, 130, 128},
+				StepsOffsetY: []int{0, 1, 0, 1},
+			},
+			Run: &body.AnimationParams{
+				TilesetSrc:   bodyTileset,
+				TilesDown:    []int{74, 75, 73, 76, 77, 73},
+				TilesRight:   []int{93, 94, 92, 93, 94, 92},
+				TilesLeft:    []int{111, 112, 110, 111, 112, 110},
+				TilesUp:      []int{129, 130, 128, 129, 130, 128},
+				StepsOffsetY: []int{0, 0, 1, 0, 0, 1},
+			},
+			Slash: &body.AnimationParams{
+				TilesetSrc:   bodyTileset,
+				TilesDown:    []int{73, 79, 79, 79},
+				TilesRight:   []int{94, 95, 95, 95},
+				TilesLeft:    []int{112, 113, 113, 113},
+				TilesUp:      []int{128, 131, 131, 131},
+				StepsOffsetY: []int{0, 1, 2, 2},
+			},
+			Backslash: &body.AnimationParams{
+				TilesetSrc:   bodyTileset,
+				TilesDown:    []int{79, 79, 73, 73},
+				TilesRight:   []int{95, 95, 94, 94},
+				TilesLeft:    []int{113, 113, 112, 112},
+				TilesUp:      []int{131, 131, 128, 128},
+				StepsOffsetY: []int{2, 1, 0, 0},
+			},
+			Shield: &body.AnimationParams{
+				TilesetSrc:   bodyTileset,
+				TilesDown:    []int{78},
+				TilesRight:   []int{94},
+				TilesLeft:    []int{112},
+				TilesUp:      []int{128},
+				StepsOffsetY: []int{1},
+			},
+		}),
 	}
+
 	armsOptions := []body.SelectedPartDef{
-		{
-			TilesetSrc:        armsTileset,
-			DStart:            0,
-			RStart:            bodyRStart,
-			LStart:            bodyLStart,
-			UStart:            bodyUStart,
-			AuxFirstFrameStep: 1,
-		},
-		{
-			TilesetSrc:        armsTileset,
-			DStart:            0 + (bodyRowLength),
-			RStart:            bodyRStart + (bodyRowLength),
-			LStart:            bodyLStart + (bodyRowLength),
-			UStart:            bodyUStart + (bodyRowLength),
-			AuxFirstFrameStep: 1,
-		},
-		{
-			TilesetSrc:        armsTileset,
-			DStart:            0 + (bodyRowLength * 2),
-			RStart:            bodyRStart + (bodyRowLength * 2),
-			LStart:            bodyLStart + (bodyRowLength * 2),
-			UStart:            bodyUStart + (bodyRowLength * 2),
-			AuxFirstFrameStep: 1,
-		},
-		{
-			TilesetSrc:        armsTileset,
-			DStart:            0 + (bodyRowLength * 3),
-			RStart:            bodyRStart + (bodyRowLength * 3),
-			LStart:            bodyLStart + (bodyRowLength * 3),
-			UStart:            bodyUStart + (bodyRowLength * 3),
-			AuxFirstFrameStep: 1,
-		},
+		body.NewPartDef(body.PartDefParams{
+			Idle: &body.AnimationParams{
+				TilesetSrc: armsTileset,
+				TilesDown:  []int{146},
+				TilesRight: []int{165},
+				TilesLeft:  []int{183},
+				TilesUp:    []int{201},
+			},
+			Walk: &body.AnimationParams{
+				TilesetSrc: armsTileset,
+				TilesDown:  []int{150, 146, 152, 146},
+				TilesRight: []int{169, 165, 171, 165},
+				TilesLeft:  []int{187, 183, 189, 183},
+				TilesUp:    []int{205, 201, 207, 201},
+			},
+			Run: &body.AnimationParams{
+				TilesetSrc: armsTileset,
+				TilesDown:  []int{149, 150, 146, 151, 152, 146},
+				TilesRight: []int{168, 169, 165, 170, 171, 165},
+				TilesLeft:  []int{186, 187, 183, 188, 189, 183},
+				TilesUp:    []int{204, 205, 201, 206, 207, 201},
+			},
+			Slash: &body.AnimationParams{
+				TilesetSrc: armsTileset,
+				TilesDown:  []int{153, 154, 155, 155},
+				TilesRight: []int{172, 173, 174, 174},
+				TilesLeft:  []int{190, 191, 192, 192},
+				TilesUp:    []int{208, 207, 209, 209},
+			},
+			Backslash: &body.AnimationParams{
+				TilesetSrc: armsTileset,
+				TilesDown:  []int{155, 154, 153, 153},
+				TilesRight: []int{174, 173, 172, 172},
+				TilesLeft:  []int{192, 191, 190, 190},
+				TilesUp:    []int{209, 207, 208, 208},
+			},
+			Shield: &body.AnimationParams{
+				TilesetSrc: armsTileset,
+				TilesDown:  []int{157},
+				TilesRight: []int{175},
+				TilesLeft:  []int{193},
+				TilesUp:    []int{204},
+			},
+		}),
 	}
 
 	eyesOptions := []body.SelectedPartDef{}
 	for i := range 14 {
-		eyesOptions = append(eyesOptions, body.SelectedPartDef{
+		numCols := 32 // number of colums in the tileset
+		animParams := body.AnimationParams{
 			TilesetSrc: eyesTileset,
-			DStart:     i * 32,
-			RStart:     (i * 32) + 1,
-			FlipRForL:  true,
-		})
+			TilesDown:  []int{numCols * i},
+			TilesRight: []int{1 + (numCols * i)},
+		}
+		eyesOptions = append(eyesOptions, body.NewPartDef(body.PartDefParams{
+			FlipRForL: true,
+			Idle:      &animParams,
+			Walk:      &animParams,
+			Run:       &animParams,
+			Slash:     &animParams,
+			Backslash: &animParams,
+			Shield:    &animParams,
+		}))
 	}
 	hairOptions := []body.SelectedPartDef{}
 	for i := range 7 {
-		hairOptions = append(hairOptions, body.SelectedPartDef{
+		numCols := 32
+		animParams := body.AnimationParams{
 			TilesetSrc: hairTileset,
-			DStart:     i * 32,
-			RStart:     (i * 32) + 1,
-			LStart:     (i * 32) + 2,
-			UStart:     (i * 32) + 3,
-		})
+			TilesDown:  []int{numCols * i},
+			TilesRight: []int{(numCols * i) + 1},
+			TilesLeft:  []int{(numCols * i) + 2},
+			TilesUp:    []int{(numCols * i) + 3},
+		}
+		hairOptions = append(hairOptions, body.NewPartDef(body.PartDefParams{
+			Idle:      &animParams,
+			Walk:      &animParams,
+			Run:       &animParams,
+			Slash:     &animParams,
+			Backslash: &animParams,
+			Shield:    &animParams,
+		}))
 	}
 
 	var characterData entity.CharacterData
@@ -396,15 +431,18 @@ func characterBuilder(fileToLoad string) {
 		DropDownBoxOrigin:     128,
 	}, &g.popupMgr)
 
-	g.bodyCtl = stepper.NewStepper(stepper.StepperParams{
-		MinVal:               0,
-		MaxVal:               len(bodyOptions) - 1,
-		Font:                 config.DefaultTitleFont,
-		FontFg:               color.White,
-		FontBg:               color.Black,
-		DecrementButtonImage: turnLeftImg,
-		IncrementButtonImage: turnRightImg,
-	})
+	if len(bodyOptions) > 1 {
+		g.bodyCtl = stepper.NewStepper(stepper.StepperParams{
+			MinVal:               0,
+			MaxVal:               len(bodyOptions) - 1,
+			Font:                 config.DefaultTitleFont,
+			FontFg:               color.White,
+			FontBg:               color.Black,
+			DecrementButtonImage: turnLeftImg,
+			IncrementButtonImage: turnRightImg,
+		})
+	}
+
 	g.hairCtl = stepper.NewStepper(stepper.StepperParams{
 		MinVal:               0,
 		MaxVal:               len(hairOptions) - 1,
@@ -514,60 +552,14 @@ func characterBuilder(fileToLoad string) {
 }
 
 func getNewCharacter() entity.CharacterData {
-	walkTileSteps := []int{0, 3, 0, 5}
-	runTileSteps := []int{0, 2, 3, 0, 4, 5}
-	slashTileSteps := []int{0, 6, 7, 8, 9}
-	backslashTileSteps := []int{9, 10, 11, 12}
-	shieldTileSteps := []int{13}
-	weaponWalkTileSteps := []int{0, 2, 0, 4}
-	weaponRunTileSteps := []int{0, 1, 2, 0, 3, 4}
-	weaponSlashTileSteps := []int{0, 5, 6, 7, 8}
-	weaponBackslashTileSteps := []int{8, 9, 10, 11}
-	weaponShieldTileSteps := []int{12}
-
 	bodySet := body.NewBodyPartSet(body.BodyPartSetParams{
 		Name:   "bodySet",
 		IsBody: true,
 		HasUp:  true,
-		WalkParams: body.AnimationParams{
-			TileSteps:    walkTileSteps,
-			StepsOffsetY: []int{0, 1, 0, 1},
-		},
-		RunParams: body.AnimationParams{
-			TileSteps:    runTileSteps,
-			StepsOffsetY: []int{0, 0, 1, 0, 0, 1},
-		},
-		SlashParams: body.AnimationParams{
-			TileSteps:    slashTileSteps,
-			StepsOffsetY: []int{0, 1, 2, 2, 2},
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps:    backslashTileSteps,
-			StepsOffsetY: []int{2, 2, 1, 1},
-		},
-		ShieldParams: body.AnimationParams{
-			TileSteps:    shieldTileSteps,
-			StepsOffsetY: []int{1},
-		},
 	})
 	armsSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		Name:  "armsSet",
 		HasUp: true,
-		WalkParams: body.AnimationParams{
-			TileSteps: walkTileSteps,
-		},
-		RunParams: body.AnimationParams{
-			TileSteps: runTileSteps,
-		},
-		SlashParams: body.AnimationParams{
-			TileSteps: slashTileSteps,
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps: backslashTileSteps,
-		},
-		ShieldParams: body.AnimationParams{
-			TileSteps: shieldTileSteps,
-		},
 	})
 	eyesSet := body.NewBodyPartSet(body.BodyPartSetParams{Name: "eyesSet"})
 	hairSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true, Name: "hairSet"})
@@ -575,21 +567,6 @@ func getNewCharacter() entity.CharacterData {
 		Name:        "equipBodySet",
 		HasUp:       true,
 		IsRemovable: true,
-		WalkParams: body.AnimationParams{
-			TileSteps: walkTileSteps,
-		},
-		RunParams: body.AnimationParams{
-			TileSteps: runTileSteps,
-		},
-		SlashParams: body.AnimationParams{
-			TileSteps: slashTileSteps,
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps: backslashTileSteps,
-		},
-		ShieldParams: body.AnimationParams{
-			TileSteps: shieldTileSteps,
-		},
 	})
 	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		HasUp:       true,
@@ -600,55 +577,16 @@ func getNewCharacter() entity.CharacterData {
 		Name:        "weaponSet",
 		HasUp:       true,
 		IsRemovable: true,
-		WalkParams: body.AnimationParams{
-			TileSteps: weaponWalkTileSteps,
-		},
-		RunParams: body.AnimationParams{
-			TileSteps: weaponRunTileSteps,
-		},
-		SlashParams: body.AnimationParams{
-			TileSteps: weaponSlashTileSteps,
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps: weaponBackslashTileSteps,
-		},
-		ShieldParams: body.AnimationParams{
-			TileSteps: weaponShieldTileSteps,
-		},
 	})
 	weaponFxSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		Name:        "weaponFxSet",
 		HasUp:       true,
 		IsRemovable: true,
-		WalkParams:  body.AnimationParams{Skip: true},
-		RunParams:   body.AnimationParams{Skip: true},
-		SlashParams: body.AnimationParams{
-			TileSteps: []int{-1, -1, 0, 1, 2}, // -1 = skip a frame (nil image)
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps: []int{-1, 3, 4, 5},
-		},
-		ShieldParams: body.AnimationParams{Skip: true},
 	})
 	auxSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		Name:        "auxSet",
 		HasUp:       true,
 		IsRemovable: true,
-		WalkParams: body.AnimationParams{
-			TileSteps: []int{0, 5, 0, 7},
-		},
-		RunParams: body.AnimationParams{
-			TileSteps: []int{0, 4, 5, 0, 6, 7},
-		},
-		SlashParams: body.AnimationParams{
-			TileSteps: []int{0, 8, 9, 10, 10},
-		},
-		BackslashParams: body.AnimationParams{
-			TileSteps: []int{11, 12, 13, 14},
-		},
-		ShieldParams: body.AnimationParams{
-			TileSteps: []int{15},
-		},
 	})
 
 	entBody := body.NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
@@ -729,7 +667,7 @@ func (bg *builderGame) SetHairIndex(i int) {
 }
 
 func (bg *builderGame) Draw(screen *ebiten.Image) {
-	var characterScale float64 = float64(bg.scaleSlider.GetValue())
+	characterScale := float64(bg.scaleSlider.GetValue())
 	characterTileSize := config.TileSize * characterScale
 
 	tileSize := int(config.TileSize * config.UIScale)
@@ -802,8 +740,10 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	// UI controls - Right side
 	ctlX := (display.SCREEN_WIDTH * 3 / 4) - 100
 	ctlY := 50
-	text.DrawShadowText(screen, "Body", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
-	bg.bodyCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
+	if len(bg.bodySetOptions) > 1 {
+		text.DrawShadowText(screen, "Body", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+		bg.bodyCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
+	}
 	ctlX += 170
 	text.DrawShadowText(screen, "Body Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 	ctlY += tileSize / 8
@@ -844,10 +784,13 @@ func (bg *builderGame) Update() error {
 		bg.characterData.Body.RotateRight()
 	}
 
-	bg.bodyCtl.Update()
-	if bg.bodyCtl.GetValue() != bg.bodySetIndex {
-		bg.SetBodyIndex(bg.bodyCtl.GetValue())
+	if len(bg.bodySetOptions) > 1 {
+		bg.bodyCtl.Update()
+		if bg.bodyCtl.GetValue() != bg.bodySetIndex {
+			bg.SetBodyIndex(bg.bodyCtl.GetValue())
+		}
 	}
+
 	bg.hairCtl.Update()
 	if bg.hairCtl.GetValue() != bg.hairSetIndex {
 		bg.SetHairIndex(bg.hairCtl.GetValue())
