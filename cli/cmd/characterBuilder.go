@@ -330,7 +330,7 @@ func characterBuilder(fileToLoad string) {
 	var characterData entity.CharacterData
 	if fileToLoad != "" {
 		var err error
-		fileToLoad = resolveCharacterJsonPath(fileToLoad)
+		fileToLoad = resolveCharacterJSONPath(fileToLoad)
 		characterData, err = entity.LoadCharacterDataJSON(fileToLoad, defMgr)
 		if err != nil {
 			logz.Panicln("Character Builder", "load character data:", err)
@@ -665,7 +665,7 @@ func (bg builderGame) saveCharacter() {
 		return
 	}
 
-	basePath := resolveCharacterJsonPath(id)
+	basePath := resolveCharacterJSONPath(id)
 
 	bg.characterData.ID = id
 	bg.characterData.DisplayName = name
@@ -676,7 +676,7 @@ func (bg builderGame) saveCharacter() {
 	}
 }
 
-func resolveCharacterJsonPath(id string) string {
+func resolveCharacterJSONPath(id string) string {
 	return fmt.Sprintf("/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/%s.json", id)
 }
 
@@ -938,8 +938,10 @@ func (bg *builderGame) handleChangeHeadwear(val string) {
 	bg.equipedHeadwear = val
 
 	if val == noneOp {
-		bg.characterData.EquipedHeadwear = nil
-		bg.characterData.Body.EquipHeadSet.Remove()
+		if bg.characterData.EquipedHeadwear == nil {
+			return
+		}
+		bg.characterData.UnequipHeadwear()
 		return
 	}
 	for _, i := range bg.headwearItems {
@@ -956,8 +958,10 @@ func (bg *builderGame) handleChangeBodywear(val string) {
 	bg.equipedBodywear = val
 
 	if val == noneOp {
-		bg.characterData.EquipedBodywear = nil
-		bg.characterData.Body.EquipBodySet.Remove()
+		if bg.characterData.EquipedBodywear == nil {
+			return
+		}
+		bg.characterData.UnequipBodywear()
 		return
 	}
 	for _, i := range bg.bodywearItems {
