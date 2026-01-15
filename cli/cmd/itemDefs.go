@@ -80,7 +80,7 @@ func GetItemDefs() []item.ItemDef {
 			Shield: &body.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{11}, offset),
-				TilesRight: offsetInts([]int{2929}, offset),
+				TilesRight: offsetInts([]int{29}, offset),
 				TilesLeft:  offsetInts([]int{47}, offset),
 				TilesUp:    offsetInts([]int{65}, offset),
 			},

@@ -222,6 +222,12 @@ func (m Map) GetAllTilePositions(gid int) []model.Coords {
 }
 
 func (t Tileset) GetTileImage(id int) (*ebiten.Image, error) {
+	if id < 0 {
+		return nil, fmt.Errorf("tile id (%v) is less than 0", id)
+	}
+	if id > t.TileCount {
+		return nil, fmt.Errorf("tile id (%v) is greater than the tileset's tile count (%v). are we getting a bad tile ID?", id, t.TileCount)
+	}
 	tileDir := config.ResolveTilePath(t.Name)
 	tileImg, _, err := ebitenutil.NewImageFromFile(filepath.Join(tileDir, fmt.Sprintf("%v.png", id)))
 	if err != nil {
