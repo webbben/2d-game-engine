@@ -67,10 +67,10 @@ type builderGame struct {
 
 	// body part options (characterBuilder only)
 
-	bodySetOptions, eyesSetOptions, hairSetOptions, armsSetOptions []body.SelectedPartDef
-	bodySetIndex, eyesSetIndex, hairSetIndex, armsSetIndex         int
-	bodywearItems, headwearItems                                   []item.ItemDef
-	equipedBodywear, equipedHeadwear, equipedWeapon, equipedAux    string // IDs of equiped items
+	bodySetOptions, eyesSetOptions, hairSetOptions, armsSetOptions, legsSetOptions []body.SelectedPartDef
+	bodySetIndex, eyesSetIndex, hairSetIndex, armsSetIndex                         int
+	bodywearItems, headwearItems                                                   []item.ItemDef
+	equipedBodywear, equipedHeadwear, equipedWeapon, equipedAux                    string // IDs of equiped items
 
 	weaponItems []item.ItemDef
 
@@ -159,7 +159,7 @@ func characterBuilder(fileToLoad string) {
 				TilesRight:   []int{94, 92, 94, 92},
 				TilesLeft:    []int{112, 110, 112, 110},
 				TilesUp:      []int{130, 128, 130, 128},
-				StepsOffsetY: []int{0, 1, 0, 1},
+				StepsOffsetY: []int{1, 0, 1, 0},
 			},
 			Run: &body.AnimationParams{
 				TilesetSrc:   bodyTileset,
@@ -167,7 +167,7 @@ func characterBuilder(fileToLoad string) {
 				TilesRight:   []int{93, 94, 92, 93, 94, 92},
 				TilesLeft:    []int{111, 112, 110, 111, 112, 110},
 				TilesUp:      []int{129, 130, 128, 129, 130, 128},
-				StepsOffsetY: []int{0, 0, 1, 0, 0, 1},
+				StepsOffsetY: []int{0, 1, 0, 0, 1, 0},
 			},
 			Slash: &body.AnimationParams{
 				TilesetSrc:   bodyTileset,
@@ -242,6 +242,52 @@ func characterBuilder(fileToLoad string) {
 			},
 		}),
 	}
+	legsOptions := []body.SelectedPartDef{
+		body.NewPartDef(body.PartDefParams{
+			Idle: &body.AnimationParams{
+				TilesetSrc: bodyTileset,
+				TilesDown:  []int{80},
+				TilesRight: []int{99},
+				TilesLeft:  []int{117},
+				TilesUp:    []int{135},
+			},
+			Walk: &body.AnimationParams{
+				TilesetSrc: bodyTileset,
+				TilesDown:  []int{84, 80, 86, 80},
+				TilesRight: []int{103, 99, 105, 99},
+				TilesLeft:  []int{121, 117, 123, 117},
+				TilesUp:    []int{139, 135, 141, 135},
+			},
+			Run: &body.AnimationParams{
+				TilesetSrc: bodyTileset,
+				TilesDown:  []int{83, 84, 80, 85, 86, 80},
+				TilesRight: []int{102, 103, 99, 104, 105, 99},
+				TilesLeft:  []int{120, 121, 117, 122, 123, 117},
+				TilesUp:    []int{138, 139, 135, 140, 141, 135},
+			},
+			Slash: &body.AnimationParams{
+				TilesetSrc: bodyTileset,
+				TilesDown:  []int{87, 87, 87, 87},
+				TilesRight: []int{103, 106, 106, 106},
+				TilesLeft:  []int{123, 124, 124, 124},
+				TilesUp:    []int{142, 142, 142, 142},
+			},
+			Backslash: &body.AnimationParams{
+				TilesetSrc: bodyTileset,
+				TilesDown:  []int{87, 87, 87, 87},
+				TilesRight: []int{106, 106, 103, 103},
+				TilesLeft:  []int{124, 124, 123, 123},
+				TilesUp:    []int{142, 142, 142, 142},
+			},
+			Shield: &body.AnimationParams{
+				TilesetSrc: bodyTileset,
+				TilesDown:  []int{87},
+				TilesRight: []int{106},
+				TilesLeft:  []int{124},
+				TilesUp:    []int{142},
+			},
+		}),
+	}
 
 	eyesOptions := []body.SelectedPartDef{}
 	for i := range 14 {
@@ -296,6 +342,7 @@ func characterBuilder(fileToLoad string) {
 	g := builderGame{
 		bodySetOptions: bodyOptions,
 		armsSetOptions: armsOptions,
+		legsSetOptions: legsOptions,
 		eyesSetOptions: eyesOptions,
 		hairSetOptions: hairOptions,
 		bodywearItems:  bodywearItems,
@@ -561,6 +608,10 @@ func getNewCharacter() entity.CharacterData {
 		Name:  "armsSet",
 		HasUp: true,
 	})
+	legsSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:  "legsSet",
+		HasUp: true,
+	})
 	eyesSet := body.NewBodyPartSet(body.BodyPartSetParams{Name: "eyesSet"})
 	hairSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true, Name: "hairSet"})
 	equipBodySet := body.NewBodyPartSet(body.BodyPartSetParams{
@@ -589,7 +640,7 @@ func getNewCharacter() entity.CharacterData {
 		IsRemovable: true,
 	})
 
-	entBody := body.NewEntityBodySet(bodySet, armsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
+	entBody := body.NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
 
 	// Setting these various fields just to prevent validation errors (e.g. WalkSpeed). But, these values are eventually overwritten
 	// when used in the actual game.
@@ -645,7 +696,9 @@ func (bg *builderGame) SetBodyIndex(i int) {
 	bg.armsSetIndex = i
 	armDef := bg.armsSetOptions[i]
 
-	bg.characterData.Body.SetBody(bodyDef, armDef)
+	legDef := bg.legsSetOptions[i]
+
+	bg.characterData.Body.SetBody(bodyDef, armDef, legDef)
 }
 
 func (bg *builderGame) SetEyesIndex(i int) {
