@@ -25,11 +25,11 @@ func GetItemDefs() []item.ItemDef {
 	weaponFxTileset := "items/weapon_fx_frames.tsj"
 	auxTileset := "items/equiped_aux.tsj"
 
-	equipBodyOptions := []body.SelectedPartDef{}
+	equipBodyOptions := []equipBodyOption{}
 	for i := range 2 {
 		// first equipment item starts at row 5; each item's first row is the body equipment, second row is legs equipment.
 		offset := 73 * ((i * 2) + 4)
-		def := body.NewPartDef(body.PartDefParams{
+		bodyDef := body.NewPartDef(body.PartDefParams{
 			Idle: &body.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesLeft:  offsetInts([]int{37}, offset),
@@ -85,7 +85,58 @@ func GetItemDefs() []item.ItemDef {
 				TilesUp:    offsetInts([]int{65}, offset),
 			},
 		})
-		equipBodyOptions = append(equipBodyOptions, def)
+
+		offset = 73 * ((i * 2) + 5)
+
+		legsDef := body.NewPartDef(body.PartDefParams{
+			Idle: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesDown:  offsetInts([]int{0}, offset),
+				TilesRight: offsetInts([]int{19}, offset),
+				TilesLeft:  offsetInts([]int{37}, offset),
+				TilesUp:    offsetInts([]int{55}, offset),
+			},
+			Walk: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesDown:  offsetInts([]int{4, 0, 6, 0}, offset),
+				TilesRight: offsetInts([]int{23, 19, 25, 19}, offset),
+				TilesLeft:  offsetInts([]int{41, 37, 43, 37}, offset),
+				TilesUp:    offsetInts([]int{59, 55, 61, 55}, offset),
+			},
+			Run: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesDown:  offsetInts([]int{3, 4, 0, 5, 6, 0}, offset),
+				TilesRight: offsetInts([]int{22, 23, 19, 24, 25, 19}, offset),
+				TilesLeft:  offsetInts([]int{40, 41, 37, 42, 43, 37}, offset),
+				TilesUp:    offsetInts([]int{58, 59, 55, 60, 61, 55}, offset),
+			},
+			Slash: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesDown:  offsetInts([]int{7, 7, 7, 7}, offset),
+				TilesRight: offsetInts([]int{23, 26, 26, 26}, offset),
+				TilesLeft:  offsetInts([]int{43, 44, 44, 44}, offset),
+				TilesUp:    offsetInts([]int{62, 62, 62, 62}, offset),
+			},
+			Backslash: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesDown:  offsetInts([]int{7, 7, 7, 7}, offset),
+				TilesRight: offsetInts([]int{26, 26, 23, 23}, offset),
+				TilesLeft:  offsetInts([]int{44, 44, 43, 43}, offset),
+				TilesUp:    offsetInts([]int{62, 62, 62, 62}, offset),
+			},
+			Shield: &body.AnimationParams{
+				TilesetSrc: equipBodyTileset,
+				TilesDown:  offsetInts([]int{7}, offset),
+				TilesRight: offsetInts([]int{26}, offset),
+				TilesLeft:  offsetInts([]int{44}, offset),
+				TilesUp:    offsetInts([]int{62}, offset),
+			},
+		})
+		defs := equipBodyOption{
+			bodyDef: bodyDef,
+			legsDef: legsDef,
+		}
+		equipBodyOptions = append(equipBodyOptions, defs)
 	}
 
 	equipHeadOptions := []body.SelectedPartDef{}
@@ -369,7 +420,8 @@ func GetItemDefs() []item.ItemDef {
 				TileImgTilesetSrc: "items/items_01.tsj",
 				TileImgIndex:      33,
 				Type:              item.TypeBodywear,
-				BodyPartDef:       &equipBodyOptions[0],
+				BodyPartDef:       &equipBodyOptions[0].bodyDef,
+				LegsPartDef:       &equipBodyOptions[0].legsDef,
 			}),
 			Protection: 18,
 		},
@@ -420,7 +472,8 @@ func GetItemDefs() []item.ItemDef {
 			TileImgTilesetSrc: "items/items_01.tsj",
 			TileImgIndex:      192,
 			Type:              item.TypeBodywear,
-			BodyPartDef:       &equipBodyOptions[0],
+			BodyPartDef:       &equipBodyOptions[0].bodyDef,
+			LegsPartDef:       &equipBodyOptions[0].legsDef,
 		}),
 		item.NewItemBase(item.ItemBaseParams{
 			ID:                "laurel_wreath",

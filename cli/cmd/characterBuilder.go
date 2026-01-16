@@ -114,6 +114,11 @@ type weaponOption struct {
 	weaponFxDef   body.SelectedPartDef
 }
 
+type equipBodyOption struct {
+	bodyDef body.SelectedPartDef
+	legsDef body.SelectedPartDef
+}
+
 func characterBuilder(fileToLoad string) {
 	bodyTileset := "entities/parts/human_entity_parts.tsj"
 	armsTileset := "entities/parts/human_entity_parts.tsj"
@@ -619,6 +624,11 @@ func getNewCharacter() entity.CharacterData {
 		HasUp:       true,
 		IsRemovable: true,
 	})
+	equipLegsSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		Name:        "equipLegsSet",
+		HasUp:       true,
+		IsRemovable: true,
+	})
 	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		HasUp:       true,
 		Name:        "equipHeadSet",
@@ -640,7 +650,7 @@ func getNewCharacter() entity.CharacterData {
 		IsRemovable: true,
 	})
 
-	entBody := body.NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
+	entBody := body.NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, equipLegsSet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
 
 	// Setting these various fields just to prevent validation errors (e.g. WalkSpeed). But, these values are eventually overwritten
 	// when used in the actual game.

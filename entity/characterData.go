@@ -185,11 +185,15 @@ func (cd *CharacterData) EquipItem(i item.InventoryItem) (success bool) {
 			}
 		}
 		cd.EquipedBodywear = &i
-		part := i.Def.GetBodyPartDef()
-		if part == nil {
+		bodyPart := i.Def.GetBodyPartDef()
+		if bodyPart == nil {
 			logz.Panicln(cd.DisplayName, "tried to equip an item with no part def:", i.Def.GetID())
 		}
-		cd.Body.SetEquipBody(*part)
+		legsPart := i.Def.GetLegsPartDef()
+		if legsPart == nil {
+			logz.Panicln(cd.DisplayName, "tried to equip bodywear with no legs part:", i.Def.GetID())
+		}
+		cd.Body.SetEquipBody(*bodyPart, *legsPart)
 	case item.TypeWeapon:
 		// weapons don't have an "equiped slot", so as of now there is no swapping to do here
 		part, fxPart := item.GetWeaponParts(i.Def)
@@ -235,6 +239,7 @@ func (cd *CharacterData) UnequipBodywear() {
 
 	cd.EquipedBodywear = nil
 	cd.Body.EquipBodySet.Remove()
+	cd.Body.EquipLegsSet.Remove()
 	cd.Body.ReloadArms()
 }
 
