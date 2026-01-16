@@ -190,6 +190,16 @@ func (cd CharacterData) Validate() {
 	}
 	validateEquipment(cd.EquipedHeadwear, cd.Body.EquipHeadSet)
 	validateEquipment(cd.EquipedBodywear, cd.Body.EquipBodySet)
+	// the validation function checks the bodyPartDef, but for legs we want to check the LegsPartDef... so just handle it here separately
+	if cd.EquipedBodywear != nil {
+		equipedLegsPart := cd.EquipedBodywear.Def.GetLegsPartDef()
+		if equipedLegsPart == nil {
+			logz.Panicln(cd.DisplayName, "bodywear set, but equiped legs part seems to be nil")
+		}
+		if !equipedLegsPart.IsEqual(cd.Body.EquipLegsSet.PartSrc) {
+			logz.Panicln(cd.DisplayName, "equiped legs dont appear to match actual item legs equipment")
+		}
+	}
 	validateEquipment(cd.EquipedAuxiliary, cd.Body.AuxItemSet)
 }
 

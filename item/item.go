@@ -1,7 +1,7 @@
+// Package item defines the item concept, basic item types, and an interface for flexibly creating new item types.
 package item
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -21,7 +21,8 @@ type ItemDef interface {
 	GetTileImg() *ebiten.Image        // gets the "tile image", i.e. the image used in places like the inventory slots
 	GetEquipedTiles() []*ebiten.Image // gets the tiles for the equiped view of this item (if equipable)
 
-	GetBodyPartDef() *body.SelectedPartDef
+	GetBodyPartDef() *body.SelectedPartDef // gets the body part set for wearing when this item is equiped, if it exists. Only exists for visible equipable items.
+	GetLegsPartDef() *body.SelectedPartDef // gets a legs body part set, if it exists (should only exist for bodywear items)
 
 	// if true, item can be grouped together with other same items in inventories
 	// this tends to be true for items that don't have durability, like potions or arrows, but not for weapons and armor.
@@ -74,7 +75,7 @@ const (
 	TypeCurrency   ItemType = "CURRENCY"
 )
 
-// includes the basic functions required for an item to implement the ItemDef interface.
+// ItemBase includes the basic functions required for an item to implement the ItemDef interface.
 // embed into a struct to make it effectively an item type.
 type ItemBase struct {
 	init          bool // flag to indicate if item has been loaded yet
@@ -93,7 +94,15 @@ type ItemBase struct {
 	OriginIndexEquipedTiles int // index of origin where equiped tiles are in tileset
 	EquipedTiles            []*ebiten.Image
 
+	// wearable item properties
+
 	BodyPartDef *body.SelectedPartDef // made it a pointer so it can be nil-able
+	LegsPartDef *body.SelectedPartDef // bodywear has a legs component that moves separately from the body component
+}
+
+// panic is a helper for quickly throwing a panic based on this item, and giving helpful contextual info at the same time.
+func (ib ItemBase) panic(s string) {
+	logz.Panicf("[%s/%s] %s", ib.Name, ib.ID, s)
 }
 
 type ItemBaseParams struct {
@@ -105,6 +114,7 @@ type ItemBaseParams struct {
 	TileImgIndex          int
 	Groupable             bool
 	BodyPartDef           *body.SelectedPartDef
+	LegsPartDef           *body.SelectedPartDef
 }
 
 func NewItemBase(params ItemBaseParams) *ItemBase {
@@ -120,6 +130,7 @@ func NewItemBase(params ItemBaseParams) *ItemBase {
 		TileImgIndex:      params.TileImgIndex,
 		Groupable:         params.Groupable,
 		BodyPartDef:       params.BodyPartDef,
+		LegsPartDef:       params.LegsPartDef,
 	}
 
 	ib.Validate()
@@ -127,7 +138,6 @@ func NewItemBase(params ItemBaseParams) *ItemBase {
 }
 
 func (ib ItemBase) Validate() {
-	name := fmt.Sprintf("%s / %s", ib.Name, ib.ID)
 	if ib.Name == "" {
 		panic("item has no name")
 	}
@@ -135,26 +145,41 @@ func (ib ItemBase) Validate() {
 		logz.Panicf("[%s] item has no ID", ib.Name)
 	}
 	if ib.Value < 0 {
-		logz.Panicf("[%s] %s", name, "value < 0")
+		ib.panic("value is less than 0")
 	}
 	if ib.Description == "" {
-		logz.Panicf("[%s] %s", name, "item has no description")
+		ib.panic("item has no description")
 	}
 	if ib.TileImgTilesetSrc == "" {
-		logz.Panicf("[%s] %s", name, "item has no tileset source for tile image")
+		ib.panic("item has no tileset source for tile image")
 	}
 	if ib.MaxDurability != 0 && ib.Groupable {
-		logz.Panicf("[%s] %s", name, "items with durability cannot be groupable")
+		ib.panic("items with durability cannot be groupable")
 	}
 	if ib.Type == "" {
-		panic("type is empty!")
+		ib.panic("item has no type")
 	}
 	if ib.Type == TypeBodywear || ib.Type == TypeHeadwear || ib.Type == TypeFootwear || ib.Type == TypeAuxiliary || ib.Type == TypeWeapon {
 		if ib.BodyPartDef == nil {
-			panic("item is a visible equipable item, but no bodyPartDef is set")
+			ib.panic("item is a visible equipable item, but no bodyPartDef is set")
 		}
 	} else if ib.BodyPartDef != nil {
-		panic("item is not a visible equipable item, but it has a defined bodyPartDef")
+		ib.panic("item is not a visible equipable item, but it has a defined bodyPartDef")
+	}
+	if ib.IsBodywear() {
+		if ib.BodyPartDef == nil {
+			ib.panic("bodywear must have a body part def")
+		}
+		if ib.LegsPartDef == nil {
+			ib.panic("bodywear must have a legs part")
+		}
+	} else if ib.IsHeadwear() {
+		if ib.BodyPartDef == nil {
+			ib.panic("headwear must have a body part def")
+		}
+		if ib.LegsPartDef != nil {
+			ib.panic("headwear must NOT have a legs component. that is only for bodywear.")
+		}
 	}
 }
 
@@ -252,9 +277,13 @@ func (ib ItemBase) GetItemType() ItemType {
 }
 
 // GetBodyPartDef gets the body part def for equiping this item visibly on the body.
-// panics if the item is not equipable.
 func (ib ItemBase) GetBodyPartDef() *body.SelectedPartDef {
 	return ib.BodyPartDef
+}
+
+// GetLegsPartDef gets the legs part def for equiping this (bodywear) item. Should only exist for bodywear items.
+func (ib ItemBase) GetLegsPartDef() *body.SelectedPartDef {
+	return ib.LegsPartDef
 }
 
 func (ib *ItemBase) Load() {
