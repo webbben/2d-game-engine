@@ -20,7 +20,7 @@ func TilesetExists(tilesetName string) bool {
 	return config.FileExists(config.ResolveTilePath(tilesetName))
 }
 
-// load the tileset data from it's JSON file. The JSON file path should be defined in the Tileset already, at t.Source (this is how the data is saved in Tiled maps).
+// LoadJSONData loads the tileset data from it's JSON file. The JSON file path should be defined in the Tileset already, at t.Source (this is how the data is saved in Tiled maps).
 // If loading the tileset from a map file, pass the absolute path of the map file.  This is because t.Source specifies a relative path to the source image.
 // So, we need to be able to construct the absolute path to that file.
 func (t *Tileset) LoadJSONData(mapAbsPath string) error {
@@ -105,7 +105,7 @@ func (tileset *Tileset) GenerateTiles() error {
 	if err != nil {
 		return fmt.Errorf("failed to open tileset source image: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	img, _, err := image.Decode(f)
 	if err != nil {
@@ -119,7 +119,7 @@ func (tileset *Tileset) GenerateTiles() error {
 
 	// delete the directory and its contents if it already exists
 	if config.FileExists(tilesetDir) {
-		os.RemoveAll(tilesetDir)
+		_ = os.RemoveAll(tilesetDir)
 	}
 
 	err = os.MkdirAll(tilesetDir, os.ModePerm)
@@ -152,10 +152,10 @@ func (tileset *Tileset) GenerateTiles() error {
 				return fmt.Errorf("failed to create tile image: %w", err)
 			}
 			if err := png.Encode(outFile, tileImg); err != nil {
-				outFile.Close()
+				_ = outFile.Close()
 				return fmt.Errorf("error while encoding tile image: %w", err)
 			}
-			outFile.Close()
+			_ = outFile.Close()
 
 			tileIndex++
 		}
@@ -165,7 +165,7 @@ func (tileset *Tileset) GenerateTiles() error {
 	return nil
 }
 
-// Gets Tile from Tileset, by GID.
+// GetTileByGID Gets Tile from Tileset, by GID.
 //
 // This is for Tile properties, animations, etc, NOT for the tile image. Not all tiles will have a Tile.
 // Returns the Tile if found, and a boolean indicating if the tile was successfully found
@@ -174,9 +174,9 @@ func (m Map) GetTileByGID(gid int) (Tile, Tileset, bool) {
 		if !tileset.Loaded {
 			panic("tried to get tile from tileset before tileset was loaded!")
 		}
-		localTileId := gid - tileset.FirstGID
+		localTileID := gid - tileset.FirstGID
 		for _, tile := range tileset.Tiles {
-			if tile.ID == localTileId {
+			if tile.ID == localTileID {
 				return tile, tileset, true
 			}
 		}
@@ -184,7 +184,7 @@ func (m Map) GetTileByGID(gid int) (Tile, Tileset, bool) {
 	return Tile{}, Tileset{}, false
 }
 
-// tries to find a tileset that has the correct ID range for the given GID
+// FindTilesetForGID tries to find a tileset that has the correct ID range for the given GID
 func (m Map) FindTilesetForGID(gid int) (Tileset, bool) {
 	for _, tileset := range m.Tilesets {
 		if !tileset.Loaded {
@@ -198,12 +198,12 @@ func (m Map) FindTilesetForGID(gid int) (Tileset, bool) {
 	return Tileset{}, false
 }
 
-// given a gid for a tile, returns the coordinates for all places that this tile is placed in a map (in any tile layer).
+// GetAllTilePositions given a gid for a tile, returns the coordinates for all places that this tile is placed in a map (in any tile layer).
 // used for positioning things like lights which are embedded in certain tiles
 func (m Map) GetAllTilePositions(gid int) []model.Coords {
 	coords := []model.Coords{}
 	for _, layer := range m.Layers {
-		if layer.Type != LAYER_TYPE_TILE {
+		if layer.Type != LayerTypeTile {
 			continue
 		}
 		for i, dataGID := range layer.Data {

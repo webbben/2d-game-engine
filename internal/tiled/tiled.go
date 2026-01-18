@@ -1,11 +1,15 @@
+// Package tiled defines the Tiled JSON schemas/structs and functions for interacting with Tiled maps, tilesets, etc.
 package tiled
 
 import (
 	"encoding/json"
+	"image"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/internal/logz"
 )
 
 // Map represents the root map structure from Tiled
@@ -62,7 +66,7 @@ type TileData struct {
 	ID           int // the (non-global) ID of this tile - just the index starting from the top
 }
 
-// handles getting the frame to use when rendering (handles animations, etc)
+// UpdateFrame handles getting the frame to use when rendering (handles animations, etc)
 func (td *TileData) UpdateFrame() {
 	// if there is an animation, check if we need to change the frame
 	if len(td.Frames) == 0 {
@@ -88,10 +92,10 @@ type MapMeta struct {
 }
 
 const (
-	LAYER_TYPE_TILE   = "tilelayer"
-	LAYER_TYPE_OBJECT = "objectgroup"
-	LAYER_TYPE_IMAGE  = "imagelayer"
-	LAYER_TYPE_GROUP  = "group"
+	LayerTypeTile   = "tilelayer"
+	LayerTypeObject = "objectgroup"
+	LayerTypeImage  = "imagelayer"
+	LayerTypeGroup  = "group"
 )
 
 // Layer represents a layer in the map
@@ -181,7 +185,9 @@ type Text struct {
 	VAlign     string `json:"valign,omitempty"` // top, center, bottom
 }
 
-// Tileset represents a tileset reference
+// Tileset represents a tileset reference.
+// WARNING: if source image is resized, JSON fields may not be updated.
+// In that case, you need to resave the .tsj file again.
 type Tileset struct {
 	// Values loaded from a Map JSON file
 	FirstGID int    `json:"firstgid"`
@@ -192,11 +198,11 @@ type Tileset struct {
 	Name        string      `json:"name,omitempty"`
 	TileWidth   int         `json:"tilewidth,omitempty"`
 	TileHeight  int         `json:"tileheight,omitempty"`
-	TileCount   int         `json:"tilecount,omitempty"`
-	Columns     int         `json:"columns,omitempty"`
+	TileCount   int         `json:"tilecount,omitempty"` // FYI: if tileset src image is resized, this may be incorrect
+	Columns     int         `json:"columns,omitempty"`   // FYI: if tileset src image is resized, this may be incorrect
 	Image       string      `json:"image,omitempty"`
-	ImageWidth  int         `json:"imagewidth,omitempty"`
-	ImageHeight int         `json:"imageheight,omitempty"`
+	ImageWidth  int         `json:"imagewidth,omitempty"`  // FYI: if tileset src image is resized, this may be incorrect
+	ImageHeight int         `json:"imageheight,omitempty"` // FYI: if tileset src image is resized, this may be incorrect
 	Margin      int         `json:"margin,omitempty"`
 	Spacing     int         `json:"spacing,omitempty"`
 	Properties  []Property  `json:"properties,omitempty"`
@@ -230,6 +236,24 @@ func (t Tileset) validate() {
 	}
 	if filepath.Ext(t.Source) != ".tsj" {
 		panic("tileset source is missing .tsj extension: " + t.Source)
+	}
+
+	// sometimes a tileset's tsj file may have outdated values for fields like columns, tilecount, imagewidth, etc if the source image was changed.
+	// so, check here to ensure that we always notice and fix those issues.
+	f, err := os.Open(t.Image)
+	if err != nil {
+		logz.Panicln("failed to open source image for validation checks:", err)
+	}
+	defer func() { _ = f.Close() }()
+	config, _, err := image.DecodeConfig(f)
+	if err != nil {
+		logz.Panicln("failed to get image config:", err)
+	}
+	if t.ImageWidth != config.Width {
+		logz.Panicf("[%s] image width in tsj (%v) does not appear to match actual source image width (%v)", t.Name, t.ImageWidth, config.Width)
+	}
+	if t.ImageHeight != config.Height {
+		logz.Panicf("[%s] image height in tsj (%v) does not appear to match actual source image height (%v)", t.Name, t.ImageHeight, config.Height)
 	}
 }
 
@@ -269,10 +293,10 @@ type Grid struct {
 
 // Property represents a custom property
 type Property struct {
-	Name         string      `json:"name"`
-	Type         string      `json:"type,omitempty"` // string, int, float, bool, color, file, object, class
-	Value        interface{} `json:"value"`
-	PropertyType string      `json:"propertytype,omitempty"` // For object/class types
+	Name         string `json:"name"`
+	Type         string `json:"type,omitempty"` // string, int, float, bool, color, file, object, class
+	Value        any    `json:"value"`
+	PropertyType string `json:"propertytype,omitempty"` // For object/class types
 }
 
 // UnmarshalJSON handles the flexible property value types

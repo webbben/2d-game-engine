@@ -221,23 +221,42 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 	// For now, we assume all directions of an animation have the same length. if this changes, we need to redo this logic
 	switch animationName {
 	case AnimWalk:
+		// this body part skips this animation
+		if set.WalkAnimation.Skip {
+			return
+		}
 		numSteps = len(set.WalkAnimation.L)
 	case AnimRun:
+		if set.RunAnimation.Skip {
+			return
+		}
 		numSteps = len(set.RunAnimation.L)
 	case AnimSlash:
+		if set.SlashAnimation.Skip {
+			return
+		}
 		numSteps = len(set.SlashAnimation.L)
 	case AnimBackslash:
+		if set.BackslashAnimation.Skip {
+			return
+		}
 		numSteps = len(set.BackslashAnimation.L)
 	case AnimIdle:
+		if set.IdleAnimation.Skip {
+			return
+		}
 		numSteps = len(set.IdleAnimation.L)
 	case AnimShield:
+		if set.ShieldAnimation.Skip {
+			return
+		}
 		numSteps = len(set.ShieldAnimation.L)
 	default:
 		logz.Panicln(set.Name, "nextFrame: animation name has no registered animation sequence:", animationName)
 	}
 
 	if numSteps == 0 {
-		logz.Panicln(set.Name, "numSteps is somehow 0")
+		logz.Panicln(set.Name, "anim: ", animationName, "num steps is somehow 0")
 		// set.animIndex = 0
 		// set.reachedLastFrame = true
 	}
