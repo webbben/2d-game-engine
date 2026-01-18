@@ -123,7 +123,7 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 
 	// find all objects in the map
 	for _, layer := range m.Layers {
-		if layer.Type == tiled.LAYER_TYPE_OBJECT {
+		if layer.Type == tiled.LayerTypeObject {
 			for _, obj := range layer.Objects {
 				g.MapInfo.AddObjectToMap(obj, m)
 			}

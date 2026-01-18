@@ -178,7 +178,7 @@ func (m Map) DrawGroundLayers(screen *ebiten.Image, offsetX float64, offsetY flo
 	// draw all tile layers except:
 	// - the BUILDING_ROOF layer: parts of buildings that the player can walk behind
 	for _, layer := range m.Layers {
-		if layer.Type != LAYER_TYPE_TILE {
+		if layer.Type != LayerTypeTile {
 			continue
 		}
 		if layer.Name == "BUILDING_ROOF" {
