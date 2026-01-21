@@ -71,15 +71,15 @@ func (eb EntityBodySet) GetDebugString() string {
 	s := fmt.Sprintf("ANIM: %s DIR: %s (next: %s, stopOnComp: %v)\n", eb.animation, string(eb.currentDirection), eb.nextAnimation, eb.stopAnimationOnCompletion)
 	s += fmt.Sprintf("ticks: %v tickCount: %v globalOffY: %v nonBodyOffY: %v cropHair: %v\n", eb.ticks, eb.animationTickCount, eb.globalOffsetY, eb.nonBodyYOffset, eb.shouldCropHair())
 	// get a single line status for each bodypart
-	s += eb.BodySet.animationDebugString(eb.currentDirection) + "\n"
-	s += eb.ArmsSet.animationDebugString(eb.currentDirection) + "\n"
-	s += eb.LegsSet.animationDebugString(eb.currentDirection) + "\n"
-	s += eb.EyesSet.animationDebugString(eb.currentDirection) + "\n"
-	s += eb.HairSet.animationDebugString(eb.currentDirection) + "\n"
-	s += eb.EquipBodySet.animationDebugString(eb.currentDirection) + "\n"
-	s += eb.EquipLegsSet.animationDebugString(eb.currentDirection) + "\n"
-	s += eb.EquipHeadSet.animationDebugString(eb.currentDirection) + "\n"
-	s += eb.WeaponSet.animationDebugString(eb.currentDirection) + "\n"
+	s += eb.BodySet.animationDebugString() + "\n"
+	s += eb.ArmsSet.animationDebugString() + "\n"
+	s += eb.LegsSet.animationDebugString() + "\n"
+	s += eb.EyesSet.animationDebugString() + "\n"
+	s += eb.HairSet.animationDebugString() + "\n"
+	s += eb.EquipBodySet.animationDebugString() + "\n"
+	s += eb.EquipLegsSet.animationDebugString() + "\n"
+	s += eb.EquipHeadSet.animationDebugString() + "\n"
+	s += eb.WeaponSet.animationDebugString() + "\n"
 	return s
 }
 
@@ -725,6 +725,8 @@ func (eb *EntityBodySet) animationFinished() bool {
 		if !eb.WeaponSet.reachedLastFrame {
 			return false
 		}
+	}
+	if !eb.WeaponFxSet.PartSrc.None {
 		if !eb.WeaponFxSet.reachedLastFrame {
 			return false
 		}
@@ -828,7 +830,7 @@ func (eb *EntityBodySet) Update() {
 	eb.validate()
 	// Warning: Keep this immediately after the above setCurrentFrame calls! This must be set based on whatever image is actually showing.
 	// (there was a bug where the body appeared out of place for a single update tick, and the cause was this being after resetCurrentAnimation below)
-	eb.nonBodyYOffset = eb.BodySet.getCurrentYOffset(eb.animation)
+	eb.nonBodyYOffset = eb.BodySet.getCurrentYOffset(eb.animation, eb.currentDirection)
 
 	// detect end of animation
 	if eb.animationFinished() {
@@ -843,9 +845,9 @@ func (eb *EntityBodySet) Update() {
 }
 
 type SetAnimationOps struct {
-	Force     bool
-	QueueNext bool
-	DoOnce    bool
+	Force     bool // if the body is not idle (already doing another animation) use this option to forcibly override the existing animation
+	QueueNext bool // if the body is not idle, use this option to queue the animation to run when the current one is finished
+	DoOnce    bool // use this option to specifically only do one iteration of the animation (ex: for sword slashes)
 }
 
 type SetAnimationResult struct {
@@ -865,6 +867,7 @@ func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) Set
 	if animation == eb.animation {
 		return SetAnimationResult{AlreadySet: true}
 	}
+	// if we aren't currently idle and not using the force option, then consider if it should be queued
 	if eb.animation != AnimIdle && !ops.Force {
 		if ops.QueueNext && eb.nextAnimation == "" {
 			eb.nextAnimation = animation

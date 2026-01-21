@@ -62,11 +62,11 @@ func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
 	return bps
 }
 
-func (bps BodyPartSet) animationDebugString(dir byte) string {
+func (bps BodyPartSet) animationDebugString() string {
 	if bps.PartSrc.None {
 		return fmt.Sprintf("[%s] NONE", bps.Name)
 	}
-	if !bps.HasUp && dir == 'U' {
+	if !bps.HasUp {
 		return fmt.Sprintf("[%s] No Up", bps.Name)
 	}
 
@@ -91,6 +91,14 @@ func (bps BodyPartSet) validate() {
 	bps.BackslashAnimation.validate()
 	bps.IdleAnimation.validate()
 	bps.ShieldAnimation.validate()
+
+	// animation validation
+	if bps.animIndex > 20 {
+		// animation index is oddly high; is there a bug in detecting the end of an animation?
+		// Note: if we want to support really long animations that have 20+ frames, just increase this upper threshold number
+		logz.Println(bps.Name, bps.animationDebugString())
+		logz.Panicln(bps.Name, "anim index is oddly high (>20). either we have an animation with a lot of frames, or something is going wrong with anim index.")
+	}
 }
 
 func (bps *BodyPartSet) unsetAllImages() {
@@ -173,32 +181,20 @@ func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string) {
 	}
 }
 
-func (set BodyPartSet) getCurrentYOffset(animationName string) int {
+func (set BodyPartSet) getCurrentYOffset(animationName string, direction byte) int {
 	switch animationName {
 	case AnimWalk:
-		if len(set.WalkAnimation.StepsOffsetY) > 0 {
-			return set.WalkAnimation.StepsOffsetY[set.animIndex]
-		}
+		return set.WalkAnimation.GetOffsetY(direction, set.animIndex)
 	case AnimRun:
-		if len(set.RunAnimation.StepsOffsetY) > 0 {
-			return set.RunAnimation.StepsOffsetY[set.animIndex]
-		}
+		return set.RunAnimation.GetOffsetY(direction, set.animIndex)
 	case AnimSlash:
-		if len(set.SlashAnimation.StepsOffsetY) > 0 {
-			return set.SlashAnimation.StepsOffsetY[set.animIndex]
-		}
+		return set.SlashAnimation.GetOffsetY(direction, set.animIndex)
 	case AnimBackslash:
-		if len(set.BackslashAnimation.StepsOffsetY) > 0 {
-			return set.BackslashAnimation.StepsOffsetY[set.animIndex]
-		}
+		return set.BackslashAnimation.GetOffsetY(direction, set.animIndex)
 	case AnimIdle:
-		if len(set.IdleAnimation.StepsOffsetY) > 0 {
-			return set.IdleAnimation.StepsOffsetY[set.animIndex]
-		}
+		return set.IdleAnimation.GetOffsetY(direction, set.animIndex)
 	case AnimShield:
-		if len(set.ShieldAnimation.StepsOffsetY) > 0 {
-			return set.ShieldAnimation.StepsOffsetY[set.animIndex]
-		}
+		return set.ShieldAnimation.GetOffsetY(direction, set.animIndex)
 	}
 
 	return 0
@@ -215,7 +211,6 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 		logz.Panic("called nextFrame on empty animation. should this be the idle animation?")
 	}
 
-	set.animIndex++
 	set.reachedLastFrame = false
 	numSteps := 0
 	// For now, we assume all directions of an animation have the same length. if this changes, we need to redo this logic
@@ -223,37 +218,47 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 	case AnimWalk:
 		// this body part skips this animation
 		if set.WalkAnimation.Skip {
+			// if we skip, mark this body part as having reached the last frame so that the animation doesn't get hung up waiting on this one
+			set.reachedLastFrame = true
 			return
 		}
 		numSteps = len(set.WalkAnimation.L)
 	case AnimRun:
 		if set.RunAnimation.Skip {
+			set.reachedLastFrame = true
 			return
 		}
 		numSteps = len(set.RunAnimation.L)
 	case AnimSlash:
 		if set.SlashAnimation.Skip {
+			set.reachedLastFrame = true
 			return
 		}
 		numSteps = len(set.SlashAnimation.L)
 	case AnimBackslash:
 		if set.BackslashAnimation.Skip {
+			set.reachedLastFrame = true
 			return
 		}
 		numSteps = len(set.BackslashAnimation.L)
 	case AnimIdle:
 		if set.IdleAnimation.Skip {
+			set.reachedLastFrame = true
 			return
 		}
 		numSteps = len(set.IdleAnimation.L)
 	case AnimShield:
 		if set.ShieldAnimation.Skip {
+			set.reachedLastFrame = true
 			return
 		}
 		numSteps = len(set.ShieldAnimation.L)
 	default:
 		logz.Panicln(set.Name, "nextFrame: animation name has no registered animation sequence:", animationName)
 	}
+
+	// do below the above switch, so that if the animation is skipped we don't keep incrementing animIndex
+	set.animIndex++
 
 	if numSteps == 0 {
 		logz.Panicln(set.Name, "anim: ", animationName, "num steps is somehow 0")

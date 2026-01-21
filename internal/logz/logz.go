@@ -1,3 +1,4 @@
+// Package logz is a set of improved logging functions
 package logz
 
 import (
@@ -13,7 +14,7 @@ func printLogLine(s string) {
 
 func Println(category string, args ...any) {
 	if category == "" {
-		log.Println(args...)
+		printLogLine(fmt.Sprintln(args...))
 		return
 	}
 	fullArgs := []any{fmt.Sprintf("[%s]", category)}
@@ -23,7 +24,7 @@ func Println(category string, args ...any) {
 
 func Printf(category string, format string, args ...any) {
 	if category == "" {
-		log.Printf(format, args...)
+		printLogLine(fmt.Sprintf(format, args...))
 		return
 	}
 	format = fmt.Sprintf("[%s] %s\n", category, format)
