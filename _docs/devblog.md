@@ -1,3 +1,24 @@
+# 2026-01-21
+
+Back from New Years travel, but have finished up some refactoring that I started just before leaving. Took a little while to figure out where I left off - in hindsight, probably better
+to not start that kind of big change until I was back, but we're back up and running!
+
+I was refactoring the entity body system a bit: I've split the legs off of the body into its own body part, so that it can act independently of the head and torso.
+The main reason this was necessary is that we need to be able to do some animations while both sitting and standing, or while riding a horse, etc.
+For example, a character will need to be able to do the "drink from glass" animation while both standing and sitting. Also, a character should be able to swing a sword while both 
+standing on the ground or riding a horse. It adds more flexibility to the character animations which is good.
+
+But, the downside is that it complicates defining an entity's body frames a bit more. I used to just be able to clearly look at which frames were for which, but now that arms, legs, and
+body are all split into their own tiles, it's trickier to spot the right ones that are supposed to be used together to form the actual full body animation frame. But, luckily I won't need
+to do this much since I there won't be many different body set options. For clothing and armor, it's a little easier since there are just two parts: the torso/arms and the legs.
+
+Speaking of which, I'm considering if I want to add support for equipping different leg equipment that differs from the body/torso equipment.
+For example, maybe a character would want to wear some body armor like a legionary cuirass, but then be allowed to wear a different set of armor on the legs such as chainmail greaves.
+
+Once I've ensured all the bugs are worked out of the new refactored body system, I'll move back on to improving/testing the combat system, improving NPC fighting AI, and then start
+working on the first opening scenes and quests. A goal I have is to have some early stages of the game and the opening sequences mostly done by June, since I'll be going to the US and
+can share the progress I've made with friends and family and get their feedback.
+
 # 2025-12-03
 
 Making more progress on the entity body animations and mechanics; I've added an additional "auxiliary" item type: the shield.
