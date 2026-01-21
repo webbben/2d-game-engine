@@ -3,6 +3,7 @@ package body
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
@@ -53,13 +54,21 @@ func (eb EntityBodySet) IsMoving() bool {
 
 // Animation defines an animation for a specific bodyPartSet: which frames to show in which order, etc.
 type Animation struct {
-	Name         string
-	Skip         bool            // if true, this animation does not get defined
-	L            []*ebiten.Image `json:"-"`
-	R            []*ebiten.Image `json:"-"`
-	U            []*ebiten.Image `json:"-"`
-	D            []*ebiten.Image `json:"-"`
-	StepsOffsetY []int           // Only set by the body set
+	Name string
+	Skip bool            // if true, this animation does not get defined
+	L    []*ebiten.Image `json:"-"`
+	R    []*ebiten.Image `json:"-"`
+	U    []*ebiten.Image `json:"-"`
+	D    []*ebiten.Image `json:"-"`
+
+	StepsOffsetY []int // Only set by the body set
+
+	// can define direction specific Y offset too. if none exists, defaults to StepsOffsetY.
+
+	StepsOffsetYLeft  []int
+	StepsOffsetYRight []int
+	StepsOffsetYUp    []int
+	StepsOffsetYDown  []int
 }
 
 type AnimationParams struct {
@@ -68,7 +77,15 @@ type AnimationParams struct {
 	TilesetSrc                                string
 	TilesLeft, TilesRight, TilesUp, TilesDown []int // indices of each frame of the animation
 	AuxLeft, AuxRight, AuxUp, AuxDown         []int // if aux influeces this animation, define the aux frames here
-	StepsOffsetY                              []int
+
+	StepsOffsetY []int
+
+	// optional overrides for specific directions Y offset
+
+	StepsOffsetYLeft  []int
+	StepsOffsetYRight []int
+	StepsOffsetYUp    []int
+	StepsOffsetYDown  []int
 }
 
 func (ap AnimationParams) IsEqual(other AnimationParams) bool {
@@ -120,7 +137,18 @@ func (ap AnimationParams) IsEqual(other AnimationParams) bool {
 	if !slicesEqual(ap.StepsOffsetY, other.StepsOffsetY) {
 		return false
 	}
-
+	if !slicesEqual(ap.StepsOffsetYLeft, other.StepsOffsetYLeft) {
+		return false
+	}
+	if !slicesEqual(ap.StepsOffsetYRight, other.StepsOffsetYRight) {
+		return false
+	}
+	if !slicesEqual(ap.StepsOffsetYUp, other.StepsOffsetYUp) {
+		return false
+	}
+	if !slicesEqual(ap.StepsOffsetYDown, other.StepsOffsetYDown) {
+		return false
+	}
 	return true
 }
 
@@ -151,6 +179,22 @@ func (a Animation) validate() {
 		// we leave out Up, since some sets don't have an Up direction for their animations.
 		logz.Panicln(a.Name, "animation directions don't appear to be equal in length")
 	}
+
+	// confirm that offsetY slices are the correct size
+	validateOffsetY := func(offsetY []int, numFrames int) {
+		if len(offsetY) == 0 {
+			return
+		}
+		if len(offsetY) != numFrames {
+			logz.Panicln(a.Name, "offsetY slice is of incorrect length. should be:", numFrames, "offsetY:", offsetY)
+		}
+	}
+	numFrames := len(a.L) // all directions are the same size
+	validateOffsetY(a.StepsOffsetY, numFrames)
+	validateOffsetY(a.StepsOffsetYLeft, numFrames)
+	validateOffsetY(a.StepsOffsetYRight, numFrames)
+	validateOffsetY(a.StepsOffsetYUp, numFrames)
+	validateOffsetY(a.StepsOffsetYDown, numFrames)
 }
 
 func (a *Animation) reset() {
@@ -212,7 +256,13 @@ func (a *Animation) load(params AnimationParams, aux, hasUp, flipRL bool, stretc
 	if params.Name == "" {
 		panic("name is empty")
 	}
+
 	a.StepsOffsetY = params.StepsOffsetY
+	a.StepsOffsetYLeft = params.StepsOffsetYLeft
+	a.StepsOffsetYRight = params.StepsOffsetYRight
+	a.StepsOffsetYUp = params.StepsOffsetYUp
+	a.StepsOffsetYDown = params.StepsOffsetYDown
+
 	a.Skip = params.Skip
 	a.Name = params.Name
 	if a.Skip {
@@ -257,6 +307,42 @@ func (a *Animation) load(params AnimationParams, aux, hasUp, flipRL bool, stretc
 		a.U = []*ebiten.Image{}
 	}
 	a.D = getAnimationFrames(params.TilesetSrc, d, false, stretchX, stretchY)
+}
+
+func (a Animation) GetOffsetY(direction byte, animIndex int) int {
+	if animIndex < 0 {
+		logz.Panicln(a.Name, "animIndex is negative:", animIndex)
+	}
+	var vals []int
+
+	switch direction {
+	case model.Directions.Left:
+		vals = a.StepsOffsetYLeft
+	case model.Directions.Right:
+		vals = a.StepsOffsetYRight
+	case model.Directions.Up:
+		vals = a.StepsOffsetYUp
+	case model.Directions.Down:
+		vals = a.StepsOffsetYDown
+	default:
+		logz.Panicln(a.Name, "invalid direction passed to GetOffsetY:", direction)
+	}
+
+	if len(vals) == 0 {
+		// check if a default is set
+		if len(a.StepsOffsetY) != 0 {
+			vals = a.StepsOffsetY
+		} else {
+			// no Y offsets found; return 0
+			return 0
+		}
+	}
+
+	if animIndex >= len(vals) {
+		logz.Panicln(a.Name, "animIndex is too big for y offset list?", "animIndex:", animIndex, "yoffsets:", vals)
+	}
+
+	return vals[animIndex]
 }
 
 func getAnimationFrames(tilesetSrc string, indices []int, flip bool, stretchX, stretchY int) []*ebiten.Image {
