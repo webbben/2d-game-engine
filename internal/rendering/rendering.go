@@ -2,11 +2,13 @@
 package rendering
 
 import (
+	"bytes"
 	"image"
 	"math"
 
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"golang.org/x/image/font"
 
@@ -118,6 +120,18 @@ func CropImageByOtherImage(img, otherImage *ebiten.Image) *ebiten.Image {
 }
 
 func SubtractImageByOtherImage(img, otherImage *ebiten.Image, imgOffsetY, otherOffsetY int) *ebiten.Image {
+	if img == nil {
+		panic("img is nil")
+	}
+	if otherImage == nil {
+		panic("otherImage is nil")
+	}
+	if IsImageEmpty(img) {
+		logz.Panicln("SubtractImageByOtherImage", "tried to subtract from an empty image!")
+	}
+	if IsImageEmpty(otherImage) {
+		logz.Panicln("SubtractImageByOtherImage", "tried to subtract by an empty image!")
+	}
 	result := ebiten.NewImage(img.Bounds().Dx(), img.Bounds().Dy())
 	imgOps := ebiten.DrawImageOptions{}
 	if imgOffsetY != 0 {
@@ -132,7 +146,55 @@ func SubtractImageByOtherImage(img, otherImage *ebiten.Image, imgOffsetY, otherO
 	otherOps.Blend = ebiten.BlendDestinationOut
 	result.DrawImage(otherImage, &otherOps)
 
+	if ImagesEqual(img, result) {
+		logz.Panicln("SubtractImageByOtherImage", "original image subtracted from appears to be the same as the result image (subtraction doesn't seem to have worked)")
+	}
+
 	return result
+}
+
+// ImagesEqual checks if the two images have equal image data (i.e. are the same)
+func ImagesEqual(a, b *ebiten.Image) bool {
+	if a == nil || b == nil {
+		logz.Panicln("ImagesEqual", "one of the images passed in was nil")
+	}
+
+	wA, hA := a.Bounds().Dx(), a.Bounds().Dy()
+	wB, hB := b.Bounds().Dx(), b.Bounds().Dy()
+	if wA != wB || hA != hB {
+		return false
+	}
+
+	pixelsA := make([]byte, 4*wA*hA)
+	pixelsB := make([]byte, 4*wB*hB)
+
+	a.ReadPixels(pixelsA)
+	b.ReadPixels(pixelsB)
+	return bytes.Equal(pixelsA, pixelsB)
+}
+
+// IsImageEmpty checks if an image has any non-transparent pixels.
+// WARNING: Not performance friendly. Do not use in draw or repeatedly in long lasting loops. Just for short term validation.
+func IsImageEmpty(img *ebiten.Image) bool {
+	if img == nil {
+		panic("passed in nil image")
+	}
+
+	w, h := img.Bounds().Dx(), img.Bounds().Dy()
+	if w == 0 || h == 0 {
+		return true
+	}
+
+	pixels := make([]byte, 4*w*h)
+	img.ReadPixels(pixels)
+
+	for i := 3; i < len(pixels); i += 4 {
+		if pixels[i] != 0 {
+			return false
+		}
+	}
+
+	return true
 }
 
 func DrawHueRotatedImage(screen, img *ebiten.Image, sliderValue float64, x, y, scale float64) {

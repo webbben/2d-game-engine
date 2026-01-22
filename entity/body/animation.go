@@ -1,6 +1,8 @@
 package body
 
 import (
+	"fmt"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
@@ -86,6 +88,39 @@ type AnimationParams struct {
 	StepsOffsetYRight []int
 	StepsOffsetYUp    []int
 	StepsOffsetYDown  []int
+}
+
+func (ap AnimationParams) DebugString() string {
+	s := fmt.Sprintf("Name: %s TilesetSrc: %s Skip: %v\n", ap.Name, ap.TilesetSrc, ap.Skip)
+	s += fmt.Sprintf("L: %v\nR: %v\nU: %v\nD: %v\n", ap.TilesLeft, ap.TilesRight, ap.TilesUp, ap.TilesDown)
+	if len(ap.AuxLeft) != 0 {
+		s += fmt.Sprintf("AuxL: %v\n", ap.AuxLeft)
+	}
+	if len(ap.AuxRight) != 0 {
+		s += fmt.Sprintf("AuxR: %v\n", ap.AuxRight)
+	}
+	if len(ap.AuxUp) != 0 {
+		s += fmt.Sprintf("AuxU: %v\n", ap.AuxUp)
+	}
+	if len(ap.AuxDown) != 0 {
+		s += fmt.Sprintf("AuxD: %v\n", ap.AuxDown)
+	}
+	if len(ap.StepsOffsetY) != 0 {
+		s += fmt.Sprintf("offY: %v\n", ap.StepsOffsetY)
+	}
+	if len(ap.StepsOffsetYLeft) != 0 {
+		s += fmt.Sprintf("offYL: %v\n", ap.StepsOffsetYLeft)
+	}
+	if len(ap.StepsOffsetYRight) != 0 {
+		s += fmt.Sprintf("offYR: %v\n", ap.StepsOffsetYRight)
+	}
+	if len(ap.StepsOffsetYUp) != 0 {
+		s += fmt.Sprintf("offYU: %v\n", ap.StepsOffsetYUp)
+	}
+	if len(ap.StepsOffsetYDown) != 0 {
+		s += fmt.Sprintf("offYD: %v\n", ap.StepsOffsetYDown)
+	}
+	return s
 }
 
 func (ap AnimationParams) IsEqual(other AnimationParams) bool {
