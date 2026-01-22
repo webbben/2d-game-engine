@@ -213,9 +213,13 @@ func characterBuilder(fileToLoad string) {
 			Idle: &body.AnimationParams{
 				TilesetSrc: armsTileset,
 				TilesDown:  []int{146},
+				AuxDown:    []int{147},
 				TilesRight: []int{165},
+				AuxRight:   []int{166},
 				TilesLeft:  []int{183},
+				AuxLeft:    []int{184},
 				TilesUp:    []int{201},
+				AuxUp:      []int{202},
 			},
 			Walk: &body.AnimationParams{
 				TilesetSrc: armsTileset,
