@@ -581,29 +581,65 @@ func (eb *EntityBodySet) cropHair() {
 // - facing up, doing a sword slash: the arm is cocked back behind the head. body equipment is "on top" of the arms, hair is on top of body equipment, but hands can still show
 // over the hair.
 func (eb *EntityBodySet) subtractArms() {
+	logz.Println(eb.Name, "subtracting arms")
 	if eb.EquipBodySet.PartSrc.None {
-		panic("trying to subtract arms, but no bodywear is set")
+		logz.Panicln(eb.Name, "trying to subtract arms, but no bodywear is set")
 	}
-	fmt.Println("subtract arms")
 	cropper := func(a *Animation, subtractorA Animation) {
 		equipBodyOffsetY := int(eb.globalOffsetY + eb.getEquipBodyOffsetY())
+
+		// LEFT
+		if len(a.L) == 0 {
+			logz.Panicln(eb.Name, "subtract arms: no left arms frames?")
+		}
+		if len(a.L) != len(subtractorA.L) {
+			logz.Panicln(eb.Name, "subtract arms: subtractor and subtractee not same size (L)")
+		}
 		for i, img := range a.L {
 			equipBodyImg := subtractorA.L[i]
 			a.L[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
+		}
+
+		// RIGHT
+		if len(a.R) == 0 {
+			logz.Panicln(eb.Name, "subtract arms: no right arms frames?")
+		}
+		if len(a.R) != len(subtractorA.R) {
+			logz.Panicln(eb.Name, "subtract arms: subtractor and subtractee not same size (R)")
 		}
 		for i, img := range a.R {
 			equipBodyImg := subtractorA.R[i]
 			a.R[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
 		}
+
+		// UP
+		if len(a.U) == 0 {
+			logz.Panicln(eb.Name, "subtract arms: no up arms frames?")
+		}
+		if len(a.U) != len(subtractorA.U) {
+			logz.Panicln(eb.Name, "subtract arms: subtractor and subtractee not same size (U)")
+		}
 		for i, img := range a.U {
 			equipBodyImg := subtractorA.U[i]
 			a.U[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
+		}
+
+		// DOWN
+		if len(a.D) == 0 {
+			logz.Panicln(eb.Name, "subtract arms: no down arms frames?")
+		}
+		if len(a.D) != len(subtractorA.D) {
+			logz.Panicln(eb.Name, "subtract arms: subtractor and subtractee not same size (D)")
 		}
 		for i, img := range a.D {
 			equipBodyImg := subtractorA.D[i]
 			a.D[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
 		}
 	}
+
+	// Note: had issues when a tileset moved down a row without me knowing, and suddenly we were subtracting empty equip body frames from arms.
+	// If something similar happens again, you can try using something like the below debug string to confirm the frame indices are wrong.
+	// logz.Println(eb.Name, eb.EquipBodySet.PartSrc.WalkAnimation.DebugString())
 
 	cropper(&eb.ArmsSet.WalkAnimation, eb.EquipBodySet.WalkAnimation)
 	cropper(&eb.ArmsSet.RunAnimation, eb.EquipBodySet.RunAnimation)

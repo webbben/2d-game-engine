@@ -27,8 +27,8 @@ func GetItemDefs() []item.ItemDef {
 
 	equipBodyOptions := []equipBodyOption{}
 	for i := range 2 {
-		// first equipment item starts at row 5; each item's first row is the body equipment, second row is legs equipment.
-		offset := 73 * ((i * 2) + 4)
+		// first equipment item starts at row 6; each item's first row is the body equipment, second row is legs equipment.
+		offset := 73 * ((i * 2) + 5)
 		bodyDef := body.NewPartDef(body.PartDefParams{
 			Idle: &body.AnimationParams{
 				TilesetSrc: equipBodyTileset,
@@ -86,7 +86,7 @@ func GetItemDefs() []item.ItemDef {
 			},
 		})
 
-		offset = 73 * ((i * 2) + 5)
+		offset = 73 * ((i * 2) + 6)
 
 		legsDef := body.NewPartDef(body.PartDefParams{
 			Idle: &body.AnimationParams{
