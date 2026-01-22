@@ -69,8 +69,8 @@ type builderGame struct {
 
 	bodySetOptions, eyesSetOptions, hairSetOptions, armsSetOptions, legsSetOptions []body.SelectedPartDef
 	bodySetIndex, eyesSetIndex, hairSetIndex, armsSetIndex                         int
-	bodywearItems, headwearItems                                                   []item.ItemDef
-	equipedBodywear, equipedHeadwear, equipedWeapon, equipedAux                    string // IDs of equiped items
+	bodywearItems, headwearItems, footwearItems                                    []item.ItemDef
+	equipedBodywear, equipedHeadwear, equipedFootwear, equipedWeapon, equipedAux   string // IDs of equiped items
 
 	weaponItems []item.ItemDef
 
@@ -93,6 +93,7 @@ type builderGame struct {
 	auxiliarySelector dropdown.OptionSelect
 	bodywearSelector  dropdown.OptionSelect
 	headwearSelector  dropdown.OptionSelect
+	footwearSelector  dropdown.OptionSelect
 	weaponSelector    dropdown.OptionSelect
 
 	bodyCtl stepper.Stepper
@@ -133,6 +134,7 @@ func characterBuilder(fileToLoad string) {
 
 	bodywearItems := []item.ItemDef{}
 	headwearItems := []item.ItemDef{}
+	footwearItems := []item.ItemDef{}
 	weaponItems := []item.ItemDef{}
 	auxItems := []item.ItemDef{}
 
@@ -142,6 +144,8 @@ func characterBuilder(fileToLoad string) {
 			bodywearItems = append(bodywearItems, itemDef)
 		case item.TypeHeadwear:
 			headwearItems = append(headwearItems, itemDef)
+		case item.TypeFootwear:
+			footwearItems = append(footwearItems, itemDef)
 		case item.TypeWeapon:
 			weaponItems = append(weaponItems, itemDef)
 		case item.TypeAuxiliary:
@@ -355,6 +359,7 @@ func characterBuilder(fileToLoad string) {
 		hairSetOptions: hairOptions,
 		bodywearItems:  bodywearItems,
 		headwearItems:  headwearItems,
+		footwearItems:  footwearItems,
 		weaponItems:    weaponItems,
 		characterData:  characterData,
 		auxItems:       auxItems,
@@ -459,6 +464,21 @@ func characterBuilder(fileToLoad string) {
 		DropDownBoxTilesetSrc: "boxes/boxes.tsj",
 		DropDownBoxOrigin:     128,
 	}, &g.popupMgr)
+
+	footwearOptions := []string{noneOp}
+	for _, i := range g.footwearItems {
+		footwearOptions = append(footwearOptions, i.GetID())
+	}
+	g.footwearSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
+		Font:                  config.DefaultFont,
+		Options:               footwearOptions,
+		InitialOptionIndex:    0,
+		TilesetSrc:            "ui/ui-components.tsj",
+		OriginIndex:           288,
+		DropDownBoxTilesetSrc: "boxes/boxes.tsj",
+		DropDownBoxOrigin:     128,
+	}, &g.popupMgr)
+
 	bodywearOptions := []string{noneOp}
 	for _, i := range g.bodywearItems {
 		bodywearOptions = append(bodywearOptions, i.GetID())
@@ -637,6 +657,11 @@ func getNewCharacter() entity.CharacterData {
 		Name:        "equipHeadSet",
 		IsRemovable: true,
 	})
+	equipFeetSet := body.NewBodyPartSet(body.BodyPartSetParams{
+		HasUp:       true,
+		Name:        "equipFeetSet",
+		IsRemovable: true,
+	})
 	weaponSet := body.NewBodyPartSet(body.BodyPartSetParams{
 		Name:        "weaponSet",
 		HasUp:       true,
@@ -653,7 +678,7 @@ func getNewCharacter() entity.CharacterData {
 		IsRemovable: true,
 	})
 
-	entBody := body.NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipBodySet, equipLegsSet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
+	entBody := body.NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipLegsSet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
 
 	// Setting these various fields just to prevent validation errors (e.g. WalkSpeed). But, these values are eventually overwritten
 	// when used in the actual game.
@@ -783,6 +808,10 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	text.DrawShadowText(screen, "Bodywear", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	bg.bodywearSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 	sliderY += tileSize * 5 / 3
+	text.DrawShadowText(screen, "Footwear", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	bg.footwearSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
+	sliderY += tileSize * 5 / 3
+
 	text.DrawShadowText(screen, "Weapon", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
 	bg.weaponSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 
@@ -904,6 +933,11 @@ func (bg *builderGame) Update() error {
 	if selectorValue != bg.equipedHeadwear {
 		bg.handleChangeHeadwear(selectorValue)
 	}
+	bg.footwearSelector.Update()
+	selectorValue = bg.footwearSelector.GetCurrentValue()
+	if selectorValue != bg.equipedFootwear {
+		bg.handleChangeFootwear(selectorValue)
+	}
 	bg.bodywearSelector.Update()
 	selectorValue = bg.bodywearSelector.GetCurrentValue()
 	if selectorValue != bg.equipedBodywear {
@@ -965,6 +999,26 @@ func (bg *builderGame) handleChangeHeadwear(val string) {
 		}
 	}
 	panic("val doesn't seem to match an item ID: " + val)
+}
+
+func (bg *builderGame) handleChangeFootwear(val string) {
+	bg.equipedFootwear = val
+
+	if val == noneOp {
+		if bg.characterData.EquipedFootwear == nil {
+			return
+		}
+		bg.characterData.UnequipFootwear()
+		return
+	}
+	for _, i := range bg.footwearItems {
+		if i.GetID() == val {
+			bg.characterData.EquipedFootwear = nil
+			bg.characterData.EquipItem(item.NewInventoryItem(i, 1))
+			return
+		}
+	}
+	panic("val doesn't seem to match an item ID:" + val)
 }
 
 func (bg *builderGame) handleChangeBodywear(val string) {

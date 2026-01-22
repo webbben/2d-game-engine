@@ -176,6 +176,19 @@ func (cd *CharacterData) EquipItem(i item.InventoryItem) (success bool) {
 			logz.Panicln(cd.DisplayName, "tried to equip an item with no part def:", i.Def.GetID())
 		}
 		cd.Body.SetEquipHead(*part)
+	case item.TypeFootwear:
+		if cd.EquipedFootwear != nil {
+			succ, _ := cd.AddItemToInventory(*cd.EquipedFootwear)
+			if !succ {
+				return false
+			}
+		}
+		cd.EquipedFootwear = &i
+		part := i.Def.GetBodyPartDef()
+		if part == nil {
+			logz.Panicln(cd.DisplayName, "tried to equip an item with no part def:", i.Def.GetID())
+		}
+		cd.Body.SetEquipFeet(*part)
 	case item.TypeBodywear:
 		if cd.EquipedBodywear != nil {
 			// already equiped; remove it and put it in a regular inventory slot
@@ -230,6 +243,15 @@ func (cd *CharacterData) UnequipHeadwear() {
 	cd.Body.EquipHeadSet.Remove()
 	// reload hair too, since it may have been cropped by the previously equiped headwear
 	cd.Body.ReloadHair()
+}
+
+func (cd *CharacterData) UnequipFootwear() {
+	if cd.EquipedFootwear == nil {
+		logz.Panicln(cd.DisplayName, "tried to unequip footwear, but equiped footwear is nil")
+	}
+
+	cd.EquipedFootwear = nil
+	cd.Body.EquipFeetSet.Remove()
 }
 
 func (cd *CharacterData) UnequipBodywear() {
