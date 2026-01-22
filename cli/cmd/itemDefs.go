@@ -294,9 +294,10 @@ func GetItemDefs() []item.ItemDef {
 		})
 	}
 
-	auxOptions := []body.SelectedPartDef{}
+	auxAnimated := []body.SelectedPartDef{}
+	auxStatic := []body.SelectedPartDef{}
 
-	for i := range 2 {
+	for i := range 1 {
 		offset := i * 76
 		def := body.NewPartDef(body.PartDefParams{
 			Idle: &body.AnimationParams{
@@ -336,7 +337,50 @@ func GetItemDefs() []item.ItemDef {
 			},
 			Shield: &body.AnimationParams{Skip: true},
 		})
-		auxOptions = append(auxOptions, def)
+		auxAnimated = append(auxAnimated, def)
+	}
+
+	for i := range 1 {
+		offset := (i + 1) * 76
+		def := body.NewPartDef(body.PartDefParams{
+			Idle: &body.AnimationParams{
+				TilesetSrc: auxTileset,
+				TilesDown:  offsetInts([]int{0}, offset),
+				TilesRight: offsetInts([]int{19}, offset),
+				TilesLeft:  offsetInts([]int{38}, offset),
+				TilesUp:    offsetInts([]int{57}, offset),
+			},
+			Walk: &body.AnimationParams{
+				TilesetSrc: auxTileset,
+				TilesDown:  offsetInts([]int{5, 0, 7, 0}, offset),
+				TilesRight: offsetInts([]int{24, 19, 26, 19}, offset),
+				TilesLeft:  offsetInts([]int{43, 38, 46, 38}, offset),
+				TilesUp:    offsetInts([]int{62, 57, 64, 57}, offset),
+			},
+			Run: &body.AnimationParams{
+				TilesetSrc: auxTileset,
+				TilesDown:  offsetInts([]int{4, 5, 0, 6, 7, 0}, offset),
+				TilesRight: offsetInts([]int{23, 24, 19, 25, 26, 19}, offset),
+				TilesLeft:  offsetInts([]int{42, 43, 38, 44, 45, 38}, offset),
+				TilesUp:    offsetInts([]int{61, 62, 57, 63, 64, 57}, offset),
+			},
+			Slash: &body.AnimationParams{
+				TilesetSrc: auxTileset,
+				TilesDown:  offsetInts([]int{8, 9, 10, 10}, offset),
+				TilesRight: offsetInts([]int{27, 28, 29, 30}, offset),
+				TilesLeft:  offsetInts([]int{46, 47, 48, 49}, offset),
+				TilesUp:    offsetInts([]int{65, 66, 67, 68}, offset),
+			},
+			Backslash: &body.AnimationParams{
+				TilesetSrc: auxTileset,
+				TilesDown:  offsetInts([]int{11, 12, 13, 14}, offset),
+				TilesRight: offsetInts([]int{30, 31, 32, 33}, offset),
+				TilesLeft:  offsetInts([]int{49, 50, 51, 52}, offset),
+				TilesUp:    offsetInts([]int{68, 69, 70, 71}, offset),
+			},
+			Shield: &body.AnimationParams{Skip: true},
+		})
+		auxStatic = append(auxStatic, def)
 	}
 
 	return []item.ItemDef{
@@ -500,7 +544,7 @@ func GetItemDefs() []item.ItemDef {
 			TileImgTilesetSrc: "items/items_01.tsj",
 			TileImgIndex:      97,
 			Type:              item.TypeAuxiliary,
-			BodyPartDef:       &auxOptions[0],
+			BodyPartDef:       &auxAnimated[0],
 		}),
 		&item.ArmorDef{
 			ItemBase: *item.NewItemBase(item.ItemBaseParams{
@@ -512,7 +556,7 @@ func GetItemDefs() []item.ItemDef {
 				TileImgTilesetSrc: "items/items_01.tsj",
 				TileImgIndex:      35,
 				Type:              item.TypeAuxiliary,
-				BodyPartDef:       &auxOptions[1],
+				BodyPartDef:       &auxStatic[0],
 			}),
 			Protection: 8,
 		},
