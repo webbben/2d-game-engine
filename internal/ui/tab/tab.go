@@ -79,7 +79,7 @@ func (tc *TabControl) Load() {
 	}
 
 	for i, tab := range tc.Tabs {
-		img, err := ts.GetTileImage(tab.ImgTileId)
+		img, err := ts.GetTileImage(tab.ImgTileId, true)
 		if err != nil {
 			logz.Panicf("error loading tile image: %s", err)
 		}

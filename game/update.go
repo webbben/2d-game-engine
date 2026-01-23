@@ -100,8 +100,8 @@ func (g *Game) updateMap() {
 		n.Update()
 	}
 
-	if g.UpdateHooks.UpdateMapHook != nil {
-		g.UpdateHooks.UpdateMapHook(g)
+	if g.UpdateMapHook != nil {
+		g.UpdateMapHook(g)
 	}
 }
 

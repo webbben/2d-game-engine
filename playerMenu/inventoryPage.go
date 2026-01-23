@@ -85,57 +85,57 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 		Enabled:       true,
 		Tooltip:       "Headwear",
 	}, inventoryParams.HoverWindowParams)
-	ip.EquipedHead.SetBGImage(tiled.GetTileImage(src, 5))
+	ip.EquipedHead.SetBGImage(tiled.GetTileImage(src, 5, true))
 	ip.EquipedBody = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
 		Tooltip:       "Bodywear",
 	}, inventoryParams.HoverWindowParams)
-	ip.EquipedBody.SetBGImage(tiled.GetTileImage(src, 6))
+	ip.EquipedBody.SetBGImage(tiled.GetTileImage(src, 6, true))
 	ip.EquipedFeet = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
 		Tooltip:       "Footwear",
 	}, inventoryParams.HoverWindowParams)
-	ip.EquipedFeet.SetBGImage(tiled.GetTileImage(src, 7))
+	ip.EquipedFeet.SetBGImage(tiled.GetTileImage(src, 7, true))
 	ip.EquipedAmmo = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
 		Tooltip:       "Ammunition",
 	}, inventoryParams.HoverWindowParams)
-	ip.EquipedAmmo.SetBGImage(tiled.GetTileImage(src, 8))
+	ip.EquipedAmmo.SetBGImage(tiled.GetTileImage(src, 8, true))
 	ip.EquipedAuxiliary = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
 		Tooltip:       "Auxiliary",
 	}, inventoryParams.HoverWindowParams)
-	ip.EquipedAuxiliary.SetBGImage(tiled.GetTileImage(src, 9))
+	ip.EquipedAuxiliary.SetBGImage(tiled.GetTileImage(src, 9, true))
 
 	ip.EquipedAmulet = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
 		Tooltip:       "Amulet",
 	}, inventoryParams.HoverWindowParams)
-	ip.EquipedAmulet.SetBGImage(tiled.GetTileImage(src, 10))
+	ip.EquipedAmulet.SetBGImage(tiled.GetTileImage(src, 10, true))
 	ip.EquipedRing1 = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
 		Tooltip:       "Ring",
 	}, inventoryParams.HoverWindowParams)
-	ip.EquipedRing1.SetBGImage(tiled.GetTileImage(src, 11))
+	ip.EquipedRing1.SetBGImage(tiled.GetTileImage(src, 11, true))
 	ip.EquipedRing2 = inventory.NewItemSlot(inventory.ItemSlotParams{
 		ItemSlotTiles: itemSlotImages,
 		Enabled:       true,
 		Tooltip:       "Ring",
 	}, inventoryParams.HoverWindowParams)
-	ip.EquipedRing2.SetBGImage(tiled.GetTileImage(src, 11))
+	ip.EquipedRing2.SetBGImage(tiled.GetTileImage(src, 11, true))
 
 	ip.playerRef = playerRef
 
 	tileSize := int(config.TileSize * config.UIScale)
 
 	// gold counter and coin purse set up
-	goldIcon := tiled.GetTileImage(inventoryParams.ItemSlotTilesetSource, 194)
+	goldIcon := tiled.GetTileImage(inventoryParams.ItemSlotTilesetSource, 194, true)
 	ip.goldCount = textbox.NewTextBox("25", inventoryParams.HoverWindowParams.TilesetSource, 135, config.DefaultFont, goldIcon, &textbox.TextBoxOptions{
 		SetWidthPx:       tileSize * 4,
 		HighlightOnHover: true,

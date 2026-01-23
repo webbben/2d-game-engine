@@ -34,7 +34,7 @@ func NewTextWindowBox(tilesetSource string, originTileIndex int) TextWindowBox {
 	w := tileset.Columns
 	for row := range 4 {
 		for col := range 3 {
-			img, err := tileset.GetTileImage(originTileIndex + col + (row * w))
+			img, err := tileset.GetTileImage(originTileIndex+col+(row*w), true)
 			if err != nil {
 				logz.Panicf("error loading tile image for text window box: %s", err)
 			}

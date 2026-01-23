@@ -296,7 +296,7 @@ func (ib *ItemBase) Load() {
 	if err != nil {
 		logz.Panicf("error while loading tileset for item tile image: %s", err)
 	}
-	img, err := tileset.GetTileImage(ib.TileImgIndex)
+	img, err := tileset.GetTileImage(ib.TileImgIndex, true)
 	if err != nil {
 		logz.Panicf("error while getting item tile image: %s", err)
 	}

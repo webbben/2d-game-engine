@@ -1,10 +1,9 @@
+// Package image holds core functions for loading images, fonts, etc.
 package image
 
 import (
-	"errors"
+	"fmt"
 	"image"
-	"image/color"
-	"math"
 	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -14,13 +13,41 @@ import (
 	"golang.org/x/image/font/opentype"
 )
 
-// loads an individual image
-func LoadImage(imagePath string) (*ebiten.Image, error) {
-	img, _, err := ebitenutil.NewImageFromFile(imagePath)
+// LoadImage is the core function for loading an image file into ebiten.
+// If the image is fully transparent or has no dimensions (i.e. "empty") then we return nil instead of an ebiten.Image, but no error.
+func LoadImage(imgFilePath string) (*ebiten.Image, error) {
+	ebitenImg, img, err := ebitenutil.NewImageFromFile(imgFilePath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load image: %w", err)
 	}
-	return img, nil
+	if IsImageEmpty(img) {
+		return nil, nil // no error, but return nil for the image since there's nothing to show
+	}
+	return ebitenImg, nil
+}
+
+func IsImageEmpty(img image.Image) bool {
+	if img == nil {
+		panic("passed in nil image")
+	}
+
+	b := img.Bounds()
+	w, h := b.Dx(), b.Dy()
+	if w == 0 || h == 0 {
+		return true
+	}
+
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			_, _, _, a := img.At(x, y).RGBA()
+			// RGBA() returns values in range [0, 65535]
+			if a != 0 {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 func LoadFont(relPath string, size float64, dpi float64) font.Face {
@@ -55,170 +82,4 @@ func LoadFont(relPath string, size float64, dpi float64) font.Face {
 		panic(err)
 	}
 	return customFont
-}
-
-type BoxTiles struct {
-	Top, TopLeft, TopRight, Left, Right, BottomLeft, Bottom, BottomRight, Fill *ebiten.Image
-}
-
-// Verify checks that all images are non-nil and have the same dimensions
-func (bt BoxTiles) Verify() error {
-	// check for nil images
-	if bt.Top == nil {
-		return errors.New("top image is nil")
-	}
-	if bt.TopLeft == nil {
-		return errors.New("topLeft image is nil")
-	}
-	if bt.TopRight == nil {
-		return errors.New("topRight image is nil")
-	}
-	if bt.Left == nil {
-		return errors.New("left image is nil")
-	}
-	if bt.Right == nil {
-		return errors.New("right image is nil")
-	}
-	if bt.BottomLeft == nil {
-		return errors.New("bottomLeft image is nil")
-	}
-	if bt.Bottom == nil {
-		return errors.New("bottom image is nil")
-	}
-	if bt.BottomRight == nil {
-		return errors.New("bottomRight image is nil")
-	}
-	if bt.Fill == nil {
-		return errors.New("fill image is nil")
-	}
-	// make sure all images have same dimensions
-	width, height := bt.Top.Bounds().Dx(), bt.Top.Bounds().Dy() // use this as the reference size
-	if width != bt.TopLeft.Bounds().Dx() || height != bt.TopLeft.Bounds().Dy() {
-		return errors.New("topLeft image has different dimensions")
-	}
-	if width != bt.TopRight.Bounds().Dx() || height != bt.TopRight.Bounds().Dy() {
-		return errors.New("topRight image has different dimensions")
-	}
-	if width != bt.Left.Bounds().Dx() || height != bt.Left.Bounds().Dy() {
-		return errors.New("left image has different dimensions")
-	}
-	if width != bt.Right.Bounds().Dx() || height != bt.Right.Bounds().Dy() {
-		return errors.New("right image has different dimensions")
-	}
-	if width != bt.BottomLeft.Bounds().Dx() || height != bt.BottomLeft.Bounds().Dy() {
-		return errors.New("bottomLeft image has different dimensions")
-	}
-	if width != bt.Bottom.Bounds().Dx() || height != bt.Bottom.Bounds().Dy() {
-		return errors.New("bottom image has different dimensions")
-	}
-	if width != bt.BottomRight.Bounds().Dx() || height != bt.BottomRight.Bounds().Dy() {
-		return errors.New("bottomRight image has different dimensions")
-	}
-	if width != bt.Fill.Bounds().Dx() || height != bt.Fill.Bounds().Dy() {
-		return errors.New("fill image has different dimensions")
-	}
-	return nil
-}
-
-// CreateBox creates a box image from the given tiles
-//
-// numTilesWide: the number of tiles wide the box should be
-//
-// numTilesHigh: the number of tiles high the box should be
-//
-// t: the box tiles
-//
-// borderOpacity: the opacity of the border tiles (alpha scale value)
-//
-// fillOpacity: the opacity of the fill tiles (alpha scale value)
-func CreateBox(numTilesWide, numTilesHigh int, t BoxTiles, borderOpacity float32, fillOpacity float32) *ebiten.Image {
-	if numTilesWide < 2 {
-		numTilesWide = 2
-	}
-	if numTilesHigh < 2 {
-		numTilesHigh = 2
-	}
-
-	err := t.Verify()
-	if err != nil {
-		panic(err)
-	}
-	tileSize := t.Top.Bounds().Dx()
-	box := ebiten.NewImage(numTilesWide*tileSize, numTilesHigh*tileSize)
-	for x := 0; x < numTilesWide; x++ {
-		for y := 0; y < numTilesHigh; y++ {
-			// get the image we will place
-			var img *ebiten.Image
-			op := &ebiten.DrawImageOptions{}
-			a := borderOpacity
-			if x == 0 {
-				if y == 0 {
-					// top left
-					img = t.TopLeft
-				} else if y == numTilesHigh-1 {
-					// bottom left
-					img = t.BottomLeft
-				} else {
-					// left
-					img = t.Left
-				}
-			} else if x == numTilesWide-1 {
-				if y == 0 {
-					// top right
-					img = t.TopRight
-				} else if y == numTilesHigh-1 {
-					// bottom right
-					img = t.BottomRight
-				} else {
-					// right
-					img = t.Right
-				}
-			} else if y == 0 {
-				img = t.Top
-			} else if y == numTilesHigh-1 {
-				img = t.Bottom
-			} else {
-				img = t.Fill
-				a = fillOpacity
-			}
-			// draw the tile
-			op.ColorScale.ScaleAlpha(a)
-			op.GeoM.Translate(float64(x*tileSize), float64(y*tileSize))
-			box.DrawImage(img, op)
-		}
-	}
-	return box
-}
-
-func NewRadialGradientImage(size int) *ebiten.Image {
-	falloff := 2.0
-	fadeLimit := 0.8
-
-	img := ebiten.NewImage(size, size)
-	rgba := image.NewRGBA(image.Rect(0, 0, size, size))
-
-	centerX, centerY := float64(size/2), float64(size/2)
-	maxDistance := math.Sqrt(centerX*centerX + centerY*centerY)
-
-	// Reduce max distance by a fadeLimit factor to stop fading before the edge
-	fadeDistance := maxDistance * fadeLimit
-
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
-			// Calculate the distance from the center
-			dx, dy := float64(x)-centerX, float64(y)-centerY
-			distance := math.Sqrt(dx*dx + dy*dy)
-			normalizedDistance := math.Min(distance/fadeDistance, 1.0)
-
-			// Fine-tune the alpha calculation using the falloff parameter
-			fadeFactor := math.Pow(normalizedDistance, falloff)
-			alpha := uint8(255 * (1 - fadeFactor))
-
-			// Set the color as black with calculated alpha
-			rgba.SetRGBA(x, y, color.RGBA{0, 0, 0, alpha})
-		}
-	}
-
-	img.WritePixels(rgba.Pix)
-	return img
 }

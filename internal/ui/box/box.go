@@ -1,3 +1,4 @@
+// Package box provides a box UI component
 package box
 
 import (
@@ -38,7 +39,7 @@ func NewBox(tilesetSource string, originTileIndex int) Box {
 	w := tileset.Columns
 	for row := range 3 {
 		for col := range 3 {
-			img, err := tileset.GetTileImage(originTileIndex + col + (row * w))
+			img, err := tileset.GetTileImage(originTileIndex+col+(row*w), true)
 			if err != nil {
 				logz.Panicf("error loading tile image for box: %s", err)
 			}

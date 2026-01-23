@@ -28,9 +28,9 @@ func NewLinearBox(params LinearBoxParams) LinearBox {
 		panic("width must be at least 2 tiles")
 	}
 	b := LinearBox{}
-	b.tiles = append(b.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex))
-	b.tiles = append(b.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex+1))
-	b.tiles = append(b.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex+2))
+	b.tiles = append(b.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex, true))
+	b.tiles = append(b.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex+1, true))
+	b.tiles = append(b.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex+2, true))
 
 	tileSize := int(config.TileSize * config.UIScale)
 
