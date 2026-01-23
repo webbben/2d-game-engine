@@ -70,9 +70,9 @@ func NewOptionSelect(params OptionSelectParams, popupMgr *popup.Manager) OptionS
 		f:        params.Font,
 		popupMgr: popupMgr,
 	}
-	os.tiles = append(os.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex))
-	os.tiles = append(os.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex+1))
-	os.tiles = append(os.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex+2))
+	os.tiles = append(os.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex, true))
+	os.tiles = append(os.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex+1, true))
+	os.tiles = append(os.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex+2, true))
 
 	// get max width of text options
 	maxWidth := 0
@@ -149,7 +149,7 @@ func (os *OptionSelect) Draw(screen *ebiten.Image, x, y float64, om *overlay.Ove
 	text.DrawShadowText(screen, os.GetCurrentValue(), os.f, int(sX), sY, nil, nil, 0, 0)
 }
 
-// the window that drops down and lets you select an option
+// DropDownWindow is a window that drops down and lets you select an option
 type DropDownWindow struct {
 	optionSelectRef *OptionSelect
 

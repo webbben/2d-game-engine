@@ -1,4 +1,4 @@
-// utility functions for rendering images
+// Package rendering provides utility functions for rendering images
 package rendering
 
 import (
@@ -16,7 +16,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/colorm"
 )
 
-// gets the absolute position an image should be drawn at if it is to be centered correctly in the given tile-based coordinates
+// GetImageDrawPos gets the absolute position an image should be drawn at if it is to be centered correctly in the given tile-based coordinates
 // TODO - is this being used right? description indicates x and y should be tile coords I think, but I'm pretty sure we are using abs coords.
 func GetImageDrawPos(image *ebiten.Image, x float64, y float64, offsetX float64, offsetY float64) (float64, float64) {
 	imgWidth := image.Bounds().Dx()
@@ -32,7 +32,7 @@ func GetRectDrawPos(rect model.Rect, x, y float64, offsetX, offsetY float64) (fl
 	return drawX, drawY
 }
 
-// determines if the given tile-based coordinates are within the camera view
+// ObjectInsideCameraView checks if the given tile-based coordinates are within the camera view
 func ObjectInsideCameraView(tileX float64, tileY float64, widthAdj, heightAdj float64, offsetX float64, offsetY float64) bool {
 	xMin := offsetX
 	yMin := offsetY
@@ -43,7 +43,7 @@ func ObjectInsideCameraView(tileX float64, tileY float64, widthAdj, heightAdj fl
 	return x+widthAdj >= xMin && x-widthAdj <= xMax && y+heightAdj >= yMin && y-heightAdj <= yMax
 }
 
-// determines if the given tile-based y coordinate (i.e. row) is above the camera view
+// RowAboveCameraView checks if the given tile-based y coordinate (i.e. row) is above the camera view
 // if it's above, then that row can skip rendering but the next rows need to continue to be checked
 func RowAboveCameraView(tileY float64, offsetY float64) bool {
 	y := tileY * config.TileSize
@@ -51,7 +51,7 @@ func RowAboveCameraView(tileY float64, offsetY float64) bool {
 	return y+config.TileSize < offsetY
 }
 
-// determines if the given tile-based y coordinate (i.e. row) is above the camera view
+// RowBelowCameraView checks if the given tile-based y coordinate (i.e. row) is above the camera view
 // if it's below, then this and all remaining rows can skip rendering
 func RowBelowCameraView(tileY float64, offsetY float64) bool {
 	yMax := offsetY + (float64(display.SCREEN_HEIGHT) / config.GameScale)
@@ -59,7 +59,7 @@ func RowBelowCameraView(tileY float64, offsetY float64) bool {
 	return y > yMax
 }
 
-// determines if the given tile-based y coordinate (i.e. row) is within the camera view
+// ColBeforeCameraView checks if the given tile-based y coordinate (i.e. row) is within the camera view
 func ColBeforeCameraView(tileX float64, offsetX float64) bool {
 	x := tileX * config.TileSize
 	return x+config.TileSize < offsetX
@@ -110,50 +110,41 @@ func CenterImageOnImage(bg *ebiten.Image, img *ebiten.Image) (int, int) {
 
 func CropImageByOtherImage(img, otherImage *ebiten.Image) *ebiten.Image {
 	result := ebiten.NewImage(img.Bounds().Dx(), img.Bounds().Dy())
-	result.DrawImage(img, nil)
+	drawImage(result, img, nil)
 
 	ops := ebiten.DrawImageOptions{}
 	ops.Blend = ebiten.BlendDestinationIn
-	result.DrawImage(otherImage, &ops)
+	drawImage(result, otherImage, &ops)
 
 	return result
 }
 
 func SubtractImageByOtherImage(img, otherImage *ebiten.Image, imgOffsetY, otherOffsetY int) *ebiten.Image {
 	if img == nil {
-		panic("img is nil")
+		panic("img is nil; it's expected that we are using non-empty images here")
 	}
 	if otherImage == nil {
-		panic("otherImage is nil")
-	}
-	if IsImageEmpty(img) {
-		logz.Panicln("SubtractImageByOtherImage", "tried to subtract from an empty image!")
-	}
-	if IsImageEmpty(otherImage) {
-		logz.Panicln("SubtractImageByOtherImage", "tried to subtract by an empty image!")
+		panic("otherImage is nil; it's expected that we are using non-empty images here")
 	}
 	result := ebiten.NewImage(img.Bounds().Dx(), img.Bounds().Dy())
 	imgOps := ebiten.DrawImageOptions{}
 	if imgOffsetY != 0 {
 		imgOps.GeoM.Translate(0, float64(imgOffsetY))
 	}
-	result.DrawImage(img, &imgOps)
+	drawImage(result, img, &imgOps)
 
 	otherOps := ebiten.DrawImageOptions{}
 	if otherOffsetY != 0 {
 		otherOps.GeoM.Translate(0, float64(otherOffsetY))
 	}
 	otherOps.Blend = ebiten.BlendDestinationOut
-	result.DrawImage(otherImage, &otherOps)
-
-	if ImagesEqual(img, result) {
-		logz.Panicln("SubtractImageByOtherImage", "original image subtracted from appears to be the same as the result image (subtraction doesn't seem to have worked)")
-	}
+	drawImage(result, otherImage, &otherOps)
 
 	return result
 }
 
 // ImagesEqual checks if the two images have equal image data (i.e. are the same)
+// Warning: can only be used while ebiten game is running!
 func ImagesEqual(a, b *ebiten.Image) bool {
 	if a == nil || b == nil {
 		logz.Panicln("ImagesEqual", "one of the images passed in was nil")
@@ -174,7 +165,7 @@ func ImagesEqual(a, b *ebiten.Image) bool {
 }
 
 // IsImageEmpty checks if an image has any non-transparent pixels.
-// WARNING: Not performance friendly. Do not use in draw or repeatedly in long lasting loops. Just for short term validation.
+// Warning: can only be used while ebiten game is running!
 func IsImageEmpty(img *ebiten.Image) bool {
 	if img == nil {
 		panic("passed in nil image")
@@ -198,6 +189,12 @@ func IsImageEmpty(img *ebiten.Image) bool {
 }
 
 func DrawHueRotatedImage(screen, img *ebiten.Image, sliderValue float64, x, y, scale float64) {
+	if screen == nil {
+		panic("screen is nil")
+	}
+	if img == nil {
+		panic("img is nil")
+	}
 	hueShift := sliderValue * 2 * math.Pi
 
 	op := &colorm.DrawImageOptions{}

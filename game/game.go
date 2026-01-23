@@ -1,3 +1,4 @@
+// Package game defines the ebiten game structure and the foundation of running the game
 package game
 
 import (
@@ -19,7 +20,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// game state
+// Game - the root of the game state that is maintained when game is active
 type Game struct {
 	MapInfo *MapInfo
 	Player  *player.Player // the player
@@ -71,7 +72,7 @@ type UpdateHooks struct {
 	UpdateMapHook func(*Game)
 }
 
-// run startup functions to prepare the game to play.
+// InitialStartUp runs startup functions to prepare the game to play.
 // only need to call once, at the beginning.
 func InitialStartUp() error {
 	err := config.InitFileStructure()
@@ -84,7 +85,7 @@ func InitialStartUp() error {
 	}
 
 	// set logs to show microseconds in timestamps
-	//log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	// log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	// Since we now log the update tick, I don't think this is that useful anymore
 
 	return nil
@@ -135,7 +136,7 @@ func (g *Game) SetHour(hour int, skipFade bool) {
 	})
 }
 
-// Binds a key to a given function for global keybindings.
+// SetGlobalKeyBinding sets a key to a given function for global keybindings.
 //
 // Generally should only be used for testing purposes, as normally keybindings will only be applicable to certain screens, contexts, in-game scenarios, etc.
 func (g *Game) SetGlobalKeyBinding(key ebiten.Key, f func(g *Game)) {
@@ -170,7 +171,7 @@ func (g *Game) handleGlobalKeyBindings() {
 	}
 }
 
-// this is called whenever the screen/window resizes.
+// Layout is called whenever the screen/window resizes.
 // we keep an internal fixed screen size, and then scale up or down to meet the real size of the window.
 // but, we record the real screen size here in case its useful
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {

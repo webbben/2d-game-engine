@@ -557,13 +557,13 @@ func (eb *EntityBodySet) cropHair() {
 	eb.BodySet.validate()
 	eb.HairSet.validate()
 	leftHead := ebiten.NewImage(config.TileSize, config.TileSize)
-	leftHead.DrawImage(eb.BodySet.WalkAnimation.L[0], nil)
+	rendering.DrawImage(leftHead, eb.BodySet.WalkAnimation.L[0], 0, 0, 0)
 	rightHead := ebiten.NewImage(config.TileSize, config.TileSize)
-	rightHead.DrawImage(eb.BodySet.WalkAnimation.R[0], nil)
+	rendering.DrawImage(rightHead, eb.BodySet.WalkAnimation.R[0], 0, 0, 0)
 	upHead := ebiten.NewImage(config.TileSize, config.TileSize)
-	upHead.DrawImage(eb.BodySet.WalkAnimation.U[0], nil)
+	rendering.DrawImage(upHead, eb.BodySet.WalkAnimation.U[0], 0, 0, 0)
 	downHead := ebiten.NewImage(config.TileSize, config.TileSize)
-	downHead.DrawImage(eb.BodySet.WalkAnimation.D[0], nil)
+	rendering.DrawImage(downHead, eb.BodySet.WalkAnimation.D[0], 0, 0, 0)
 
 	cropper := func(a *Animation) {
 		for i, img := range a.L {

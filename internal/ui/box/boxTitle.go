@@ -52,7 +52,7 @@ func NewBoxTitle(tilesetSrc string, originIndex int, titleString string, f font.
 	tiles := []*ebiten.Image{}
 	for row := range 2 {
 		for col := range 5 {
-			tileImg, err := tileset.GetTileImage(originIndex + col + (row * tileset.Columns))
+			tileImg, err := tileset.GetTileImage(originIndex+col+(row*tileset.Columns), true)
 			if err != nil {
 				logz.Panicf("failed to load box title tile image: %s", err)
 			}

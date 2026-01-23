@@ -402,7 +402,8 @@ func getAnimationFrames(tilesetSrc string, indices []int, flip bool, stretchX, s
 }
 
 func loadFrameImg(tilesetSrc string, index int, flip bool, stretchX, stretchY int) *ebiten.Image {
-	img := tiled.GetTileImage(tilesetSrc, index)
+	// don't panic on empty frames since some animations have empty frames, like when a weapon is hidden by the body
+	img := tiled.GetTileImage(tilesetSrc, index, false)
 	if flip {
 		img = rendering.FlipHoriz(img)
 	}
@@ -416,6 +417,11 @@ func loadFrameImg(tilesetSrc string, index int, flip bool, stretchX, stretchY in
 func stretchImage(img *ebiten.Image, stretchX, stretchY int) *ebiten.Image {
 	if stretchX == 0 && stretchY == 0 {
 		panic("no stretch set")
+	}
+	if img == nil {
+		// suspicious that an empty image is attempting to be stretched... but, since some animations could have empty frames,
+		// let's just roll with it for now.
+		return nil
 	}
 
 	originalBounds := img.Bounds()

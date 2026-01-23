@@ -1,3 +1,4 @@
+// Package trade implements a trade screen for in game trading sessions
 package trade
 
 import (
@@ -100,7 +101,7 @@ func NewTradeScreen(params TradeScreenParams, defMgr *definitions.DefinitionMana
 	ts.itemTransfer = inventory.NewItemTransfer(ts.playerInventory.GetItemSlots(), ts.shopkeeperInventory.GetItemSlots())
 
 	// gold counters
-	goldIcon := tiled.GetTileImage(params.PlayerInventoryParams.ItemSlotTilesetSource, 194)
+	goldIcon := tiled.GetTileImage(params.PlayerInventoryParams.ItemSlotTilesetSource, 194, true)
 	ts.playerGoldCount = textbox.NewTextBox("0", params.TextBoxTilesetSrc, params.TextBoxOrigin, config.DefaultFont, goldIcon, &textbox.TextBoxOptions{
 		SetWidthPx: tileSize * 4,
 	})
@@ -121,7 +122,7 @@ func (ts *TradeScreen) loadShopkeeper(sk *definitions.Shopkeeper) {
 	ts.shopkeeperInventory.SetItemSlots(sk.ShopInventory)
 }
 
-// does necessary preparation for a trade session (loads shopkeeper and items, syncs player items, etc)
+// SetupTradeSession does necessary preparation for a trade session (loads shopkeeper and items, syncs player items, etc)
 // must be called before beginning trade
 func (ts *TradeScreen) SetupTradeSession(shopkeeper *definitions.Shopkeeper) {
 	if ts.playerRef == nil {

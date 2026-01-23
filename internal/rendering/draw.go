@@ -35,7 +35,7 @@ var BlendMultiply ebiten.Blend = ebiten.Blend{
 	BlendOperationAlpha:         ebiten.BlendOperationAdd,
 }
 
-// draws an image in the map, using the standard settings to do so.
+// DrawWorldImage draws an image in the map, using the standard settings to do so.
 // can optionally pass in special options, but they should not mess with the following:
 //
 // # GeoM.Translate - already using this to place the object at its position
@@ -55,7 +55,7 @@ func DrawWorldImage(screen *ebiten.Image, img *ebiten.Image, x, y, offsetX, offs
 	op.GeoM.Translate(drawX, drawY)
 	op.GeoM.Scale(config.GameScale, config.GameScale)
 
-	screen.DrawImage(img, op)
+	drawImage(screen, img, op)
 }
 
 func DrawImage(screen *ebiten.Image, img *ebiten.Image, x, y, scale float64) {
@@ -72,8 +72,16 @@ func DrawImage(screen *ebiten.Image, img *ebiten.Image, x, y, scale float64) {
 	}
 	// important: if translate is above scale, it will come out weird
 	// I guess this is because these effects are applied in order
-	op.GeoM.Translate(x, y)
-	screen.DrawImage(img, op)
+	if x != 0 || y != 0 {
+		op.GeoM.Translate(x, y)
+	}
+	drawImage(screen, img, op)
+}
+
+// DrawImageOnlyOps allows you to draw an image only providing the ops data - just a wrapper around the core drawImage function.
+// TODO: should we delete this? Only made this for one use case in map.go which we need to investigate more.
+func DrawImageOnlyOps(screen *ebiten.Image, img *ebiten.Image, ops *ebiten.DrawImageOptions) {
+	drawImage(screen, img, ops)
 }
 
 func DrawImageWithOps(screen *ebiten.Image, img *ebiten.Image, x, y, scale float64, op *ebiten.DrawImageOptions) {
@@ -91,11 +99,26 @@ func DrawImageWithOps(screen *ebiten.Image, img *ebiten.Image, x, y, scale float
 		op.GeoM.Scale(scale, scale)
 	}
 	op.GeoM.Translate(x, y)
+	drawImage(screen, img, op)
+}
+
+// drawImage is the core drawing image function. this should always be used when directly drawing something, since it includes the basic guardrails.
+func drawImage(screen *ebiten.Image, img *ebiten.Image, op *ebiten.DrawImageOptions) {
+	if screen == nil {
+		panic("screen is nil")
+	}
+	if img == nil {
+		panic("img to draw on screen is nil")
+	}
 	screen.DrawImage(img, op)
 }
 
-// scales the image by the given scale factor
+// ScaleImage scales the image by the given scale factor
 func ScaleImage(img *ebiten.Image, scaleX, scaleY float64) *ebiten.Image {
+	if img == nil {
+		// suspicious, but since animation frames can sometimes be empty, we'll allow it for now
+		return nil
+	}
 	bounds := img.Bounds()
 
 	dx := float64(bounds.Dx()) * scaleX
@@ -104,12 +127,17 @@ func ScaleImage(img *ebiten.Image, scaleX, scaleY float64) *ebiten.Image {
 
 	ops := ebiten.DrawImageOptions{}
 	ops.GeoM.Scale(scaleX, scaleY)
-	frame.DrawImage(img, &ops)
+	drawImage(frame, img, &ops)
 
 	return frame
 }
 
 func FlipHoriz(img *ebiten.Image) *ebiten.Image {
+	if img == nil {
+		// if img is nil, that means the loaded image was empty or fully transparent.
+		// we could panic here since it seems like a suspicious situation, but for now let's just return nil as the "flipped" image.
+		return nil
+	}
 	bounds := img.Bounds()
 	frame := ebiten.NewImage(bounds.Dx(), bounds.Dy())
 
@@ -117,7 +145,7 @@ func FlipHoriz(img *ebiten.Image) *ebiten.Image {
 	ops.GeoM.Scale(-1, 1)
 	ops.GeoM.Translate(float64(bounds.Dx()), 0)
 
-	frame.DrawImage(img, &ops)
+	drawImage(frame, img, &ops)
 
 	return frame
 }

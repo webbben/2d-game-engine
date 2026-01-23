@@ -1,3 +1,4 @@
+// Package slider provides a slider UI component
 package slider
 
 import (
@@ -81,19 +82,19 @@ func NewSlider(params SliderParams) Slider {
 	tileSize := int(config.TileSize * config.UIScale)
 
 	// load images
-	left, err := tileset.GetTileImage(params.TilesetOrigin)
+	left, err := tileset.GetTileImage(params.TilesetOrigin, true)
 	if err != nil {
 		logz.Panicf("failed to load left tile for slider: %s", err)
 	}
-	middle, err := tileset.GetTileImage(params.TilesetOrigin + 1)
+	middle, err := tileset.GetTileImage(params.TilesetOrigin+1, true)
 	if err != nil {
 		logz.Panicf("failed to load middle tile for slider: %s", err)
 	}
-	right, err := tileset.GetTileImage(params.TilesetOrigin + 2)
+	right, err := tileset.GetTileImage(params.TilesetOrigin+2, true)
 	if err != nil {
 		logz.Panicf("failed to load right tile for slider: %s", err)
 	}
-	ball, err := tileset.GetTileImage(params.TilesetOrigin + 3)
+	ball, err := tileset.GetTileImage(params.TilesetOrigin+3, true)
 	if err != nil {
 		logz.Panicf("failed to load ball tile for slider: %s", err)
 	}
@@ -128,9 +129,9 @@ func (s *Slider) Update() {
 	sliderBounds := s.sliderImg.Bounds()
 	s.MouseBehavior.Update(s.x, s.y, sliderBounds.Dx(), sliderBounds.Dy(), false)
 
-	if s.MouseBehavior.LeftClick.ClickStart {
+	if s.LeftClick.ClickStart {
 		s.clickStarted = true
-	} else if (s.MouseBehavior.LeftClick.ClickHolding || s.MouseBehavior.LeftClickOutside.ClickHolding) && s.clickStarted {
+	} else if (s.LeftClick.ClickHolding || s.LeftClickOutside.ClickHolding) && s.clickStarted {
 		// follow mouse x, as long as its within slider's bounds
 		mouseX, _ := ebiten.CursorPosition()
 		// ballX and stepDistPx need to be maintained as floats since steps may have decimal values, and without those

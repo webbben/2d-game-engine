@@ -125,7 +125,7 @@ func (m *Map) LoadTileImageMap() error {
 		for i := 0; i < tileset.TileCount; i++ {
 			tileData := TileData{}
 			tileData.ID = i
-			tileImg, err := tileset.GetTileImage(i)
+			tileImg, err := tileset.GetTileImage(i, false) // don't panic on empty, since empty tiles exist in map tilesets
 			if err != nil {
 				return err
 			}
@@ -140,7 +140,7 @@ func (m *Map) LoadTileImageMap() error {
 					tileData.Frames = []tileAnimation{}
 					// found some animation frames
 					for _, animationFrame := range tile.Animation {
-						frameImg, err := tileset.GetTileImage(animationFrame.TileID)
+						frameImg, err := tileset.GetTileImage(animationFrame.TileID, false)
 						if err != nil {
 							return err
 						}
@@ -259,10 +259,14 @@ func (m Map) drawTileLayer(screen *ebiten.Image, offsetX, offsetY float64, layer
 				logz.Panicf("tile GID (%v) not found in TileImageMap; was there an error during tileset initialization?", tileGID)
 			}
 
-			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(drawX, drawY)
-			op.GeoM.Scale(config.GameScale, config.GameScale)
-			screen.DrawImage(tileData.CurrentFrame, op)
+			if tileData.CurrentFrame != nil {
+				// TODO: investigate why we do translate before scale... in rendering.DrawImage, we've apparently run into issues when doing that before.
+				// would be good to figure out why we do it here, and if we can do it the same as rendering.DrawImage. But scared to touch this while refactoring other things rn.
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(drawX, drawY)
+				op.GeoM.Scale(config.GameScale, config.GameScale)
+				rendering.DrawImageOnlyOps(screen, tileData.CurrentFrame, op)
+			}
 
 			i++
 		}

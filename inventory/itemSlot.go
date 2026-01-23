@@ -197,7 +197,6 @@ func (is *ItemSlot) Update() {
 	if is.IsSelected {
 		is.selectedBorderFader.Update()
 	}
-
 }
 
 type ItemSlotTiles struct {
@@ -213,19 +212,19 @@ func LoadItemSlotTiles(tilesetSrc string, enTileID, disTileID, eqTileID, selTile
 	if err != nil {
 		logz.Panicf("failed to load tileset for inventory: %s", err)
 	}
-	enabledImg, err := ts.GetTileImage(enTileID)
+	enabledImg, err := ts.GetTileImage(enTileID, true)
 	if err != nil {
 		panic(err)
 	}
-	disabledImg, err := ts.GetTileImage(disTileID)
+	disabledImg, err := ts.GetTileImage(disTileID, true)
 	if err != nil {
 		panic(err)
 	}
-	selectedBorder, err := ts.GetTileImage(selTileID)
+	selectedBorder, err := ts.GetTileImage(selTileID, true)
 	if err != nil {
 		panic(err)
 	}
-	equipedBorder, err := ts.GetTileImage(eqTileID)
+	equipedBorder, err := ts.GetTileImage(eqTileID, true)
 	if err != nil {
 		panic(err)
 	}

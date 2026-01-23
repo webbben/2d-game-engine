@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/webbben/2d-game-engine/internal/config"
+	imagePkg "github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
@@ -221,7 +221,9 @@ func (m Map) GetAllTilePositions(gid int) []model.Coords {
 	return coords
 }
 
-func (t Tileset) GetTileImage(id int) (*ebiten.Image, error) {
+// GetTileImage is the core function to get a tile image from a tileset.
+// The image value will be returned as nil if it was fully transparent or lacked dimensions.
+func (t Tileset) GetTileImage(id int, panicOnEmpty bool) (*ebiten.Image, error) {
 	if id < 0 {
 		return nil, fmt.Errorf("tile id (%v) is less than 0", id)
 	}
@@ -229,14 +231,18 @@ func (t Tileset) GetTileImage(id int) (*ebiten.Image, error) {
 		return nil, fmt.Errorf("tile id (%v) is greater than the tileset's tile count (%v). are we getting a bad tile ID?", id, t.TileCount)
 	}
 	tileDir := config.ResolveTilePath(t.Name)
-	tileImg, _, err := ebitenutil.NewImageFromFile(filepath.Join(tileDir, fmt.Sprintf("%v.png", id)))
+	imgFilePath := filepath.Join(tileDir, fmt.Sprintf("%v.png", id))
+	tileImg, err := imagePkg.LoadImage(imgFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load tile image: %w", err)
+	}
+	if panicOnEmpty && tileImg == nil {
+		logz.Panicln("GetTileImage", "tile image was empty (fully transparent or lacking dimensions) when we expected it to have actual data in it:", imgFilePath)
 	}
 	return tileImg, nil
 }
 
-func GetTileImage(tilesetSrc string, tileID int) *ebiten.Image {
+func GetTileImage(tilesetSrc string, tileID int, panicOnEmpty bool) *ebiten.Image {
 	if tilesetSrc == "" {
 		panic("no tilesetSrc passed")
 	}
@@ -244,12 +250,9 @@ func GetTileImage(tilesetSrc string, tileID int) *ebiten.Image {
 	if err != nil {
 		logz.Panicf("failed to load tileset: %s", err)
 	}
-	img, err := tileset.GetTileImage(tileID)
+	img, err := tileset.GetTileImage(tileID, panicOnEmpty)
 	if err != nil {
 		panic(err)
-	}
-	if img == nil {
-		panic("tile image is nil?")
 	}
 	return img
 }
