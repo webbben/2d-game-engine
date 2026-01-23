@@ -1,3 +1,11 @@
+# 2026-01-23
+
+A new update on the status of the character builder: I've changed some of the layout, added new fields for things like footwear, and have finished up (for now) a full 
+suit of legionary armor (headwear, shield, boots, bodywear, etc). Things seem to be working pretty well, and I think we've pretty much covered all the different animations we'll need
+for the first version of the game I'm planning to make. Here's how it looks:
+
+![Character Builder after a bit of maturing](./20260123.png)
+
 # 2026-01-22
 
 Ran into an interesting problem today, which ultimately ended up being my mistake, but I remembered that we are doing something tricky here with the body image frames,
