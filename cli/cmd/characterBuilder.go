@@ -971,8 +971,11 @@ func (bg *builderGame) handleChangeAux(val string) {
 	bg.equipedAux = val
 
 	if val == noneOp {
-		bg.characterData.EquipedAuxiliary = nil
-		bg.characterData.Body.AuxItemSet.Remove()
+		// catch the initial loading time call where the selector sees a mismatch and tries to set to None
+		if bg.characterData.EquipedAuxiliary == nil {
+			return
+		}
+		bg.characterData.UnequipAuxiliary()
 		return
 	}
 	for _, auxItem := range bg.auxItems {

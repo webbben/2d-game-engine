@@ -283,6 +283,9 @@ func (set *BodyPartSet) Remove() {
 		logz.Panic("set is not removable!")
 	}
 	set.setImageSource(SelectedPartDef{None: true}, 0, 0, false)
+	if !set.PartSrc.None {
+		panic("removed body part set, but None is false")
+	}
 }
 
 // Hide hides the body part (without actually clearing PartSrc).
