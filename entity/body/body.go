@@ -369,8 +369,6 @@ func (eb *EntityBodySet) SetAuxiliary(def SelectedPartDef) {
 }
 
 func (eb *EntityBodySet) reloadAuxAffectedParts() {
-	// body
-	eb.BodySet.load(0, 0, eb.IsAuxEquipped())
 	// equip body
 	eb.EquipBodySet.load(eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
 	// arms
@@ -380,9 +378,15 @@ func (eb *EntityBodySet) reloadAuxAffectedParts() {
 func (eb *EntityBodySet) RemoveAuxiliary() {
 	eb.AuxItemSet.Remove()
 
+	eb.reloadAuxAffectedParts()
+
 	if eb.animation != "" {
 		eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation)
 		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
+	}
+
+	if eb.IsAuxEquipped() {
+		logz.Panicln(eb.Name, "sanity check: just removed auxiliary, but IsAuxEquipped returned true...")
 	}
 }
 
