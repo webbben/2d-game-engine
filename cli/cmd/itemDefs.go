@@ -378,7 +378,13 @@ func GetItemDefs() []item.ItemDef {
 				TilesLeft:  offsetInts([]int{49, 50, 51, 52}, offset),
 				TilesUp:    offsetInts([]int{68, 69, 70, 71}, offset),
 			},
-			Shield: &body.AnimationParams{Skip: true},
+			Shield: &body.AnimationParams{
+				TilesetSrc: auxTileset,
+				TilesDown:  offsetInts([]int{15}, offset),
+				TilesRight: offsetInts([]int{34}, offset),
+				TilesLeft:  offsetInts([]int{53}, offset),
+				TilesUp:    offsetInts([]int{72}, offset),
+			},
 		})
 		auxStatic = append(auxStatic, def)
 	}
