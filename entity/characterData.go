@@ -119,6 +119,23 @@ func LoadCharacterDataJSON(src string, defMgr *definitions.DefinitionManager) (C
 		i.Def = defMgr.GetItemDef(i.Instance.DefID)
 	}
 
+	// replace the equiped item defs with those loaded from the definition manager
+	// this is to ensure that we aren't loading these things from the JSON; it's possible equipment animations could change occasionally.
+	// Note: body itself stays as loaded, since the body, arms, legs etc aren't items that are defined in the defMgr
+	if cd.EquipedHeadwear != nil {
+		cd.Body.EquipHeadSet.PartSrc = *cd.EquipedHeadwear.Def.GetBodyPartDef()
+	}
+	if cd.EquipedBodywear != nil {
+		cd.Body.EquipBodySet.PartSrc = *cd.EquipedBodywear.Def.GetBodyPartDef()
+		cd.Body.EquipLegsSet.PartSrc = *cd.EquipedBodywear.Def.GetLegsPartDef()
+	}
+	if cd.EquipedFootwear != nil {
+		cd.Body.EquipFeetSet.PartSrc = *cd.EquipedFootwear.Def.GetBodyPartDef()
+	}
+	if cd.EquipedAuxiliary != nil {
+		cd.Body.AuxItemSet.PartSrc = *cd.EquipedAuxiliary.Def.GetBodyPartDef()
+	}
+
 	return cd, nil
 }
 

@@ -524,33 +524,43 @@ func NewPartDef(params PartDefParams) SelectedPartDef {
 // IsEqual checks if the two are equal. mainly used for validation.
 func (def SelectedPartDef) IsEqual(other SelectedPartDef) bool {
 	if def.None != other.None {
+		fmt.Printf("'None' value is different: %v vs %v\n", def.None, other.None)
 		return false
 	}
 	if def.FlipRForL != other.FlipRForL {
+		fmt.Printf("'FlipRForL' value is different: %v vs %v\n", def.FlipRForL, other.FlipRForL)
 		return false
 	}
 	if def.StretchX != other.StretchX || def.StretchY != other.StretchY || def.OffsetY != other.OffsetY {
+		fmt.Println("stretch values or offset values are different:", def.StretchX, other.StretchX, def.StretchY, other.StretchY, def.OffsetY, other.OffsetY)
 		return false
 	}
 	if def.CropHairToHead != other.CropHairToHead {
+		fmt.Println("cropHairToHead values are different:", def.CropHairToHead, other.CropHairToHead)
 		return false
 	}
 	if !def.IdleAnimation.IsEqual(other.IdleAnimation) {
+		fmt.Println("Idle animations are not equal")
 		return false
 	}
 	if !def.WalkAnimation.IsEqual(other.WalkAnimation) {
+		fmt.Println("Walk animations are not equal")
 		return false
 	}
 	if !def.RunAnimation.IsEqual(other.RunAnimation) {
+		fmt.Println("Run animations are not equal")
 		return false
 	}
 	if !def.SlashAnimation.IsEqual(other.SlashAnimation) {
+		fmt.Println("Slash animations are not equal")
 		return false
 	}
 	if !def.BackslashAnimation.IsEqual(other.BackslashAnimation) {
+		fmt.Println("Backslash animations are not equal")
 		return false
 	}
 	if !def.ShieldAnimation.IsEqual(other.ShieldAnimation) {
+		fmt.Println("Shield animations are not equal")
 		return false
 	}
 	return true
