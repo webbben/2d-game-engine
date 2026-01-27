@@ -166,6 +166,9 @@ func (cd CharacterData) Validate() {
 	if cd.RunSpeed == 0 {
 		logz.Panicln(cd.DisplayName, "run speed is 0")
 	}
+	if cd.WalkSpeed == cd.RunSpeed {
+		logz.Panicln(cd.DisplayName, "run speed and walk speed are the same:", cd.RunSpeed)
+	}
 	if len(cd.InventoryItems) == 0 {
 		logz.Panicln(cd.DisplayName, "inventory size is 0")
 	}
@@ -176,6 +179,9 @@ func (cd CharacterData) Validate() {
 				logz.Panicln(cd.DisplayName, "equipment is nil, but body part is not set to None")
 			}
 		} else {
+			if bodyPart.PartSrc.None {
+				logz.Panicln(cd.DisplayName, "equipment is not nil, but body part is set to none")
+			}
 			if equipedItem.Def == nil {
 				logz.Panicln(cd.DisplayName, "equipment item def was found to be nil")
 			}
@@ -191,7 +197,11 @@ func (cd CharacterData) Validate() {
 	validateEquipment(cd.EquipedHeadwear, cd.Body.EquipHeadSet)
 	validateEquipment(cd.EquipedBodywear, cd.Body.EquipBodySet)
 	// the validation function checks the bodyPartDef, but for legs we want to check the LegsPartDef... so just handle it here separately
-	if cd.EquipedBodywear != nil {
+	if cd.EquipedBodywear == nil {
+		if !cd.Body.EquipLegsSet.PartSrc.None {
+			logz.Panicln(cd.DisplayName, "equiped bodywear is nil, but equiped legs part is not none")
+		}
+	} else {
 		equipedLegsPart := cd.EquipedBodywear.Def.GetLegsPartDef()
 		if equipedLegsPart == nil {
 			logz.Panicln(cd.DisplayName, "bodywear set, but equiped legs part seems to be nil")
@@ -201,6 +211,18 @@ func (cd CharacterData) Validate() {
 		}
 	}
 	validateEquipment(cd.EquipedAuxiliary, cd.Body.AuxItemSet)
+	validateEquipment(cd.EquipedWeapon, cd.Body.WeaponSet)
+	// handle weapon fx separately since we get that part with a specific function
+	if cd.EquipedWeapon == nil {
+		if !cd.Body.WeaponFxSet.PartSrc.None {
+			logz.Panicln(cd.DisplayName, "equiped weapon is nil, but weapon fx part is not none")
+		}
+	} else {
+		_, fxPart := item.GetWeaponParts(cd.EquipedWeapon.Def)
+		if !fxPart.IsEqual(cd.Body.WeaponFxSet.PartSrc) {
+			logz.Panicln(cd.DisplayName, "equiped weapon fx doesn't appear to match actual fx part")
+		}
+	}
 }
 
 type EntityInfo struct {

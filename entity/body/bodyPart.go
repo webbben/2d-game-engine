@@ -17,15 +17,15 @@ type BodyPartSet struct {
 
 	// animation definitions
 
-	animIndex          int  // index or "step" of the animation we are currently on
-	reachedLastFrame   bool // used to detect when an animation has finished (if all sets are at last frame, entire animation is done)
-	IdleAnimation      Animation
-	WalkAnimation      Animation
-	RunAnimation       Animation
-	SlashAnimation     Animation
-	BackslashAnimation Animation
-	ShieldAnimation    Animation
-	HasUp              bool // if true, this set has an "up" direction animation. some don't since they will be covered by the body (such as eyes)
+	animIndex          int       // index or "step" of the animation we are currently on
+	reachedLastFrame   bool      // used to detect when an animation has finished (if all sets are at last frame, entire animation is done)
+	IdleAnimation      Animation `json:"-"`
+	WalkAnimation      Animation `json:"-"`
+	RunAnimation       Animation `json:"-"`
+	SlashAnimation     Animation `json:"-"`
+	BackslashAnimation Animation `json:"-"`
+	ShieldAnimation    Animation `json:"-"`
+	HasUp              bool      // if true, this set has an "up" direction animation. some don't since they will be covered by the body (such as eyes)
 
 	img *ebiten.Image `json:"-"`
 }
@@ -283,8 +283,13 @@ func (set *BodyPartSet) Remove() {
 		logz.Panic("set is not removable!")
 	}
 	set.setImageSource(SelectedPartDef{None: true}, 0, 0, false)
+
+	// sanity checks
 	if !set.PartSrc.None {
 		panic("removed body part set, but None is false")
+	}
+	if set.img != nil {
+		panic("removed body part set, but img is not nil")
 	}
 }
 
@@ -296,4 +301,12 @@ func (set *BodyPartSet) Hide() {
 	}
 	set.PartSrc.None = true
 	set.setImageSource(set.PartSrc, 0, 0, false)
+
+	// sanity checks
+	if !set.PartSrc.None {
+		panic("hid body part set, but None is false")
+	}
+	if set.img != nil {
+		panic("hid removed body part set, but img is not nil")
+	}
 }

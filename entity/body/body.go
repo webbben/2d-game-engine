@@ -380,6 +380,7 @@ func (eb *EntityBodySet) RemoveAuxiliary() {
 
 	eb.reloadAuxAffectedParts()
 
+	// TODO: why do we need to do this? doesn't the above Remove function already handle setting img to nil?
 	if eb.animation != "" {
 		eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation)
 		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
@@ -409,6 +410,11 @@ func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
 	eb.WeaponFxSet.setImageSource(weaponFxDef, 0, 0, eb.IsAuxEquipped())
 }
 
+func (eb *EntityBodySet) RemoveWeapon() {
+	eb.WeaponSet.Remove()
+	eb.WeaponFxSet.Remove()
+}
+
 func (eb EntityBodySet) GetCurrentAnimation() string {
 	return eb.animation
 }
@@ -422,31 +428,35 @@ func (eb *EntityBodySet) SetAnimationTickCount(tickCount int) {
 
 // SelectedPartDef represents the currently selected body part and it's individual definition
 type SelectedPartDef struct {
-	None      bool // if true, this part will not be shown
-	FlipRForL bool // if true, instead of using an L source, we just flip the frames for right
+	// unique id that represents this body part. only really used for body parts (not equipment, since those are tied to items).
+	// this is the only field saved to JSON, since we will load the rest of the data using this ID with the definition manager
+	ID        string
+	None      bool `json:"-"` // if true, this part will not be shown
+	FlipRForL bool `json:"-"` // if true, instead of using an L source, we just flip the frames for right
 
 	// Idle animation def
-	IdleAnimation      AnimationParams // this is defined separately from other animations, since it behaves uniquely (see body.md)
-	WalkAnimation      AnimationParams
-	RunAnimation       AnimationParams
-	SlashAnimation     AnimationParams
-	BackslashAnimation AnimationParams
-	ShieldAnimation    AnimationParams
+	IdleAnimation      AnimationParams `json:"-"` // this is defined separately from other animations, since it behaves uniquely (see body.md)
+	WalkAnimation      AnimationParams `json:"-"`
+	RunAnimation       AnimationParams `json:"-"`
+	SlashAnimation     AnimationParams `json:"-"`
+	BackslashAnimation AnimationParams `json:"-"`
+	ShieldAnimation    AnimationParams `json:"-"`
 
 	// body-specific props
 
 	// FYI: these are not currently being used anymore (but remain functional) since we don't have other body options (tall, short, fat, etc) anymore.
 
-	StretchX int // amount to stretch hair and equip body on X axis. Defined here, this represents the value that is applied to ALL (applicable) parts - not to this one.
-	StretchY int // amount to stretch equip body on the Y axis. Defined here, this represents the value that is applied to ALL (applicable) parts - not to this one.
-	OffsetY  int // amount to offset positions of hair, eyes, equip body, etc on the Y axis
+	StretchX int `json:"-"` // amount to stretch hair and equip body on X axis. Defined here, this represents the value that is applied to ALL (applicable) parts - not to this one.
+	StretchY int `json:"-"` // amount to stretch equip body on the Y axis. Defined here, this represents the value that is applied to ALL (applicable) parts - not to this one.
+	OffsetY  int `json:"-"` // amount to offset positions of hair, eyes, equip body, etc on the Y axis
 
 	// headwear-specific props
 
-	CropHairToHead bool // set to have hair not go outside the head image. used for helmets or certain hats.
+	CropHairToHead bool `json:"-"` // set to have hair not go outside the head image. used for helmets or certain hats.
 }
 
 type PartDefParams struct {
+	ID        string
 	None      bool
 	FlipRForL bool // if true, frames for Right directions will be flipped horizontally and reused for the Left direction.
 
@@ -465,6 +475,7 @@ func NewPartDef(params PartDefParams) SelectedPartDef {
 		return SelectedPartDef{None: true}
 	}
 	def := SelectedPartDef{
+		ID:                 params.ID,
 		FlipRForL:          params.FlipRForL,
 		StretchX:           params.StretchX,
 		StretchY:           params.StretchY,
@@ -926,21 +937,35 @@ type SetAnimationOps struct {
 }
 
 type SetAnimationResult struct {
-	AlreadySet  bool // this animation is already set
-	FailedToSet bool // this animation failed to set for some reason
-	Queued      bool // this animation was queued up for next
-	Success     bool // this animation successfully set
+	AlreadySet  bool   // this animation is already set
+	FailedToSet bool   // this animation failed to set for some reason
+	Queued      bool   // this animation was queued up for next
+	Success     bool   // this animation successfully set
+	Msg         string // any extra context or information for debugging
 }
 
 func (res SetAnimationResult) String() string {
-	return fmt.Sprintf("%#v", res)
+	result := ""
+	if res.Success {
+		result = "success"
+	}
+	if res.AlreadySet {
+		result = "already set"
+	}
+	if res.FailedToSet {
+		result = "failed to set"
+	}
+	if res.Queued {
+		result = "queued"
+	}
+	return fmt.Sprintf("%s;%s", result, res.Msg)
 }
 
 // SetAnimation sets an animation. returns if animation was successfully set.
 func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) SetAnimationResult {
 	validateAnimation(animation)
 	if animation == eb.animation {
-		return SetAnimationResult{AlreadySet: true}
+		return SetAnimationResult{AlreadySet: true, Msg: fmt.Sprintf("current animation: %s", eb.animation)}
 	}
 	// if we aren't currently idle and not using the force option, then consider if it should be queued
 	if eb.animation != AnimIdle && !ops.Force {
@@ -951,7 +976,7 @@ func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) Set
 		}
 		// logz.Println(eb.Name, "Force:", ops.Force)
 		// logz.Println(eb.Name, "attempted to set animation:", animation, "animation already set:", eb.animation)
-		return SetAnimationResult{FailedToSet: true}
+		return SetAnimationResult{FailedToSet: true, Msg: fmt.Sprintf("current anim: %s, next anim: %s, tried to queue?: %v", eb.animation, eb.nextAnimation, ops.QueueNext)}
 	}
 	eb.stopAnimationOnCompletion = ops.DoOnce
 	eb.animation = animation

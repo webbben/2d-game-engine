@@ -103,6 +103,18 @@ func setupGameState() *game.Game {
 
 	itemDefs := GetItemDefs()
 	g.DefinitionManager.LoadItemDefs(itemDefs)
+	bodySkins, eyeSets, hairSets := GetAllEntityBodyPartSets()
+	for _, skin := range bodySkins {
+		g.DefinitionManager.LoadBodyPartDef(skin.Body)
+		g.DefinitionManager.LoadBodyPartDef(skin.Arms)
+		g.DefinitionManager.LoadBodyPartDef(skin.Legs)
+	}
+	for _, eyes := range eyeSets {
+		g.DefinitionManager.LoadBodyPartDef(eyes)
+	}
+	for _, hair := range hairSets {
+		g.DefinitionManager.LoadBodyPartDef(hair)
+	}
 
 	err := g.SetupMap("village_surano", &game.OpenMapOptions{
 		RunNPCManager:    true,
@@ -138,7 +150,7 @@ func setupGameState() *game.Game {
 
 	p := player.NewPlayer(g.DefinitionManager, &playerEnt)
 
-	g.PlacePlayerAtSpawnPoint(&p, 0)
+	_ = g.PlacePlayerAtSpawnPoint(&p, 0)
 
 	npcEnt := entity.NewEntity(entity.GeneralProps{
 		CharacterDataSrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_02.json",

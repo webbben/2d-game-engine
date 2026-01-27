@@ -120,12 +120,15 @@ func (p *Player) handleMovement() {
 
 func (p *Player) handleActions() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
-		p.Entity.UnequipWeaponFromBody()
+		p.Entity.UnequipWeapon()
 		return
 	}
 
 	if p.Entity.IsWeaponEquiped() {
-		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) && !p.Entity.IsAttacking() {
+			if p.Entity.IsUsingShield() {
+				p.Entity.StopUsingShield()
+			}
 			// attack
 			p.Entity.StartMeleeAttack()
 			return
