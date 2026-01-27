@@ -67,10 +67,11 @@ type builderGame struct {
 
 	// body part options (characterBuilder only)
 
-	bodySetOptions, eyesSetOptions, hairSetOptions, armsSetOptions, legsSetOptions []body.SelectedPartDef
-	bodySetIndex, eyesSetIndex, hairSetIndex, armsSetIndex                         int
-	bodywearItems, headwearItems, footwearItems                                    []item.ItemDef
-	equipedBodywear, equipedHeadwear, equipedFootwear, equipedWeapon, equipedAux   string // IDs of equiped items
+	bodySkinSets                                                                 []EntityBodySkinSet
+	eyesSetOptions, hairSetOptions                                               []body.SelectedPartDef
+	bodySetIndex, eyesSetIndex, hairSetIndex                                     int
+	bodywearItems, headwearItems, footwearItems                                  []item.ItemDef
+	equipedBodywear, equipedHeadwear, equipedFootwear, equipedWeapon, equipedAux string // IDs of equiped items
 
 	weaponItems []item.ItemDef
 
@@ -121,16 +122,23 @@ type equipBodyOption struct {
 }
 
 func characterBuilder(fileToLoad string) {
-	bodyTileset := "entities/parts/human_entity_parts.tsj"
-	armsTileset := "entities/parts/human_entity_parts.tsj"
-	eyesTileset := "entities/parts/eyes.tsj"
-	hairTileset := "entities/parts/hair.tsj"
-
 	bgTileset := "buildings/walls.tsj"
 
 	defMgr := definitions.NewDefinitionManager()
 	itemDefs := GetItemDefs()
 	defMgr.LoadItemDefs(itemDefs)
+	bodySkins, eyeSets, hairSets := GetAllEntityBodyPartSets()
+	for _, skin := range bodySkins {
+		defMgr.LoadBodyPartDef(skin.Body)
+		defMgr.LoadBodyPartDef(skin.Arms)
+		defMgr.LoadBodyPartDef(skin.Legs)
+	}
+	for _, eyes := range eyeSets {
+		defMgr.LoadBodyPartDef(eyes)
+	}
+	for _, hair := range hairSets {
+		defMgr.LoadBodyPartDef(hair)
+	}
 
 	bodywearItems := []item.ItemDef{}
 	headwearItems := []item.ItemDef{}
@@ -152,196 +160,6 @@ func characterBuilder(fileToLoad string) {
 			auxItems = append(auxItems, itemDef)
 		}
 	}
-	bodyOptions := []body.SelectedPartDef{
-		body.NewPartDef(body.PartDefParams{
-			Idle: &body.AnimationParams{
-				TilesetSrc:   bodyTileset,
-				TilesDown:    []int{73},
-				TilesRight:   []int{92},
-				TilesLeft:    []int{110},
-				TilesUp:      []int{128},
-				StepsOffsetY: []int{0},
-			},
-			Walk: &body.AnimationParams{
-				TilesetSrc:   bodyTileset,
-				TilesDown:    []int{75, 73, 77, 73},
-				TilesRight:   []int{94, 92, 94, 92},
-				TilesLeft:    []int{112, 110, 112, 110},
-				TilesUp:      []int{130, 128, 130, 128},
-				StepsOffsetY: []int{1, 0, 1, 0},
-			},
-			Run: &body.AnimationParams{
-				TilesetSrc:   bodyTileset,
-				TilesDown:    []int{74, 75, 73, 76, 77, 73},
-				TilesRight:   []int{93, 94, 92, 93, 94, 92},
-				TilesLeft:    []int{111, 112, 110, 111, 112, 110},
-				TilesUp:      []int{129, 130, 128, 129, 130, 128},
-				StepsOffsetY: []int{0, 1, 0, 0, 1, 0},
-			},
-			Slash: &body.AnimationParams{
-				TilesetSrc:     bodyTileset,
-				TilesDown:      []int{78, 79, 79, 79},
-				TilesRight:     []int{94, 95, 95, 95},
-				TilesLeft:      []int{112, 113, 113, 113},
-				TilesUp:        []int{128, 131, 131, 131},
-				StepsOffsetY:   []int{1, 2, 2, 2},
-				StepsOffsetYUp: []int{0, 1, 1, 1},
-			},
-			Backslash: &body.AnimationParams{
-				TilesetSrc:       bodyTileset,
-				TilesDown:        []int{79, 79, 79, 78},
-				TilesRight:       []int{95, 95, 94, 94},
-				TilesLeft:        []int{113, 113, 112, 112},
-				TilesUp:          []int{131, 131, 128, 128},
-				StepsOffsetY:     []int{2, 2, 1, 1},
-				StepsOffsetYDown: []int{2, 2, 2, 1},
-				StepsOffsetYUp:   []int{1, 1, 0, 0},
-			},
-			Shield: &body.AnimationParams{
-				TilesetSrc:   bodyTileset,
-				TilesDown:    []int{78},
-				TilesRight:   []int{94},
-				TilesLeft:    []int{112},
-				TilesUp:      []int{128},
-				StepsOffsetY: []int{1},
-			},
-		}),
-	}
-
-	armsOptions := []body.SelectedPartDef{
-		body.NewPartDef(body.PartDefParams{
-			Idle: &body.AnimationParams{
-				TilesetSrc: armsTileset,
-				TilesDown:  []int{146},
-				AuxDown:    []int{147},
-				TilesRight: []int{165},
-				AuxRight:   []int{166},
-				TilesLeft:  []int{183},
-				AuxLeft:    []int{184},
-				TilesUp:    []int{201},
-				AuxUp:      []int{202},
-			},
-			Walk: &body.AnimationParams{
-				TilesetSrc: armsTileset,
-				TilesDown:  []int{150, 146, 152, 146},
-				TilesRight: []int{169, 165, 171, 165},
-				TilesLeft:  []int{187, 183, 189, 183},
-				TilesUp:    []int{205, 201, 207, 201},
-			},
-			Run: &body.AnimationParams{
-				TilesetSrc: armsTileset,
-				TilesDown:  []int{149, 150, 146, 151, 152, 146},
-				TilesRight: []int{168, 169, 165, 170, 171, 165},
-				TilesLeft:  []int{186, 187, 183, 188, 189, 183},
-				TilesUp:    []int{204, 205, 201, 206, 207, 201},
-			},
-			Slash: &body.AnimationParams{
-				TilesetSrc: armsTileset,
-				TilesDown:  []int{153, 154, 155, 155},
-				TilesRight: []int{172, 173, 174, 174},
-				TilesLeft:  []int{190, 191, 192, 192},
-				TilesUp:    []int{208, 207, 209, 209},
-			},
-			Backslash: &body.AnimationParams{
-				TilesetSrc: armsTileset,
-				TilesDown:  []int{156, 155, 154, 153},
-				TilesRight: []int{174, 173, 172, 172},
-				TilesLeft:  []int{192, 191, 190, 190},
-				TilesUp:    []int{209, 207, 208, 208},
-			},
-			Shield: &body.AnimationParams{
-				TilesetSrc: armsTileset,
-				TilesDown:  []int{157},
-				TilesRight: []int{175},
-				TilesLeft:  []int{193},
-				TilesUp:    []int{204},
-			},
-		}),
-	}
-	legsOptions := []body.SelectedPartDef{
-		body.NewPartDef(body.PartDefParams{
-			Idle: &body.AnimationParams{
-				TilesetSrc: bodyTileset,
-				TilesDown:  []int{80},
-				TilesRight: []int{99},
-				TilesLeft:  []int{117},
-				TilesUp:    []int{135},
-			},
-			Walk: &body.AnimationParams{
-				TilesetSrc: bodyTileset,
-				TilesDown:  []int{84, 80, 86, 80},
-				TilesRight: []int{103, 99, 105, 99},
-				TilesLeft:  []int{121, 117, 123, 117},
-				TilesUp:    []int{139, 135, 141, 135},
-			},
-			Run: &body.AnimationParams{
-				TilesetSrc: bodyTileset,
-				TilesDown:  []int{83, 84, 80, 85, 86, 80},
-				TilesRight: []int{102, 103, 99, 104, 105, 99},
-				TilesLeft:  []int{120, 121, 117, 122, 123, 117},
-				TilesUp:    []int{138, 139, 135, 140, 141, 135},
-			},
-			Slash: &body.AnimationParams{
-				TilesetSrc: bodyTileset,
-				TilesDown:  []int{87, 87, 87, 87},
-				TilesRight: []int{103, 106, 106, 106},
-				TilesLeft:  []int{123, 124, 124, 124},
-				TilesUp:    []int{142, 142, 142, 142},
-			},
-			Backslash: &body.AnimationParams{
-				TilesetSrc: bodyTileset,
-				TilesDown:  []int{87, 87, 87, 87},
-				TilesRight: []int{106, 106, 103, 103},
-				TilesLeft:  []int{124, 124, 123, 123},
-				TilesUp:    []int{142, 142, 142, 142},
-			},
-			Shield: &body.AnimationParams{
-				TilesetSrc: bodyTileset,
-				TilesDown:  []int{87},
-				TilesRight: []int{106},
-				TilesLeft:  []int{124},
-				TilesUp:    []int{142},
-			},
-		}),
-	}
-
-	eyesOptions := []body.SelectedPartDef{}
-	for i := range 14 {
-		numCols := 32 // number of colums in the tileset
-		animParams := body.AnimationParams{
-			TilesetSrc: eyesTileset,
-			TilesDown:  []int{numCols * i},
-			TilesRight: []int{1 + (numCols * i)},
-		}
-		eyesOptions = append(eyesOptions, body.NewPartDef(body.PartDefParams{
-			FlipRForL: true,
-			Idle:      &animParams,
-			Walk:      &animParams,
-			Run:       &animParams,
-			Slash:     &animParams,
-			Backslash: &animParams,
-			Shield:    &animParams,
-		}))
-	}
-	hairOptions := []body.SelectedPartDef{}
-	for i := range 7 {
-		numCols := 32
-		animParams := body.AnimationParams{
-			TilesetSrc: hairTileset,
-			TilesDown:  []int{numCols * i},
-			TilesRight: []int{(numCols * i) + 1},
-			TilesLeft:  []int{(numCols * i) + 2},
-			TilesUp:    []int{(numCols * i) + 3},
-		}
-		hairOptions = append(hairOptions, body.NewPartDef(body.PartDefParams{
-			Idle:      &animParams,
-			Walk:      &animParams,
-			Run:       &animParams,
-			Slash:     &animParams,
-			Backslash: &animParams,
-			Shield:    &animParams,
-		}))
-	}
 
 	var characterData entity.CharacterData
 	if fileToLoad != "" {
@@ -356,11 +174,9 @@ func characterBuilder(fileToLoad string) {
 	}
 
 	g := builderGame{
-		bodySetOptions: bodyOptions,
-		armsSetOptions: armsOptions,
-		legsSetOptions: legsOptions,
-		eyesSetOptions: eyesOptions,
-		hairSetOptions: hairOptions,
+		bodySkinSets:   bodySkins,
+		eyesSetOptions: eyeSets,
+		hairSetOptions: hairSets,
 		bodywearItems:  bodywearItems,
 		headwearItems:  headwearItems,
 		footwearItems:  footwearItems,
@@ -510,10 +326,10 @@ func characterBuilder(fileToLoad string) {
 		DropDownBoxOrigin:     128,
 	}, &g.popupMgr)
 
-	if len(bodyOptions) > 1 {
+	if len(g.bodySkinSets) > 1 {
 		g.bodyCtl = stepper.NewStepper(stepper.StepperParams{
 			MinVal:               0,
-			MaxVal:               len(bodyOptions) - 1,
+			MaxVal:               len(g.bodySkinSets) - 1,
 			Font:                 config.DefaultTitleFont,
 			FontFg:               color.White,
 			FontBg:               color.Black,
@@ -524,7 +340,7 @@ func characterBuilder(fileToLoad string) {
 
 	g.hairCtl = stepper.NewStepper(stepper.StepperParams{
 		MinVal:               0,
-		MaxVal:               len(hairOptions) - 1,
+		MaxVal:               len(g.hairSetOptions) - 1,
 		Font:                 config.DefaultTitleFont,
 		FontFg:               color.White,
 		FontBg:               color.Black,
@@ -533,7 +349,7 @@ func characterBuilder(fileToLoad string) {
 	})
 	g.eyesCtl = stepper.NewStepper(stepper.StepperParams{
 		MinVal:               0,
-		MaxVal:               len(eyesOptions) - 1,
+		MaxVal:               len(g.eyesSetOptions) - 1,
 		Font:                 config.DefaultTitleFont,
 		FontFg:               color.White,
 		FontBg:               color.Black,
@@ -690,8 +506,8 @@ func getNewCharacter() entity.CharacterData {
 		ID:             "newCharacter",
 		DisplayName:    "newCharacter",
 		Body:           entBody,
-		WalkSpeed:      1,
-		RunSpeed:       1,
+		WalkSpeed:      entity.GetDefaultWalkSpeed(),
+		RunSpeed:       entity.GetDefaultRunSpeed(),
 		InventoryItems: make([]*item.InventoryItem, 1),
 	}
 	return cd
@@ -728,17 +544,17 @@ func resolveCharacterJSONPath(id string) string {
 //
 // hairSet, equipHeadSet, equipBodySet
 func (bg *builderGame) SetBodyIndex(i int) {
-	if i < 0 || i >= len(bg.bodySetOptions) {
+	if i < 0 || i >= len(bg.bodySkinSets) {
 		panic("out of bounds")
 	}
 	bg.bodySetIndex = i
-	bodyDef := bg.bodySetOptions[i]
+	skin := bg.bodySkinSets[i]
+	bodyDef := skin.Body
 
 	// arms are directly set with body
-	bg.armsSetIndex = i
-	armDef := bg.armsSetOptions[i]
+	armDef := skin.Arms
 
-	legDef := bg.legsSetOptions[i]
+	legDef := skin.Legs
 
 	bg.characterData.Body.SetBody(bodyDef, armDef, legDef)
 }
@@ -839,7 +655,7 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	// UI controls - Right side
 	ctlX := (display.SCREEN_WIDTH * 3 / 4) - 100
 	ctlY := 50
-	if len(bg.bodySetOptions) > 1 {
+	if len(bg.bodySkinSets) > 1 {
 		text.DrawShadowText(screen, "Body", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
 		bg.bodyCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
 	}
@@ -883,7 +699,7 @@ func (bg *builderGame) Update() error {
 		bg.characterData.Body.RotateRight()
 	}
 
-	if len(bg.bodySetOptions) > 1 {
+	if len(bg.bodySkinSets) > 1 {
 		bg.bodyCtl.Update()
 		if bg.bodyCtl.GetValue() != bg.bodySetIndex {
 			bg.SetBodyIndex(bg.bodyCtl.GetValue())
@@ -1052,8 +868,10 @@ func (bg *builderGame) handleChangeWeapon(val string) {
 	bg.equipedWeapon = val
 
 	if val == noneOp {
-		bg.characterData.Body.WeaponSet.Remove()
-		bg.characterData.Body.WeaponFxSet.Remove()
+		if bg.characterData.EquipedWeapon == nil {
+			return
+		}
+		bg.characterData.UnequipWeapon()
 		return
 	}
 	for _, i := range bg.weaponItems {

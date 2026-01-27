@@ -29,6 +29,11 @@ type CharacterData struct {
 	IsPlayer    bool   `json:"-"` // flag indicating if this entity is the player
 
 	// Inventory and items
+	// Each InventoryItem slot represents an actual individual item slot in the inventory.
+	// Equiped armor, weapon, rings, amulets, arrows, etc all have their own specific slots.
+	// Other inventory items just go in the array.
+	// Note: as of now, we are not doing the "top level scrollable items row" concept that you see in Minecraft or SDV.
+	// Could implement that later, but for now there are just specific slots for equipped items, and then an array of items for the rest of your inventory.
 
 	InventoryItems []*item.InventoryItem
 
@@ -40,6 +45,7 @@ type CharacterData struct {
 	EquipedRing2     *item.InventoryItem
 	EquipedAmmo      *item.InventoryItem
 	EquipedAuxiliary *item.InventoryItem
+	EquipedWeapon    *item.InventoryItem
 
 	// Body
 
@@ -111,6 +117,9 @@ func LoadCharacterDataJSON(src string, defMgr *definitions.DefinitionManager) (C
 	if cd.EquipedRing2 != nil {
 		cd.EquipedRing2.Def = defMgr.GetItemDef(cd.EquipedRing2.Instance.DefID)
 	}
+	if cd.EquipedWeapon != nil {
+		cd.EquipedWeapon.Def = defMgr.GetItemDef(cd.EquipedWeapon.Instance.DefID)
+	}
 
 	for _, i := range cd.InventoryItems {
 		if i == nil {
@@ -119,21 +128,58 @@ func LoadCharacterDataJSON(src string, defMgr *definitions.DefinitionManager) (C
 		i.Def = defMgr.GetItemDef(i.Instance.DefID)
 	}
 
-	// replace the equiped item defs with those loaded from the definition manager
-	// this is to ensure that we aren't loading these things from the JSON; it's possible equipment animations could change occasionally.
-	// Note: body itself stays as loaded, since the body, arms, legs etc aren't items that are defined in the defMgr
-	if cd.EquipedHeadwear != nil {
+	// Load body "skin" parts
+	if cd.Body.BodySet.PartSrc.ID == "" {
+		logz.Panicln(cd.DisplayName, "failed to load body set; id is empty")
+	}
+	cd.Body.BodySet.PartSrc = defMgr.GetBodyPartDef(cd.Body.BodySet.PartSrc.ID)
+	if cd.Body.ArmsSet.PartSrc.ID == "" {
+		logz.Panicln(cd.DisplayName, "failed to load arms set; id is empty")
+	}
+	cd.Body.ArmsSet.PartSrc = defMgr.GetBodyPartDef(cd.Body.ArmsSet.PartSrc.ID)
+	if cd.Body.LegsSet.PartSrc.ID == "" {
+		logz.Panicln(cd.DisplayName, "failed to load legs set; id is empty")
+	}
+	cd.Body.LegsSet.PartSrc = defMgr.GetBodyPartDef(cd.Body.LegsSet.PartSrc.ID)
+	if cd.Body.EyesSet.PartSrc.ID == "" {
+		logz.Panicln(cd.DisplayName, "failed to load eyes set; id is empty")
+	}
+	cd.Body.EyesSet.PartSrc = defMgr.GetBodyPartDef(cd.Body.EyesSet.PartSrc.ID)
+	if cd.Body.HairSet.PartSrc.ID == "" {
+		logz.Panicln(cd.DisplayName, "failed to load hair set; id is empty")
+	}
+	cd.Body.HairSet.PartSrc = defMgr.GetBodyPartDef(cd.Body.HairSet.PartSrc.ID)
+
+	// Load equiped items
+	if cd.EquipedHeadwear == nil {
+		cd.Body.EquipHeadSet.PartSrc = body.SelectedPartDef{None: true}
+	} else {
 		cd.Body.EquipHeadSet.PartSrc = *cd.EquipedHeadwear.Def.GetBodyPartDef()
 	}
-	if cd.EquipedBodywear != nil {
+	if cd.EquipedBodywear == nil {
+		cd.Body.EquipBodySet.PartSrc = body.SelectedPartDef{None: true}
+		cd.Body.EquipLegsSet.PartSrc = body.SelectedPartDef{None: true}
+	} else {
 		cd.Body.EquipBodySet.PartSrc = *cd.EquipedBodywear.Def.GetBodyPartDef()
 		cd.Body.EquipLegsSet.PartSrc = *cd.EquipedBodywear.Def.GetLegsPartDef()
 	}
-	if cd.EquipedFootwear != nil {
+	if cd.EquipedFootwear == nil {
+		cd.Body.EquipFeetSet.PartSrc = body.SelectedPartDef{None: true}
+	} else {
 		cd.Body.EquipFeetSet.PartSrc = *cd.EquipedFootwear.Def.GetBodyPartDef()
 	}
-	if cd.EquipedAuxiliary != nil {
+	if cd.EquipedAuxiliary == nil {
+		cd.Body.AuxItemSet.PartSrc = body.SelectedPartDef{None: true}
+	} else {
 		cd.Body.AuxItemSet.PartSrc = *cd.EquipedAuxiliary.Def.GetBodyPartDef()
+	}
+	if cd.EquipedWeapon == nil {
+		cd.Body.WeaponSet.PartSrc = body.SelectedPartDef{None: true}
+		cd.Body.WeaponFxSet.PartSrc = body.SelectedPartDef{None: true}
+	} else {
+		weaponPart, fxPart := item.GetWeaponParts(cd.EquipedWeapon.Def)
+		cd.Body.WeaponSet.PartSrc = weaponPart
+		cd.Body.WeaponFxSet.PartSrc = fxPart
 	}
 
 	return cd, nil
@@ -225,10 +271,22 @@ func (cd *CharacterData) EquipItem(i item.InventoryItem) (success bool) {
 		}
 		cd.Body.SetEquipBody(*bodyPart, *legsPart)
 	case item.TypeWeapon:
-		// weapons don't have an "equiped slot", so as of now there is no swapping to do here
+		if cd.EquipedWeapon != nil {
+			succ, _ := cd.AddItemToInventory(*cd.EquipedWeapon)
+			if !succ {
+				return false
+			}
+		}
+		cd.EquipedWeapon = &i
+		// GetWeaponParts handles panicking if anything is missing
 		part, fxPart := item.GetWeaponParts(i.Def)
 
 		cd.Body.SetWeapon(part, fxPart)
+
+		// sanity check
+		if cd.Body.WeaponSet.PartSrc.None {
+			panic("equiped weapon, but weapon set partSrc is none")
+		}
 	case item.TypeAuxiliary:
 		if cd.EquipedAuxiliary != nil {
 			// already equiped; remove it and put it in a regular inventory slot
@@ -289,4 +347,13 @@ func (cd *CharacterData) UnequipAuxiliary() {
 
 	cd.EquipedAuxiliary = nil
 	cd.Body.RemoveAuxiliary()
+}
+
+func (cd *CharacterData) UnequipWeapon() {
+	if cd.EquipedWeapon == nil {
+		logz.Panicln(cd.DisplayName, "tried to unequip weapon, but equiped weapon is nil")
+	}
+
+	cd.EquipedWeapon = nil
+	cd.Body.RemoveWeapon()
 }

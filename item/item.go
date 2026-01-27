@@ -338,6 +338,13 @@ func GetWeaponParts(i ItemDef) (weaponPart body.SelectedPartDef, fxPart body.Sel
 		logz.Panicln("GetWeaponParts", "fx part is nil:", i.GetID())
 	}
 
+	if part.None {
+		logz.Panicln("GetWeaponParts", "weapon part is none")
+	}
+	if fx.None {
+		logz.Panicln("GetWeaponParts", "fx part is none")
+	}
+
 	return *part, *fx
 }
 

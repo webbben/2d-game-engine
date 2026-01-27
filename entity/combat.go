@@ -81,17 +81,21 @@ func (e Entity) GetFrontRect() model.Rect {
 }
 
 func (e *Entity) StartMeleeAttack() {
-	if e.Body.WeaponSet.PartSrc.None {
-		panic("tried to swing weapon, but no weapon is equiped")
+	if !e.IsWeaponEquiped() {
+		logz.Panicln(e.DisplayName, "tried to swing weapon, but no weapon is equiped")
 	}
 	if e.IsStunned() {
 		return
+	}
+	if e.IsAttacking() {
+		logz.Panicln(e.DisplayName, "tried to start melee attack, but entity is already attacking")
 	}
 
 	animationInterval := 6
 	e.Body.SetAnimationTickCount(animationInterval)
 	res := e.Body.SetAnimation(body.AnimSlash, body.SetAnimationOps{DoOnce: true})
 	if !res.Success {
+		logz.Println(e.DisplayName, "melee attack failed:", res.String())
 		if !res.AlreadySet {
 			// if not already attacking, then just wait to do the attack once whatever the current animation is finishes
 			e.waitingToAttack = true
@@ -166,24 +170,16 @@ func (e Entity) IsStunned() bool {
 	return e.stunTicks > 0
 }
 
-func (e *Entity) UnequipWeaponFromBody() {
-	if e.IsStunned() {
-		return
-	}
-	e.Body.WeaponSet.PartSrc.None = true
-	e.Body.WeaponFxSet.PartSrc.None = true
-	e.Body.Load()
-}
-
-func (e *Entity) EquipWeapon(weaponDef body.SelectedPartDef, weaponFxDef body.SelectedPartDef) {
-	if e.IsStunned() {
-		return
-	}
-	e.Body.SetWeapon(weaponDef, weaponFxDef)
-}
-
 func (e Entity) IsWeaponEquiped() bool {
-	return !e.Body.WeaponSet.PartSrc.None
+	// ensure that weapon set matches equiped weapon
+	partIsNone := e.Body.WeaponSet.PartSrc.None
+	weaponIsNil := e.EquipedWeapon == nil
+	if weaponIsNil == partIsNone {
+		return !weaponIsNil
+	}
+	// uh oh - we have a bugged case here. let's panic so it can be noticed and fixed.
+	logz.Panicln(e.DisplayName, "equiped weapon slot and weapon body part don't seem to match... weapon is nil?:", weaponIsNil, "part is none?:", partIsNone)
+	return false
 }
 
 func (e Entity) IsShieldEquiped() bool {
@@ -227,4 +223,8 @@ func (e *Entity) StopUsingShield() {
 
 func (e Entity) IsUsingShield() bool {
 	return e.Body.GetCurrentAnimation() == body.AnimShield
+}
+
+func (e Entity) IsAttacking() bool {
+	return e.Body.IsAttacking()
 }
