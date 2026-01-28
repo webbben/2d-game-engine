@@ -1,3 +1,4 @@
+// Package popup provides a popup manager for use in UI screens
 package popup
 
 import "github.com/hajimehoshi/ebiten/v2"

@@ -84,8 +84,8 @@ type AudioProps struct {
 
 type GeneralProps struct {
 	IsPlayer         bool
+	CoinPurseSize    int    // if greater than 0, the entity will have a "coin purse" section in their inventory which stores money.
 	CharacterDataSrc string // path to a JSON file containing the definition of the character data (entity body, items, etc)
-	InventorySize    int
 }
 
 // NewEntity Create a new entity from a character data JSON file
@@ -93,8 +93,8 @@ func NewEntity(general GeneralProps, ap AudioProps, defMgr *definitions.Definiti
 	if general.CharacterDataSrc == "" {
 		panic("no character data source JSON specified")
 	}
-	if general.InventorySize <= 0 {
-		panic("inventory size must be positive")
+	if general.CoinPurseSize < 0 {
+		panic("coin purse size cannot be negative")
 	}
 
 	ent := Entity{
@@ -114,7 +114,7 @@ func NewEntity(general GeneralProps, ap AudioProps, defMgr *definitions.Definiti
 	ent.IsPlayer = general.IsPlayer
 
 	if len(ent.InventoryItems) == 0 {
-		ent.InventoryItems = make([]*item.InventoryItem, general.InventorySize)
+		logz.Panicln(ent.DisplayName, "inventory size is 0")
 	}
 	if ent.WalkSpeed == 0 {
 		logz.Warnln("", "loaded entity does not have a walking speed; setting default value.")

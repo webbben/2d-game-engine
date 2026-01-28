@@ -12,6 +12,9 @@ import (
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/internal/overlay"
+	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/internal/ui/box"
 	"github.com/webbben/2d-game-engine/internal/ui/popup"
 	"github.com/webbben/2d-game-engine/internal/ui/tab"
 	"github.com/webbben/2d-game-engine/item"
@@ -42,6 +45,10 @@ to quickly create a Cobra application.`,
 		config.DefaultTooltipBox = config.DefaultBox{
 			TilesetSrc:  "boxes/boxes.tsj",
 			OriginIndex: 132,
+		}
+		config.DefaultUIBox = config.DefaultBox{
+			TilesetSrc:  "boxes/boxes.tsj",
+			OriginIndex: 16,
 		}
 
 		err := config.InitFileStructure()
@@ -78,7 +85,15 @@ type builderGame struct {
 
 	// UI components
 
+	windowWidth, windowHeight int
+	windowX, windowY          int
+
+	windowBox *ebiten.Image
+
+	om *overlay.OverlayManager
+
 	scrAppearance appearanceScreen
+	scrInventory  inventoryScreen
 
 	popupMgr popup.Manager
 
@@ -173,7 +188,25 @@ func characterBuilder(fileToLoad string) {
 	// run this just to confirm that the regular loading process also still works (as used in the actual game)
 	g.characterData.Body.Load()
 
+	g.om = &overlay.OverlayManager{}
+
+	tileSize := int(config.TileSize * config.UIScale)
+
+	width := display.SCREEN_WIDTH
+	width -= width % tileSize // round it to the size of the box tile
+	height := display.SCREEN_HEIGHT - (tileSize * 2)
+	height -= height % tileSize
+
+	g.windowWidth = width
+	g.windowHeight = height
+	g.windowX = (display.SCREEN_WIDTH - width) / 2
+	g.windowY = tileSize * 2
+
+	box := box.NewBox(config.DefaultUIBox.TilesetSrc, config.DefaultUIBox.OriginIndex)
+	g.windowBox = box.BuildBoxImage(g.windowWidth, g.windowHeight)
+
 	g.setupAppearanceScreen()
+	g.setupInventoryPage()
 
 	g.tabControl = tab.NewTabControl("ui/ui-components.tsj", []tab.Tab{
 		{
@@ -258,7 +291,8 @@ func getNewCharacter() entity.CharacterData {
 		Body:           entBody,
 		WalkSpeed:      entity.GetDefaultWalkSpeed(),
 		RunSpeed:       entity.GetDefaultRunSpeed(),
-		InventoryItems: make([]*item.InventoryItem, 1),
+		InventoryItems: make([]*item.InventoryItem, 18),
+		CoinPurse:      make([]*item.InventoryItem, 6),
 	}
 	return cd
 }
@@ -289,10 +323,18 @@ func resolveCharacterJSONPath(id string) string {
 }
 
 func (bg *builderGame) Draw(screen *ebiten.Image) {
-	bg.tabControl.Draw(screen, 50, 50, nil)
-	if bg.tabControl.GetActiveTab().DisplayName == "Appearance" {
+	tileSize := config.TileSize * config.UIScale
+	rendering.DrawImage(screen, bg.windowBox, float64(bg.windowX), float64(bg.windowY), 0)
+	bg.tabControl.Draw(screen, float64(bg.windowX+int(tileSize)), float64(bg.windowY-int(tileSize)), bg.om)
+
+	switch bg.tabControl.GetActiveTab().DisplayName {
+	case "Appearance":
 		bg.drawAppearancePage(screen)
+	case "Inventory":
+		bg.drawInventoryPage(screen, bg.om)
 	}
+
+	bg.om.Draw(screen)
 }
 
 func (bg *builderGame) Update() error {
@@ -303,8 +345,11 @@ func (bg *builderGame) Update() error {
 
 	bg.tabControl.Update()
 
-	if bg.tabControl.GetActiveTab().DisplayName == "Appearance" {
+	switch bg.tabControl.GetActiveTab().DisplayName {
+	case "Appearance":
 		bg.updateAppearanceScreen()
+	case "Inventory":
+		bg.updateInventoryPage()
 	}
 
 	return nil

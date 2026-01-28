@@ -1,3 +1,4 @@
+// Package config defines global configuration variables that are used in the game engine
 package config
 
 import (

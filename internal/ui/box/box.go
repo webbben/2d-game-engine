@@ -14,7 +14,7 @@ type Box struct {
 	Unscaled bool // if set to true, this box will not use the global UI scaling
 }
 
-// the real size of the tiles used in this box. applies any global scaling.
+// TileSize gets the real size of the tiles used in this box. applies any global scaling.
 func (b Box) TileSize() int {
 	if len(b.tiles) == 0 {
 		panic("called tilesize before tiles were created")
