@@ -1,3 +1,23 @@
+# 2026-01-28
+
+## Choosing a Name for the Engine
+
+Up until this point, this game engine has just been called "2d-game-engine". I think it's time we actually chose a name for this thing. 
+
+Since I'm planning to make a game set in the classical Roman world, I think something in that theme would be cool. I think using Greek and Roman names for tech-related projects
+is quite popular already though, so I'll need to get creative and avoid overly common names.
+
+Ideas:
+
+- Mundus: means "world" or "universe". Seems fitting, since this is ultimately for designing a world.
+- Saturn: father of the gods.
+
+The "Saturn Engine" maybe? And in go, I could either name it `saturn` or `saturnEngine`. I like Saturn because it's nice and simple, and it also has a couple different
+ways it can be represented: perhaps the logo could be something like the shape of the planet Saturn, but then in other places there can be greco-roman themes to remind you
+that it's also a reference to the god Saturn. 
+
+I'll keep this is the front-runner for now, and maybe soon I'll get to work on changing the name of this go module.
+
 # 2026-01-23
 
 A new update on the status of the character builder: I've changed some of the layout, added new fields for things like footwear, and have finished up (for now) a full 

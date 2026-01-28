@@ -1,3 +1,4 @@
+// Package tab defines a tab control UI component
 package tab
 
 import (
@@ -15,7 +16,7 @@ type Tab struct {
 	DisplayName   string
 	x, y          float64
 	init          bool
-	ImgTileId     int // tile ID of tile in the source tileset
+	ImgTileID     int // tile ID of tile in the source tileset
 	img           *ebiten.Image
 	mouseBehavior mouse.MouseBehavior
 	hoverTooltip  textwindow.HoverTooltip
@@ -35,7 +36,7 @@ type TabControl struct {
 	Tabs          []Tab
 }
 
-// returns the dimensions of the entire tab control
+// Dimensions returns the dimensions of the entire tab control
 func (tc TabControl) Dimensions() (dx, dy int) {
 	if len(tc.Tabs) == 0 {
 		panic("no tabs in tab control")
@@ -79,7 +80,7 @@ func (tc *TabControl) Load() {
 	}
 
 	for i, tab := range tc.Tabs {
-		img, err := ts.GetTileImage(tab.ImgTileId, true)
+		img, err := ts.GetTileImage(tab.ImgTileID, true)
 		if err != nil {
 			logz.Panicf("error loading tile image: %s", err)
 		}
@@ -123,7 +124,9 @@ func (tc *TabControl) Draw(screen *ebiten.Image, drawX, drawY float64, om *overl
 		}
 		rendering.DrawImageWithOps(screen, tab.img, tc.Tabs[i].x, tc.Tabs[i].y, config.UIScale, &op)
 
-		tab.hoverTooltip.Draw(om)
+		if om != nil {
+			tab.hoverTooltip.Draw(om)
+		}
 
 		tabX += float64(tabWidth)
 	}

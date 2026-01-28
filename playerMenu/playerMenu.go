@@ -69,28 +69,28 @@ func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.Definit
 	// load menu tabs
 	pm.pageTabs = tab.NewTabControl(pm.PageTabsTilesetSource, []tab.Tab{
 		{
-			ImgTileId:   64,
+			ImgTileID:   64,
 			DisplayName: "Inventory",
 			Active:      true, // start with inventory as active
 		},
 		{
-			ImgTileId:   65,
+			ImgTileID:   65,
 			DisplayName: "Levels",
 		},
 		{
-			ImgTileId:   66,
+			ImgTileID:   66,
 			DisplayName: "Map",
 		},
 		{
-			ImgTileId:   67,
+			ImgTileID:   67,
 			DisplayName: "Pantheon",
 		},
 		{
-			ImgTileId:   68,
+			ImgTileID:   68,
 			DisplayName: "Quests",
 		},
 		{
-			ImgTileId:   69,
+			ImgTileID:   69,
 			DisplayName: "Misc Stats",
 		},
 	})
