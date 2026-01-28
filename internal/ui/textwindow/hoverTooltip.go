@@ -37,11 +37,14 @@ func (ht *HoverTooltip) Update(x, y float64, width, height int) {
 }
 
 func (ht *HoverTooltip) Draw(om *overlay.OverlayManager) {
-	if !ht.MouseBehavior.IsHovering {
+	if !ht.IsHovering {
 		return
 	}
-	if time.Since(ht.MouseBehavior.HoverStart) < (time.Millisecond * time.Duration(ht.msDelay)) {
+	if time.Since(ht.HoverStart) < (time.Millisecond * time.Duration(ht.msDelay)) {
 		return
+	}
+	if om == nil {
+		panic("draw hover tooltip: overlay manager is nil")
 	}
 
 	// draw next to the mouse

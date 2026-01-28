@@ -1,3 +1,4 @@
+// Package textwindow provides text windows and tooltip UI components
 package textwindow
 
 import (
