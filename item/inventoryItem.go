@@ -87,6 +87,8 @@ func RemoveItemFromInventory(itemToRemove InventoryItem, removeFrom []*Inventory
 	return false, itemToRemove
 }
 
+// AddItemToInventory attempts to add the given inventory item to an inventory.
+// Returns true if successfully in placing the item; otherwise, returns the inventory item back (however much failed to be added)
 func AddItemToInventory(invItem InventoryItem, addTo []*InventoryItem) (bool, InventoryItem) {
 	// if item is groupable, try to find a matching item already in the inventory
 	if invItem.Def.IsGroupable() {

@@ -180,7 +180,7 @@ func (g *builderGame) setupAppearanceScreen() {
 			MinVal:               0,
 			MaxVal:               len(g.bodySkinSets) - 1,
 			Font:                 config.DefaultTitleFont,
-			FontFg:               color.White,
+			FontFg:               color.Black,
 			FontBg:               color.Black,
 			DecrementButtonImage: turnLeftImg,
 			IncrementButtonImage: turnRightImg,
@@ -191,8 +191,8 @@ func (g *builderGame) setupAppearanceScreen() {
 		MinVal:               0,
 		MaxVal:               len(g.hairSetOptions) - 1,
 		Font:                 config.DefaultTitleFont,
-		FontFg:               color.White,
-		FontBg:               color.Black,
+		FontFg:               color.Black,
+		FontBg:               nil,
 		DecrementButtonImage: turnLeftImg,
 		IncrementButtonImage: turnRightImg,
 	})
@@ -200,8 +200,8 @@ func (g *builderGame) setupAppearanceScreen() {
 		MinVal:               0,
 		MaxVal:               len(g.eyesSetOptions) - 1,
 		Font:                 config.DefaultTitleFont,
-		FontFg:               color.White,
-		FontBg:               color.Black,
+		FontFg:               color.Black,
+		FontBg:               nil,
 		DecrementButtonImage: turnLeftImg,
 		IncrementButtonImage: turnRightImg,
 	})
@@ -218,8 +218,8 @@ func (g *builderGame) setupAppearanceScreen() {
 	}
 	g.scrAppearance.bodyColorSliders = slider.NewSliderGroup(slider.SliderGroupParams{
 		LabelFont:    config.DefaultFont,
-		LabelColorFg: color.White,
-		LabelColorBg: color.Black,
+		LabelColorFg: color.Black,
+		LabelColorBg: nil,
 	}, []slider.SliderDef{
 		{
 			Label:  "H",
@@ -236,8 +236,8 @@ func (g *builderGame) setupAppearanceScreen() {
 	})
 	g.scrAppearance.hairColorSliders = slider.NewSliderGroup(slider.SliderGroupParams{
 		LabelFont:    config.DefaultFont,
-		LabelColorFg: color.White,
-		LabelColorBg: color.Black,
+		LabelColorFg: color.Black,
+		LabelColorBg: nil,
 	}, []slider.SliderDef{
 		{
 			Label:  "H",
@@ -254,8 +254,8 @@ func (g *builderGame) setupAppearanceScreen() {
 	})
 	g.scrAppearance.eyeColorSliders = slider.NewSliderGroup(slider.SliderGroupParams{
 		LabelFont:    config.DefaultFont,
-		LabelColorFg: color.White,
-		LabelColorBg: color.Black,
+		LabelColorFg: color.Black,
+		LabelColorBg: nil,
 	}, []slider.SliderDef{
 		{
 			Label:  "H",
@@ -276,7 +276,7 @@ func (g *builderGame) setupAppearanceScreen() {
 		WidthPx:      200,
 		AllowSpecial: true,
 		TextColor:    color.White,
-		BorderColor:  color.White,
+		BorderColor:  color.Black,
 		BgColor:      color.Black,
 	})
 	g.scrAppearance.idField = *textfield.NewTextField(textfield.TextFieldParams{
@@ -284,7 +284,7 @@ func (g *builderGame) setupAppearanceScreen() {
 		WidthPx:      200,
 		AllowSpecial: true,
 		TextColor:    color.White,
-		BorderColor:  color.White,
+		BorderColor:  color.Black,
 		BgColor:      color.Black,
 	})
 
@@ -406,49 +406,56 @@ func (bg *builderGame) drawAppearancePage(screen *ebiten.Image) {
 	bg.scrAppearance.turnRight.Draw(screen, buttonRX, int(buttonsY))
 
 	// UI controls - Left side
-	sliderX := 50
-	sliderY := 150
-	text.DrawShadowText(screen, "Ticks Per Frame", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
-	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.scrAppearance.speedSlider.GetValue()), config.DefaultFont, sliderX-30, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
+	sliderX := bg.windowX + tileSize + 5
+	sliderY := bg.windowY + tileSize
+	text.DrawShadowText(screen, "Ticks Per Frame", config.DefaultTitleFont, sliderX, sliderY, color.Black, nil, 0, 0)
+	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.scrAppearance.speedSlider.GetValue()), config.DefaultFont, sliderX-30, sliderY+(tileSize*2/3), color.Black, nil, 0, 0)
+	sliderY += 10
 	bg.scrAppearance.speedSlider.Draw(screen, float64(sliderX), float64(sliderY))
 
 	sliderY += tileSize * 3 / 2
-	text.DrawShadowText(screen, "Scale", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
-	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.scrAppearance.scaleSlider.GetValue()), config.DefaultFont, sliderX-30, sliderY+(tileSize*2/3), color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Scale", config.DefaultTitleFont, sliderX, sliderY, color.Black, nil, 0, 0)
+	text.DrawShadowText(screen, fmt.Sprintf("%v", bg.scrAppearance.scaleSlider.GetValue()), config.DefaultFont, sliderX-30, sliderY+(tileSize*2/3), color.Black, nil, 0, 0)
+	sliderY += 10
 	bg.scrAppearance.scaleSlider.Draw(screen, float64(sliderX), float64(sliderY))
 
 	sliderY += tileSize * 5 / 3
-	text.DrawShadowText(screen, "Animation", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Animation", config.DefaultTitleFont, sliderX, sliderY, color.Black, nil, 0, 0)
+	sliderY += 10
 	bg.scrAppearance.animationSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 	sliderY += tileSize * 5 / 3
-	text.DrawShadowText(screen, "Auxiliary", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Auxiliary", config.DefaultTitleFont, sliderX, sliderY, color.Black, nil, 0, 0)
+	sliderY += 10
 	bg.scrAppearance.auxiliarySelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 
 	sliderY += tileSize * 5 / 3
-	text.DrawShadowText(screen, "Headwear", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Headwear", config.DefaultTitleFont, sliderX, sliderY, color.Black, nil, 0, 0)
+	sliderY += 10
 	bg.scrAppearance.headwearSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 	sliderY += tileSize * 5 / 3
-	text.DrawShadowText(screen, "Bodywear", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Bodywear", config.DefaultTitleFont, sliderX, sliderY, color.Black, nil, 0, 0)
+	sliderY += 10
 	bg.scrAppearance.bodywearSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 	sliderY += tileSize * 5 / 3
-	text.DrawShadowText(screen, "Footwear", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Footwear", config.DefaultTitleFont, sliderX, sliderY, color.Black, nil, 0, 0)
+	sliderY += 10
 	bg.scrAppearance.footwearSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 	sliderY += tileSize * 5 / 3
-
-	text.DrawShadowText(screen, "Weapon", config.DefaultTitleFont, sliderX, sliderY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Weapon", config.DefaultTitleFont, sliderX, sliderY, color.Black, nil, 0, 0)
+	sliderY += 10
 	bg.scrAppearance.weaponSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
 
 	// Character Info Input - Middle Top
 	drawX := (display.SCREEN_WIDTH / 3) - 100
-	drawY := 150
-	text.DrawShadowText(screen, "Character Info", config.DefaultTitleFont, drawX, drawY, color.White, nil, 0, 0)
+	drawY := bg.windowY + tileSize
+	text.DrawShadowText(screen, "Character Info", config.DefaultTitleFont, drawX, drawY, color.Black, nil, 0, 0)
 	drawY += 50
-	text.DrawShadowText(screen, "Name", config.DefaultFont, drawX, drawY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Name", config.DefaultFont, drawX, drawY, color.Black, nil, 0, 0)
 	drawX += 100
 	bg.scrAppearance.nameField.Draw(screen, float64(drawX), float64(drawY-25))
 	drawX -= 100
 	drawY += 50
-	text.DrawShadowText(screen, "ID", config.DefaultFont, drawX, drawY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "ID", config.DefaultFont, drawX, drawY, color.Black, nil, 0, 0)
 	drawX += 100
 	bg.scrAppearance.idField.Draw(screen, float64(drawX), float64(drawY-25))
 	drawX = (display.SCREEN_WIDTH / 3) + 350
@@ -456,34 +463,34 @@ func (bg *builderGame) drawAppearancePage(screen *ebiten.Image) {
 	bg.scrAppearance.saveButton.Draw(screen, drawX, drawY)
 
 	// UI controls - Right side
-	ctlX := (display.SCREEN_WIDTH * 3 / 4) - 100
-	ctlY := 150
+	ctlX := (display.SCREEN_WIDTH * 3 / 4) - 110
+	ctlY := bg.windowY + tileSize
 	if len(bg.bodySkinSets) > 1 {
-		text.DrawShadowText(screen, "Body", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+		text.DrawShadowText(screen, "Body", config.DefaultTitleFont, ctlX, ctlY, color.Black, nil, 0, 0)
 		bg.scrAppearance.bodyCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
 	}
 	ctlX += 170
-	text.DrawShadowText(screen, "Body Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Body Color", config.DefaultTitleFont, ctlX, ctlY, color.Black, nil, 0, 0)
 	ctlY += tileSize / 8
 	bg.scrAppearance.bodyColorSliders.Draw(screen, float64(ctlX), float64(ctlY))
 	_, dy := bg.scrAppearance.bodyColorSliders.Dimensions()
 	ctlY += dy + (tileSize)
 	ctlX -= 170
 
-	text.DrawShadowText(screen, "Hair", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Hair", config.DefaultTitleFont, ctlX, ctlY, color.Black, nil, 0, 0)
 	bg.scrAppearance.hairCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
 	ctlX += 170
-	text.DrawShadowText(screen, "Hair Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Hair Color", config.DefaultTitleFont, ctlX, ctlY, color.Black, nil, 0, 0)
 	ctlY += tileSize / 8
 	bg.scrAppearance.hairColorSliders.Draw(screen, float64(ctlX), float64(ctlY))
 	_, dy = bg.scrAppearance.hairColorSliders.Dimensions()
 	ctlY += dy + (tileSize)
 	ctlX -= 170
 
-	text.DrawShadowText(screen, "Eyes", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Eyes", config.DefaultTitleFont, ctlX, ctlY, color.Black, nil, 0, 0)
 	bg.scrAppearance.eyesCtl.Draw(screen, float64(ctlX), float64(ctlY+20))
 	ctlX += 170
-	text.DrawShadowText(screen, "Eye Color", config.DefaultTitleFont, ctlX, ctlY, color.White, nil, 0, 0)
+	text.DrawShadowText(screen, "Eye Color", config.DefaultTitleFont, ctlX, ctlY, color.Black, nil, 0, 0)
 	ctlY += tileSize / 8
 	bg.scrAppearance.eyeColorSliders.Draw(screen, float64(ctlX), float64(ctlY))
 

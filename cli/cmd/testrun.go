@@ -79,7 +79,7 @@ to quickly create a Cobra application.`,
 
 		fmt.Println("player inventory:", gameState.Player.Entity.InventoryItems)
 
-		gameState.PlayerMenu.InventoryPage.SyncPlayerItems()
+		gameState.PlayerMenu.InventoryPage.LoadPlayerItemsIn()
 
 		shopKeeperInventory := []item.InventoryItem{}
 		shopKeeperInventory = append(shopKeeperInventory, gameState.DefinitionManager.NewInventoryItem("longsword_01", 1))
@@ -145,7 +145,6 @@ func setupGameState() *game.Game {
 	playerEnt := entity.NewEntity(entity.GeneralProps{
 		CharacterDataSrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json",
 		IsPlayer:         true,
-		InventorySize:    18,
 	}, footstepSFX, g.DefinitionManager)
 
 	p := player.NewPlayer(g.DefinitionManager, &playerEnt)
@@ -154,7 +153,6 @@ func setupGameState() *game.Game {
 
 	npcEnt := entity.NewEntity(entity.GeneralProps{
 		CharacterDataSrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_02.json",
-		InventorySize:    18,
 	}, footstepSFX, g.DefinitionManager)
 	n := npc.New(npc.NPC{
 		Entity: &npcEnt,
@@ -198,9 +196,9 @@ func addCustomKeyBindings(g *game.Game) {
 			fmt.Println("toggle player menu")
 			showPlayerMenu := !gg.ShowPlayerMenu
 			if showPlayerMenu {
-				gg.PlayerMenu.InventoryPage.SyncPlayerItems()
+				gg.PlayerMenu.InventoryPage.LoadPlayerItemsIn()
 			} else {
-				gg.PlayerMenu.InventoryPage.SavePlayerInventory()
+				gg.PlayerMenu.InventoryPage.SaveAndClose()
 			}
 			gg.ShowPlayerMenu = showPlayerMenu
 			fmt.Println(gg.Player.Entity.InventoryItems)

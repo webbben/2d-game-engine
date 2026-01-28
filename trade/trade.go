@@ -320,7 +320,7 @@ func (ts *TradeScreen) loadPlayerInventory() {
 	// set inventory items
 	ts.playerInventory.SetItemSlots(ts.playerRef.Entity.InventoryItems)
 
-	moneyCount := ts.playerRef.CountMoney()
+	moneyCount := ts.playerRef.Entity.CountMoney()
 	ts.playerGoldCount.SetText(general_util.ConvertIntToCommaString(moneyCount))
 }
 
@@ -329,10 +329,10 @@ func (ts *TradeScreen) acceptTransaction() {
 
 	if transactionAmount > 0 {
 		// player earns money; add to coin purse
-		ts.playerRef.EarnMoney(transactionAmount)
+		ts.playerRef.Entity.EarnMoney(transactionAmount, ts.defMgr)
 	} else if transactionAmount < 0 {
 		// player spends money; take it out of their coin purse
-		ts.playerRef.SpendMoney(-transactionAmount)
+		ts.playerRef.Entity.SpendMoney(-transactionAmount, ts.defMgr)
 	}
 
 	// update player and shopkeeper inventories to match inventories in this trade screen
