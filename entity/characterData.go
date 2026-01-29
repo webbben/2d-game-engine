@@ -208,6 +208,27 @@ func (cd *CharacterData) SetInventoryItems(invItems []*item.InventoryItem) {
 	}
 }
 
+func (cd *CharacterData) SetCoinPurseItems(invItems []*item.InventoryItem) {
+	cd.CoinPurse = make([]*item.InventoryItem, 0)
+
+	for _, newItem := range invItems {
+		if newItem == nil {
+			cd.CoinPurse = append(cd.CoinPurse, nil)
+			continue
+		}
+		if !newItem.Def.IsCurrencyItem() {
+			logz.Panicln(cd.DisplayName, "SetCoinPurseItems: tried to add item to coin purse that is not a currency item:", newItem)
+		}
+
+		newItem.Validate()
+		cd.CoinPurse = append(cd.CoinPurse, &item.InventoryItem{
+			Instance: newItem.Instance,
+			Def:      newItem.Def,
+			Quantity: newItem.Quantity,
+		})
+	}
+}
+
 func (cd *CharacterData) AddItemToInventory(invItem item.InventoryItem) (bool, item.InventoryItem) {
 	invItem.Validate()
 
@@ -234,11 +255,25 @@ func (cd *CharacterData) RemoveItemFromInventory(itemToRemove item.InventoryItem
 		// first try the coin purse
 		success, remaining := item.RemoveItemFromInventory(itemToRemove, cd.CoinPurse)
 		if success {
+			if remaining.Quantity != 0 {
+				logz.Panicln("RemoveItemFromInventory", "item removal was supposedly successful, but remaining is not 0:", remaining.Quantity)
+			}
 			return true, remaining
 		}
+		if remaining.Quantity == 0 {
+			panic("why is Quantity 0 if no success?")
+		}
+		// if there is still some left to remove, use the `remaining` value
+		// e.g. if some coins are not in the coin purse for some reason
+		itemToRemove.Quantity = remaining.Quantity
 	}
 
 	success, remaining := item.RemoveItemFromInventory(itemToRemove, cd.InventoryItems)
+	if success {
+		if remaining.Quantity != 0 {
+			logz.Panicln("RemoveItemFromInventory", "item removal was supposedly successful, but remaining is not 0:", remaining.Quantity)
+		}
+	}
 	cd.Validate()
 	return success, remaining
 }
@@ -296,8 +331,15 @@ func (cd *CharacterData) SpendMoney(value int, defMgr *definitions.DefinitionMan
 
 	totalPaid := 0
 	for denom, numCoins := range payment {
+		fmt.Println("denom:", denom, "num:", numCoins)
 		totalPaid += denom * numCoins
 	}
+	fmt.Println("total paid", totalPaid)
+
+	if totalPaid < value {
+		logz.Panicln("SpendMoney", "total payment is less than what you're supposed to pay! did bestPayment calculate wrongly?")
+	}
+
 	overpaid := totalPaid - value
 
 	// remove payment coins and add change coins
@@ -308,7 +350,7 @@ func (cd *CharacterData) SpendMoney(value int, defMgr *definitions.DefinitionMan
 		itemID := fmt.Sprintf("currency_value_%v", denom)
 		coinsToRemove := defMgr.NewInventoryItem(itemID, numCoins)
 		success, remaining := cd.RemoveItemFromInventory(coinsToRemove)
-		if !success {
+		if !success || remaining.Quantity != 0 {
 			logz.Panicf("failed to pay all coins. remaining unpaid coins: %s", remaining.String())
 		}
 	}
