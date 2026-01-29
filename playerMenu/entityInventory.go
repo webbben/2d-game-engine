@@ -31,7 +31,7 @@ type InventoryComponent struct {
 	EquipedAmmo      *inventory.ItemSlot // for arrows, sling bullets, etc
 	EquipedAuxiliary *inventory.ItemSlot // for shields, torches, etc
 
-	PlayerInventory inventory.Inventory
+	EntityInventory inventory.Inventory
 	entityRef       *entity.CharacterData
 	width, height   int
 
@@ -51,6 +51,10 @@ type InventoryComponent struct {
 	defMgr *definitions.DefinitionManager
 }
 
+func (ic InventoryComponent) Dimensions() (dx, dy int) {
+	return ic.width, ic.height
+}
+
 // Load loads the inventory page for first time loading
 func (ip *InventoryComponent) Load(pageWidth, pageHeight int, entRef *entity.CharacterData, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
 	if entRef == nil {
@@ -67,10 +71,10 @@ func (ip *InventoryComponent) Load(pageWidth, pageHeight int, entRef *entity.Cha
 
 	ip.width = pageWidth
 	ip.height = pageHeight
-	ip.PlayerInventory.RowCount = 9
-	ip.PlayerInventory.ColCount = 9
-	ip.PlayerInventory.EnabledSlotsCount = 18
-	ip.PlayerInventory = inventory.NewInventory(defMgr, inventoryParams)
+	ip.EntityInventory.RowCount = 9
+	ip.EntityInventory.ColCount = 9
+	ip.EntityInventory.EnabledSlotsCount = 18
+	ip.EntityInventory = inventory.NewInventory(defMgr, inventoryParams)
 
 	// load the item slot images for our equiped items slots
 	itemSlotImages := inventory.LoadItemSlotTiles(
@@ -155,7 +159,7 @@ func (ip *InventoryComponent) Load(pageWidth, pageHeight int, entRef *entity.Cha
 
 	// set up item mover
 	itemSlots := []*inventory.ItemSlot{}
-	itemSlots = append(itemSlots, ip.PlayerInventory.GetItemSlots()...)
+	itemSlots = append(itemSlots, ip.EntityInventory.GetItemSlots()...)
 	itemSlots = append(itemSlots, ip.coinPurse.GetItemSlots()...)
 	itemSlots = append(
 		itemSlots,
@@ -191,7 +195,7 @@ func (ip *InventoryComponent) SyncEntityItems() {
 	setInventoryItem(ip.EquipedAuxiliary, ip.entityRef.EquipedAuxiliary)
 
 	// set inventory items
-	ip.PlayerInventory.SetItemSlots(ip.entityRef.InventoryItems)
+	ip.EntityInventory.SetItemSlots(ip.entityRef.InventoryItems)
 
 	// set coin purse items
 	ip.coinPurse.SetItemSlots(ip.entityRef.CoinPurse)
@@ -217,7 +221,7 @@ func (ip *InventoryComponent) Update() {
 	if !ip.init {
 		panic("inventory page not initialized")
 	}
-	ip.PlayerInventory.Update()
+	ip.EntityInventory.Update()
 
 	// update equiped item slots
 	ip.EquipedHead.Update()
@@ -301,9 +305,9 @@ func (ip *InventoryComponent) Draw(screen *ebiten.Image, drawX, drawY float64, o
 	ip.entityRef.Body.Draw(screen, drawX, drawY, config.UIScale)
 
 	// draw inventory item slots
-	inventoryWidth, _ := ip.PlayerInventory.Dimensions()
+	inventoryWidth, _ := ip.EntityInventory.Dimensions()
 	inventoryDrawX := int(drawX) + ip.width - inventoryWidth
-	ip.PlayerInventory.Draw(screen, float64(inventoryDrawX), drawY, om)
+	ip.EntityInventory.Draw(screen, float64(inventoryDrawX), drawY, om)
 	// player equipment item slots
 	playerAvatarDx, _ := ip.entityRef.Body.Dimensions()
 	playerAvatarDx = int(float64(playerAvatarDx) * config.UIScale)
@@ -349,7 +353,7 @@ func (ip InventoryComponent) CountMoney() int {
 	}
 
 	// also check for coins not in coin purse
-	for _, itemSlot := range ip.PlayerInventory.GetItemSlots() {
+	for _, itemSlot := range ip.EntityInventory.GetItemSlots() {
 		if itemSlot.Item == nil {
 			continue
 		}
@@ -363,7 +367,10 @@ func (ip InventoryComponent) CountMoney() int {
 
 // SaveEntityInventory saves the items in the inventory page into the entity's actual inventory
 func (ip *InventoryComponent) SaveEntityInventory() {
-	ip.entityRef.SetInventoryItems(ip.PlayerInventory.GetInventoryItems())
+	if len(ip.entityRef.CoinPurse) > 0 {
+		ip.entityRef.SetCoinPurseItems(ip.coinPurse.GetInventoryItems())
+	}
+	ip.entityRef.SetInventoryItems(ip.EntityInventory.GetInventoryItems())
 
 	ip.entityRef.EquipedHeadwear = ip.EquipedHead.Item
 	ip.entityRef.EquipedBodywear = ip.EquipedBody.Item

@@ -38,6 +38,17 @@ func (invItem *InventoryItem) String() string {
 	return fmt.Sprintf("{DefID: %s, Name: %s, Quant: %v}", invItem.Instance.DefID, invItem.Def.GetName(), invItem.Quantity)
 }
 
+func InventoryToString(inv []*InventoryItem) string {
+	s := ""
+	for _, invItem := range inv {
+		if invItem == nil {
+			continue
+		}
+		s += invItem.String() + ", "
+	}
+	return s
+}
+
 func (invItem InventoryItem) Validate() {
 	if invItem.Def == nil {
 		panic("item def is nil")
@@ -45,8 +56,8 @@ func (invItem InventoryItem) Validate() {
 	if invItem.Instance.DefID == "" {
 		panic("item instance has no def ID")
 	}
-	if invItem.Quantity < 0 {
-		panic("item quantity is negative")
+	if invItem.Quantity <= 0 {
+		panic("item quantity is less than or equal to 0. all items must have a quantity of at least 1")
 	}
 	if invItem.Def.GetID() != invItem.Instance.DefID {
 		panic("def.GetID() does not match instance.defID")

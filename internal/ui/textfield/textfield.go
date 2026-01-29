@@ -1,12 +1,15 @@
+// Package textfield provides a textfield UI component for inputting text
 package textfield
 
 import (
 	"image"
 	"image/color"
+	"strconv"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	internaltext "github.com/webbben/2d-game-engine/internal/text"
@@ -16,6 +19,8 @@ import (
 type TextField struct {
 	bounds    image.Rectangle
 	textInput internaltext.TextInput
+
+	numericOnly bool
 
 	fontFace    text.Face
 	textColor   color.Color
@@ -35,6 +40,17 @@ func (tf TextField) GetText() string {
 	return tf.textInput.GetCurrentText()
 }
 
+func (tf TextField) GetNumber() int {
+	if !tf.numericOnly {
+		panic("tried to get number from non-numeric textfield")
+	}
+	v, err := strconv.Atoi(tf.GetText())
+	if err != nil {
+		logz.Panicf("error converting string to int: %s", err)
+	}
+	return v
+}
+
 func (tf TextField) Dimensions() (dx, dy int) {
 	return tf.bounds.Dx(), tf.bounds.Dy()
 }
@@ -42,7 +58,8 @@ func (tf TextField) Dimensions() (dx, dy int) {
 type TextFieldParams struct {
 	WidthPx            int
 	FontFace           font.Face
-	AllowSpecial       bool
+	AllowSpecial       bool // if set, special characters can be input. NumericOnly disables this.
+	NumericOnly        bool // if set, only numbers can be input. no decimals, just integers.
 	TextColor          color.Color
 	BorderColor        color.Color
 	BgColor            color.Color
@@ -66,10 +83,11 @@ func NewTextField(params TextFieldParams) *TextField {
 		bounds:      image.Rect(0, 0, params.WidthPx, h*2),
 		fontFace:    text.NewGoXFace(params.FontFace),
 		textBox:     ebiten.NewImage(params.WidthPx, h*2),
-		textInput:   internaltext.NewTextInput(params.AllowSpecial, params.MaxCharacterLength),
+		textInput:   internaltext.NewTextInput(params.AllowSpecial, params.MaxCharacterLength, params.NumericOnly),
 		textColor:   params.TextColor,
 		borderColor: params.BorderColor,
 		bgColor:     params.BgColor,
+		numericOnly: params.NumericOnly,
 	}
 
 	return &t
@@ -77,6 +95,17 @@ func NewTextField(params TextFieldParams) *TextField {
 
 func (t *TextField) SetText(s string) {
 	t.textInput.SetText(s)
+}
+
+func (t *TextField) SetNumber(v int) {
+	if v < 0 {
+		panic("negative numbers not implemented yet")
+	}
+	if !t.numericOnly {
+		panic("tried to set number on non-numeric field. if this field should be strictly for numbers, set numericOnly on this text field")
+	}
+	s := strconv.Itoa(v)
+	t.SetText(s)
 }
 
 func (t *TextField) Contains(x, y int) bool {

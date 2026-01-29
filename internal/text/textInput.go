@@ -1,6 +1,7 @@
 package text
 
 import (
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -10,18 +11,20 @@ import (
 
 type TextInput struct {
 	txt                string
-	allowSpecial       bool
+	allowSpecial       bool // if set, special characters can be input. if numericOnly is set, this is disabled.
+	numericOnly        bool // if set, only numbers are able to be input (0 to 9, no decimal points as of now)
 	maxCharLen         int
 	holdBackspaceTicks int
 }
 
-func NewTextInput(allowSpecial bool, maxCharLen int) TextInput {
+func NewTextInput(allowSpecial bool, maxCharLen int, numericOnly bool) TextInput {
 	if maxCharLen < 0 {
 		panic("max char length must be 0 or greater")
 	}
 	t := TextInput{
 		allowSpecial: allowSpecial,
 		maxCharLen:   maxCharLen,
+		numericOnly:  numericOnly,
 	}
 	return t
 }
@@ -31,10 +34,26 @@ func (ti TextInput) GetCurrentText() string {
 }
 
 func (ti *TextInput) Clear() {
+	if ti.numericOnly {
+		ti.txt = "0"
+		return
+	}
+
 	ti.txt = ""
 }
 
 func (ti *TextInput) SetText(s string) {
+	if ti.numericOnly {
+		if s == "" {
+			panic("tried to set a numeric field to an empty string. set to 0 instead (or use the Clear function)")
+		}
+
+		// confirm the value is a valid integer
+		_, err := strconv.Atoi(s)
+		if err != nil {
+			panic(err)
+		}
+	}
 	ti.txt = s
 }
 
@@ -68,6 +87,23 @@ func (ti *TextInput) handleNewCharInput() {
 
 	shift := ebiten.IsKeyPressed(ebiten.KeyShift) || ebiten.IsKeyPressed(ebiten.KeyShiftLeft) || ebiten.IsKeyPressed(ebiten.KeyShiftRight)
 
+	for k, ch := range numbers {
+		if ti.atTextLimit() {
+			break
+		}
+		if inpututil.IsKeyJustPressed(k) {
+			i := 0
+			if !ti.numericOnly && shift && ti.allowSpecial {
+				i = 1
+			}
+			ti.txt += string(ch[i])
+		}
+	}
+
+	if ti.numericOnly {
+		return
+	}
+
 	// letters
 	for k, ch := range letters {
 		if ti.atTextLimit() {
@@ -81,8 +117,8 @@ func (ti *TextInput) handleNewCharInput() {
 		}
 	}
 
-	// numbers and symbols
-	for k, ch := range digitsEtc {
+	// symbols
+	for k, ch := range otherSymbols {
 		if ti.atTextLimit() {
 			break
 		}
@@ -117,10 +153,14 @@ var letters = map[ebiten.Key]rune{
 	ebiten.KeyY: 'y', ebiten.KeyZ: 'z',
 }
 
-var digitsEtc = map[ebiten.Key][2]rune{
+var otherSymbols = map[ebiten.Key][2]rune{
+	ebiten.KeyComma: {',', '<'}, ebiten.KeyPeriod: {'.', '>'},
+	ebiten.KeySlash: {'/', '?'}, ebiten.KeyMinus: {'-', '_'}, ebiten.KeyEqual: {'=', '+'},
+}
+
+var numbers = map[ebiten.Key][2]rune{
 	ebiten.Key0: {'0', ')'}, ebiten.Key1: {'1', '!'}, ebiten.Key2: {'2', '@'},
 	ebiten.Key3: {'3', '#'}, ebiten.Key4: {'4', '$'}, ebiten.Key5: {'5', '%'},
 	ebiten.Key6: {'6', '^'}, ebiten.Key7: {'7', '&'}, ebiten.Key8: {'8', '*'},
-	ebiten.Key9: {'9', '('}, ebiten.KeyComma: {',', '<'}, ebiten.KeyPeriod: {'.', '>'},
-	ebiten.KeySlash: {'/', '?'}, ebiten.KeyMinus: {'-', '_'}, ebiten.KeyEqual: {'=', '+'},
+	ebiten.Key9: {'9', '('},
 }
