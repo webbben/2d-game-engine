@@ -493,8 +493,6 @@ func (bg *builderGame) drawAppearancePage(screen *ebiten.Image) {
 	text.DrawShadowText(screen, "Eye Color", config.DefaultTitleFont, ctlX, ctlY, color.Black, nil, 0, 0)
 	ctlY += tileSize / 8
 	bg.scrAppearance.eyeColorSliders.Draw(screen, float64(ctlX), float64(ctlY))
-
-	bg.popupMgr.Draw(screen)
 }
 
 func (bg *builderGame) handleChangeAux(val string) {
