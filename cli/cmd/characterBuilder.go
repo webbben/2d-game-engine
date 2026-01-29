@@ -14,6 +14,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/ui/box"
 	"github.com/webbben/2d-game-engine/internal/ui/popup"
 	"github.com/webbben/2d-game-engine/internal/ui/tab"
@@ -85,10 +86,13 @@ type builderGame struct {
 
 	// UI components
 
+	lastOpenedTab string // name (display ID) of the last opened tab. used for detecting tab changes.
+
 	windowWidth, windowHeight int
 	windowX, windowY          int
 
 	windowBox *ebiten.Image
+	titleBox  box.BoxTitle
 
 	om *overlay.OverlayManager
 
@@ -202,12 +206,6 @@ func characterBuilder(fileToLoad string) {
 	g.windowX = (display.SCREEN_WIDTH - width) / 2
 	g.windowY = tileSize * 2
 
-	box := box.NewBox(config.DefaultUIBox.TilesetSrc, config.DefaultUIBox.OriginIndex)
-	g.windowBox = box.BuildBoxImage(g.windowWidth, g.windowHeight)
-
-	g.setupAppearanceScreen()
-	g.setupInventoryPage()
-
 	g.tabControl = tab.NewTabControl("ui/ui-components.tsj", []tab.Tab{
 		{
 			DisplayName: "Appearance",
@@ -223,6 +221,15 @@ func characterBuilder(fileToLoad string) {
 			ImgTileID:   64,
 		},
 	})
+
+	b := box.NewBox(config.DefaultUIBox.TilesetSrc, config.DefaultUIBox.OriginIndex)
+	g.windowBox = b.BuildBoxImage(g.windowWidth, g.windowHeight)
+
+	longestTitle := text.GetLongestString([]string{"Appearance", "Attributes", "Inventory"}, config.DefaultTitleFont)
+	g.titleBox = box.NewBoxTitle(config.DefaultUIBox.TilesetSrc, 111, longestTitle, config.DefaultTitleFont)
+
+	g.setupAppearanceScreen()
+	g.setupInventoryPage()
 
 	if err := ebiten.RunGame(&g); err != nil {
 		panic(err)
@@ -325,6 +332,10 @@ func resolveCharacterJSONPath(id string) string {
 func (bg *builderGame) Draw(screen *ebiten.Image) {
 	tileSize := config.TileSize * config.UIScale
 	rendering.DrawImage(screen, bg.windowBox, float64(bg.windowX), float64(bg.windowY), 0)
+	titleX := bg.windowX + (bg.windowWidth / 2) - (bg.titleBox.Width() / 2)
+	titleY := bg.windowY - int(tileSize)
+	bg.titleBox.Draw(screen, float64(titleX), float64(titleY))
+
 	bg.tabControl.Draw(screen, float64(bg.windowX+int(tileSize)), float64(bg.windowY-int(tileSize)), bg.om)
 
 	switch bg.tabControl.GetActiveTab().DisplayName {
@@ -345,12 +356,26 @@ func (bg *builderGame) Update() error {
 
 	bg.tabControl.Update()
 
-	switch bg.tabControl.GetActiveTab().DisplayName {
+	currentTab := bg.tabControl.GetActiveTab().DisplayName
+
+	bg.titleBox.SetTitle(currentTab)
+
+	if currentTab != "Inventory" && bg.lastOpenedTab == "Inventory" {
+		// switching away from inventory; save any changes to inventory items
+		bg.saveInventory()
+	}
+
+	switch currentTab {
 	case "Appearance":
 		bg.updateAppearanceScreen()
 	case "Inventory":
+		if bg.lastOpenedTab != "Inventory" {
+			bg.refreshInventory() // if changing to inventory page, refresh items
+		}
 		bg.updateInventoryPage()
 	}
+
+	bg.lastOpenedTab = currentTab
 
 	return nil
 }

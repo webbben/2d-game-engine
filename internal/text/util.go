@@ -1,3 +1,4 @@
+// Package text provides text utilities and drawing functions
 package text
 
 import (
@@ -8,7 +9,7 @@ import (
 	"golang.org/x/image/font"
 )
 
-// splits a string into lines based on the size of the rendered text with the given font.
+// ConvertStringToLines splits a string into lines based on the size of the rendered text with the given font.
 // also handles "\n" new line carriages as explicit line breaks.
 func ConvertStringToLines(s string, f font.Face, lineWidthPx int) []string {
 	if lineWidthPx == 0 {
@@ -55,7 +56,7 @@ func ConvertStringToLines(s string, f font.Face, lineWidthPx int) []string {
 	return lines
 }
 
-// returns the height of a body of text, when split according to the given lineWidth
+// GetStringLinesHeight returns the height of a body of text, when split according to the given lineWidth
 func GetStringLinesHeight(s string, f font.Face, lineWidthPx int) int {
 	lines := ConvertStringToLines(s, f, lineWidthPx)
 	height := 0
@@ -76,7 +77,7 @@ func GetStringSize(s string, f font.Face) (dx int, dy int, baseline int) {
 	return advance.Round(), (bounds.Max.Y - bounds.Min.Y).Round(), -bounds.Min.Y.Round()
 }
 
-// get size metrics for a font. here is what each value means:
+// GetFontMetrics gets size metrics for a font. here is what each value means:
 //
 // ascent: how far above baseline the font can go. basically, the "regular height" of the font, excluding any "descenders".
 //
@@ -91,6 +92,7 @@ func GetFontMetrics(f font.Face) (ascent int, descent int, height int) {
 	return ascent, descent, height
 }
 
+// GetRealisticFontMetrics gets the "realistic" metrics of a font.
 // since fonts can have lots of oddly sized symbols, this just gets a realistic expectation of the font's size.
 //
 // height: the height of a standard capital letter
@@ -127,4 +129,18 @@ func CenterTextInRect(s string, f font.Face, r model.Rect) (writeX, writeY int) 
 	cX := int(r.X+(r.W/2)) - (dx / 2)
 	cY := int(r.Y+(r.H/2)) + (dy / 2)
 	return cX, cY
+}
+
+// GetLongestString is useful for finding the longest string out of a list; used for things like making box titles that might have different page titles, etc.
+func GetLongestString(strings []string, f font.Face) string {
+	longest := ""
+	longestWidth := 0
+	for _, s := range strings {
+		w, _, _ := GetStringSize(s, f)
+		if w > longestWidth {
+			longest = s
+			longestWidth = w
+		}
+	}
+	return longest
 }
