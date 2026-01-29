@@ -345,6 +345,8 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 		bg.drawInventoryPage(screen, bg.om)
 	}
 
+	bg.popupMgr.Draw(screen)
+
 	bg.om.Draw(screen)
 }
 

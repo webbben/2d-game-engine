@@ -93,6 +93,10 @@ func NewTextField(params TextFieldParams) *TextField {
 	return &t
 }
 
+func (t *TextField) Clear() {
+	t.textInput.Clear()
+}
+
 func (t *TextField) SetText(s string) {
 	t.textInput.SetText(s)
 }
@@ -117,6 +121,11 @@ func (t *TextField) Focus() {
 	t.showCursor = true
 	t.isFocused = true
 }
+
+func (t TextField) IsFocused() bool {
+	return t.isFocused
+}
+
 func (t *TextField) Blur() { t.isFocused = false }
 
 func (t *TextField) Update() {

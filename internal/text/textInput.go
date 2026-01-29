@@ -60,10 +60,17 @@ func (ti *TextInput) SetText(s string) {
 func (ti *TextInput) Update() {
 	ti.handleNewCharInput()
 
+	shift := ebiten.IsKeyPressed(ebiten.KeyShift) || ebiten.IsKeyPressed(ebiten.KeyShiftLeft) || ebiten.IsKeyPressed(ebiten.KeyShiftRight)
+
 	// backspace
 	if len(ti.txt) > 0 {
 		if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
-			ti.backspace()
+			if shift {
+				// shift+backspace deletes all the text - for convenience
+				ti.Clear()
+			} else {
+				ti.backspace()
+			}
 		} else if ebiten.IsKeyPressed(ebiten.KeyBackspace) {
 			ti.holdBackspaceTicks++
 			if ti.holdBackspaceTicks > 8 {
