@@ -10,7 +10,7 @@ import (
 	"golang.org/x/image/font"
 )
 
-// A Box Title is a part of a box that can hold a title. it's designed to blend into the top border of a box.
+// BoxTitle is a part of a box that can hold a title. it's designed to blend into the top border of a box.
 type BoxTitle struct {
 	builtImage *ebiten.Image
 

@@ -3,7 +3,6 @@ package cmd
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
 	"github.com/webbben/2d-game-engine/inventory"
@@ -17,9 +16,9 @@ type inventoryScreen struct {
 func (bg *builderGame) setupInventoryPage() {
 	tileSize := int(config.TileSize * config.UIScale)
 
-	width := display.SCREEN_WIDTH * 2 / 3
+	width := bg.windowWidth - (tileSize * 2)
 	width -= width % tileSize // round it to the size of the box tile
-	height := display.SCREEN_HEIGHT * 2 / 3
+	height := bg.windowHeight * 2 / 3
 	height -= height % tileSize
 
 	invParams := inventory.InventoryParams{
@@ -38,8 +37,15 @@ func (bg *builderGame) setupInventoryPage() {
 	}
 
 	bg.scrInventory.inventoryComponent.Load(width, height, &bg.characterData, bg.defMgr, invParams)
+	bg.refreshInventory()
+}
+
+func (bg *builderGame) refreshInventory() {
 	bg.scrInventory.inventoryComponent.SyncEntityItems()
-	// TODO: sync items every time the inventory page is opened?
+}
+
+func (bg *builderGame) saveInventory() {
+	bg.scrInventory.inventoryComponent.SaveEntityInventory()
 }
 
 func (bg *builderGame) updateInventoryPage() {
