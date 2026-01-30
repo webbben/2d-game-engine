@@ -22,7 +22,9 @@ type inventoryScreen struct {
 	moneyInput      textfield.TextField
 	moneyConfirmBtn *button.Button
 
-	itemDropdown dropdown.OptionSelect
+	itemDropdown      dropdown.OptionSelect
+	itemQuantityInput textfield.TextField
+	itemConfirmBtn    *button.Button
 }
 
 func (bg *builderGame) setupInventoryPage() {
@@ -79,6 +81,16 @@ func (bg *builderGame) setupInventoryPage() {
 		DropDownBoxOrigin:     128,
 		InputEnabled:          true,
 	}, &bg.popupMgr)
+	bg.scrInventory.itemQuantityInput = *textfield.NewTextField(textfield.TextFieldParams{
+		WidthPx:            dx,
+		NumericOnly:        true,
+		TextColor:          color.White,
+		BorderColor:        color.White,
+		BgColor:            color.Black,
+		MaxCharacterLength: 7,
+		FontFace:           config.DefaultFont,
+	})
+	bg.scrInventory.itemConfirmBtn = button.NewLinearBoxButton("Add Item", "ui/ui-components.tsj", 352, config.DefaultTitleFont)
 
 	bg.refreshInventory()
 }
@@ -120,6 +132,29 @@ func (bg *builderGame) updateInventoryPage() {
 
 	// item input
 	bg.scrInventory.itemDropdown.Update()
+	bg.scrInventory.itemQuantityInput.Update()
+	if !bg.scrInventory.itemQuantityInput.IsFocused() {
+		// force the item quantity to be minimum 0 (if the user isn't currently entering something)
+		if bg.scrInventory.itemQuantityInput.GetText() == "" {
+			bg.scrInventory.itemQuantityInput.SetNumber(1)
+		} else if bg.scrInventory.itemQuantityInput.GetNumber() <= 0 {
+			bg.scrInventory.itemQuantityInput.SetNumber(1)
+		}
+	}
+	if bg.scrInventory.itemConfirmBtn.Update().Clicked {
+		bg.saveInventory()
+		// add item to entity inventory
+		itemID := bg.scrInventory.itemDropdown.GetCurrentValue()
+		quantity := bg.scrInventory.itemQuantityInput.GetNumber()
+		if quantity == 0 {
+			panic("quantity was 0!")
+		}
+		succ, remaining := bg.characterData.AddItemToInventory(bg.defMgr.NewInventoryItem(itemID, quantity))
+		if !succ {
+			logz.Println("Add Item", "failed to add item! remaining that failed to add:", remaining)
+		}
+		bg.refreshInventory()
+	}
 }
 
 func (bg *builderGame) drawInventoryPage(screen *ebiten.Image, om *overlay.OverlayManager) {
@@ -135,4 +170,8 @@ func (bg *builderGame) drawInventoryPage(screen *ebiten.Image, om *overlay.Overl
 	itemInputX := moneyInputX + moneyInputDx + 150
 	itemInputY := moneyInputY
 	bg.scrInventory.itemDropdown.Draw(screen, float64(itemInputX), float64(itemInputY), om)
+	_, barDy, _, _ := bg.scrInventory.itemDropdown.Dimensions()
+	bg.scrInventory.itemQuantityInput.Draw(screen, float64(itemInputX), float64(itemInputY+barDy+10))
+	_, quantityInputDy := bg.scrInventory.itemQuantityInput.Dimensions()
+	bg.scrInventory.itemConfirmBtn.Draw(screen, itemInputX, itemInputY+barDy+10+quantityInputDy+10)
 }

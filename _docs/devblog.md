@@ -1,3 +1,32 @@
+# 2026-01-30
+
+## Improvements to the Character Builder
+
+In the past couple days, I've been continuing to add new features to the character builder to help facilitate building new characters and NPCs in the future.
+I think this will be a vital part of the game development process, so I've spent some time trying to make it work well, fixing up bugs, and eventually I plan for it to have everything 
+you would want or need when designing a new NPC to place into a game.
+
+From the start, it was all on a single page: there were options to choose which body armor, headwear, and weapons to equip, and then a dropdown menu to choose which animation to demo.
+It was really originally made just to help with the design process for the player and its animations. But by now, I've made it so you can save the characters off to a JSON file, and this
+has become the actual tool I plan to use for creating any and every NPC. Perhaps once everything is fully refined and streamlined in terms of code, I will be able to write some code 
+that can auto-generate some generic NPCs too.
+
+So, by now with the vision of it being a fully fleshed character designer, I decided to add an inventory page. This inventory page lets you add items to the character's inventory and 
+set their gold. When you add armor to the character from the "Appearance" screen, it adds that armor item to the inventory too, as you would expect.
+
+![Appearance Page](./20260130.png)
+
+![Inventory Page](./20260130_1.png)
+
+### Next Up for Character Builder 
+
+I need to polish up a couple things on the inventory page, but everything already seems to be working as expected so next I'll probably move on to the stats page.
+This "stats" or "skills" page will show all the details about what level the character is, how much stamina and HP it has, what levels its skills are, etc. I'm assuming this will 
+be a lot more work than the inventory page since I will also be making a lot of decisions about the game and its mechanics as I go. Perhaps I'll just stick with the basic concepts 
+for now, and then as the regular game development proceeds and the different concepts with combat etc mature, then I'll finish it up here. However, I do think it's better to have 
+all of this figured out and finished up before I really start work on the game, because if I need to go back and change things later that could get messy, especially for characters 
+that I've already made (e.g. I might have to go back and clean up character definitions if I change them after they've been created).
+
 # 2026-01-28
 
 ## Choosing a Name for the Engine

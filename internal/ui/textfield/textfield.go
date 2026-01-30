@@ -90,6 +90,10 @@ func NewTextField(params TextFieldParams) *TextField {
 		numericOnly: params.NumericOnly,
 	}
 
+	if t.numericOnly {
+		t.SetNumber(0)
+	}
+
 	return &t
 }
 
