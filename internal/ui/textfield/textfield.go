@@ -44,6 +44,12 @@ func (tf TextField) GetNumber() int {
 	if !tf.numericOnly {
 		panic("tried to get number from non-numeric textfield")
 	}
+	if tf.GetText() == "" {
+		if tf.IsFocused() {
+			return 0 // user is still editing, so no problem
+		}
+		panic("GetNumber: numeric textfield seems to be inactive, but has an empty string value. it should be 0 in this case")
+	}
 	v, err := strconv.Atoi(tf.GetText())
 	if err != nil {
 		logz.Panicf("error converting string to int: %s", err)
@@ -130,7 +136,14 @@ func (t TextField) IsFocused() bool {
 	return t.isFocused
 }
 
-func (t *TextField) Blur() { t.isFocused = false }
+func (t *TextField) Blur() {
+	t.isFocused = false
+
+	// ensure that numericOnly fields don't end up as an empty string
+	if t.numericOnly && t.GetText() == "" {
+		t.SetNumber(0)
+	}
+}
 
 func (t *TextField) Update() {
 	t.mouseBehavior.Update(t.bounds.Min.X, t.bounds.Min.Y, t.bounds.Dx(), t.bounds.Dy(), false)

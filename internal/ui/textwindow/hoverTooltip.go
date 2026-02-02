@@ -10,6 +10,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/textbox"
 )
 
+// HoverTooltip is a simple component that shows a small amount of text when the user is hovering over something
 type HoverTooltip struct {
 	textBox textbox.TextBox
 	mouse.MouseBehavior

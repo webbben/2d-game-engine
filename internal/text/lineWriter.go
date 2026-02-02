@@ -12,13 +12,13 @@ import (
 type LineWriterStatus string
 
 const (
-	LW_AWAIT_TEXT  LineWriterStatus = "no_text_set"
-	LW_WRITING     LineWriterStatus = "writing"
-	LW_AWAIT_PAGER LineWriterStatus = "awaiting_pager"
-	LW_TEXT_DONE   LineWriterStatus = "text_done"
+	AwaitText  LineWriterStatus = "no_text_set"
+	Writing    LineWriterStatus = "writing"
+	AwaitPager LineWriterStatus = "awaiting_pager"
+	TextDone   LineWriterStatus = "text_done"
 )
 
-// A tool to write lines of text that handle various functions like wrapping lines, etc.
+// LineWriter is a tool to write lines of text that handle various functions like wrapping lines, etc.
 type LineWriter struct {
 	init            bool        // flag to indicate if this LineWriter was properly initialized
 	sourceText      string      // full text the line writer is currently aiming to write
@@ -42,7 +42,7 @@ type LineWriter struct {
 	writeImmediately  bool
 }
 
-// Creates a new LineWriter.
+// NewLineWriter creates a new LineWriter.
 // fg and bg colors can be left nil, in which case they assume the normal defaults (fg = black, bg = gray).
 // set useShadow to true if you want the shadow effect to be used when drawing text.
 func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color, useShadow bool, writeImmediately bool) LineWriter {
@@ -55,7 +55,7 @@ func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color
 	}
 
 	lw := LineWriter{
-		WritingStatus:    LW_AWAIT_TEXT,
+		WritingStatus:    AwaitText,
 		init:             true,
 		maxLineWidth:     lineWidthPx,
 		maxHeight:        maxHeightPx,
@@ -87,7 +87,7 @@ func (lw *LineWriter) SetSourceText(textToWrite string) {
 	if textToWrite == "" {
 		panic("tried to set empty text to lineWriter. to clear the lineWriter, use lw.Clear() instead.")
 	}
-	if lw.WritingStatus != LW_AWAIT_TEXT {
+	if lw.WritingStatus != AwaitText {
 		panic("tried to set lineWriter text while it was in an invalid status. be sure to properly clear the lineWriter first with lw.Clear().")
 	}
 
@@ -128,10 +128,10 @@ func (lw *LineWriter) SetSourceText(textToWrite string) {
 		lw.pages = append(lw.pages, page)
 	}
 
-	lw.WritingStatus = LW_WRITING
+	lw.WritingStatus = Writing
 }
 
-// fully clear source text and all written text
+// Clear fully clears source text and all written text
 func (lw *LineWriter) Clear() {
 	// unset all the values that are calculated when setting source text
 	lw.linesToWrite = []string{}
@@ -144,10 +144,10 @@ func (lw *LineWriter) Clear() {
 	lw.pageLineCount = 0
 
 	// set status flag to indicate waiting for new text
-	lw.WritingStatus = LW_AWAIT_TEXT
+	lw.WritingStatus = AwaitText
 }
 
-// returns the last written Y position (for reference by other drawing functions)
+// Draw returns the last written Y position (for reference by other drawing functions)
 func (lw LineWriter) Draw(screen *ebiten.Image, startX, startY int) int {
 	y := startY
 	for _, line := range lw.writtenLines {
@@ -159,17 +159,17 @@ func (lw LineWriter) Draw(screen *ebiten.Image, startX, startY int) int {
 }
 
 func (lw *LineWriter) Update() {
-	if lw.WritingStatus == LW_AWAIT_TEXT {
+	if lw.WritingStatus == AwaitText {
 		return
 	}
-	if lw.WritingStatus == LW_TEXT_DONE {
+	if lw.WritingStatus == TextDone {
 		return
 	}
-	if lw.WritingStatus == LW_AWAIT_PAGER {
+	if lw.WritingStatus == AwaitPager {
 		return
 	}
 
-	if lw.WritingStatus == LW_WRITING {
+	if lw.WritingStatus == Writing {
 		if lw.sourceText == "" {
 			panic("lineWriter is writing but there is no source text set!")
 		}
@@ -203,17 +203,17 @@ func (lw *LineWriter) Update() {
 			// everything has been written for the current page
 			if lw.currentPage < len(lw.pages)-1 {
 				// there are more pages; wait for pager signal
-				lw.WritingStatus = LW_AWAIT_PAGER
+				lw.WritingStatus = AwaitPager
 				return
 			}
 			// no more pages; we're all done
-			lw.WritingStatus = LW_TEXT_DONE
+			lw.WritingStatus = TextDone
 		}
 	}
 }
 
 func (lw *LineWriter) NextPage() {
-	if lw.WritingStatus != LW_AWAIT_PAGER {
+	if lw.WritingStatus != AwaitPager {
 		panic("tried to page lineWriter that isn't waiting for pager")
 	}
 	if lw.currentPage >= len(lw.pages)-1 {
@@ -226,10 +226,10 @@ func (lw *LineWriter) NextPage() {
 	lw.writtenLines = []string{""}
 
 	lw.currentPage++
-	lw.WritingStatus = LW_WRITING
+	lw.WritingStatus = Writing
 }
 
-// instantly finish the current page
+// FastForward finishes the current page
 func (lw *LineWriter) FastForward() {
 	currentPage := lw.pages[lw.currentPage]
 	lw.writtenLines = []string{}

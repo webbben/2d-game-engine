@@ -13,6 +13,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/item"
+	"github.com/webbben/2d-game-engine/skills"
 )
 
 // CharacterData contains all the info and data about a character, excluding things like mechanics and flags, etc.
@@ -58,11 +59,35 @@ type CharacterData struct {
 
 	// Attributes, Skills
 
-	Vitals     Vitals
-	Attributes Attributes
+	Vitals         skills.Vitals
+	BaseAttributes map[skills.AttributeID]skills.Attribute // Base attributes (not including modifiers from traits, etc)
+	BaseSkills     map[skills.SkillID]skills.Skill         // Base skills (not including modifiers from traits, etc)
+	Traits         []skills.Trait
 
 	WalkSpeed float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
 	RunSpeed  float64 `json:"run_speed"`
+}
+
+func (cd CharacterData) GetTraitModifiers() (skillMods map[skills.SkillID]int, attrMods map[skills.AttributeID]int) {
+	skillMods = make(map[skills.SkillID]int)
+	attrMods = make(map[skills.AttributeID]int)
+
+	for _, trait := range cd.Traits {
+		for id, change := range trait.GetSkillChanges() {
+			if _, exists := skillMods[id]; !exists {
+				skillMods[id] = 0
+			}
+			skillMods[id] += change
+		}
+		for id, change := range trait.GetAttributeChanges() {
+			if _, exists := attrMods[id]; !exists {
+				attrMods[id] = 0
+			}
+			attrMods[id] += change
+		}
+	}
+
+	return skillMods, attrMods
 }
 
 func (cd CharacterData) WriteToJSON(outputFilePath string) error {
