@@ -75,17 +75,17 @@ func (d *Dialog) Update(eventBus *pubsub.EventBus) {
 	// handle text display
 	d.lineWriter.Update()
 	switch d.lineWriter.WritingStatus {
-	case text.LW_WRITING:
+	case text.Writing:
 		d.flashDoneIcon = false
 		d.flashContinueIcon = false
 		// check if user is clicking to skip forward
 		d.skipForward()
-	case text.LW_AWAIT_PAGER:
+	case text.AwaitPager:
 		// LineWriter has finished a page, but has more to show.
 		// wait for user input before continuing
 		d.awaitContinue()
 		return
-	case text.LW_TEXT_DONE:
+	case text.TextDone:
 		// all text has been displayed
 
 		// handle status transition
@@ -166,7 +166,7 @@ func (d *Dialog) awaitDone(eventBus *pubsub.EventBus) {
 		// we shouldn't be waiting for a user continue unless we are in one of these topic statuses
 		panic("invalid status for dialog.awaitDone: " + d.currentTopic.status)
 	}
-	if d.lineWriter.WritingStatus != text.LW_TEXT_DONE {
+	if d.lineWriter.WritingStatus != text.TextDone {
 		panic("dialog.awaitDone: lineWriter status is expected to be done. invalid status found: " + d.lineWriter.WritingStatus)
 	}
 

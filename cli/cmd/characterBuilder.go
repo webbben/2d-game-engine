@@ -97,6 +97,7 @@ type builderGame struct {
 	om *overlay.OverlayManager
 
 	scrAppearance appearanceScreen
+	scrAttributes attributesScreen
 	scrInventory  inventoryScreen
 
 	popupMgr popup.Manager
@@ -229,6 +230,7 @@ func characterBuilder(fileToLoad string) {
 	g.titleBox = box.NewBoxTitle(config.DefaultUIBox.TilesetSrc, 111, longestTitle, config.DefaultTitleFont)
 
 	g.setupAppearanceScreen()
+	g.setupAttributesPage()
 	g.setupInventoryPage()
 
 	if err := ebiten.RunGame(&g); err != nil {
@@ -341,6 +343,8 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 	switch bg.tabControl.GetActiveTab().DisplayName {
 	case "Appearance":
 		bg.drawAppearancePage(screen)
+	case "Attributes":
+		bg.drawAttributesPage(screen)
 	case "Inventory":
 		bg.drawInventoryPage(screen, bg.om)
 	}
@@ -370,6 +374,8 @@ func (bg *builderGame) Update() error {
 	switch currentTab {
 	case "Appearance":
 		bg.updateAppearanceScreen()
+	case "Attributes":
+		bg.updateAttributesPage()
 	case "Inventory":
 		if bg.lastOpenedTab != "Inventory" {
 			bg.refreshInventory() // if changing to inventory page, refresh items

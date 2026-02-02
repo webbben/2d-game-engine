@@ -6,6 +6,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/item"
+	"github.com/webbben/2d-game-engine/skills"
 )
 
 type DefinitionManager struct {
@@ -14,16 +15,77 @@ type DefinitionManager struct {
 	Dialogs     map[string]dialog.Dialog
 
 	BodyPartDefs map[string]body.SelectedPartDef // only for body "skin" parts (not for equipment, since those are part of item defs)
+
+	AttributeDefs map[skills.AttributeID]skills.AttributeDef
+	SkillDefs     map[skills.SkillID]skills.SkillDef
+	TraitDefs     map[skills.TraitID]skills.Trait
 }
 
 func NewDefinitionManager() *DefinitionManager {
 	def := DefinitionManager{
-		ItemDefs:     make(map[string]item.ItemDef),
-		Shopkeepers:  make(map[string]*Shopkeeper),
-		Dialogs:      make(map[string]dialog.Dialog),
-		BodyPartDefs: make(map[string]body.SelectedPartDef),
+		ItemDefs:      make(map[string]item.ItemDef),
+		Shopkeepers:   make(map[string]*Shopkeeper),
+		Dialogs:       make(map[string]dialog.Dialog),
+		BodyPartDefs:  make(map[string]body.SelectedPartDef),
+		AttributeDefs: make(map[skills.AttributeID]skills.AttributeDef),
+		SkillDefs:     make(map[skills.SkillID]skills.SkillDef),
+		TraitDefs:     make(map[skills.TraitID]skills.Trait),
 	}
 	return &def
+}
+
+func (defMgr *DefinitionManager) LoadTraitDef(trait skills.Trait) {
+	if trait.GetID() == "" {
+		logz.Panicln("DefinitionManager", "tried to load trait, but ID was empty")
+	}
+	if _, exists := defMgr.TraitDefs[trait.GetID()]; exists {
+		logz.Panicln("DefinitionManager", "tried to load in a new trait, but an existing trait of the same ID already exists:", trait.GetID())
+	}
+	defMgr.TraitDefs[trait.GetID()] = trait
+}
+
+func (defMgr DefinitionManager) GetTraitDef(id skills.TraitID) skills.Trait {
+	trait, exists := defMgr.TraitDefs[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get trait by ID that doesn't exist:", id)
+	}
+	return trait
+}
+
+func (defMgr *DefinitionManager) LoadAttributeDef(attr skills.AttributeDef) {
+	if attr.ID == "" {
+		logz.Panicln("DefinitionManager", "tried to load attribute, but ID was empty")
+	}
+	if _, exists := defMgr.AttributeDefs[attr.ID]; exists {
+		logz.Panicln("DefinitionManager", "tried to load in a new attribute, but an existing attribute of the same ID already exists:", attr.ID)
+	}
+	defMgr.AttributeDefs[attr.ID] = attr
+}
+
+func (defMgr DefinitionManager) GetAttributeDef(id skills.AttributeID) skills.AttributeDef {
+	attrDef, exists := defMgr.AttributeDefs[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get attribute by ID that doesn't exist:", id)
+	}
+	return attrDef
+}
+
+func (defMgr *DefinitionManager) LoadSkillDef(sk skills.SkillDef) {
+	if sk.ID == "" {
+		logz.Panicln("DefinitionManager", "tried to load skill, but ID was empty")
+	}
+	if _, exists := defMgr.SkillDefs[sk.ID]; exists {
+		logz.Panicln("DefinitionManager", "tried to load in a new skill, but an existing skill of the same ID already exists:", sk.ID)
+	}
+	defMgr.SkillDefs[sk.ID] = sk
+}
+
+func (defMgr DefinitionManager) GetSkillDef(id skills.SkillID) skills.SkillDef {
+	skillDef, exists := defMgr.SkillDefs[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get skill by ID that doesn't exist:", id)
+	}
+	return skillDef
 }
 
 func (def *DefinitionManager) LoadBodyPartDef(partDef body.SelectedPartDef) {

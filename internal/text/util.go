@@ -144,3 +144,19 @@ func GetLongestString(strings []string, f font.Face) string {
 	}
 	return longest
 }
+
+// CenterTextOnXPos gives the x position to draw text at in order to center it on a given x coordinate
+func CenterTextOnXPos(s string, f font.Face, xPos float64) float64 {
+	// basically just going to center it on a made-up rect
+	r := model.NewRect(xPos-100, 0, 200, 100)
+	writeX, _ := CenterTextInRect(s, f, r)
+	return float64(writeX)
+}
+
+// CenterTextOnYPos gives the y position to draw text at in order to center it on a given y coordinate
+func CenterTextOnYPos(s string, f font.Face, yPos float64) float64 {
+	// basically just going to center it on a made-up rect
+	r := model.NewRect(0, yPos-100, 100, 200)
+	_, writeY := CenterTextInRect(s, f, r)
+	return float64(writeY)
+}

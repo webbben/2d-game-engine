@@ -52,3 +52,7 @@ var (
 const (
 	TileSize = 16
 )
+
+func GetScaledTilesize() float64 {
+	return TileSize * UIScale
+}

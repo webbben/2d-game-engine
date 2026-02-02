@@ -11,12 +11,13 @@ import (
 	"golang.org/x/image/font"
 )
 
-type TextWindowBox struct {
+// textWindowBox is a box specifically for simple text windows
+type textWindowBox struct {
 	tiles       []*ebiten.Image
-	windowImage *ebiten.Image
+	windowImage *ebiten.Image // the built image of the window box
 }
 
-func (twb TextWindowBox) TileSize() int {
+func (twb textWindowBox) TileSize() int {
 	dx := int(float64(twb.tiles[0].Bounds().Dx()) * config.UIScale)
 	if dx == 0 {
 		panic("tilesize is 0")
@@ -24,8 +25,8 @@ func (twb TextWindowBox) TileSize() int {
 	return dx
 }
 
-func NewTextWindowBox(tilesetSource string, originTileIndex int) TextWindowBox {
-	box := TextWindowBox{}
+func newTextWindowBox(tilesetSource string, originTileIndex int) textWindowBox {
+	box := textWindowBox{}
 
 	tileset, err := tiled.LoadTileset(tilesetSource)
 	if err != nil {
@@ -46,7 +47,7 @@ func NewTextWindowBox(tilesetSource string, originTileIndex int) TextWindowBox {
 	return box
 }
 
-func (twb *TextWindowBox) BuildWindowImage(widthPx, heightPx int) {
+func (twb *textWindowBox) buildWindowImage(widthPx, heightPx int) {
 	tileSize := twb.TileSize()
 
 	widthPx -= widthPx % tileSize
@@ -113,10 +114,11 @@ func (twb *TextWindowBox) BuildWindowImage(widthPx, heightPx int) {
 	twb.windowImage = baseImg
 }
 
-type TextWindow struct {
+// textWindow is a simple type of text window that just shows a title and body text.
+type textWindow struct {
 	x, y float64
 
-	box        TextWindowBox
+	box        textWindowBox
 	lineWriter text.LineWriter
 
 	Title     string
@@ -136,7 +138,7 @@ type TextWindowParams struct {
 	LineWidthPx int
 }
 
-func NewTextWindow(title, bodyText string, params TextWindowParams) TextWindow {
+func newTextWindow(title, bodyText string, params TextWindowParams) textWindow {
 	if title == "" {
 		panic("title is empty")
 	}
@@ -153,12 +155,12 @@ func NewTextWindow(title, bodyText string, params TextWindowParams) TextWindow {
 		params.BodyFont = config.DefaultFont
 	}
 
-	textWindow := TextWindow{
+	textWindow := textWindow{
 		Title:    title,
 		BodyText: bodyText,
 	}
 
-	textWindow.box = NewTextWindowBox(params.TilesetSource, params.OriginTileIndex)
+	textWindow.box = newTextWindowBox(params.TilesetSource, params.OriginTileIndex)
 
 	// determine window size based on source text
 	// title = 3 tiles tall
@@ -188,7 +190,7 @@ func NewTextWindow(title, bodyText string, params TextWindowParams) TextWindow {
 	windowHeight += bodyTextHeight + (tileSize)
 	windowHeight -= windowHeight % tileSize
 
-	textWindow.box.BuildWindowImage(windowWidth, windowHeight)
+	textWindow.box.buildWindowImage(windowWidth, windowHeight)
 
 	textWindow.lineWriter = text.NewLineWriter(lineWidth, bodyTextHeight+tileSize, params.BodyFont, nil, nil, true, true)
 
@@ -199,7 +201,7 @@ func NewTextWindow(title, bodyText string, params TextWindowParams) TextWindow {
 	return textWindow
 }
 
-func (tw *TextWindow) Draw(screen *ebiten.Image, x, y float64) {
+func (tw *textWindow) Draw(screen *ebiten.Image, x, y float64) {
 	tw.x = x
 	tw.y = y
 	if tw.box.windowImage == nil {
@@ -214,11 +216,11 @@ func (tw *TextWindow) Draw(screen *ebiten.Image, x, y float64) {
 	tw.lineWriter.Draw(screen, int(tw.x)+(tileSize/2), int(tw.y)+tileSize+(tileSize/2))
 }
 
-func (tw *TextWindow) Update() {
+func (tw *textWindow) Update() {
 	tw.lineWriter.Update()
 }
 
-func (tw TextWindow) Dimensions() (dx, dy int) {
+func (tw textWindow) Dimensions() (dx, dy int) {
 	b := tw.box.windowImage.Bounds()
 	return b.Dx(), b.Dy()
 }

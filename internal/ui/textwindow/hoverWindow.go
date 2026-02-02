@@ -7,9 +7,10 @@ import (
 	"github.com/webbben/2d-game-engine/internal/overlay"
 )
 
+// HoverWindow is a simple hover window that shows a title and body text
 type HoverWindow struct {
 	placeHolderImg *ebiten.Image
-	TextWindow
+	textWindow
 	mouse.MouseBehavior
 }
 
@@ -21,9 +22,9 @@ func NewHoverWindow(title, bodyText string, textWindowParams TextWindowParams) H
 		panic("body text is empty")
 	}
 	hoverWindow := HoverWindow{
-		TextWindow: NewTextWindow(title, bodyText, textWindowParams),
+		textWindow: newTextWindow(title, bodyText, textWindowParams),
 	}
-	w, h := hoverWindow.TextWindow.Dimensions()
+	w, h := hoverWindow.Dimensions()
 	hoverWindow.placeHolderImg = ebiten.NewImage(w, h)
 
 	return hoverWindow
@@ -32,31 +33,37 @@ func NewHoverWindow(title, bodyText string, textWindowParams TextWindowParams) H
 func (hw *HoverWindow) Update(x, y float64, width, height int) {
 	hw.MouseBehavior.Update(int(x), int(y), width, height, false)
 
-	if hw.MouseBehavior.IsHovering {
-		hw.TextWindow.Update()
+	if hw.IsHovering {
+		hw.textWindow.Update()
 	}
 }
 
 func (hw *HoverWindow) Draw(om *overlay.OverlayManager) {
-	if !hw.MouseBehavior.IsHovering {
+	if !hw.IsHovering {
 		return
 	}
 	hw.placeHolderImg.Clear()
 
 	// capture draw result from text window ui component
-	hw.TextWindow.Draw(hw.placeHolderImg, 0, 0)
+	hw.textWindow.Draw(hw.placeHolderImg, 0, 0)
 
+	dx, dy := hw.Dimensions()
+	x, y := getPosNearMouse(15, dx, dy)
+	om.AddOverlay(hw.placeHolderImg, float64(x), float64(y))
+}
+
+func getPosNearMouse(distFromMouse int, dx, dy int) (x, y int) {
 	// draw next to the mouse
 	mouseX, mouseY := ebiten.CursorPosition()
 	// make sure the window doesn't go off screen
-	x := mouseX + 15
-	y := mouseY + 15
-	dx, dy := hw.Dimensions()
+	x = mouseX + distFromMouse
+	y = mouseY + distFromMouse
 	if x+dx > display.SCREEN_WIDTH {
-		x = mouseX - 15 - dx
+		x = mouseX - distFromMouse - dx
 	}
 	if y+dy > display.SCREEN_HEIGHT {
-		y = mouseY - 15 - dy
+		y = mouseY - distFromMouse - dy
 	}
-	om.AddOverlay(hw.placeHolderImg, float64(x), float64(y))
+
+	return x, y
 }
