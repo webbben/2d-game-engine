@@ -60,8 +60,8 @@ type CharacterData struct {
 	// Attributes, Skills
 
 	Vitals         skills.Vitals
-	BaseAttributes map[skills.AttributeID]skills.Attribute // Base attributes (not including modifiers from traits, etc)
-	BaseSkills     map[skills.SkillID]skills.Skill         // Base skills (not including modifiers from traits, etc)
+	BaseAttributes map[skills.AttributeID]int // Base attribute levels (not including modifiers from traits, etc)
+	BaseSkills     map[skills.SkillID]int     // Base skill levels (not including modifiers from traits, etc)
 	Traits         []skills.Trait
 
 	WalkSpeed float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation

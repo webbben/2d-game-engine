@@ -19,6 +19,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/popup"
 	"github.com/webbben/2d-game-engine/internal/ui/tab"
 	"github.com/webbben/2d-game-engine/item"
+	"github.com/webbben/2d-game-engine/skills"
 )
 
 const noneOp = "< None >"
@@ -302,6 +303,9 @@ func getNewCharacter() entity.CharacterData {
 		RunSpeed:       entity.GetDefaultRunSpeed(),
 		InventoryItems: make([]*item.InventoryItem, 18),
 		CoinPurse:      make([]*item.InventoryItem, 6),
+
+		BaseAttributes: make(map[skills.AttributeID]int),
+		BaseSkills:     make(map[skills.SkillID]int),
 	}
 	return cd
 }

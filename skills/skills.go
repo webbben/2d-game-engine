@@ -25,13 +25,3 @@ type SkillDef struct {
 	ID          SkillID
 	DisplayName string
 }
-
-type Attribute struct {
-	AttributeDef
-	CurMax
-}
-
-type Skill struct {
-	SkillDef
-	CurMax
-}

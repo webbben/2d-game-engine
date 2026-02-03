@@ -109,6 +109,14 @@ func NewEntity(general GeneralProps, ap AudioProps, defMgr *definitions.Definiti
 	if err != nil {
 		panic(err)
 	}
+
+	if characterData.BaseAttributes == nil {
+		panic("base attributes is nil. did character builder not save data?")
+	}
+	if characterData.BaseSkills == nil {
+		panic("base skills are nil. did character builder not save data?")
+	}
+
 	ent.CharacterData = characterData
 
 	ent.IsPlayer = general.IsPlayer
