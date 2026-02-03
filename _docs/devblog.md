@@ -1,3 +1,97 @@
+# 2026-02-03
+
+## Attributes Screen of Character Builder
+
+I've finished up a basic version of the "Attributes" page of the character builder. This is what I've settled on calling it, but in the last post I was referring to it as 
+the "stats" or "skills" page. This page lets you do two main things: 1) set the base attribute and skill levels of a character, and 2) add traits to the character.
+Altogether, these things will calculate the attributes and skills of a character.
+
+### Attributes vs Skills 
+
+This concept of "attributes" and "skills" is very much the same as what you will find in games like Morrowind:
+
+There are a set of attributes which describe general "skill areas" you might say. If a player has a high "strength" attribute level, then all skills related to that attribute 
+will be positively influenced.
+
+A skill is more specific and tied directly to some kind of specific weapon type, mechanic, or other concept in the game. The "blade" skill affects how well your character uses 
+a blade-style weapon like a sword or knife, for example. The "repair" skill affects how good your character is at repairing his armor or weapons. All of these skills have 
+"governing attributes" (as Morrowind terms it) which are just attributes that are linked to the skill. The blade skill, for example, might have governing attributes of "Strength"
+and "Martial" for example. I won't go into the weeds of things from here though, since a lot of this is still not really defined yet in terms of this game I'm making.
+But this gives you the general picture.
+
+![Attributes Page](./20260203.png)
+
+### Traits 
+
+This is a concept I snagged from Crusader Kings 2 - a game I've spent countless hours playing as well.
+
+Basically, a trait can represent and cause a few different things:
+
+1) chiefly, they can buff or debuff attributes and skills. 
+
+Take the "brave" trait that I've come up with now: It increases the "Martial" attribute but damages the "Intrigue" attribute.
+This modifies the character's skills and traits, but their base levels remain the same. So if a character has a "base" Martial level of 15, and then the character earns the
+"brave" trait, that Martial level is modified up to 25. If they were to lose the trait at some point, they would lose this modification to their Martial level.
+
+2) dialog and other worldly interactions can be influenced or changed.
+
+One thing I'm definitely planning to do is have traits play into dialog options. Suppose you are in a dialog situation where someone challenges you to a fight.
+If you have the brave trait, perhaps there will be some penalty to declining fight (since a truly "brave" character perhaps would never do so).
+Or, if you had the "timid" trait, perhaps it is the other way around and it either the accept-fight option is disabled, or comes with a penalty.
+
+I think this will add a lot of fun and interesting dynamics to the game. Perhaps there are humorous or ridiculous dialog options that ordinarily you wouldn't want to choose, 
+but unfortunately your character recently acquired the "lunatic" trait which can randomly cause them to be forced to do the ridiculous dialog options. This could be frustrating,
+of course, but in my experience playing games like CK2, it actually is kind of fun and makes your role-playing experience a little more sincere.
+
+3) informs about the character's personality, background, or other context - which makes for a little more "immersive" role-playing.
+
+One thing that makes CK2 more fun is how you can look at a character's profile and see which traits they have - which can sort of paint a picture of who they are:
+
+"Oh, I see, this guy is a priest, he's a drunkard, and he believes he's a werewolf."
+
+Especially in a game like CK2 where there are lots of random events that occur involving other characters, it can make for a lot of funny moments. I don't know how much "random events"
+this game would have, but either way it will add a little more color to the game I think.
+
+![Trait](./20260203_1.png)
+
+## Up Next 
+
+Now that I've made pretty much everything the character builder needs, I think I'm in a good position to start working more seriously on the following:
+
+1) Combat system 
+
+I've already worked on this a little so far, and it's in a very primitive form as of now. Basically, characters can use a shield to block, and do a slash with a sword.
+I've also made a mechanic where, if you are holding the right mouse button ("right clicking") then the character will face towards the mouse pointer even while walking.
+The idea here is, it helps you focus on facing towards an opponent while still being able to move freely and not have to turn away.
+
+I do believe that overall, the combat system won't be super sophisticated in this first version of the game I'm planning. One constraint is that it's hard to define too many 
+body animations since every time a new frame is created, that means more drawing work for every equipable item. I'd like to be able to create a lot of items, so I've been trying to keep 
+unique body animation frames to a minimum and reuse them when I can. But, the downside there of course is the animations are not quite as "pretty" and can look slightly awkward at times.
+If I were really good at this art stuff, maybe I could optimize the frames to look really smooth for multiple different animations.
+
+So, anyway, here are some ideas I might pursue in the combat system:
+
+- add a "stun"/"recoil" animation, which happens when a character is hit by an attack.
+- add a "backslash", which happens if you swing your sword immediately after a first swing has ended. Like a sword being swung back and forth. Adds a tiny bit of color to the combat,
+although not much.
+- add a stab attack for swords. maybe this would be triggered if you are moving in a certain direction? or maybe if you attack while bracing with your shield? But, adding more attack 
+options and mechanics there would improve things a lot, since they are pretty dull and repetitive right now.
+- adding ranged weapons like bows, javelins, etc. this will definitely happen at some point, but probably later on.
+- oh, and of course, factor in the skills and attributes into combat. I need to do some things like define how weapons' damage is calculated, and then factor in skill 
+and attribute levels. This will be really important and have big implications on how the game overall is played, so will take some careful planning.
+
+2) Quest system, and improve dialog system
+
+What I'm really excited to get cracking on is getting the first quests created. I'm not exactly sure where to start, but maybe it would make sense to just start creating the opening 
+game scenes and the first quests as you begin a new playthrough. I'm envisioning an opening scene very similar to Morrowind, where you arrive on a boat. So, something like that,
+add in the character creation screens (basically just copying the character builder, with some limitations), and then an initial quest that involves dialog.
+The dialog system is still very basic and not very sophisticated yet, so I'm sure it will be getting a lot of reworking as I go.
+
+...
+
+For now, I think I might just move on to option 2, because that's what I'm really excited for. I've been spending a lot of time poring over character animations and stuff for a while,
+so let's give that a break and work on option 2 some more, until we are at our first combat-related quest in the game.
+
 # 2026-01-30
 
 ## Improvements to the Character Builder

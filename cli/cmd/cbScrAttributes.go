@@ -35,6 +35,9 @@ type attributeSetter struct {
 	DisplayName string
 	Input       textfield.TextField
 	ModVal      int // if a modifier is active (from a trait), set it here
+
+	lastInputValue int
+	changeOccurred bool
 }
 
 func newAttributeSetter(id, displayName string) attributeSetter {
@@ -56,6 +59,15 @@ func newAttributeSetter(id, displayName string) attributeSetter {
 
 func (as *attributeSetter) Update() {
 	as.Input.Update()
+
+	// check for number changes once the input field is no longer focused
+	as.changeOccurred = false
+	if !as.Input.IsFocused() {
+		if as.Input.GetNumber() != as.lastInputValue {
+			as.lastInputValue = as.Input.GetNumber()
+			as.changeOccurred = true
+		}
+	}
 }
 
 func (as *attributeSetter) Draw(screen *ebiten.Image, drawX, drawY float64, maxAttrWidth int) {
@@ -108,15 +120,14 @@ func newTraitIcon(traitDef skills.Trait, defMgr *definitions.DefinitionManager) 
 
 	tileSize := config.GetScaledTilesize()
 
-	bodyWidth := int(tileSize * 5)
-	bodyHeight := int(tileSize * 7)
+	// these are actually used just to set the max width and height of the linewriter. Not representative of the whole body dimensions
+	bodyWidth := int(tileSize * 6)
+	bodyHeight := int(tileSize * 7) // 7 would be quite a large description, so it hopefully would never surpass this height
 
 	// setup linewriter so it doesn't need updates (ready to write all text at once)
 	ti.lineWriter = text.NewLineWriter(bodyWidth, bodyHeight, config.DefaultFont, nil, nil, true, true)
 	ti.lineWriter.SetSourceText(ti.trait.GetDescription())
 	ti.lineWriter.Update() // do one update, to cause the "write immediately" to take effect
-
-	ti.hwContentPlaceholder = ebiten.NewImage(bodyWidth, bodyHeight)
 
 	title := ti.trait.GetName()
 	if title == "" {
@@ -147,7 +158,18 @@ func (ti *traitIcon) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overla
 }
 
 func (ti traitIcon) buildBodyContent(defMgr *definitions.DefinitionManager) *ebiten.Image {
-	ti.hwContentPlaceholder.Clear()
+	tileSize := config.GetScaledTilesize()
+
+	attrChanges := ti.trait.GetAttributeChanges()
+	skillChanges := ti.trait.GetSkillChanges()
+
+	// figure out the full size of the body content, so we can created the empty placeholder
+	lwDx, lwDy := ti.lineWriter.CurrentDimensions()
+	changesDy := (len(attrChanges) + len(skillChanges)) * int(tileSize)
+	totalDy := lwDy + changesDy + int(tileSize)
+	totalDx := lwDx + 10
+
+	ti.hwContentPlaceholder = ebiten.NewImage(totalDx, totalDy)
 
 	belowDescY := ti.lineWriter.Draw(ti.hwContentPlaceholder, 0, 0)
 
@@ -155,8 +177,6 @@ func (ti traitIcon) buildBodyContent(defMgr *definitions.DefinitionManager) *ebi
 
 	drawX := float64(0)
 	drawY := float64(belowDescY)
-
-	tileSize := config.GetScaledTilesize()
 
 	drawChange := func(screen *ebiten.Image, change int, name string, nameColor color.Color, x, y int) {
 		var icon *ebiten.Image
@@ -172,13 +192,9 @@ func (ti traitIcon) buildBodyContent(defMgr *definitions.DefinitionManager) *ebi
 		num := fmt.Sprintf("%v", change)
 		numX := int(tileSize*1.5) + x
 		numX = int(text.CenterTextOnXPos(num, config.DefaultFont, float64(numX)))
-		// if change < 0 {
-		// 	// move back to ignore the negative sign and line up the numbers instead
-		// 	dashDx, _, _ := text.GetStringSize("-", config.DefaultFont)
-		// 	numX -= dashDx
-		// }
+
 		dispNameX := int(tileSize*2) + x
-		rendering.DrawImage(screen, icon, drawX, drawY, config.UIScale)
+		rendering.DrawImage(screen, icon, float64(x), float64(y), config.UIScale)
 		// get Y position for text to be centered
 		_, ty := text.CenterTextInRect("ABC", config.DefaultFont, model.NewRect(float64(x), float64(y), 10, tileSize))
 		text.DrawShadowText(screen, num, config.DefaultFont, numX, ty, nil, nil, 0, 0)
@@ -186,7 +202,6 @@ func (ti traitIcon) buildBodyContent(defMgr *definitions.DefinitionManager) *ebi
 	}
 
 	// draw attribute changes
-	attrChanges := ti.trait.GetAttributeChanges()
 	for attrID, change := range attrChanges {
 		// get attribute details
 		attrDef := defMgr.GetAttributeDef(attrID)
@@ -197,7 +212,6 @@ func (ti traitIcon) buildBodyContent(defMgr *definitions.DefinitionManager) *ebi
 		drawY += tileSize
 	}
 
-	skillChanges := ti.trait.GetSkillChanges()
 	for skillID, change := range skillChanges {
 		// get attribute details
 		skillDef := defMgr.GetSkillDef(skillID)
@@ -263,17 +277,35 @@ func (bg *builderGame) setupAttributesPage() {
 }
 
 func (bg *builderGame) updateAttributesPage() {
+	attrChangeOccurred := false
 	for i := range bg.scrAttributes.AttributeSetters {
 		bg.scrAttributes.AttributeSetters[i].Update()
+		if bg.scrAttributes.AttributeSetters[i].changeOccurred {
+			attrChangeOccurred = true
+		}
 	}
 	for i := range bg.scrAttributes.CombatSkillSetters {
 		bg.scrAttributes.CombatSkillSetters[i].Update()
+		if bg.scrAttributes.CombatSkillSetters[i].changeOccurred {
+			attrChangeOccurred = true
+		}
 	}
 	for i := range bg.scrAttributes.StealthSkillSetters {
 		bg.scrAttributes.StealthSkillSetters[i].Update()
+		if bg.scrAttributes.StealthSkillSetters[i].changeOccurred {
+			attrChangeOccurred = true
+		}
 	}
 	for i := range bg.scrAttributes.MagicSkillSetters {
 		bg.scrAttributes.MagicSkillSetters[i].Update()
+		if bg.scrAttributes.MagicSkillSetters[i].changeOccurred {
+			attrChangeOccurred = true
+		}
+	}
+
+	// if an attribute or skill was changed, update characterData
+	if attrChangeOccurred {
+		bg.saveBaseAttributesToCharacter()
 	}
 
 	// handle moving traits around when clicked
@@ -344,6 +376,30 @@ func (bg *builderGame) updateAttributeSelectors() {
 			modVal = val
 		}
 		bg.scrAttributes.MagicSkillSetters[i].ModVal = modVal
+	}
+}
+
+func (bg *builderGame) saveBaseAttributesToCharacter() {
+	// get the numbers set in the attribute setters, and set those in the characterData
+	for _, attrSetter := range bg.scrAttributes.AttributeSetters {
+		attrID := skills.AttributeID(attrSetter.ID)
+		attrVal := attrSetter.Input.GetNumber()
+		bg.characterData.BaseAttributes[attrID] = attrVal
+	}
+	for _, skillSetter := range bg.scrAttributes.CombatSkillSetters {
+		skillID := skills.SkillID(skillSetter.ID)
+		skillVal := skillSetter.Input.GetNumber()
+		bg.characterData.BaseSkills[skillID] = skillVal
+	}
+	for _, skillSetter := range bg.scrAttributes.StealthSkillSetters {
+		skillID := skills.SkillID(skillSetter.ID)
+		skillVal := skillSetter.Input.GetNumber()
+		bg.characterData.BaseSkills[skillID] = skillVal
+	}
+	for _, skillSetter := range bg.scrAttributes.MagicSkillSetters {
+		skillID := skills.SkillID(skillSetter.ID)
+		skillVal := skillSetter.Input.GetNumber()
+		bg.characterData.BaseSkills[skillID] = skillVal
 	}
 }
 

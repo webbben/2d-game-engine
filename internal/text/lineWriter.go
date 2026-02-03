@@ -42,6 +42,19 @@ type LineWriter struct {
 	writeImmediately  bool
 }
 
+// CurrentDimensions gives the dimensions that the linewriter currently has - based on how much text has been written so far.
+// If the linewriter is still writing, this may continue to change.
+func (lw LineWriter) CurrentDimensions() (dx, dy int) {
+	if lw.lineHeight == 0 {
+		panic("tried to get dimensions of linewriter, but line height is 0")
+	}
+	if lw.maxLineWidth == 0 {
+		panic("tried to get dimensions, but maxLineWidth was 0")
+	}
+	dy = len(lw.writtenLines) * lw.lineHeight
+	return lw.maxLineWidth, dy
+}
+
 // NewLineWriter creates a new LineWriter.
 // fg and bg colors can be left nil, in which case they assume the normal defaults (fg = black, bg = gray).
 // set useShadow to true if you want the shadow effect to be used when drawing text.
