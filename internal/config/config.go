@@ -23,6 +23,10 @@ var (
 	// so, tiles or images used in UI should be created with a consistent tile size (e.g 16px)
 	UIScale float64 = 3
 
+	// how much the HUD is scaled up.
+	// the HUD refers to things like the clock or player's health bar which are shown on top of the game world (but not part of it)
+	HUDScale float64 = 4
+
 	// debug options
 
 	DrawGridLines       = false

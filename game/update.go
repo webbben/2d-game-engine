@@ -2,7 +2,6 @@ package game
 
 import (
 	"sort"
-	"time"
 
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
@@ -56,14 +55,12 @@ func (g *Game) worldUpdates() {
 	}
 
 	// update time
-	if time.Since(g.lastHourChange) > config.HourSpeed {
-		newHour := g.Hour + 1
-		if newHour > 23 {
-			newHour = 0
-		}
-		g.lastHourChange = time.Now()
-		g.SetHour(newHour, false)
+	if g.Clock.Update() {
+		// hour just changed
+		_, h, _, _, _, _ := g.Clock.GetCurrentDateAndTime()
+		g.OnHourChange(h, false)
 	}
+
 	g.daylightFader.Update()
 
 	// move camera as needed
@@ -82,6 +79,10 @@ func (g *Game) handleMapDoor(result object.ObjectUpdateResult) {
 
 func (g *Game) updateMap() {
 	g.MapInfo.Map.Update()
+
+	if g.hud != nil {
+		g.hud.Update(g)
+	}
 
 	// sort all sortable renderable things on the map
 	g.MapInfo.updateSortedRenderables()

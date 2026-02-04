@@ -43,6 +43,12 @@ func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {
 		g.PlayerMenu.Draw(screen, om)
 	} else if g.ShowTradeScreen {
 		g.TradeScreen.Draw(screen, om)
+	} else {
+		// if nothing else is showing (player menus, trade screens, etc) then draw HUD
+		// TODO: should this be done after the overlay manager?
+		if g.hud != nil {
+			g.hud.Draw(screen)
+		}
 	}
 }
 
