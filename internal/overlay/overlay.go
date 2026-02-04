@@ -39,5 +39,8 @@ func (om *OverlayManager) Draw(screen *ebiten.Image) {
 }
 
 func (om *OverlayManager) Clear() {
+	if len(om.overlays) == 0 {
+		return
+	}
 	om.overlays = make([]overlayImage, 0)
 }

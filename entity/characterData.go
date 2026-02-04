@@ -62,17 +62,21 @@ type CharacterData struct {
 	Vitals         skills.Vitals
 	BaseAttributes map[skills.AttributeID]int // Base attribute levels (not including modifiers from traits, etc)
 	BaseSkills     map[skills.SkillID]int     // Base skill levels (not including modifiers from traits, etc)
-	Traits         []skills.Trait
+	Traits         []skills.TraitID
 
 	WalkSpeed float64 `json:"walk_speed"` // value should be a TileSize / NumFrames calculation
 	RunSpeed  float64 `json:"run_speed"`
 }
 
-func (cd CharacterData) GetTraitModifiers() (skillMods map[skills.SkillID]int, attrMods map[skills.AttributeID]int) {
+func (cd CharacterData) GetTraitModifiers(defMgr *definitions.DefinitionManager) (skillMods map[skills.SkillID]int, attrMods map[skills.AttributeID]int) {
+	if defMgr == nil {
+		panic("defMgr was nil")
+	}
 	skillMods = make(map[skills.SkillID]int)
 	attrMods = make(map[skills.AttributeID]int)
 
-	for _, trait := range cd.Traits {
+	for _, traitID := range cd.Traits {
+		trait := defMgr.GetTraitDef(traitID)
 		for id, change := range trait.GetSkillChanges() {
 			if _, exists := skillMods[id]; !exists {
 				skillMods[id] = 0
@@ -152,6 +156,12 @@ func LoadCharacterDataJSON(src string, defMgr *definitions.DefinitionManager) (C
 	}
 
 	for _, i := range cd.InventoryItems {
+		if i == nil {
+			continue
+		}
+		i.Def = defMgr.GetItemDef(i.Instance.DefID)
+	}
+	for _, i := range cd.CoinPurse {
 		if i == nil {
 			continue
 		}

@@ -3,8 +3,8 @@ package game
 
 import (
 	"fmt"
-	"time"
 
+	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity/player"
@@ -38,9 +38,8 @@ type Game struct {
 	activeGlobalKeyBindFn map[ebiten.Key]bool // maps which keybinding functions are actively executing, to prevent repeated calls from long key presses.
 	GamePaused            bool                // if true, the game is paused
 
-	Hour           int
-	lastHourChange time.Time
-	daylightFader  lights.LightFader
+	Clock         clock.Clock
+	daylightFader lights.LightFader
 
 	outsideWidth, outsideHeight int
 
@@ -50,11 +49,23 @@ type Game struct {
 
 	OverlayManager *overlay.OverlayManager
 
+	hud HUD // if set, this will update and be drawn on top of the in-game world
+
 	UpdateHooks
 
 	DefinitionManager *definitions.DefinitionManager
 
 	debugData debugData // just used for the debug drawing
+}
+
+func (g *Game) SetHUD(hud HUD) {
+	g.hud = hud
+}
+
+// HUD interface provides a type that can be drawn as an HUD over the in-game world
+type HUD interface {
+	Draw(screen *ebiten.Image)
+	Update(g *Game)
 }
 
 func (g *Game) SetupTradeSession(shopkeeperID string) {
@@ -98,19 +109,21 @@ func (g *Game) RunGame() error {
 func NewGame(hour int) *Game {
 	g := Game{
 		worldScene:        ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
-		lastHourChange:    time.Now(),
 		daylightFader:     lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20),
 		EventBus:          pubsub.NewEventBus(),
 		OverlayManager:    &overlay.OverlayManager{},
 		DefinitionManager: definitions.NewDefinitionManager(),
+		Clock:             clock.NewClock(config.HourSpeed, hour, 0, 0, 0, 762, 90),
 	}
 
-	g.SetHour(hour, true)
+	// make sure lighting is initialized
+	g.OnHourChange(hour, true)
 
 	return &g
 }
 
-func (g *Game) SetHour(hour int, skipFade bool) {
+// OnHourChange handles any hourly changes that should occur; such as lighting, event publishing, etc.
+func (g *Game) OnHourChange(hour int, skipFade bool) {
 	if hour < 0 || hour > 23 {
 		panic("invalid hour")
 	}
@@ -125,8 +138,6 @@ func (g *Game) SetHour(hour int, skipFade bool) {
 		g.daylightFader.TargetColor = newDaylight
 		g.daylightFader.TargetDarknessFactor = darknessFactor
 	}
-
-	g.Hour = hour
 
 	g.EventBus.Publish(pubsub.Event{
 		Type: pubsub.Event_TimePass,

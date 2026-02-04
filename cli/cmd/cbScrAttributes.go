@@ -331,9 +331,9 @@ func (bg *builderGame) updateAttributesPage() {
 
 	// save trait changes
 	if traitChanged {
-		entityTraits := []skills.Trait{}
+		entityTraits := []skills.TraitID{}
 		for _, trait := range bg.scrAttributes.entityTraits {
-			entityTraits = append(entityTraits, trait.trait)
+			entityTraits = append(entityTraits, trait.trait.GetID())
 		}
 		bg.characterData.Traits = entityTraits
 
@@ -343,7 +343,7 @@ func (bg *builderGame) updateAttributesPage() {
 }
 
 func (bg *builderGame) updateAttributeSelectors() {
-	skillMods, attrMods := bg.characterData.GetTraitModifiers()
+	skillMods, attrMods := bg.characterData.GetTraitModifiers(bg.defMgr)
 
 	for i := range bg.scrAttributes.AttributeSetters {
 		id := skills.AttributeID(bg.scrAttributes.AttributeSetters[i].ID)

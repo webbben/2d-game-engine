@@ -63,7 +63,7 @@ func (g Game) drawPaths(screen *ebiten.Image, offsetX, offsetY float64) {
 		g.debugData.pathTile2.Fill(color2)
 	}
 
-	for _, n := range g.MapInfo.NPCManager.NPCs {
+	for _, n := range g.MapInfo.NPCs {
 		if len(n.Entity.Movement.TargetPath) > 0 {
 			for _, c := range n.Entity.Movement.TargetPath {
 				op := &ebiten.DrawImageOptions{}
@@ -181,7 +181,7 @@ func (g *Game) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY float6
 	op.GeoM.Scale(config.GameScale, config.GameScale)
 	screen.DrawImage(g.debugData.rectImg, op)
 
-	for _, n := range g.MapInfo.NPCManager.NPCs {
+	for _, n := range g.MapInfo.NPCs {
 		op := &ebiten.DrawImageOptions{}
 		drawX, drawY := rendering.GetImageDrawPos(g.debugData.positionDot, n.Entity.X, n.Entity.Y, offsetX, offsetY)
 		op.GeoM.Translate(drawX, drawY)
@@ -198,7 +198,7 @@ func (g Game) showEntityCoords() string {
 		g.Player.Entity.TilePos.Y,
 		g.Player.Entity.X,
 		g.Player.Entity.Y))
-	for _, n := range g.MapInfo.NPCManager.NPCs {
+	for _, n := range g.MapInfo.NPCs {
 		sb.WriteString(fmt.Sprintf(
 			"%s: [%v, %v] (%v, %v)\n",
 			n.DisplayName,
@@ -238,7 +238,7 @@ func (g Game) showGameDebugInfo(screen *ebiten.Image) {
 		s.WriteString(g.showEntityCoords())
 	}
 
-	s.WriteString(fmt.Sprintf("TIME: %v\n", g.Hour))
+	s.WriteString(fmt.Sprintf("TIME: %s\n", g.Clock))
 	lightColor := g.daylightFader.GetCurrentColor()
 	s.WriteString(fmt.Sprintf("daylight (RGB scales): [%v %v %v]\n", lightColor[0], lightColor[1], lightColor[2]))
 	s.WriteString(fmt.Sprintf("darkness factor: %v", g.daylightFader.GetDarknessFactor()))

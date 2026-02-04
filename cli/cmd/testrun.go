@@ -42,10 +42,10 @@ to quickly create a Cobra application.`,
 		config.ShowPlayerCoords = true
 		config.ShowGameDebugInfo = true
 		// config.DrawGridLines = true
-		config.ShowEntityPositions = true
+		// config.ShowEntityPositions = true
 		// config.TrackMemoryUsage = true
 		// config.HourSpeed = time.Second * 20
-		config.ShowCollisions = true
+		// config.ShowCollisions = true
 		// config.ShowNPCPaths = true
 
 		config.GameDataPathOverride = "/Users/benwebb/dev/personal/ancient-rome"
@@ -88,6 +88,12 @@ to quickly create a Cobra application.`,
 
 		gameState.DefinitionManager.LoadDialog("dialog1", GetDialog())
 
+		hud := NewWorldHUD(WorldHUDParams{
+			ClockTilesetSrc: "ui/clock.tsj",
+			ClockOrigin:     1,
+		})
+		gameState.SetHUD(&hud)
+
 		if err := gameState.RunGame(); err != nil {
 			panic(err)
 		}
@@ -99,7 +105,7 @@ func init() {
 }
 
 func setupGameState() *game.Game {
-	g := game.NewGame(10)
+	g := game.NewGame(23)
 
 	itemDefs := GetItemDefs()
 	g.DefinitionManager.LoadItemDefs(itemDefs)

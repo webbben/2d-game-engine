@@ -126,7 +126,7 @@ func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams)
 	return inv
 }
 
-// sets all item slots; a nil spot represents an empty item slot.
+// SetItemSlots sets all item slots; a nil spot represents an empty item slot.
 // items can be less than the actual total slots number, since some slots may be disabled.
 func (inv *Inventory) SetItemSlots(items []*item.InventoryItem) {
 	if len(items) > len(inv.itemSlots) {
@@ -149,7 +149,7 @@ func (inv *Inventory) SetItemSlots(items []*item.InventoryItem) {
 	}
 }
 
-// returns the items that failed to be added (due to inventory being too full)
+// AddItems adds items to an inventory and returns the items that failed to be added (due to inventory being too full)
 func (inv *Inventory) AddItems(items []item.InventoryItem) []item.InventoryItem {
 	failedToAdd := []item.InventoryItem{}
 
