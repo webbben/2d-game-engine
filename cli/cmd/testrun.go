@@ -70,15 +70,6 @@ to quickly create a Cobra application.`,
 		// get our testrun game state
 		gameState := setupGameState()
 
-		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("longsword_01", 1))
-		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("potion_herculean_strength", 2))
-		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("currency_value_1", 4))
-		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("currency_value_10", 6))
-		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("currency_value_100", 1))
-		gameState.Player.AddItemToInventory(gameState.DefinitionManager.NewInventoryItem("currency_value_1000", 1))
-
-		fmt.Println("player inventory:", gameState.Player.Entity.InventoryItems)
-
 		gameState.PlayerMenu.InventoryPage.LoadPlayerItemsIn()
 
 		shopKeeperInventory := []item.InventoryItem{}
@@ -89,8 +80,11 @@ to quickly create a Cobra application.`,
 		gameState.DefinitionManager.LoadDialog("dialog1", GetDialog())
 
 		hud := NewWorldHUD(WorldHUDParams{
-			ClockTilesetSrc: "ui/clock.tsj",
-			ClockOrigin:     1,
+			ClockTilesetSrc:     "ui/clock.tsj",
+			ClockDayIndex:       1,
+			ClockEveningIndex:   2,
+			ClockNightIndex:     3,
+			ClockLateNightIndex: 4,
 		})
 		gameState.SetHUD(&hud)
 

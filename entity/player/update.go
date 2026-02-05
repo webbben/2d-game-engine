@@ -3,6 +3,7 @@ package player
 
 import (
 	"math"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -25,23 +26,28 @@ func (p Player) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 }
 
 func (p *Player) Update() {
-	p.handleMovement()
+	if p.handleMovement() {
+		p.LastUserInput = time.Now()
+	}
 
-	p.handleActions()
+	if p.handleActions() {
+		p.LastUserInput = time.Now()
+	}
 
 	p.Entity.Update()
 }
 
-func (p *Player) handleMovement() {
+func (p *Player) handleMovement() bool {
 	if p.Entity.Body.IsAttacking() {
-		return
+		return false
 	}
 
 	curPos := model.Vec2{X: p.Entity.X, Y: p.Entity.Y}
 	targetPos := model.Vec2{X: p.Entity.TargetX, Y: p.Entity.TargetY}
 
+	// if we are still far from the target position, there's no reason to allow more player movement input
 	if curPos.Dist(targetPos) > p.Entity.Movement.Speed {
-		return
+		return false
 	}
 
 	v := model.Vec2{}
@@ -87,6 +93,9 @@ func (p *Player) handleMovement() {
 		scaled.Y = math.Round(scaled.Y * 2)
 	}
 
+	// we need to detect if the player is actually trying to move, for tracking if a movement action is occurring
+	tryingToMove := false
+
 	// if there is movement input and we are not blocking with a shield, move
 	if v.X != 0 || v.Y != 0 {
 		animRes := p.Entity.SetAnimation(entity.AnimationOptions{
@@ -95,13 +104,14 @@ func (p *Player) handleMovement() {
 		})
 		if !animRes.Success && !animRes.AlreadySet {
 			logz.Println(p.Entity.DisplayName, "failed to set movement animation:", animRes)
-			return
+			return false
 		}
 		e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y), speed)
 		if !e.Success {
 			logz.Println(p.Entity.DisplayName, "player failed to move:", e)
 			p.Entity.Body.StopAnimation()
 		}
+		tryingToMove = true
 	}
 	if !p.Entity.Body.IsAttacking() {
 		// if using faceMouse, make sure the player can't do it too rapidly
@@ -111,17 +121,21 @@ func (p *Player) handleMovement() {
 				mouseX, mouseY := ebiten.CursorPosition()
 				r := p.Entity.GetDrawRect()
 				p.Entity.FaceTowards(float64(mouseX)-r.X, float64(mouseY)-r.Y)
+				tryingToMove = true
 			}
 		} else {
 			p.Entity.FaceTowards(scaled.X, scaled.Y)
 		}
 	}
+
+	return tryingToMove
 }
 
-func (p *Player) handleActions() {
+// handleActions handles all user actions. returns true if an action occurred.
+func (p *Player) handleActions() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
 		p.Entity.UnequipWeapon()
-		return
+		return true
 	}
 
 	if p.Entity.IsWeaponEquiped() {
@@ -131,7 +145,7 @@ func (p *Player) handleActions() {
 			}
 			// attack
 			p.Entity.StartMeleeAttack()
-			return
+			return true
 		}
 	}
 	if p.Entity.IsShieldEquiped() {
@@ -154,7 +168,7 @@ func (p *Player) handleActions() {
 
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		if p.World.ActivateArea(p.Entity.GetFrontRect()) {
-			return
+			return true
 		}
 	}
 
@@ -162,8 +176,11 @@ func (p *Player) handleActions() {
 		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 			mouseX, mouseY := ebiten.CursorPosition()
 			p.World.HandleMouseClick(mouseX, mouseY)
+			return true
 		}
 	}
+
+	return false
 }
 
 // isTryingToMove detects if there is currently input related to moving

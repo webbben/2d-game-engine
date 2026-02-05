@@ -3,6 +3,7 @@ package game
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/definitions"
@@ -12,6 +13,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
 	"github.com/webbben/2d-game-engine/internal/lights"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
@@ -145,6 +147,13 @@ func (g *Game) OnHourChange(hour int, skipFade bool) {
 			"hour": hour,
 		},
 	})
+}
+
+func (g Game) LastPlayerUpdate() time.Time {
+	if g.Player == nil {
+		logz.Panicln("LastPlayerUpdate", "player is nil")
+	}
+	return g.Player.LastUserInput
 }
 
 // SetGlobalKeyBinding sets a key to a given function for global keybindings.
