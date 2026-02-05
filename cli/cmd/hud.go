@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"image/color"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/clock"
@@ -18,18 +19,39 @@ import (
 )
 
 type WorldHUD struct {
-	clockTilesetSrc    string
-	clockOrigin        int
-	clockImg           *ebiten.Image
-	minute, hour, year int
-	timeString         string
-	season             string
-	seasonDay          int
-	dayOfWeek          string
-	clockFont          font.Face
-	bodyFont           font.Face
+	clockImgDay, clockImgEvening     *ebiten.Image
+	clockImgNight, clockImgLateNight *ebiten.Image
+	minute, hour, year               int
+	timeString                       string
+	season                           string
+	seasonDay                        int
+	dayOfWeek                        string
+	clockFont                        font.Face
+	bodyFont                         font.Face
 
-	location string
+	location        string
+	playerWasActive bool // if, last time's update, the player was active
+	playerActive    bool // if, this update, the player was found to be active
+
+	positionFader    rendering.FadeToPosition
+	hiddenX, hiddenY float64 // position to go to when not showing (off screen)
+	showX, showY     float64 // position to go to when showing
+}
+
+func (hud WorldHUD) getClockImage() *ebiten.Image {
+	if hud.hour >= 0 && hud.hour < 5 {
+		return hud.clockImgLateNight
+	}
+	if hud.hour >= 5 && hud.hour < 9 {
+		return hud.clockImgEvening
+	}
+	if hud.hour >= 9 && hud.hour < 17 {
+		return hud.clockImgDay
+	}
+	if hud.hour >= 17 && hud.hour < 20 {
+		return hud.clockImgEvening
+	}
+	return hud.clockImgNight
 }
 
 func (hud WorldHUD) ZzCompileCheck() {
@@ -37,37 +59,52 @@ func (hud WorldHUD) ZzCompileCheck() {
 }
 
 type WorldHUDParams struct {
-	ClockTilesetSrc string
-	ClockOrigin     int
+	ClockTilesetSrc                                                        string
+	ClockDayIndex, ClockEveningIndex, ClockNightIndex, ClockLateNightIndex int
 }
 
 func NewWorldHUD(params WorldHUDParams) WorldHUD {
 	hud := WorldHUD{
-		clockTilesetSrc: params.ClockTilesetSrc,
-		clockOrigin:     params.ClockOrigin,
-		timeString:      "No Data!",
+		timeString: "No Data!",
 	}
 
 	hud.clockFont = image.LoadFont("Romulus.ttf", 34, 0)
 	hud.bodyFont = image.LoadFont("Romulus.ttf", 28, 0)
 
-	hud.clockImg = tiled.GetTileImage(hud.clockTilesetSrc, hud.clockOrigin, true)
+	hud.clockImgDay = tiled.GetTileImage(params.ClockTilesetSrc, params.ClockDayIndex, true)
+	hud.clockImgEvening = tiled.GetTileImage(params.ClockTilesetSrc, params.ClockEveningIndex, true)
+	hud.clockImgNight = tiled.GetTileImage(params.ClockTilesetSrc, params.ClockNightIndex, true)
+	hud.clockImgLateNight = tiled.GetTileImage(params.ClockTilesetSrc, params.ClockLateNightIndex, true)
 
 	hud.location = "Roma, Latium"
+
+	clockDx := float64(hud.clockImgDay.Bounds().Dx()) * config.HUDScale
+	clockDy := float64(hud.clockImgDay.Bounds().Dy()) * config.HUDScale
+	clockX := display.SCREEN_WIDTH - int(clockDx) - 20
+	clockY := 20
+	hud.hiddenX = float64(clockX)
+	hud.hiddenY = -clockDy - 20
+	hud.showX = float64(clockX)
+	hud.showY = float64(clockY)
 
 	return hud
 }
 
+func (hud *WorldHUD) startMovementToPos(fromX, fromY, toX, toY float64) {
+	speed := 0.12
+	hud.positionFader = rendering.NewFadeToPosition(toX, toY, fromX, fromY, float64(speed))
+}
+
 func (hud *WorldHUD) Draw(screen *ebiten.Image) {
-	if hud.clockImg == nil {
+	clockImg := hud.getClockImage()
+	if clockImg == nil {
 		logz.Panicln("HUD", "clock image is nil")
 	}
 	// draw clock in top right of screen
-	clockDx := float64(hud.clockImg.Bounds().Dx()) * config.HUDScale
-	clockX := display.SCREEN_WIDTH - int(clockDx) - 20
-	clockY := 20
+	clockX := int(hud.positionFader.Current.X)
+	clockY := int(hud.positionFader.Current.Y)
 
-	rendering.DrawImage(screen, hud.clockImg, float64(clockX), float64(clockY), config.HUDScale)
+	rendering.DrawImage(screen, clockImg, float64(clockX), float64(clockY), config.HUDScale)
 	tx := clockX + 90
 	ty := clockY + 90
 	meridiem := "AM"
@@ -106,6 +143,8 @@ func (hud *WorldHUD) Draw(screen *ebiten.Image) {
 }
 
 func (hud *WorldHUD) Update(g *game.Game) {
+	hud.positionFader.Update()
+
 	m, h, y, season, seasonDay, dow := g.Clock.GetCurrentDateAndTime()
 	hud.minute = m
 	hud.hour = h
@@ -114,4 +153,17 @@ func (hud *WorldHUD) Update(g *game.Game) {
 	hud.seasonDay = seasonDay
 	hud.dayOfWeek = string(dow)
 	hud.timeString = g.Clock.GetTimeString(true)
+
+	hud.playerWasActive = hud.playerActive
+	hud.playerActive = time.Since(g.LastPlayerUpdate()) > (time.Second * 2)
+
+	// check if clock should move
+	if hud.playerWasActive != hud.playerActive {
+		if hud.playerActive {
+			// move into view
+			hud.startMovementToPos(hud.hiddenX, hud.hiddenY, hud.showX, hud.showY)
+		} else {
+			hud.startMovementToPos(hud.showX, hud.showY, hud.hiddenX, hud.hiddenY)
+		}
+	}
 }

@@ -1,6 +1,8 @@
 package player
 
 import (
+	"time"
+
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/npc"
@@ -15,6 +17,8 @@ type Player struct {
 	defMgr *definitions.DefinitionManager
 
 	World WorldContext
+
+	LastUserInput time.Time // tracks when the user has last made some kind of input (movement, attack, etc)
 }
 
 type WorldContext interface {

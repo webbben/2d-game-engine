@@ -178,6 +178,18 @@ func (r Rect) VecWithin(v Vec2) bool {
 	return r.Within(int(v.X), int(v.Y))
 }
 
+func MoveTowards(pos, target Vec2, speed float64) Vec2 {
+	dir := target.Sub(pos)
+	dist := dir.Len()
+	step := dir.Normalize().Scale(speed)
+	if dist < speed {
+		// snap to target
+		return target
+	}
+
+	return pos.Add(step)
+}
+
 type IntersectionResult struct {
 	Intersects bool
 	Dx, Dy     float64
