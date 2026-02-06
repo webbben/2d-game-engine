@@ -13,14 +13,10 @@ import (
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/game"
-	"github.com/webbben/2d-game-engine/internal/audio"
-	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
-	"github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
 	"github.com/webbben/2d-game-engine/inventory"
-	"github.com/webbben/2d-game-engine/item"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
 	"github.com/webbben/2d-game-engine/trade"
 )
@@ -38,29 +34,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		display.SetupGameDisplay("Ancient Rome!", false)
 
-		// set config
-		config.ShowPlayerCoords = true
-		config.ShowGameDebugInfo = true
-		// config.DrawGridLines = true
-		// config.ShowEntityPositions = true
-		// config.TrackMemoryUsage = true
-		// config.HourSpeed = time.Second * 20
-		// config.ShowCollisions = true
-		// config.ShowNPCPaths = true
-
-		config.GameDataPathOverride = "/Users/benwebb/dev/personal/ancient-rome"
-
-		config.DefaultFont = image.LoadFont("ashlander-pixel.ttf", 22, 0)
-		config.DefaultTitleFont = image.LoadFont("ashlander-pixel.ttf", 28, 0)
-
-		config.DefaultTooltipBox = config.DefaultBox{
-			TilesetSrc:  "boxes/boxes.tsj",
-			OriginIndex: 132,
-		}
-		config.DefaultUIBox = config.DefaultBox{
-			TilesetSrc:  "boxes/boxes.tsj",
-			OriginIndex: 16,
-		}
+		SetConfig()
 
 		err := game.InitialStartUp()
 		if err != nil {
@@ -68,25 +42,28 @@ to quickly create a Cobra application.`,
 		}
 
 		// get our testrun game state
-		gameState := setupGameState()
-
-		gameState.PlayerMenu.InventoryPage.LoadPlayerItemsIn()
-
-		shopKeeperInventory := []item.InventoryItem{}
-		shopKeeperInventory = append(shopKeeperInventory, gameState.DefinitionManager.NewInventoryItem("longsword_01", 1))
-		shopkeeper := definitions.NewShopKeeper(1200, "Aurelius' Tradehouse", shopKeeperInventory)
-		gameState.DefinitionManager.LoadShopkeeper("aurelius_tradehouse", shopkeeper)
-
-		gameState.DefinitionManager.LoadDialog("dialog1", GetDialog())
-
-		hud := NewWorldHUD(WorldHUDParams{
-			ClockTilesetSrc:     "ui/clock.tsj",
-			ClockDayIndex:       1,
-			ClockEveningIndex:   2,
-			ClockNightIndex:     3,
-			ClockLateNightIndex: 4,
+		gameState := setupGameState(gameParams{
+			startMapID: "village_surano",
+			startHour:  12,
 		})
-		gameState.SetHUD(&hud)
+
+		// add a test NPC
+
+		footstepSFX := getFootstepSFX()
+
+		npcEnt := entity.NewEntity(entity.GeneralProps{
+			EntityID: "character_02",
+		}, footstepSFX, gameState.DefinitionManager)
+
+		n := npc.NewNPC(npc.NPCParams{Entity: &npcEnt, DefaultDialogID: "dialog1"})
+
+		err = n.SetFightTask(gameState.Player.Entity, false)
+		if err != nil {
+			panic(err)
+		}
+		gameState.MapInfo.AddNPCToMap(&n, model.Coords{X: 0, Y: 0})
+
+		// Load player inventory page
 
 		if err := gameState.RunGame(); err != nil {
 			panic(err)
@@ -98,25 +75,17 @@ func init() {
 	rootCmd.AddCommand(testrunCmd)
 }
 
-func setupGameState() *game.Game {
-	g := game.NewGame(23)
+type gameParams struct {
+	startHour  int
+	startMapID string
+}
 
-	itemDefs := GetItemDefs()
-	g.DefinitionManager.LoadItemDefs(itemDefs)
-	bodySkins, eyeSets, hairSets := GetAllEntityBodyPartSets()
-	for _, skin := range bodySkins {
-		g.DefinitionManager.LoadBodyPartDef(skin.Body)
-		g.DefinitionManager.LoadBodyPartDef(skin.Arms)
-		g.DefinitionManager.LoadBodyPartDef(skin.Legs)
-	}
-	for _, eyes := range eyeSets {
-		g.DefinitionManager.LoadBodyPartDef(eyes)
-	}
-	for _, hair := range hairSets {
-		g.DefinitionManager.LoadBodyPartDef(hair)
-	}
+func setupGameState(params gameParams) *game.Game {
+	g := game.NewGame(params.startHour)
 
-	err := g.SetupMap("village_surano", &game.OpenMapOptions{
+	LoadDefMgr(g.DefinitionManager)
+
+	err := g.SetupMap(params.startMapID, &game.OpenMapOptions{
 		RunNPCManager:    true,
 		RegenerateImages: true,
 	})
@@ -124,59 +93,36 @@ func setupGameState() *game.Game {
 		panic(err)
 	}
 
-	footstepSFX := entity.AudioProps{
-		FootstepSFX: audio.FootstepSFX{
-			StepDefaultSrc: []string{
-				"sfx/footsteps/footstep_stone_01_A.mp3",
-				"sfx/footsteps/footstep_stone_01_B.mp3",
-			},
-			StepWoodSrc: []string{
-				"sfx/footsteps/footstep_wood_01_A.mp3",
-				"sfx/footsteps/footstep_wood_01_B.mp3",
-			},
-			StepGrassSrc: []string{
-				"sfx/footsteps/footstep_grass_01_A.mp3",
-				"sfx/footsteps/footstep_grass_01_B.mp3",
-			},
-		},
-	}
+	footstepSFX := getFootstepSFX()
 
 	// make the player
+	// TODO: make entity loader by ID (add standard path for entity JSONs and enable loading by entity ID alone)
 	playerEnt := entity.NewEntity(entity.GeneralProps{
-		CharacterDataSrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_01.json",
-		IsPlayer:         true,
+		EntityID: "character_01",
+		IsPlayer: true,
 	}, footstepSFX, g.DefinitionManager)
 
 	p := player.NewPlayer(g.DefinitionManager, &playerEnt)
-
 	_ = g.PlacePlayerAtSpawnPoint(&p, 0)
-
-	npcEnt := entity.NewEntity(entity.GeneralProps{
-		CharacterDataSrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_02.json",
-	}, footstepSFX, g.DefinitionManager)
-	n := npc.New(npc.NPC{
-		Entity: &npcEnt,
-		NPCInfo: npc.NPCInfo{
-			DisplayName: npcEnt.DisplayName,
-		},
-		DialogID: "dialog1",
-	})
-
-	err = n.SetFightTask(&playerEnt, false)
-	if err != nil {
-		panic(err)
-	}
-
-	g.MapInfo.AddNPCToMap(&n, model.Coords{X: 0, Y: 0})
-
-	// setup the game struct
 	g.Player = &p
 
 	// add my test key bindings
 	addCustomKeyBindings(g)
 
+	// TODO: make these interfaces similar to how we handle HUDs
 	g.PlayerMenu = GetPlayerMenu(g.Player, g.DefinitionManager)
 	g.TradeScreen = GetTradeScreen(g.Player, g.DefinitionManager)
+
+	g.PlayerMenu.InventoryPage.LoadPlayerItemsIn()
+
+	hud := NewWorldHUD(WorldHUDParams{
+		ClockTilesetSrc:     "ui/clock.tsj",
+		ClockDayIndex:       1,
+		ClockEveningIndex:   2,
+		ClockNightIndex:     3,
+		ClockLateNightIndex: 4,
+	})
+	g.SetHUD(&hud)
 
 	return g
 }

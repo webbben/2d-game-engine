@@ -20,7 +20,7 @@ func (e *Entity) TryMoveTowardsEntity(otherEnt Entity, dist, speed float64) Move
 	v := targetPosition.Sub(currentPosition)
 	scaled := v.Normalize().Scale(dist)
 
-	return e.TryMoveMaxPx(int(scaled.X), int(scaled.Y), speed)
+	return e.TryMoveMaxPx(scaled.X, scaled.Y, speed)
 }
 
 func (e *Entity) FaceTowardsEntity(otherEnt Entity) {

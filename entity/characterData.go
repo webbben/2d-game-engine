@@ -110,7 +110,14 @@ func (cd CharacterData) WriteToJSON(outputFilePath string) error {
 	return os.WriteFile(outputFilePath, data, 0o644)
 }
 
-func LoadCharacterDataJSON(src string, defMgr *definitions.DefinitionManager) (CharacterData, error) {
+func LoadCharacterDataJSON(entID string, defMgr *definitions.DefinitionManager) (CharacterData, error) {
+	if entID == "" {
+		panic("entity ID is empty")
+	}
+	if config.EntityDefsDirectory == "" {
+		panic("entity defs directory config is empty")
+	}
+	src := filepath.Join(config.EntityDefsDirectory, fmt.Sprintf("%s.json", entID))
 	if !config.FileExists(src) {
 		return CharacterData{}, errors.New("no file found at path: " + src)
 	}

@@ -1,3 +1,4 @@
+// Package model defines a general model to base the geometry of the world around
 package model
 
 import (
@@ -42,7 +43,7 @@ func GetOppositeDirection(dir byte) byte {
 	}
 }
 
-// gets the direction that b lies in relative to a
+// GetRelativeDirection gets the direction that b lies in relative to a
 func GetRelativeDirection(a, b Coords) byte {
 	dx := b.X - a.X
 	dy := b.Y - a.Y
@@ -61,7 +62,7 @@ func GetRelativeDirection(a, b Coords) byte {
 	}
 }
 
-// tile-based coordinate position in a room
+// Coords are tile-based coordinate position in a room
 type Coords struct {
 	X int `json:"x"`
 	Y int `json:"y"`
@@ -75,7 +76,7 @@ func (c Coords) Equals(other Coords) bool {
 	return c.X == other.X && c.Y == other.Y
 }
 
-// returns a copy of the coords struct, to avoid reference ties
+// Copy returns a copy of the coords struct, to avoid reference ties
 func (c Coords) Copy() Coords {
 	return Coords{X: c.X, Y: c.Y}
 }
@@ -110,6 +111,13 @@ func ConvertPxToTilePos(x, y int) Coords {
 	}
 }
 
+// GetTilePosOfRectCenter gets the Tile coordinates position for a rect (wherever the rect lies in its center)
+func GetTilePosOfRectCenter(r Rect) Coords {
+	x := r.X + (r.W / 2)
+	y := r.Y + (r.H / 2)
+	return ConvertPxToTilePos(int(x), int(y))
+}
+
 func (c Coords) WithinBounds(x1, x2, y1, y2 int) bool {
 	return c.X >= x1 && c.X <= x2 && c.Y >= y1 && c.Y <= y2
 }
@@ -139,6 +147,24 @@ func (v Vec2) Normalize() Vec2 {
 func (pos Vec2) Dist(target Vec2) float64 {
 	dir := target.Sub(pos)
 	return dir.Len()
+}
+
+func (pos Vec2) MoveTowards(target Vec2, speed float64) Vec2 {
+	dir := target.Sub(pos)
+	dist := dir.Len()
+	step := dir.Normalize().Scale(speed)
+	if dist < speed {
+		// snap to target
+		return target
+	}
+
+	return pos.Add(step)
+}
+
+func (pos Vec2) MoveAway(target Vec2, speed float64) Vec2 {
+	dir := target.Sub(pos)
+	step := dir.Normalize().Scale(speed)
+	return pos.Sub(step)
 }
 
 type Rect struct {
@@ -176,18 +202,6 @@ func (r Rect) Within(x, y int) bool {
 
 func (r Rect) VecWithin(v Vec2) bool {
 	return r.Within(int(v.X), int(v.Y))
-}
-
-func MoveTowards(pos, target Vec2, speed float64) Vec2 {
-	dir := target.Sub(pos)
-	dist := dir.Len()
-	step := dir.Normalize().Scale(speed)
-	if dist < speed {
-		// snap to target
-		return target
-	}
-
-	return pos.Add(step)
 }
 
 type IntersectionResult struct {
@@ -244,7 +258,7 @@ type CollisionResult struct {
 	Other       IntersectionResult // for general use when not specifically corner related
 }
 
-// merges the two collision results, basically by taking the "maximum" collision for each corner.
+// MergeOtherCollisionResult merges the two collision results, basically by taking the "maximum" collision for each corner.
 func (cr *CollisionResult) MergeOtherCollisionResult(other CollisionResult) {
 	if !other.Collides() {
 		return
@@ -294,7 +308,7 @@ func (c CollisionResult) Assert() {
 	c.BottomRight.assert()
 }
 
-// gets the area that intersects between two rects.
+// IntersectionArea gets the area that intersects between two rects.
 // dx and dy area always positive (or 0 if no intersection)
 func (r Rect) IntersectionArea(other Rect) IntersectionResult {
 	res := IntersectionResult{}

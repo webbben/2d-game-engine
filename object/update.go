@@ -26,19 +26,19 @@ func (obj *Object) Update() ObjectUpdateResult {
 	}
 
 	switch obj.Type {
-	case TYPE_DOOR:
+	case TypeDoor:
 		return obj.updateDoor()
-	case TYPE_GATE:
+	case TypeGate:
 		return obj.updateGate()
-	case TYPE_LIGHT:
+	case TypeLight:
 		return obj.updateLight()
-	case TYPE_CONTAINER:
+	case TypeContainer:
 		// TODO
 		return ObjectUpdateResult{}
-	case TYPE_SPAWN_POINT:
+	case TypeSpawnPoint:
 		// spawn points have no update logic
 		return ObjectUpdateResult{}
-	case TYPE_MISC:
+	case TypeMisc:
 		// misc has no update logic
 		return ObjectUpdateResult{}
 	default:
@@ -49,18 +49,18 @@ func (obj *Object) Update() ObjectUpdateResult {
 
 func (obj *Object) Activate() ObjectUpdateResult {
 	switch obj.Type {
-	case TYPE_DOOR:
+	case TypeDoor:
 		return obj.activateDoor()
-	case TYPE_GATE:
+	case TypeGate:
 		return obj.activateGate()
-	case TYPE_LIGHT:
+	case TypeLight:
 		return obj.activateLight()
 	}
 	return ObjectUpdateResult{}
 }
 
 func (obj *Object) activateDoor() ObjectUpdateResult {
-	if obj.Type != TYPE_DOOR {
+	if obj.Type != TypeDoor {
 		panic("tried to activate as door, but object is not a door")
 	}
 	if obj.Door.targetMapID == "" {
@@ -84,7 +84,7 @@ func (obj *Object) activateDoor() ObjectUpdateResult {
 }
 
 func (obj *Object) activateGate() ObjectUpdateResult {
-	if obj.Type != TYPE_GATE {
+	if obj.Type != TypeGate {
 		panic("tried to activate gate, but object is not a gate")
 	}
 	if obj.Gate.changingState {
@@ -109,7 +109,7 @@ func (obj *Object) activateGate() ObjectUpdateResult {
 }
 
 func (obj *Object) activateLight() ObjectUpdateResult {
-	if obj.Type != TYPE_LIGHT {
+	if obj.Type != TypeLight {
 		panic("tried to activate light, but object is not a light")
 	}
 	logz.Println("OBJECT", "light activated")

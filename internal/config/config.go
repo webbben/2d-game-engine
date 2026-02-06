@@ -51,6 +51,10 @@ var (
 
 	GameDataPathOverride  string = ""   // set this to customize game data root directory location
 	GameDataDirectoryName string = "2d" // set this to customize name of game engine data directory
+
+	// custom paths for other data
+
+	EntityDefsDirectory string = "" // this is required to be set in order to load entity data.
 )
 
 const (

@@ -8,6 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/item"
 )
 
@@ -83,15 +84,15 @@ type AudioProps struct {
 }
 
 type GeneralProps struct {
-	IsPlayer         bool
-	CoinPurseSize    int    // if greater than 0, the entity will have a "coin purse" section in their inventory which stores money.
-	CharacterDataSrc string // path to a JSON file containing the definition of the character data (entity body, items, etc)
+	IsPlayer      bool
+	CoinPurseSize int    // if greater than 0, the entity will have a "coin purse" section in their inventory which stores money.
+	EntityID      string // entity ID links this entity to the character data JSON file of the same name
 }
 
 // NewEntity Create a new entity from a character data JSON file
 func NewEntity(general GeneralProps, ap AudioProps, defMgr *definitions.DefinitionManager) Entity {
-	if general.CharacterDataSrc == "" {
-		panic("no character data source JSON specified")
+	if general.EntityID == "" {
+		panic("entity ID was empty")
 	}
 	if general.CoinPurseSize < 0 {
 		panic("coin purse size cannot be negative")
@@ -105,7 +106,7 @@ func NewEntity(general GeneralProps, ap AudioProps, defMgr *definitions.Definiti
 	}
 
 	// load character data, entity body
-	characterData, err := LoadCharacterDataJSON(general.CharacterDataSrc, defMgr)
+	characterData, err := LoadCharacterDataJSON(general.EntityID, defMgr)
 	if err != nil {
 		panic(err)
 	}
@@ -157,6 +158,24 @@ func NewEntity(general GeneralProps, ap AudioProps, defMgr *definitions.Definiti
 	}
 
 	ent.Loaded = true
+
+	return ent
+}
+
+// NewStaticEntity loads a static entity as defined in an object from a Tiled map.
+// Static entities are basically entities that exist in a map and don't follow schedules.
+func NewStaticEntity(obj tiled.Object, defMgr *definitions.DefinitionManager) Entity {
+	// load entity object properties
+	// ENTITY_ID: entity ID
+	entityID, found := tiled.GetStringProperty("ENTITY_ID", obj.Properties)
+	if !found {
+		logz.Panicln("NewStaticEntity", "no entity ID property found on object")
+	}
+	// TODO: audio props? should they be loadable from defMgr?
+	ent := NewEntity(GeneralProps{
+		EntityID:      entityID,
+		CoinPurseSize: 6,
+	}, AudioProps{}, defMgr)
 
 	return ent
 }

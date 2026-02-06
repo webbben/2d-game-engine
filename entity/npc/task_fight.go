@@ -220,5 +220,4 @@ func (t FightTask) IsFailure() bool {
 }
 
 func (t *FightTask) BackgroundAssist() {
-
 }

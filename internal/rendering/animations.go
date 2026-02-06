@@ -106,7 +106,7 @@ func NewFadeToPosition(targetX, targetY, curX, curY, fadeFactor float64) FadeToP
 }
 
 func (f *FadeToPosition) moveTowardsTarget(speed float64) {
-	f.Current = model.MoveTowards(f.Current, f.Target, speed)
+	f.Current = f.Current.MoveTowards(f.Target, speed)
 }
 
 func (f *FadeToPosition) Update() {
