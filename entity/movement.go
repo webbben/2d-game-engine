@@ -18,6 +18,7 @@ type MoveError struct {
 	Success         bool
 	CollisionResult model.CollisionResult
 	Info            string
+	CollisionPoint  *model.Vec2
 }
 
 func (me MoveError) String() string {
@@ -137,15 +138,26 @@ func (e *Entity) SetAnimation(animOps AnimationOptions) body.SetAnimationResult 
 
 // TryMoveMaxPx is the same as TryMovePx, but lets the entity still move in the direction even if a collision is encountered,
 // as long as there is some space in that direction
-func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64) MoveError {
+func (e *Entity) TryMoveMaxPx(dx, dy, speed float64) MoveError {
 	if dx == 0 && dy == 0 {
 		panic("TryMoveMaxPx called with no distance given")
 	}
 	moveError := e.TryMovePx(dx, dy, speed)
 	if moveError.Collision {
 		// a collision occurred; try to adjust the target by the intersection area
+		// first, reset dx/dy based on specifically where the collision occurred
+		// since the collision could've happened on the first step towards moving there (we check that in TryMovePx too)
+		if moveError.CollisionPoint == nil {
+			logz.Panicln("TryMoveMaxPx", "a collision occurred, but no collision point was set (it was nil) so we don't know where to adjust from.")
+		}
+		collisionPoint := *moveError.CollisionPoint
+		curPos := model.NewVec2(e.X, e.Y)
+		delta := collisionPoint.Sub(curPos)
+		dx = delta.X
+		dy = delta.Y
+
 		cr := moveError.CollisionResult
-		cx, cy := 0, 0
+		cx, cy := 0.0, 0.0
 
 		top := cr.TopLeft.Int() + cr.TopRight.Int()
 		left := cr.TopLeft.Int() + cr.BottomLeft.Int()
@@ -160,23 +172,23 @@ func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64) MoveError {
 				// left
 				if left != fullOpen {
 					// get as close as possible
-					cx = int(max(cr.BottomLeft.Dx, cr.TopLeft.Dx))
+					cx = max(cr.BottomLeft.Dx, cr.TopLeft.Dx)
 				}
 			} else if dx > 0 {
 				// right
 				if right != fullOpen {
-					cx = -int(max(cr.BottomRight.Dx, cr.TopRight.Dx))
+					cx = -max(cr.BottomRight.Dx, cr.TopRight.Dx)
 				}
 			}
 			if dy < 0 {
 				// up
 				if top != fullOpen {
-					cy = int(max(cr.TopLeft.Dy, cr.TopRight.Dy))
+					cy = max(cr.TopLeft.Dy, cr.TopRight.Dy)
 				}
 			} else if dy > 0 {
 				// down
 				if bottom != fullOpen {
-					cy = -int(max(cr.BottomLeft.Dy, cr.BottomRight.Dy))
+					cy = -max(cr.BottomLeft.Dy, cr.BottomRight.Dy)
 				}
 			}
 		} else {
@@ -184,7 +196,8 @@ func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64) MoveError {
 			yDir := 0
 			var yDirCorner1, yDirCorner2 model.IntersectionResult
 			var xDirCorner1, xDirCorner2 model.IntersectionResult
-			xDirFactor, yDirFactor := 1, 1
+			xDirFactor, yDirFactor := 1.0, 1.0
+			// check how "open" each direction is
 			if dy < 0 {
 				yDir = top
 				yDirCorner1, yDirCorner2 = cr.TopLeft, cr.TopRight
@@ -203,12 +216,17 @@ func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64) MoveError {
 				xDirFactor = -1
 			}
 
+			// sanity check: if a collision occurred, then both directions cannot be "full open"
+			if yDir == fullOpen && xDir == fullOpen {
+				logz.Panicln("TryMoveMaxPx", "collision occurred, but both directions (x & y) appear to be fully open...")
+			}
+
 			if yDir != fullOpen || xDir != fullOpen {
 				// there is blockage in one (or both) directions. let's suss it out.
 				switch xDir {
 				case fullBlock:
 					// get as close as possible, but ultimately block this direction
-					cx = xDirFactor * int(max(xDirCorner1.Dx, xDirCorner2.Dx))
+					cx = xDirFactor * max(xDirCorner1.Dx, xDirCorner2.Dx)
 				case partialOpen:
 					switch yDir {
 					case fullBlock:
@@ -220,19 +238,19 @@ func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64) MoveError {
 						xOverlap := int(max(xDirCorner1.Dx, xDirCorner2.Dx))
 						yOverlap := int(max(yDirCorner1.Dy, yDirCorner2.Dy))
 						if xOverlap > yOverlap {
-							cy = yDirFactor * int(max(yDirCorner1.Dy, yDirCorner2.Dy))
+							cy = yDirFactor * max(yDirCorner1.Dy, yDirCorner2.Dy)
 						} else {
-							cx = xDirFactor * int(max(xDirCorner1.Dx, xDirCorner2.Dx))
+							cx = xDirFactor * max(xDirCorner1.Dx, xDirCorner2.Dx)
 						}
 					case fullOpen:
 						// about to turn around a corner
 						// this direction should be cancelled for now
-						cx = xDirFactor * int(max(xDirCorner1.Dx, xDirCorner2.Dx))
+						cx = xDirFactor * max(xDirCorner1.Dx, xDirCorner2.Dx)
 					}
 				}
 				switch yDir {
 				case fullBlock:
-					cy = yDirFactor * int(max(yDirCorner1.Dy, yDirCorner2.Dy))
+					cy = yDirFactor * max(yDirCorner1.Dy, yDirCorner2.Dy)
 				case partialOpen:
 					switch xDir {
 					case fullBlock:
@@ -240,10 +258,15 @@ func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64) MoveError {
 					case fullOpen:
 						// about to turn around a corner
 						// this direction should be cancelled for now
-						cy = yDirFactor * int(max(yDirCorner1.Dy, yDirCorner2.Dy))
+						cy = yDirFactor * max(yDirCorner1.Dy, yDirCorner2.Dy)
 					}
 				}
 			}
+		}
+
+		if cx == 0 && cy == 0 {
+			// no changes suggested? this seems wrong
+			logz.Panicln("TryMoveMaxPx", "no target adjustment occurred (cx and cy calculated to 0). this probably shouldn't be happening...")
 		}
 
 		dx += cx
@@ -260,7 +283,7 @@ func (e *Entity) TryMoveMaxPx(dx, dy int, speed float64) MoveError {
 	return moveError
 }
 
-func (e *Entity) TryMovePx(dx, dy int, speed float64) MoveError {
+func (e *Entity) TryMovePx(dx, dy, speed float64) MoveError {
 	if dx == 0 && dy == 0 {
 		panic("TryMovePx: dx and dy are both 0")
 	}
@@ -281,15 +304,42 @@ func (e *Entity) TryMovePx(dx, dy int, speed float64) MoveError {
 		return MoveError{Cancelled: true, Info: info}
 	}
 
-	x := int(e.TargetX) + dx
-	y := int(e.TargetY) + dy
-	targetRect := model.Rect{X: float64(x), Y: float64(y), W: e.width, H: e.width}
+	// Notes: We don't use CollisionRect here since we aren't checking our current position, but the next position we move into
+	// The reason we use TargetX/Y (instead of x/y) is because we add onto the existing target when we use TryMovePx
+	x := e.TargetX + dx
+	y := e.TargetY + dy
+	w, h := e.CollisionRect().W, e.CollisionRect().H
 
-	res := e.World.Collides(targetRect, e.ID)
+	// actual targets
+	targetRect := model.Rect{X: x, Y: y, W: w, H: h}
+	target := model.Vec2{X: x, Y: y}
+
+	// check if first movement towards target (at given speed) collides
+	// if this collides, that means we can't actually move a single step towards the goal (even though the goal itself is open).
+	// one instance where this happens is when you are trying to turn around a corner.
+	pos := model.Vec2{X: e.X, Y: e.Y}
+	newPos := pos.MoveTowards(target, speed)
+	nextStepRect := model.NewRect(newPos.X, newPos.Y, w, h)
+	res := e.World.Collides(nextStepRect, e.ID)
 	if res.Collides() {
+		// a collision happened on the first step towards the target (but not the target itself)
+		// we need to tell exactly where this first step was, so that TryMoveMaxPx knows precisely where to adjust from.
 		return MoveError{
+			CollisionPoint:  &newPos,
 			Collision:       true,
 			CollisionResult: res,
+			Info:            "first step towards new target was collision",
+		}
+	}
+
+	// if first step is clear, then check that the actual target itself isn't a collision
+	res = e.World.Collides(targetRect, e.ID)
+	if res.Collides() {
+		return MoveError{
+			CollisionPoint:  &target,
+			Collision:       true,
+			CollisionResult: res,
+			Info:            "new target position was collision",
 		}
 	}
 
@@ -309,7 +359,7 @@ func (e *Entity) TryMovePx(dx, dy int, speed float64) MoveError {
 func (e *Entity) TryBumpBack(px int, speed float64, forceOrigin model.Vec2, anim string, animTickInterval int) MoveError {
 	// calculate dx dy values
 	origin := model.Vec2{X: e.X, Y: e.Y}
-	dest := moveAway(origin, forceOrigin, float64(px))
+	dest := origin.MoveAway(forceOrigin, float64(px))
 	dx := dest.X - origin.X
 	dy := dest.Y - origin.Y
 
@@ -325,10 +375,19 @@ func (e *Entity) TryBumpBack(px int, speed float64, forceOrigin model.Vec2, anim
 		return MoveError{Cancelled: true, Info: "failed to set animation"}
 	}
 
-	return e.TryMoveMaxPx(int(dx), int(dy), speed)
+	return e.TryMoveMaxPx(dx, dy, speed)
 }
 
-func (e *Entity) updateMovement() {
+type updateMovementResult struct {
+	ReachedTarget           bool
+	UnexpectedCollision     bool
+	ContinuingTowardsTarget bool
+}
+
+func (e *Entity) updateMovement() updateMovementResult {
+	if !e.Movement.IsMoving {
+		return updateMovementResult{} // not moving, so an empty result will suffice
+	}
 	if e.Movement.Speed == 0 {
 		panic("updateMovement called when speed is 0; speed was not set wherever entity movement was started")
 	}
@@ -347,13 +406,12 @@ func (e *Entity) updateMovement() {
 	pos := model.Vec2{X: e.X, Y: e.Y}
 	target := model.Vec2{X: e.TargetX, Y: e.TargetY}
 
-	newPos := moveTowards(pos, target, e.Movement.Speed)
+	newPos := pos.MoveTowards(target, e.Movement.Speed)
 	w, h := e.CollisionRect().W, e.CollisionRect().H
 	res = e.World.Collides(model.NewRect(newPos.X, newPos.Y, w, h), e.ID)
 	if res.Collides() {
 		logz.Println(e.DisplayName, "updateMovement: next position is colliding! cancelling movement")
-		e.StopMovement()
-		return
+		return updateMovementResult{UnexpectedCollision: true}
 	}
 
 	e.X = newPos.X
@@ -366,13 +424,11 @@ func (e *Entity) updateMovement() {
 
 	e.TilePos = model.ConvertPxToTilePos(int(e.X), int(e.Y))
 
+	result := updateMovementResult{ContinuingTowardsTarget: true}
+
 	if target.Equals(newPos) {
-		// we don't use StopMovement here since we might want to keep the animation going (if the entity has another target)
-		e.Movement.IsMoving = false
-		// logz.Println(e.DisplayName, "movement light stop")
-		if len(e.Movement.TargetPath) == 0 {
-			e.Body.StopAnimation()
-		}
+		// don't return yet, so that footstep sound can play
+		result = updateMovementResult{ReachedTarget: true}
 	}
 
 	// footstep sound effects
@@ -405,6 +461,7 @@ func (e *Entity) updateMovement() {
 			panic("ground material not recognized: " + groundMaterial)
 		}
 	}
+	return result
 }
 
 func (e *Entity) StopMovement() {
@@ -418,24 +475,6 @@ func (e *Entity) StopMovement() {
 	if e.Body.IsMoving() {
 		e.Body.StopAnimation()
 	}
-}
-
-func moveTowards(pos, target model.Vec2, speed float64) model.Vec2 {
-	dir := target.Sub(pos)
-	dist := dir.Len()
-	step := dir.Normalize().Scale(speed)
-	if dist < speed {
-		// snap to target
-		return target
-	}
-
-	return pos.Add(step)
-}
-
-func moveAway(pos, target model.Vec2, speed float64) model.Vec2 {
-	dir := target.Sub(pos)
-	step := dir.Normalize().Scale(speed)
-	return pos.Sub(step)
 }
 
 func (e *Entity) trySetNextTargetPath() MoveError {
@@ -469,7 +508,7 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		return MoveError{Cancelled: true, Info: "next target was not an adjacent tile (dist > tilesize)"}
 	}
 
-	moveError := e.TryMovePx(int(dPos.X), int(dPos.Y), e.WalkSpeed)
+	moveError := e.TryMovePx(dPos.X, dPos.Y, e.WalkSpeed)
 
 	if !moveError.Success {
 		return moveError

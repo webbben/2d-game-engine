@@ -1,3 +1,4 @@
+// Package object defines logic for using objects from tiled maps
 package object
 
 import (
@@ -16,17 +17,21 @@ import (
 )
 
 const (
-	TYPE_DOOR        = "DOOR" // a door/portal to another map
-	TYPE_GATE        = "GATE" // a "gate" is a openable/closable barrier (e.g. a physical door, or gate) in a map
-	TYPE_SPAWN_POINT = "SPAWN_POINT"
-	TYPE_LIGHT       = "LIGHT"     // lights can be embedded in objects too
-	TYPE_CONTAINER   = "CONTAINER" // TODO
-	TYPE_MISC        = "MISC"      // general purpose; just takes up space
+	TypeDoor       = "DOOR" // a door/portal to another map
+	TypeGate       = "GATE" // a "gate" is a openable/closable barrier (e.g. a physical door, or gate) in a map
+	TypeSpawnPoint = "SPAWN_POINT"
+	TypeLight      = "LIGHT"     // lights can be embedded in objects too
+	TypeContainer  = "CONTAINER" // TODO
+	TypeMisc       = "MISC"      // general purpose; just takes up space
+
+	// Types that aren't actually supported here (specific cases)
+
+	TypeEntity = "ENTITY" // This shouldn't be used for actual objects - just for static entities in maps that are defined by objects.
 )
 
 type Object struct {
 	Name          string
-	Type          string
+	Type          string  // NOT from Tiled; set by our code in Load
 	xPos, yPos    float64 // logical position in the map
 	zOffset       int     // for influencing render order
 	DrawX, DrawY  float64 // the actual position on the screen where this was last drawn - for things like click detection
@@ -58,7 +63,7 @@ type Object struct {
 	PlayerHovering bool
 }
 
-// general purpose function to get the rect that this object occupies in the map. does not scale the values.
+// GetRect is general purpose function to get the rect that this object occupies in the map. does not scale the values.
 func (obj Object) GetRect() model.Rect {
 	if obj.collidable {
 		return obj.CollisionRect
@@ -71,13 +76,13 @@ func (obj Object) GetRect() model.Rect {
 	}
 }
 
-// gets the rect that represents where the object is on the screen, as drawn. useful for detecting things like mouseclicks.
+// GetDrawRect gets the rect that represents where the object is on the screen, as drawn. useful for detecting things like mouseclicks.
 func (obj Object) GetDrawRect() model.Rect {
 	return model.NewRect(obj.DrawX, obj.DrawY, float64(obj.Width)*config.GameScale, float64(obj.Height)*config.GameScale)
 }
 
 func (obj Object) IsCollidable() bool {
-	if obj.Type == TYPE_GATE {
+	if obj.Type == TypeGate {
 		if obj.Gate.IsOpen() {
 			return false
 		}
@@ -87,13 +92,13 @@ func (obj Object) IsCollidable() bool {
 
 func (obj Object) IsActivatable() bool {
 	switch obj.Type {
-	case TYPE_DOOR:
+	case TypeDoor:
 		return true
-	case TYPE_GATE:
+	case TypeGate:
 		return true
-	case TYPE_LIGHT:
+	case TypeLight:
 		return true
-	case TYPE_CONTAINER:
+	case TypeContainer:
 		return true
 	default:
 		return false
@@ -198,23 +203,26 @@ func LoadObject(obj tiled.Object, m tiled.Map) *Object {
 	// get the type first - so we know what values to parse out
 	objType, found := tiled.GetStringProperty("TYPE", allProps)
 	if !found {
-		panic("no object type property found")
+		// Note: I ran into this issue before when I had a tile object in a map and deleted its data for the tile in its tileset.
+		// the object pretty much disappeared and I could only see it in the JSON. If this happens, add some pixel data back to the tile where the object's tile was (in the tileset),
+		// then go back to the map and it should be there again; delete it from the map, then you can delete it from the tileset.
+		logz.Panicln("Object", "no object type property found. ID:", obj.ID, "obj coords:", obj.X, obj.Y)
 	}
 	o.Type = resolveObjectType(objType)
 
 	// load data for specific object type
 	switch o.Type {
-	case TYPE_DOOR:
+	case TypeDoor:
 		o.loadDoorObject(allProps)
-	case TYPE_SPAWN_POINT:
+	case TypeSpawnPoint:
 		o.loadSpawnObject(allProps)
-	case TYPE_GATE:
+	case TypeGate:
 		o.loadGateObject(allProps)
-	case TYPE_LIGHT:
+	case TypeLight:
 		o.loadLightObject(allProps)
-	case TYPE_CONTAINER:
+	case TypeContainer:
 		o.addDefaultCollision()
-	case TYPE_MISC:
+	case TypeMisc:
 		o.addDefaultCollision()
 	default:
 		panic("object type invalid")
@@ -222,10 +230,10 @@ func LoadObject(obj tiled.Object, m tiled.Map) *Object {
 
 	o.loadGlobal(allProps)
 
-	if o.Type == TYPE_DOOR {
+	if o.Type == TypeDoor {
 		o.validateDoorObject()
 	}
-	if o.Type == TYPE_GATE {
+	if o.Type == TypeGate {
 		o.validateGateObject()
 	}
 
@@ -393,18 +401,18 @@ func (obj *Object) loadSpawnObject(props []tiled.Property) {
 
 func resolveObjectType(objType string) string {
 	switch objType {
-	case TYPE_DOOR:
-		return TYPE_DOOR
-	case TYPE_SPAWN_POINT:
-		return TYPE_SPAWN_POINT
-	case TYPE_GATE:
-		return TYPE_GATE
-	case TYPE_LIGHT:
-		return TYPE_LIGHT
-	case TYPE_CONTAINER:
-		return TYPE_CONTAINER
-	case TYPE_MISC:
-		return TYPE_MISC
+	case TypeDoor:
+		return TypeDoor
+	case TypeSpawnPoint:
+		return TypeSpawnPoint
+	case TypeGate:
+		return TypeGate
+	case TypeLight:
+		return TypeLight
+	case TypeContainer:
+		return TypeContainer
+	case TypeMisc:
+		return TypeMisc
 	default:
 		panic("object type doesn't exist: " + objType)
 	}

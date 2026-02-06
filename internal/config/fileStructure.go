@@ -114,7 +114,7 @@ func ResolveTilesetPath(relTilesetPath string) string {
 	return filepath.Join(gameTilesetsPath(), relTilesetPath)
 }
 
-// given a map ID, returns the full path to the map's TMJ file for loading purposes.
+// ResolveMapPath : given a map ID, returns the full path to the map's TMJ file for loading purposes.
 func ResolveMapPath(mapID string) string {
 	return filepath.Join(gameMapsPath(), fmt.Sprintf("%s.tmj", mapID))
 }

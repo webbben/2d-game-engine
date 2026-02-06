@@ -106,9 +106,10 @@ func (p *Player) handleMovement() bool {
 			logz.Println(p.Entity.DisplayName, "failed to set movement animation:", animRes)
 			return false
 		}
-		e := p.Entity.TryMoveMaxPx(int(scaled.X), int(scaled.Y), speed)
+		e := p.Entity.TryMoveMaxPx(scaled.X, scaled.Y, speed)
 		if !e.Success {
 			logz.Println(p.Entity.DisplayName, "player failed to move:", e)
+			logz.Println("", e.CollisionResult)
 			p.Entity.Body.StopAnimation()
 		}
 		tryingToMove = true

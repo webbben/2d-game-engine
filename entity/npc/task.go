@@ -65,7 +65,7 @@ type Task interface {
 
 	// background task assistance
 	BackgroundAssist()
-	//lastBackgroundAssist time.Time // last time a the bg task loop assisted this task
+	// lastBackgroundAssist time.Time // last time a the bg task loop assisted this task
 }
 
 type TaskBase struct {
@@ -88,36 +88,47 @@ func NewTaskBase(id, name, desc string) TaskBase {
 func (tb TaskBase) GetOwner() *NPC {
 	return tb.Owner
 }
+
 func (tb *TaskBase) SetOwner(n *NPC) {
 	tb.Owner = n
 }
+
 func (tb TaskBase) GetDescription() string {
 	return tb.Description
 }
+
 func (tb *TaskBase) SetDescription(desc string) {
 	tb.Description = desc
 }
+
 func (tb TaskBase) GetID() string {
 	return tb.ID
 }
+
 func (tb *TaskBase) SetID(id string) {
 	tb.ID = id
 }
+
 func (tb TaskBase) GetName() string {
 	return tb.Name
 }
+
 func (tb *TaskBase) SetName(name string) {
 	tb.Name = name
 }
+
 func (tb TaskBase) GetStatus() TaskStatus {
 	return tb.Status
 }
+
 func (tb *TaskBase) SetStatus(status TaskStatus) {
 	tb.Status = status
 }
+
 func (tb TaskBase) IsDone() bool {
 	return tb.Status == TASK_STATUS_END
 }
+
 func (tb TaskBase) IsActive() bool {
 	return tb.Status > TASK_STATUS_NOTSTARTED && tb.Status < TASK_STATUS_END
 }
@@ -206,3 +217,26 @@ func (t *TaskBase) HandleNPCCollision(continueFunc func()) {
 		return
 	}
 }
+
+// Made an Idle task for NPCs that don't do anything
+
+type IdleTask struct {
+	TaskBase
+}
+
+func (it IdleTask) ZzCompileCheck() {
+	_ = append([]Task{}, &it)
+}
+
+func (it IdleTask) BackgroundAssist() {
+}
+func (it IdleTask) End() {}
+func (it IdleTask) IsComplete() bool {
+	return false
+}
+
+func (it IdleTask) IsFailure() bool {
+	return false
+}
+func (it *IdleTask) Start()  {}
+func (it *IdleTask) Update() {}

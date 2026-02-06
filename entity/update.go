@@ -48,7 +48,27 @@ func (e *Entity) Update() {
 		e.stunTicks--
 	}
 
+	// doing this here so that if the player is still trying to move, their next movement can be set before officially deciding we have stopped.
 	if !e.Movement.IsMoving {
+		e.Body.StopAnimation()
+		// some validation and sanity checks
+		if e.TargetX != e.X || e.TargetY != e.Y {
+			logz.Println(e.DisplayName, "x:", e.X, "y:", e.Y, "targetX:", e.TargetX, "targetY:", e.TargetY)
+			panic("entity is not moving but hasn't met its goal yet. hint: if you are setting the entity position, use the SetPosition function to ensure Target is updated too.")
+		}
+		if e.Body.IsMoving() {
+			logz.Panicln(e.DisplayName, "entity is not moving, but body is still doing movement animations")
+		}
+	}
+
+	movementResult := e.updateMovement()
+
+	if movementResult.UnexpectedCollision {
+		e.StopMovement()
+	} else if movementResult.ReachedTarget {
+		e.Movement.IsMoving = false
+
+		// check if we can queue up the next target in an existing path
 		if len(e.Movement.TargetPath) > 0 {
 			res := e.trySetNextTargetPath()
 			if res.Success {
@@ -67,20 +87,10 @@ func (e *Entity) Update() {
 				}
 			}
 		}
-	}
-
-	if e.Movement.IsMoving {
-		e.updateMovement()
-	} else {
-		if e.TargetX != e.X || e.TargetY != e.Y {
-			logz.Println(e.DisplayName, "x:", e.X, "y:", e.Y, "targetX:", e.TargetX, "targetY:", e.TargetY)
-			panic("entity is not moving but hasn't met its goal yet. hint: if you are setting the entity position, use the SetPosition function to ensure Target is updated too.")
-		}
-		if e.Body.IsMoving() {
-			logz.Panicf(`
-				[%s] entity is not moving, but body is still doing a movement animation. 
-				(Hint: this is sometimes related to the 'light stop' done inside updateMovement)
-			`, e.DisplayName)
+	} else if movementResult.ContinuingTowardsTarget {
+		// sanity check
+		if !e.Movement.IsMoving {
+			panic("we are supposedly still moving towards target... why is IsMoving false?")
 		}
 	}
 

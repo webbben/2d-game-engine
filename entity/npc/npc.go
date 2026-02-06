@@ -1,7 +1,9 @@
+// Package npc defines NPC management logic
 package npc
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/webbben/2d-game-engine/entity"
@@ -30,7 +32,7 @@ func (n *NPC) Activate() {
 	logz.Println(n.DisplayName, "nothing happened on activation")
 }
 
-// used for renderables sorting
+// Y is used for renderables sorting
 func (n NPC) Y() float64 {
 	return n.Entity.Y
 }
@@ -40,12 +42,24 @@ type WorldContext interface {
 	StartDialog(dialogID string)
 }
 
-// Create new NPC from the given NPC struct. Ensures essential data is set.
-func New(n NPC) NPC {
-	if n.ID == "" {
-		n.ID = general_util.GenerateUUID()
+type NPCParams struct {
+	Entity          *entity.Entity
+	DefaultDialogID string
+}
+
+func NewNPC(params NPCParams) NPC {
+	if params.Entity == nil {
+		panic("entity is nil")
 	}
-	return n
+
+	return NPC{
+		Entity:   params.Entity,
+		DialogID: params.DefaultDialogID,
+		NPCInfo: NPCInfo{
+			ID:          fmt.Sprintf("%s_%s", params.Entity.DisplayName, general_util.GenerateUUID()),
+			DisplayName: params.Entity.DisplayName,
+		},
+	}
 }
 
 type NPCInfo struct {
@@ -67,7 +81,7 @@ type TaskMGMT struct {
 	StuckCount int
 }
 
-// checks if the npc is currently working on a task
+// IsActive checks if the npc is currently working on a task
 func (tm TaskMGMT) IsActive() bool {
 	if tm.CurrentTask == nil {
 		return false
@@ -75,10 +89,10 @@ func (tm TaskMGMT) IsActive() bool {
 	return !tm.CurrentTask.IsDone()
 }
 
-// Error indicates the NPC is already active with a task
+// ErrAlreadyActive indicates the NPC is already active with a task
 var ErrAlreadyActive error = errors.New("NPC already has an active task")
 
-// Sets a task for this NPC to carry out.
+// SetTask sets a task for this NPC to carry out.
 // For setting fundamental tasks, use the respective Set<taskType>Task command.
 //
 // Directly using this task outside of the game engine would be for setting customly defined tasks.
@@ -100,7 +114,7 @@ func (n *NPC) SetTask(t Task, force bool) error {
 	return nil
 }
 
-// Ends the current task. Causes the task to run its "end" hook logic.
+// EndCurrentTask ends the current task. Causes the task to run its "end" hook logic.
 func (n *NPC) EndCurrentTask() {
 	if n.CurrentTask == nil {
 		logz.Warnln(n.DisplayName, "tried to cancel current task, but no current task exists.")
@@ -109,7 +123,7 @@ func (n *NPC) EndCurrentTask() {
 	n.CurrentTask.End()
 }
 
-// Interrupt regular NPC updates for a certain duration
+// Wait interrupts regular NPC updates for a certain duration
 func (n *NPC) Wait(d time.Duration) {
 	n.waitUntil = time.Now().Add(d)
 }

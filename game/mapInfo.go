@@ -19,7 +19,7 @@ import (
 	"github.com/webbben/2d-game-engine/object"
 )
 
-// information about the current room the player is in
+// MapInfo contains information about the current room the player is in
 type MapInfo struct {
 	gameRef *Game
 
@@ -53,7 +53,7 @@ type OpenMapOptions struct {
 	RegenerateImages bool // set to true if tile images should be regenerated
 }
 
-// sets up a map and puts the player in it at the given position. meant for use once player already exists in game state
+// EnterMap sets up a map and puts the player in it at the given position. meant for use once player already exists in game state
 func (g *Game) EnterMap(mapID string, op *OpenMapOptions, playerSpawnIndex int) error {
 	if g.MapInfo != nil {
 		g.MapInfo.CloseMap()
@@ -67,7 +67,7 @@ func (g *Game) EnterMap(mapID string, op *OpenMapOptions, playerSpawnIndex int) 
 	return g.PlacePlayerAtSpawnPoint(g.Player, playerSpawnIndex)
 }
 
-// prepare the MapInfo for in-game play
+// SetupMap prepares the MapInfo for in-game play
 func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 	if op == nil {
 		op = &OpenMapOptions{}
@@ -96,7 +96,7 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 		DisplayName: m.DisplayName,
 	}
 	g.MapInfo.Map = m
-	g.MapInfo.NPCManager.mapRef = g.MapInfo.Map
+	g.MapInfo.mapRef = g.MapInfo.Map
 	g.MapInfo.gameRef = g
 
 	// find all lights embedded in tiles
@@ -122,24 +122,46 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 	}
 
 	// find all objects in the map
+	entObjs := []tiled.Object{}
 	for _, layer := range m.Layers {
 		if layer.Type == tiled.LayerTypeObject {
 			for _, obj := range layer.Objects {
+				// look for objects that are actually static entities
+				// Note: if the entity type is stored deeper than the object itself, I don't think it'll be found here.
+				objType, found := tiled.GetStringProperty("TYPE", obj.Properties)
+				if found && objType == object.TypeEntity {
+					entObjs = append(entObjs, obj)
+					continue
+				}
 				g.MapInfo.AddObjectToMap(obj, m)
 			}
 		}
 	}
 
 	// start up background jobs loop
-	if g.MapInfo.NPCManager.backgroundJobsRunning {
+	if g.MapInfo.backgroundJobsRunning {
 		panic("backgroundJobsRunning flag is already true while initializing map")
 	}
 	if op.RunNPCManager {
 		g.MapInfo.RunBackgroundJobs = true
-		g.MapInfo.NPCManager.startBackgroundNPCManager()
+		g.MapInfo.startBackgroundNPCManager()
 	}
 
 	g.MapInfo.Loaded = true
+
+	// add static ents after Loaded = true, since that is checked in AddNPCToMap
+	for _, obj := range entObjs {
+		ent := entity.NewStaticEntity(obj, g.DefinitionManager)
+		n := npc.NewNPC(npc.NPCParams{
+			Entity:          &ent,
+			DefaultDialogID: "dialog1", // TODO: this is a temporary test
+		})
+		_ = n.SetTask(&npc.IdleTask{}, true)
+		r := model.NewRect(obj.X, obj.Y, obj.Width, obj.Height)
+		tilePos := model.GetTilePosOfRectCenter(r)
+		logz.Println("static NPC pos", tilePos, "original obj pos:", "x:", obj.X, "y:", obj.Y)
+		g.MapInfo.AddNPCToMap(&n, tilePos)
+	}
 
 	g.EventBus.Publish(pubsub.Event{
 		Type: pubsub.Event_VisitMap,
@@ -153,7 +175,7 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 }
 
 func (mi *MapInfo) CloseMap() {
-	mi.NPCManager.RunBackgroundJobs = false
+	mi.RunBackgroundJobs = false
 }
 
 type NPCManager struct {
@@ -172,7 +194,7 @@ type NPCManager struct {
 
 func (mi *MapInfo) ResolveNPCJams() {
 	// get all existing NPC jams
-	npcJams := mi.NPCManager.findNPCJams()
+	npcJams := mi.findNPCJams()
 	if len(npcJams) == 0 {
 		// no jams found
 		return
@@ -180,11 +202,11 @@ func (mi *MapInfo) ResolveNPCJams() {
 
 	// resolve each jam, one at a time
 	for _, npcJam := range npcJams {
-		mi.NPCManager.resolveJam(npcJam)
+		mi.resolveJam(npcJam)
 	}
 }
 
-// The official way to add the player to a map
+// AddPlayerToMap is the official way to add the player to a map
 func (mi *MapInfo) AddPlayerToMap(p *player.Player, x, y float64) {
 	if !mi.Loaded {
 		panic("map not loaded yet. use SetupMap before using this.")
@@ -209,11 +231,18 @@ func (mi *MapInfo) AddPlayerToMap(p *player.Player, x, y float64) {
 	p.World = mi
 }
 
-// the official way to add an NPC to a map
+// AddNPCToMap is the official way to add an NPC to a map.
+// Note: uses Tile coordinates - not absolute coordinates!
 func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	if !mi.Loaded {
 		panic("map not loaded yet. use SetupMap before using this.")
 	}
+
+	numCols, numRows := mi.MapDimensions()
+	if startPos.X > numCols || startPos.Y > numRows {
+		panic("given position appears to be off the map. are you using absolute coordinates on accident? this expects tile based coordinates.")
+	}
+
 	w := n.Entity.CollisionRect().W
 	h := n.Entity.CollisionRect().H
 	r := model.Rect{
@@ -228,7 +257,7 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	n.Entity.World = mi
 	n.World = mi // NPC has its own world context it needs, that isn't relevant to entity
 	n.Entity.SetPosition(startPos)
-	n.Priority = mi.NPCManager.getNextNPCPriority()
+	n.Priority = mi.getNextNPCPriority()
 	mi.NPCs = append(mi.NPCs, n)
 }
 
@@ -241,11 +270,11 @@ func (mi *MapInfo) AddObjectToMap(obj tiled.Object, m tiled.Map) {
 	}
 }
 
-// detects if the given rect collides in the map.
+// Collides detects if the given rect collides in the map.
 // rectBased param determines if collisions check for collision rects (e.g. for buildings with nuanced collision rects)
 // or if it just uses tile-based collisions (if a tile contains a collision rect, the entire tile is marked as a collision).
 // generally, the player should use rect-based, and NPCs should use tile-based (since NPCs usually can't do partial tile/px based movement)
-func (mi MapInfo) Collides(r model.Rect, excludeEntId string) model.CollisionResult {
+func (mi MapInfo) Collides(r model.Rect, excludeEntID string) model.CollisionResult {
 	tl := model.ConvertPxToTilePos(int(r.X), int(r.Y))
 	tr := model.ConvertPxToTilePos(int(r.X+r.W), int(r.Y))
 	bl := model.ConvertPxToTilePos(int(r.X), int(r.Y+r.H))
@@ -309,7 +338,7 @@ func (mi MapInfo) Collides(r model.Rect, excludeEntId string) model.CollisionRes
 	// if a corner point is inside a rect, then that corresponding corner gets the collision.
 	// if no corner point is inside the rect but there is still a collision (e.g. the two rects aren't the same size) then the collision is set to Other.
 	if mi.PlayerRef != nil {
-		if mi.PlayerRef.Entity.ID != excludeEntId {
+		if mi.PlayerRef.Entity.ID != excludeEntID {
 			newCr := checkCornerCollision(r, mi.PlayerRef.Entity.CollisionRect())
 			if newCr.Collides() {
 				newCr.Assert()
@@ -318,7 +347,7 @@ func (mi MapInfo) Collides(r model.Rect, excludeEntId string) model.CollisionRes
 		}
 	}
 	for _, n := range mi.NPCs {
-		if n.Entity.ID == excludeEntId {
+		if n.Entity.ID == excludeEntID {
 			continue
 		}
 		newCr := checkCornerCollision(r, n.Entity.CollisionRect())
@@ -374,17 +403,19 @@ func checkCornerCollision(r, targetRect model.Rect) model.CollisionResult {
 	return cr
 }
 
-// Returns a path to the goal, or if it cannot be reached, a path to the closest reachable position.
+// FindPath returns a path to the goal, or if it cannot be reached, a path to the closest reachable position.
 // The boolean indicates if the goal was successfully reached.
 func (mi MapInfo) FindPath(start, goal model.Coords) ([]model.Coords, bool) {
 	return path_finding.FindPath(start, goal, mi.CostMap())
 }
 
+// MapDimensions gives the TILE dimensions of a map (columns = width, rows = height).
+// This is not a pixels/absolute dimensions function.
 func (mi MapInfo) MapDimensions() (width int, height int) {
 	return mi.Map.Width, mi.Map.Height
 }
 
-// Gets a cost map that includes entity positions
+// CostMap gets a cost map that includes entity positions
 func (mi MapInfo) CostMap() [][]int {
 	if mi.Map.CostMap == nil {
 		panic("tried to get MapInfo cost map before Map costmap was created")
@@ -421,7 +452,7 @@ func (mi *MapInfo) GetLights() []*lights.Light {
 
 func (mi *MapInfo) GetSpawnPosition(index int) (x, y float64, found bool) {
 	for _, obj := range mi.Objects {
-		if obj.Type == object.TYPE_SPAWN_POINT {
+		if obj.Type == object.TypeSpawnPoint {
 			if obj.SpawnPoint.SpawnIndex == index {
 				x, y := obj.Pos()
 				return x, y, true
@@ -462,7 +493,7 @@ func (mi *MapInfo) StartDialog(dialogID string) {
 func (mi *MapInfo) GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC {
 	npcs := []*npc.NPC{}
 
-	for _, n := range mi.NPCManager.NPCs {
+	for _, n := range mi.NPCs {
 		dist := general_util.EuclideanDist(
 			n.Entity.X,
 			n.Entity.Y,
@@ -501,11 +532,11 @@ func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
 
 	logz.Println("Attack Area", "target rect:", attackInfo.TargetRect, "attack info:", attackInfo)
 
-	if len(mi.NPCManager.NPCs) == 0 {
+	if len(mi.NPCs) == 0 {
 		fmt.Println("no NPCs?")
 	}
 
-	for _, n := range mi.NPCManager.NPCs {
+	for _, n := range mi.NPCs {
 		logz.Println("Attack Area", "entID:", n.Entity.ID)
 		if slices.Contains(attackInfo.ExcludeEntIds, n.Entity.ID) {
 			continue
@@ -522,7 +553,7 @@ func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
 	}
 }
 
-// attempts to activate an object or npc in an area. if an activation occurs, true is returned.
+// ActivateArea attempts to activate an object or npc in an area. if an activation occurs, true is returned.
 func (mi *MapInfo) ActivateArea(r model.Rect) bool {
 	// check for activated objects
 	// try to get the object that is the "best match" (i.e. closest to the center of the activated area)
@@ -558,7 +589,7 @@ func (mi *MapInfo) ActivateArea(r model.Rect) bool {
 	// if multiple entites are present, activate the closest one to the center of the activation area
 	var closestNPC *npc.NPC = nil
 	closestNPCDist := float64(config.TileSize * 1000)
-	for _, n := range mi.NPCManager.NPCs {
+	for _, n := range mi.NPCs {
 		if r.Intersects(n.Entity.CollisionRect()) {
 			dist := general_util.EuclideanDistCenter(r, n.Entity.CollisionRect())
 			if closestNPC == nil || dist < closestNPCDist {
@@ -575,7 +606,7 @@ func (mi *MapInfo) ActivateArea(r model.Rect) bool {
 	return false
 }
 
-// handles a player's click in the game world; for non-ui clicks, such as clicking objects or entities in a map.
+// HandleMouseClick handles a player's click in the game world; for non-ui clicks, such as clicking objects or entities in a map.
 // if a click event occurs, true will be returned.
 func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
 	distThreshold := float64(config.TileSize * 2)
