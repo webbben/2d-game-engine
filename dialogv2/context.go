@@ -19,6 +19,7 @@ type DialogContext struct {
 
 type GameStateContext interface {
 	GetPlayerInfo() PlayerInfo
+	SetPlayerName(name string)
 }
 
 // PlayerInfo is information about the player that dialogs might use

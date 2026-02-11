@@ -326,6 +326,7 @@ func (e *Entity) SyncBodyToState() {
 
 	// if we changed a body part, let's do a full validation to confirm that all body parts match their equiped items
 	if change {
+		logz.Println(e.DisplayName(), "equipment change detected")
 		e.validateEquipment()
 	}
 }

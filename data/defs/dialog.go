@@ -2,8 +2,10 @@
 package defs
 
 type (
-	TopicID         string
-	DialogProfileID string
+	TopicID                 string
+	DialogProfileID         string
+	DialogActionType        string
+	DialogActionResultScope string
 )
 
 // DialogProfileDef represents a body of greetings, dialog topics, etc that can be assigned to an NPC.
@@ -37,6 +39,8 @@ type DialogResponse struct {
 	Once       bool      // if set, this response will only be possible to show once. after that, it is no longer eligible.
 
 	Replies []DialogReply // if the response should pose possibly replies by the player, set them here.
+
+	Action *DialogAction // if set, will fire first before any text or effects; can cause UI flows to happen, such as getting user text input.
 
 	// if you want to weave another dialog response directly after this one, put it here.
 	// ex: you want the first section of a speech to introduce some things, then you want the second section (the NextResponse) to actually
@@ -82,4 +86,11 @@ type EffectContext interface {
 type SetMemoryEffect struct {
 	Key  string
 	Seen bool
+}
+
+// A DialogAction is something that interrupts the flow of a dialog to bring different UI elements, workflows, etc. Ex: getting user input in a modal.
+type DialogAction struct {
+	Type   DialogActionType
+	Scope  DialogActionResultScope // what the action's result should be applied to.
+	Params any                     // Params that are passed to the action's UI, modal, etc. You should be using an actual params struct defined for this Action type's UI.
 }

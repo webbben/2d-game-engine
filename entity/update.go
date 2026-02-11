@@ -52,7 +52,9 @@ func (e *Entity) Update() {
 
 	// doing this here so that if the player is still trying to move, their next movement can be set before officially deciding we have stopped.
 	if !e.Movement.IsMoving {
-		e.Body.StopAnimation()
+		if e.Body.IsMoving() {
+			e.Body.StopAnimation()
+		}
 		// some validation and sanity checks
 		if e.TargetX != e.X || e.TargetY != e.Y {
 			logz.Println(e.DisplayName(), "x:", e.X, "y:", e.Y, "targetX:", e.TargetX, "targetY:", e.TargetY)

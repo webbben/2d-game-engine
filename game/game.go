@@ -78,6 +78,20 @@ func (g *Game) StartDialogSession(dialogProfileID defs.DialogProfileID, npcID st
 	g.dialogSession = &ds
 }
 
+// SetPlayerName - made for dialog action
+func (g *Game) SetPlayerName(name string) {
+	if g.Player == nil {
+		panic("player was nil")
+	}
+	if g.Player.Entity == nil {
+		panic("player entity was nil")
+	}
+	if g.Player.Entity.CharacterStateRef == nil {
+		panic("player character state was nil")
+	}
+	g.Player.Entity.CharacterStateRef.DisplayName = name
+}
+
 func (g *Game) SetHUD(hud HUD) {
 	g.hud = hud
 }

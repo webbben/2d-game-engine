@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/dialogv2"
 )
 
 const (
@@ -37,12 +40,45 @@ func GetDialogProfiles() []defs.DialogProfileDef {
 			ProfileID: ProfileCharJovis,
 			Greeting: []defs.DialogResponse{
 				{
-					Text:    "Oh, you're awake? I don't think I've seen you so much as stir for the past few days. Tell me, what's your name?",
-					Effects: []defs.Effect{}, // TODO: add effect for getting player name
+					Text: "Oh, you're awake? I don't think I've seen you so much as stir for the past few days. Tell me, what's your name?",
+					NextResponse: &defs.DialogResponse{
+						Action: &defs.DialogAction{
+							Type:  dialogv2.ActionTypeGetUserInput,
+							Scope: dialogv2.ActionScopePlayerName,
+							Params: dialogv2.GetUserInputActionParams{
+								ModalTitle:        "What's Your Name?",
+								ConfirmButtonText: "Confirm",
+							},
+						},
+						Text: fmt.Sprintf("%s, is it? To tell you the truth, I wasn't sure if you'd make it. You've been lying there motionless for days, or at least ever since they threw me in here.", dialogv2.VarPlayerName),
+						NextResponse: &defs.DialogResponse{
+							Text: "Say, how did you wind up here? A common criminal? Or perhaps an enemy soldier, captured in the chaos of battle?",
+							NextResponse: &defs.DialogResponse{
+								Text: "...",
+								NextResponse: &defs.DialogResponse{
+									Text: "You're not sure, you say? Well, You must've been dealt one serious blow to the head on a battlefield. That would explain your funny accent, too.",
+									NextResponse: &defs.DialogResponse{
+										Text: `
+										I've heard we've been sailing through the Adriatic for a day or so now, and I have a feeling we'll be reaching our destination soon.
+										Where to? I'm not sure. But I do know that nothing great is waiting for us on land. I imagine we'll be sold into slavery.
+										We must not be headed to the plantations though, because surely they would've sailed for Sicily, or maybe Africa...
+										`,
+										NextResponse: &defs.DialogResponse{
+											Text: "Gods, I hope we aren't headed for the mines. That is a truly terrible fate, my friend. Between you and me, maybe we ought to -",
+											NextResponse: &defs.DialogResponse{
+												Text: fmt.Sprintf(" - Oh, Quiet! Here comes the guard! I wish you the best of luck, %s.", dialogv2.VarPlayerName),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 	}
+
 	return profiles
 }
 

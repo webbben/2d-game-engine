@@ -2,27 +2,48 @@
 package dialogv2
 
 import (
+	"strings"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/ui/box"
 	"github.com/webbben/2d-game-engine/internal/ui/button"
+	"github.com/webbben/2d-game-engine/internal/ui/modal"
 	"golang.org/x/image/font"
 )
 
 type dialogResponseStatus string
 
 const (
-	dialogResponseStarted   dialogResponseStatus = "started"    // text portion of response has been started, and waiting for it to finish writing to line writer
-	dialogResponseTextDone  dialogResponseStatus = "text done"  // text portion of response is done; ready for player replies or next response
-	dialogResponseUserReply dialogResponseStatus = "user reply" // awaiting user reply
-	dialogResponseFinished  dialogResponseStatus = "finished"   // this dialog response is completely finished, and there is nothing else to do here
+	dialogResponseStarted      dialogResponseStatus = "started"    // text portion of response has been started, and waiting for it to finish writing to line writer
+	dialogResponseTextDone     dialogResponseStatus = "text done"  // text portion of response is done; ready for player replies or next response
+	dialogResponseUserReply    dialogResponseStatus = "user reply" // awaiting user reply
+	dialogResponseFinished     dialogResponseStatus = "finished"   // this dialog response is completely finished, and there is nothing else to do here
+	dialogResponseActionInProg dialogResponseStatus = "action"     // a dialog action was triggered and is waiting to finish
 )
+
+const (
+	ActionTypeGetUserInput defs.DialogActionType        = "get_user_input"
+	ActionScopePlayerName  defs.DialogActionResultScope = "player_name"
+)
+
+type DialogVariable string
+
+const (
+	VarPlayerName DialogVariable = "{player_name}"
+)
+
+type GetUserInputActionParams struct {
+	ModalTitle        string
+	ConfirmButtonText string
+}
 
 var quitTopic defs.DialogTopic = defs.DialogTopic{
 	ID:     "QUIT",
@@ -59,6 +80,10 @@ type DialogSession struct {
 	currentTopic    *defs.DialogTopic    // the topic is the root node of the conversation progression we are at
 	currentResponse *defs.DialogResponse // the "response" indicates what node we are in the convesation progression, which started from the topic.
 	responseStatus  dialogResponseStatus
+
+	// possible action modals
+
+	userInputModal *modal.TextInputModal
 }
 
 func ConditionsMet(conditions []defs.Condition, ctx defs.ConditionContext) bool {
@@ -247,10 +272,55 @@ func (ds *DialogSession) ApplyResponse(dr defs.DialogResponse) {
 
 	ds.currentResponse = &dr
 
-	ds.LineWriter.Clear()
-	ds.LineWriter.SetSourceText(dr.Text)
+	// check for actions; if so, then we fire the action first and wait for it to finish
+	if dr.Action != nil {
+		ds.startAction()
+		return
+	}
 
-	for _, topicID := range dr.NextTopics {
+	ds.continueApplyResponse()
+}
+
+func (ds *DialogSession) startAction() {
+	if ds.LineWriter.IsWriting() {
+		panic("tried to start action, but linewriter is writing")
+	}
+	if ds.currentResponse.Action == nil {
+		panic("starting action, but no action found on current response")
+	}
+	ds.responseStatus = dialogResponseActionInProg
+
+	action := ds.currentResponse.Action
+
+	switch action.Type {
+	case ActionTypeGetUserInput:
+		params, ok := action.Params.(GetUserInputActionParams)
+		if !ok {
+			panic("unable to cast params as GetUserInputActionParams... was the wrong params type chosen?")
+		}
+		m := modal.NewTextInputModal(modal.TextInputModalParams{
+			BoxTilesetSrc:     config.DefaultUIBox.TilesetSrc,
+			BoxOriginIndex:    config.DefaultUIBox.OriginIndex,
+			TitleText:         params.ModalTitle,
+			ConfirmButtonText: params.ConfirmButtonText,
+		})
+		ds.userInputModal = &m
+	default:
+		logz.Panicln("startAction", "action type not recognized:", action.Type)
+	}
+}
+
+func (ds *DialogSession) continueApplyResponse() {
+	if ds.LineWriter.IsWriting() {
+		panic("tried to continue apply response, but linewriter is writing")
+	}
+	if ds.currentResponse == nil {
+		panic("continueApplyResponse: currentResponse is nil")
+	}
+
+	ds.setResponseText(ds.currentResponse.Text)
+
+	for _, topicID := range ds.currentResponse.NextTopics {
 		ds.Ctx.RecordTopicUnlocked(topicID)
 	}
 
@@ -259,6 +329,25 @@ func (ds *DialogSession) ApplyResponse(dr defs.DialogResponse) {
 	// reply handling is done once text is finished
 
 	ds.responseStatus = dialogResponseStarted
+}
+
+func (ds *DialogSession) setResponseText(s string) {
+	if s == "" {
+		panic("tried to set an empty string")
+	}
+
+	ds.LineWriter.Clear()
+
+	// detect if there are any variables to fill in
+	if strings.Contains(s, "{") {
+		allVars := []DialogVariable{VarPlayerName}
+
+		for _, v := range allVars {
+			s = strings.ReplaceAll(s, string(v), ds.Ctx.GameState.GetPlayerInfo().PlayerName)
+		}
+	}
+
+	ds.LineWriter.SetSourceText(s)
 }
 
 func (ds *DialogSession) ApplyReply(dr defs.DialogReply) {
