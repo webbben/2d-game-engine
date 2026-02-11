@@ -2,10 +2,13 @@ package dialogv2
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
+	"github.com/webbben/2d-game-engine/internal/ui/modal"
 )
 
 // updateDialogResponse handles the logic for what to do next from the current node in the current topic's conversation
@@ -22,6 +25,23 @@ func (ds *DialogSession) updateDialogResponse() {
 	}
 
 	switch ds.responseStatus {
+	case dialogResponseActionInProg:
+		// action is ongoing; allow it to update, but don't let the rest of the response progress
+		switch ds.currentResponse.Action.Type {
+		case ActionTypeGetUserInput:
+			if ds.userInputModal == nil {
+				panic("user input modal is nil during input action")
+			}
+			resp := ds.userInputModal.Update()
+			if resp.Done {
+				ds.handleUserInputActionResp(resp, *ds.currentResponse.Action)
+				ds.continueApplyResponse()
+				return
+			}
+			return
+		default:
+			logz.Panicln("updateDialogResponse", "action type not recognized:", ds.currentResponse.Action.Type)
+		}
 	case dialogResponseStarted:
 		// since we are no longer writing, that means we should move on to the next status
 		ds.responseStatus = dialogResponseTextDone
@@ -33,7 +53,10 @@ func (ds *DialogSession) updateDialogResponse() {
 		}
 		if ds.currentResponse.NextResponse != nil {
 			// move to chained response
-			ds.ApplyResponse(*ds.currentResponse.NextResponse)
+			// wait for the player to click to continue though, in case they are still reading.
+			if ds.flashUntilContinue() {
+				ds.ApplyResponse(*ds.currentResponse.NextResponse)
+			}
 			return
 		}
 		if len(ds.currentResponse.Replies) > 0 {
@@ -73,6 +96,24 @@ func (ds *DialogSession) updateDialogResponse() {
 	}
 }
 
+func (ds *DialogSession) handleUserInputActionResp(resp modal.TextModalResponse, action defs.DialogAction) {
+	if action.Type != ActionTypeGetUserInput {
+		panic("handling user input action, but given action wasn't correct type")
+	}
+
+	switch action.Scope {
+	case ActionScopePlayerName:
+		// set player name to returned text
+		userInput := resp.InputText
+		if userInput == "" {
+			panic("user input was empty")
+		}
+		ds.Ctx.GameState.SetPlayerName(userInput)
+	default:
+		logz.Panicln("handleUserInputActionResp", "action scope not recognized:", action.Scope)
+	}
+}
+
 /*
 *
 * Overview of DialogSession logic:
@@ -106,6 +147,9 @@ func (ds *DialogSession) Update() {
 	case text.TextDone:
 		// all text has been displayed
 		ds.updateDialogResponse()
+	case text.AwaitText:
+		// if we find a case for the lineWriter to sit waiting for text (and not showing previous text) then we can change this
+		logz.Panicln("DialogSession", "LineWriter is at awaitText... this probably shouldn't be happening")
 	}
 }
 
@@ -132,9 +176,10 @@ func (ds *DialogSession) handleUserClick() bool {
 	return false
 }
 
-func (ds *DialogSession) awaitContinue() {
+// flashUntilContinue flashes the continue icon until the player clicks, then returns true so you can optionally do something.
+func (ds *DialogSession) flashUntilContinue() bool {
 	if ds.LineWriter.IsWriting() {
-		panic("awaitContinue called, but linewriter is still writing")
+		panic("flashUntilContinue called, but linewriter is still writing")
 	}
 
 	// flash done icon
@@ -144,8 +189,11 @@ func (ds *DialogSession) awaitContinue() {
 		ds.iconFlashTimer = 0
 	}
 
-	if ds.handleUserClick() {
-		// user has signaled to continue; page lineWriter
+	return ds.handleUserClick()
+}
+
+func (ds *DialogSession) awaitContinue() {
+	if ds.flashUntilContinue() {
 		ds.LineWriter.NextPage()
 	}
 }
@@ -193,5 +241,11 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 		for i, b := range ds.topicButtons {
 			b.Draw(screen, optionBoxX+int(tileSize/2), optionBoxY+(i*buttonHeight)+(int(tileSize/2)))
 		}
+	}
+
+	// if an action has triggered a modal, draw it:
+
+	if ds.currentResponse.Action != nil && ds.responseStatus == dialogResponseActionInProg {
+		ds.userInputModal.Draw(screen, 100, 100)
 	}
 }
