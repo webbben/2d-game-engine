@@ -2,10 +2,10 @@ package inventory
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/item"
+	"github.com/webbben/2d-game-engine/data/defs"
 )
 
-// for moving items from one inventory to another.
+// ItemTransfer is for moving items from one inventory to another.
 // doesn't involve drag and drop, but just automatic single-click transfers.
 // mainly used for trade transactions or putting items into containers.
 type ItemTransfer struct {
@@ -23,7 +23,7 @@ func NewItemTransfer(playerInv []*ItemSlot, otherInv []*ItemSlot) ItemTransfer {
 }
 
 type ItemTransferResult struct {
-	TransferedItem          item.InventoryItem // item that was transfered
+	TransferedItem          defs.InventoryItem // item that was transfered
 	ToPlayerInv             bool               // if true, was transfered to player inventory. otherwise, was transfered to other inventory
 	TransferedTo            *ItemSlot          // slot item was transfered to
 	Success                 bool               // if true, item was successfully transfered
@@ -78,7 +78,6 @@ func (it *ItemTransfer) Update() ItemTransferResult {
 				result.ToPlayerInv = true
 				return result
 			}
-
 		}
 		// right click = transfer half
 		if itemSlot.mouseBehavior.RightClick.ClickReleased {
@@ -98,7 +97,7 @@ func transferItem(from []*ItemSlot, fromIndex int, quantity int, to []*ItemSlot)
 	if quantity == 0 {
 		panic("no quantity set for item transfer")
 	}
-	itemToMove := item.InventoryItem{
+	itemToMove := defs.InventoryItem{
 		Instance: from[fromIndex].Item.Instance,
 		Def:      from[fromIndex].Item.Def,
 		Quantity: quantity,

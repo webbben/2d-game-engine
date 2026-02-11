@@ -8,17 +8,15 @@ import (
 	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/item"
 )
 
-type HSV struct {
-	H, S, V float64
-}
-
-var Default HSV = HSV{0.5, 0.5, 0.5}
+var Default defs.HSV = defs.HSV{0.5, 0.5, 0.5}
 
 type EntityBodySet struct {
 	Name string
@@ -38,11 +36,13 @@ type EntityBodySet struct {
 
 	stagingImg *ebiten.Image `json:"-"` // just for putting everything together before drawing to screen (for adding flicker fx)
 
-	BodyHSV HSV
+	// body parts
+
+	BodyHSV defs.HSV
 	BodySet BodyPartSet
-	EyesHSV HSV
+	EyesHSV defs.HSV
 	EyesSet BodyPartSet
-	HairHSV HSV
+	HairHSV defs.HSV
 	HairSet BodyPartSet
 	ArmsSet BodyPartSet
 	LegsSet BodyPartSet
@@ -161,7 +161,7 @@ func ReadJSON(jsonFilePath string) (EntityBodySet, error) {
 }
 
 func (eb *EntityBodySet) SetBodyHSV(h, s, v float64) {
-	eb.BodyHSV = HSV{h, s, v}
+	eb.BodyHSV = defs.HSV{h, s, v}
 }
 
 func (eb EntityBodySet) GetBodyHSV() (h, s, v float64) {
@@ -169,7 +169,7 @@ func (eb EntityBodySet) GetBodyHSV() (h, s, v float64) {
 }
 
 func (eb *EntityBodySet) SetEyesHSV(h, s, v float64) {
-	eb.EyesHSV = HSV{h, s, v}
+	eb.EyesHSV = defs.HSV{h, s, v}
 }
 
 func (eb EntityBodySet) GetEyesHSV() (h, s, v float64) {
@@ -177,15 +177,72 @@ func (eb EntityBodySet) GetEyesHSV() (h, s, v float64) {
 }
 
 func (eb *EntityBodySet) SetHairHSV(h, s, v float64) {
-	eb.HairHSV = HSV{h, s, v}
+	eb.HairHSV = defs.HSV{h, s, v}
 }
 
 func (eb EntityBodySet) GetHairHSV() (h, s, v float64) {
 	return eb.HairHSV.H, eb.HairHSV.S, eb.HairHSV.V
 }
 
+// NewHumanBodyFramework returns an empty baseline for a human body; mostly for use in places like character builder
+func NewHumanBodyFramework() EntityBodySet {
+	bodySet := NewBodyPartSet(BodyPartSetParams{
+		Name:   "bodySet",
+		IsBody: true,
+		HasUp:  true,
+	})
+	armsSet := NewBodyPartSet(BodyPartSetParams{
+		Name:  "armsSet",
+		HasUp: true,
+	})
+	legsSet := NewBodyPartSet(BodyPartSetParams{
+		Name:  "legsSet",
+		HasUp: true,
+	})
+	eyesSet := NewBodyPartSet(BodyPartSetParams{Name: "eyesSet"})
+	hairSet := NewBodyPartSet(BodyPartSetParams{HasUp: true, Name: "hairSet"})
+	equipBodySet := NewBodyPartSet(BodyPartSetParams{
+		Name:        "equipBodySet",
+		HasUp:       true,
+		IsRemovable: true,
+	})
+	equipLegsSet := NewBodyPartSet(BodyPartSetParams{
+		Name:        "equipLegsSet",
+		HasUp:       true,
+		IsRemovable: true,
+	})
+	equipHeadSet := NewBodyPartSet(BodyPartSetParams{
+		HasUp:       true,
+		Name:        "equipHeadSet",
+		IsRemovable: true,
+	})
+	equipFeetSet := NewBodyPartSet(BodyPartSetParams{
+		HasUp:       true,
+		Name:        "equipFeetSet",
+		IsRemovable: true,
+	})
+	weaponSet := NewBodyPartSet(BodyPartSetParams{
+		Name:        "weaponSet",
+		HasUp:       true,
+		IsRemovable: true,
+	})
+	weaponFxSet := NewBodyPartSet(BodyPartSetParams{
+		Name:        "weaponFxSet",
+		HasUp:       true,
+		IsRemovable: true,
+	})
+	auxSet := NewBodyPartSet(BodyPartSetParams{
+		Name:        "auxSet",
+		HasUp:       true,
+		IsRemovable: true,
+	})
+
+	entBody := NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipLegsSet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
+	return entBody
+}
+
 // NewEntityBodySet creates a base body set, without anything equiped
-func NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipLegsSet, weaponSet, weaponFxSet, auxSet BodyPartSet, bodyHSV, eyesHSV, hairHSV *HSV) EntityBodySet {
+func NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipLegsSet, weaponSet, weaponFxSet, auxSet BodyPartSet, bodyHSV, eyesHSV, hairHSV *defs.HSV) EntityBodySet {
 	if bodyHSV == nil {
 		bodyHSV = &Default
 	}
@@ -229,7 +286,7 @@ func (eb *EntityBodySet) Dimensions() (dx, dy int) {
 	return bounds.Dx(), bounds.Dy()
 }
 
-func (eb *EntityBodySet) SetBody(bodyDef, armDef, legDef SelectedPartDef) {
+func (eb *EntityBodySet) SetBody(bodyDef, armDef, legDef defs.SelectedPartDef) {
 	if bodyDef.None {
 		panic("body must be defined")
 	}
@@ -277,14 +334,14 @@ func (eb *EntityBodySet) SetBody(bodyDef, armDef, legDef SelectedPartDef) {
 	eb.LegsSet.setImageSource(legDef, 0, 0, eb.IsAuxEquipped())
 }
 
-func (eb *EntityBodySet) SetEyes(def SelectedPartDef) {
+func (eb *EntityBodySet) SetEyes(def defs.SelectedPartDef) {
 	if def.None {
 		panic("eyes must be defined")
 	}
 	eb.EyesSet.setImageSource(def, 0, 0, eb.IsAuxEquipped())
 }
 
-func (eb *EntityBodySet) SetHair(def SelectedPartDef) {
+func (eb *EntityBodySet) SetHair(def defs.SelectedPartDef) {
 	eb.HairSet.setImageSource(def, eb.stretchX, 0, eb.IsAuxEquipped())
 	if eb.shouldCropHair() {
 		eb.cropHair()
@@ -304,7 +361,7 @@ func (eb *EntityBodySet) ReloadHair() {
 	eb.HairSet.setCurrentFrame(eb.currentDirection, eb.animation)
 }
 
-func (eb *EntityBodySet) SetEquipHead(def SelectedPartDef) {
+func (eb *EntityBodySet) SetEquipHead(def defs.SelectedPartDef) {
 	eb.EquipHeadSet.setImageSource(def, eb.stretchX, 0, eb.IsAuxEquipped())
 
 	// always reload hair when equiping head, since it could either need to crop or un-crop the hair
@@ -319,7 +376,7 @@ func (eb *EntityBodySet) SetEquipHead(def SelectedPartDef) {
 	}
 }
 
-func (eb *EntityBodySet) SetEquipFeet(def SelectedPartDef) {
+func (eb *EntityBodySet) SetEquipFeet(def defs.SelectedPartDef) {
 	eb.EquipFeetSet.setImageSource(def, eb.stretchX, 0, eb.IsAuxEquipped())
 
 	if eb.animation != "" {
@@ -342,7 +399,58 @@ func (eb *EntityBodySet) ReloadArms() {
 	}
 }
 
-func (eb *EntityBodySet) SetEquipBody(bodyDef, legsDef SelectedPartDef) {
+func (eb *EntityBodySet) EquipBodyItem(i defs.ItemDef) {
+	if i == nil {
+		panic("item was nil")
+	}
+	if !i.IsBodywear() {
+		logz.Panicln("EquipBodyItem", "item is not bodywear:", i.GetID())
+	}
+	eb.SetEquipBody(*i.GetBodyPartDef(), *i.GetLegsPartDef())
+}
+
+func (eb *EntityBodySet) EquipHeadItem(i defs.ItemDef) {
+	if i == nil {
+		panic("item was nil")
+	}
+	if !i.IsHeadwear() {
+		logz.Panicln("EquipHeadItem", "item is not headwear:", i.GetID())
+	}
+	eb.SetEquipHead(*i.GetBodyPartDef())
+}
+
+func (eb *EntityBodySet) EquipAuxItem(i defs.ItemDef) {
+	if i == nil {
+		panic("item was nil")
+	}
+	if !i.IsAuxiliary() {
+		logz.Panicln("EquipAuxItem", "item is not aux:", i.GetID())
+	}
+	eb.SetAuxiliary(*i.GetBodyPartDef())
+}
+
+func (eb *EntityBodySet) EquipWeaponItem(i defs.ItemDef) {
+	if i == nil {
+		panic("item was nil")
+	}
+	if !i.IsWeapon() {
+		logz.Panicln("EquipWeaponItem", "item is not weapon:", i.GetID())
+	}
+	weaponPart, fxPart := item.GetWeaponParts(i)
+	eb.SetWeapon(weaponPart, fxPart)
+}
+
+func (eb *EntityBodySet) EquipFootItem(i defs.ItemDef) {
+	if i == nil {
+		panic("item was nil")
+	}
+	if !i.IsFootwear() {
+		logz.Panicln("EquipFootItem", "item is not footwear:", i.GetID())
+	}
+	eb.SetEquipFeet(*i.GetBodyPartDef())
+}
+
+func (eb *EntityBodySet) SetEquipBody(bodyDef, legsDef defs.SelectedPartDef) {
 	eb.EquipBodySet.setImageSource(bodyDef, eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
 
 	// redo the arms subtraction
@@ -358,7 +466,7 @@ func (eb *EntityBodySet) SetEquipBody(bodyDef, legsDef SelectedPartDef) {
 	}
 }
 
-func (eb *EntityBodySet) SetAuxiliary(def SelectedPartDef) {
+func (eb *EntityBodySet) SetAuxiliary(def defs.SelectedPartDef) {
 	eb.AuxItemSet.setImageSource(def, 0, 0, eb.IsAuxEquipped())
 
 	if eb.animation != "" {
@@ -391,13 +499,29 @@ func (eb *EntityBodySet) RemoveAuxiliary() {
 	}
 }
 
+func (eb *EntityBodySet) RemoveHeadwear() {
+	eb.EquipHeadSet.Remove()
+	// reload hair too, since it may have been cropped by the previously equiped headwear
+	eb.ReloadHair()
+}
+
+func (eb *EntityBodySet) RemoveFootwear() {
+	eb.EquipFeetSet.Remove()
+}
+
+func (eb *EntityBodySet) RemoveBodywear() {
+	eb.EquipBodySet.Remove()
+	eb.EquipLegsSet.Remove()
+	eb.ReloadArms()
+}
+
 // IsAuxEquipped determines if an aux item is currently equiped.
 // An "Aux" item is an item that is held in the left hand (e.g. a torch.).
 func (eb EntityBodySet) IsAuxEquipped() bool {
 	return !eb.AuxItemSet.PartSrc.None
 }
 
-func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef SelectedPartDef) {
+func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef defs.SelectedPartDef) {
 	if weaponDef.None != weaponFxDef.None {
 		logz.Panicln("SetWeapon", "weapon and weaponFx should have the same None value (so they always equip or unequip together)", "weapon:", weaponDef.None, "weaponFx:", weaponFxDef.None)
 	}
@@ -426,41 +550,12 @@ func (eb *EntityBodySet) SetAnimationTickCount(tickCount int) {
 	eb.animationTickCount = tickCount
 }
 
-// SelectedPartDef represents the currently selected body part and it's individual definition
-type SelectedPartDef struct {
-	// unique id that represents this body part. only really used for body parts (not equipment, since those are tied to items).
-	// this is the only field saved to JSON, since we will load the rest of the data using this ID with the definition manager
-	ID        string
-	None      bool `json:"-"` // if true, this part will not be shown
-	FlipRForL bool `json:"-"` // if true, instead of using an L source, we just flip the frames for right
-
-	// Idle animation def
-	IdleAnimation      AnimationParams `json:"-"` // this is defined separately from other animations, since it behaves uniquely (see body.md)
-	WalkAnimation      AnimationParams `json:"-"`
-	RunAnimation       AnimationParams `json:"-"`
-	SlashAnimation     AnimationParams `json:"-"`
-	BackslashAnimation AnimationParams `json:"-"`
-	ShieldAnimation    AnimationParams `json:"-"`
-
-	// body-specific props
-
-	// FYI: these are not currently being used anymore (but remain functional) since we don't have other body options (tall, short, fat, etc) anymore.
-
-	StretchX int `json:"-"` // amount to stretch hair and equip body on X axis. Defined here, this represents the value that is applied to ALL (applicable) parts - not to this one.
-	StretchY int `json:"-"` // amount to stretch equip body on the Y axis. Defined here, this represents the value that is applied to ALL (applicable) parts - not to this one.
-	OffsetY  int `json:"-"` // amount to offset positions of hair, eyes, equip body, etc on the Y axis
-
-	// headwear-specific props
-
-	CropHairToHead bool `json:"-"` // set to have hair not go outside the head image. used for helmets or certain hats.
-}
-
 type PartDefParams struct {
-	ID        string
+	ID        defs.BodyPartID
 	None      bool
 	FlipRForL bool // if true, frames for Right directions will be flipped horizontally and reused for the Left direction.
 
-	Idle, Walk, Run, Slash, Backslash, Shield *AnimationParams
+	Idle, Walk, Run, Slash, Backslash, Shield *defs.AnimationParams
 
 	StretchX, StretchY int
 	OffsetY            int
@@ -470,25 +565,25 @@ type PartDefParams struct {
 
 // NewPartDef creates a new SelectedPartDef, which essentially defines a specific body part's animations, visuals, etc.
 // Use this function to create a SelectedPartDef, rather than directly making the struct, since this will handle some important validation.
-func NewPartDef(params PartDefParams) SelectedPartDef {
+func NewPartDef(params PartDefParams) defs.SelectedPartDef {
 	if params.None {
-		return SelectedPartDef{None: true}
+		return defs.SelectedPartDef{None: true}
 	}
-	def := SelectedPartDef{
+	def := defs.SelectedPartDef{
 		ID:                 params.ID,
 		FlipRForL:          params.FlipRForL,
 		StretchX:           params.StretchX,
 		StretchY:           params.StretchY,
 		OffsetY:            params.OffsetY,
 		CropHairToHead:     params.CropHairToHead,
-		IdleAnimation:      AnimationParams{Skip: true},
-		WalkAnimation:      AnimationParams{Skip: true},
-		RunAnimation:       AnimationParams{Skip: true},
-		SlashAnimation:     AnimationParams{Skip: true},
-		BackslashAnimation: AnimationParams{Skip: true},
-		ShieldAnimation:    AnimationParams{Skip: true},
+		IdleAnimation:      defs.AnimationParams{Skip: true},
+		WalkAnimation:      defs.AnimationParams{Skip: true},
+		RunAnimation:       defs.AnimationParams{Skip: true},
+		SlashAnimation:     defs.AnimationParams{Skip: true},
+		BackslashAnimation: defs.AnimationParams{Skip: true},
+		ShieldAnimation:    defs.AnimationParams{Skip: true},
 	}
-	validateAnimParams := func(animParams AnimationParams) {
+	validateAnimParams := func(animParams defs.AnimationParams) {
 		if animParams.Skip {
 			return
 		}
@@ -530,51 +625,6 @@ func NewPartDef(params PartDefParams) SelectedPartDef {
 	validateAnimParams(def.ShieldAnimation)
 
 	return def
-}
-
-// IsEqual checks if the two are equal. mainly used for validation.
-func (def SelectedPartDef) IsEqual(other SelectedPartDef) bool {
-	if def.None != other.None {
-		fmt.Printf("'None' value is different: %v vs %v\n", def.None, other.None)
-		return false
-	}
-	if def.FlipRForL != other.FlipRForL {
-		fmt.Printf("'FlipRForL' value is different: %v vs %v\n", def.FlipRForL, other.FlipRForL)
-		return false
-	}
-	if def.StretchX != other.StretchX || def.StretchY != other.StretchY || def.OffsetY != other.OffsetY {
-		fmt.Println("stretch values or offset values are different:", def.StretchX, other.StretchX, def.StretchY, other.StretchY, def.OffsetY, other.OffsetY)
-		return false
-	}
-	if def.CropHairToHead != other.CropHairToHead {
-		fmt.Println("cropHairToHead values are different:", def.CropHairToHead, other.CropHairToHead)
-		return false
-	}
-	if !def.IdleAnimation.IsEqual(other.IdleAnimation) {
-		fmt.Println("Idle animations are not equal")
-		return false
-	}
-	if !def.WalkAnimation.IsEqual(other.WalkAnimation) {
-		fmt.Println("Walk animations are not equal")
-		return false
-	}
-	if !def.RunAnimation.IsEqual(other.RunAnimation) {
-		fmt.Println("Run animations are not equal")
-		return false
-	}
-	if !def.SlashAnimation.IsEqual(other.SlashAnimation) {
-		fmt.Println("Slash animations are not equal")
-		return false
-	}
-	if !def.BackslashAnimation.IsEqual(other.BackslashAnimation) {
-		fmt.Println("Backslash animations are not equal")
-		return false
-	}
-	if !def.ShieldAnimation.IsEqual(other.ShieldAnimation) {
-		fmt.Println("Shield animations are not equal")
-		return false
-	}
-	return true
 }
 
 // Requires BodySet and HairSet to be loaded already

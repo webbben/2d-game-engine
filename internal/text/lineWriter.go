@@ -42,6 +42,10 @@ type LineWriter struct {
 	writeImmediately  bool
 }
 
+func (lw LineWriter) IsWriting() bool {
+	return lw.WritingStatus == Writing
+}
+
 // CurrentDimensions gives the dimensions that the linewriter currently has - based on how much text has been written so far.
 // If the linewriter is still writing, this may continue to change.
 func (lw LineWriter) CurrentDimensions() (dx, dy int) {

@@ -46,14 +46,14 @@ func (me MoveError) String() string {
 // Returns the actual goal target (in case it was changed due to a conflict and the "close enough" flag).
 func (e *Entity) GoToPos(c model.Coords, closeEnough bool) (model.Coords, MoveError) {
 	if e.Movement.IsMoving {
-		logz.Println(e.DisplayName, "GoToPos: entity is already moving")
+		logz.Println(e.DisplayName(), "GoToPos: entity is already moving")
 		return c, MoveError{AlreadyMoving: true}
 	}
 	if len(e.Movement.TargetPath) > 0 {
-		logz.Warnln(e.DisplayName, "GoToPos: entity already has a target path. Target path should be cancelled first.")
+		logz.Warnln(e.DisplayName(), "GoToPos: entity already has a target path. Target path should be cancelled first.")
 	}
 	if e.TilePos.Equals(c) {
-		logz.Errorln(e.DisplayName, "entity attempted to GoToPos for position it is already in")
+		logz.Errorln(e.DisplayName(), "entity attempted to GoToPos for position it is already in")
 		return c, MoveError{Cancelled: true, Info: "already in target position"}
 	}
 
@@ -62,11 +62,11 @@ func (e *Entity) GoToPos(c model.Coords, closeEnough bool) (model.Coords, MoveEr
 		if !closeEnough {
 			return c, MoveError{Cancelled: true, Info: "path not found, and 'close enough' not enabled"}
 		}
-		logz.Warnln(e.DisplayName, "going a partial path since original path is blocked.", "start:", e.TilePos, "path:", path, "original goal:", c)
+		logz.Warnln(e.DisplayName(), "going a partial path since original path is blocked.", "start:", e.TilePos, "path:", path, "original goal:", c)
 	}
 	if len(path) == 0 {
 		fmt.Println("tile pos:", e.TilePos, "goal:", c)
-		logz.Warnln(e.DisplayName, "GoToPos: calculated path is empty. Is the entity completely blocked in?")
+		logz.Warnln(e.DisplayName(), "GoToPos: calculated path is empty. Is the entity completely blocked in?")
 		return c, MoveError{Cancelled: true, Info: "calculated path is empty"}
 	}
 
@@ -320,7 +320,7 @@ func (e *Entity) TryMovePx(dx, dy, speed float64) MoveError {
 	pos := model.Vec2{X: e.X, Y: e.Y}
 	newPos := pos.MoveTowards(target, speed)
 	nextStepRect := model.NewRect(newPos.X, newPos.Y, w, h)
-	res := e.World.Collides(nextStepRect, e.ID)
+	res := e.World.Collides(nextStepRect, string(e.ID()))
 	if res.Collides() {
 		// a collision happened on the first step towards the target (but not the target itself)
 		// we need to tell exactly where this first step was, so that TryMoveMaxPx knows precisely where to adjust from.
@@ -333,7 +333,7 @@ func (e *Entity) TryMovePx(dx, dy, speed float64) MoveError {
 	}
 
 	// if first step is clear, then check that the actual target itself isn't a collision
-	res = e.World.Collides(targetRect, e.ID)
+	res = e.World.Collides(targetRect, string(e.ID()))
 	if res.Collides() {
 		return MoveError{
 			CollisionPoint:  &target,
@@ -371,7 +371,7 @@ func (e *Entity) TryBumpBack(px int, speed float64, forceOrigin model.Vec2, anim
 		},
 	})
 	if !animRes.Success && !animRes.AlreadySet {
-		logz.Println(e.DisplayName, "TryBumpBack: failed to set animation:", animRes)
+		logz.Println(e.DisplayName(), "TryBumpBack: failed to set animation:", animRes)
 		return MoveError{Cancelled: true, Info: "failed to set animation"}
 	}
 
@@ -398,9 +398,9 @@ func (e *Entity) updateMovement() updateMovementResult {
 		e.Movement.SuggestedTargetPath = []model.Coords{}
 	}
 
-	res := e.World.Collides(e.CollisionRect(), e.ID)
+	res := e.World.Collides(e.CollisionRect(), string(e.ID()))
 	if res.Collides() {
-		logz.Panicf("[%s] updateMovement: current position is colliding!", e.DisplayName)
+		logz.Panicf("[%s] updateMovement: current position is colliding!", e.DisplayName())
 	}
 
 	pos := model.Vec2{X: e.X, Y: e.Y}
@@ -408,9 +408,9 @@ func (e *Entity) updateMovement() updateMovementResult {
 
 	newPos := pos.MoveTowards(target, e.Movement.Speed)
 	w, h := e.CollisionRect().W, e.CollisionRect().H
-	res = e.World.Collides(model.NewRect(newPos.X, newPos.Y, w, h), e.ID)
+	res = e.World.Collides(model.NewRect(newPos.X, newPos.Y, w, h), string(e.ID()))
 	if res.Collides() {
-		logz.Println(e.DisplayName, "updateMovement: next position is colliding! cancelling movement")
+		logz.Println(e.DisplayName(), "updateMovement: next position is colliding! cancelling movement")
 		return updateMovementResult{UnexpectedCollision: true}
 	}
 
@@ -418,7 +418,7 @@ func (e *Entity) updateMovement() updateMovementResult {
 	e.Y = newPos.Y
 
 	if math.IsNaN(e.X) || math.IsNaN(e.Y) {
-		logz.Println(e.DisplayName, "e.X:", e.X, "e.Y:", e.Y)
+		logz.Println(e.DisplayName(), "e.X:", e.X, "e.Y:", e.Y)
 		panic("entity position is NaN")
 	}
 
@@ -436,7 +436,7 @@ func (e *Entity) updateMovement() updateMovementResult {
 	if e.footstepSFX.TicksUntilNextPlay <= 0 {
 		groundMaterial := e.World.GetGroundMaterial(e.TilePos.X, e.TilePos.Y)
 		var distToPlayer float64
-		if e.IsPlayer {
+		if e.IsPlayer() {
 			distToPlayer = 0
 		} else {
 			distToPlayer = e.World.GetDistToPlayer(e.X, e.Y)
@@ -468,7 +468,7 @@ func (e *Entity) StopMovement() {
 	if !e.Movement.IsMoving {
 		panic("told to stop movement, but entity is not moving?")
 	}
-	logz.Println(e.DisplayName, "Stopping movement")
+	logz.Println(e.DisplayName(), "Stopping movement")
 	e.TargetX = e.X
 	e.TargetY = e.Y
 	e.Movement.IsMoving = false
@@ -487,9 +487,9 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 	}
 
 	if float64(e.TilePos.X) != e.X/config.TileSize || float64(e.TilePos.Y) != e.Y/config.TileSize {
-		logz.Println(e.DisplayName, "trySetNextTargetPath: entity is not at its tile position. Was it bumped by an enemy attack or something?")
-		logz.Println(e.DisplayName, "tilePos:", e.TilePos, "e.X:", e.X/config.TileSize, "e.Y:", e.Y/config.TileSize)
-		logz.Println(e.DisplayName, "Clamping to current tile position. TODO: perhaps we should make a more graceful way of recovering the position than this?")
+		logz.Println(e.DisplayName(), "trySetNextTargetPath: entity is not at its tile position. Was it bumped by an enemy attack or something?")
+		logz.Println(e.DisplayName(), "tilePos:", e.TilePos, "e.X:", e.X/config.TileSize, "e.Y:", e.Y/config.TileSize)
+		logz.Println(e.DisplayName(), "Clamping to current tile position. TODO: perhaps we should make a more graceful way of recovering the position than this?")
 		e.TargetX = float64(e.TilePos.X * config.TileSize)
 		e.TargetY = float64(e.TilePos.Y * config.TileSize)
 		e.Movement.IsMoving = true
@@ -502,13 +502,13 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 	dPos := target.Sub(curPos)
 
 	if dist > config.TileSize {
-		logz.Println(e.DisplayName, "curPos:", curPos, "target:", target, "dist:", dist)
-		logz.Println(e.DisplayName, "trySetNextTargetPath: next target is not an adjacent tile (dist > 16). Clearing target path.")
+		logz.Println(e.DisplayName(), "curPos:", curPos, "target:", target, "dist:", dist)
+		logz.Println(e.DisplayName(), "trySetNextTargetPath: next target is not an adjacent tile (dist > 16). Clearing target path.")
 		e.Movement.TargetPath = []model.Coords{}
 		return MoveError{Cancelled: true, Info: "next target was not an adjacent tile (dist > tilesize)"}
 	}
 
-	moveError := e.TryMovePx(dPos.X, dPos.Y, e.WalkSpeed)
+	moveError := e.TryMovePx(dPos.X, dPos.Y, e.CharacterStateRef.WalkSpeed())
 
 	if !moveError.Success {
 		return moveError
@@ -519,7 +519,7 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		AnimationTickInterval: e.Movement.WalkAnimationTickInterval,
 	})
 	if !animRes.Success && !animRes.AlreadySet {
-		logz.Println(e.DisplayName, "trySetNextTargetPath: failed to set animation:", animRes)
+		logz.Println(e.DisplayName(), "trySetNextTargetPath: failed to set animation:", animRes)
 	}
 
 	e.FaceTowards(dPos.X, dPos.Y)

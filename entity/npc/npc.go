@@ -3,30 +3,36 @@ package npc
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity"
-	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
+
+// TODO:
+// - add NPC defs to definition manager
+
+type NPCDef struct{}
 
 type NPC struct {
 	debug debug
 	NPCInfo
 	Entity *entity.Entity
 
+	dialogProfileID defs.DialogProfileID // retrieved from character state, but set here for convenience
+
 	TaskMGMT
 	OnUpdateFn func(n *NPC)
 	World      WorldContext
-
-	DialogID string
 }
 
 func (n *NPC) Activate() {
-	if n.DialogID != "" {
-		n.World.StartDialog(n.DialogID)
+	if n.dialogProfileID != "" {
+		n.World.StartDialog(n.dialogProfileID, n.ID)
 		return
 	}
 	logz.Println(n.DisplayName, "nothing happened on activation")
@@ -39,26 +45,32 @@ func (n NPC) Y() float64 {
 
 type WorldContext interface {
 	FindNPCAtPosition(c model.Coords) (NPC, bool)
-	StartDialog(dialogID string)
+	StartDialog(dialogProfileID defs.DialogProfileID, npcID string)
 }
 
 type NPCParams struct {
-	Entity          *entity.Entity
-	DefaultDialogID string
+	CharStateID state.CharacterStateID
+	FootstepSFX entity.AudioProps
 }
 
-func NewNPC(params NPCParams) NPC {
-	if params.Entity == nil {
-		panic("entity is nil")
+func NewNPC(params NPCParams, defMgr *definitions.DefinitionManager) NPC {
+	if params.CharStateID == "" {
+		panic("CharStateID is empty")
 	}
 
+	// TODO: figure out how entity works here
+
+	ent := entity.LoadCharacterStateIntoEntity(params.CharStateID, defMgr)
+
+	// get dialog profile ID from character def
+	charDef := defMgr.GetCharacterDef(ent.CharacterStateRef.DefID)
+
 	return NPC{
-		Entity:   params.Entity,
-		DialogID: params.DefaultDialogID,
+		Entity: ent,
 		NPCInfo: NPCInfo{
-			ID:          fmt.Sprintf("%s_%s", params.Entity.DisplayName, general_util.GenerateUUID()),
-			DisplayName: params.Entity.DisplayName,
+			ID: string(ent.ID()),
 		},
+		dialogProfileID: charDef.DialogProfileID,
 	}
 }
 

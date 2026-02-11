@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/entity/player"
@@ -150,12 +151,22 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 	g.MapInfo.Loaded = true
 
 	// add static ents after Loaded = true, since that is checked in AddNPCToMap
+	// StaticEntities: These are basically one-off characters that appear in a specific room for a specific reason.
+	// They aren't actually "existing in the overworld" as other characters will. So, we instantiate them with their set character def,
+	// and show them in the world.
+	// TODO: things we will need to decide/handle:
+	// - do static entities have their state saved long term? or do we need to "clean it up" after its done?
 	for _, obj := range entObjs {
-		ent := entity.NewStaticEntity(obj, g.DefinitionManager)
+		charDefID, found := tiled.GetStringProperty("CHARACTER_DEF_ID", obj.Properties)
+		if !found {
+			logz.Panicln("NewStaticEntity", "no character def ID property found on object")
+		}
+
+		charStateID := entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), entity.NewCharacterStateParams{}, g.DefinitionManager)
 		n := npc.NewNPC(npc.NPCParams{
-			Entity:          &ent,
-			DefaultDialogID: "dialog1", // TODO: this is a temporary test
-		})
+			CharStateID: charStateID,
+		}, g.DefinitionManager)
+
 		_ = n.SetTask(&npc.IdleTask{}, true)
 		r := model.NewRect(obj.X, obj.Y, obj.Width, obj.Height)
 		tilePos := model.GetTilePosOfRectCenter(r)
@@ -338,7 +349,7 @@ func (mi MapInfo) Collides(r model.Rect, excludeEntID string) model.CollisionRes
 	// if a corner point is inside a rect, then that corresponding corner gets the collision.
 	// if no corner point is inside the rect but there is still a collision (e.g. the two rects aren't the same size) then the collision is set to Other.
 	if mi.PlayerRef != nil {
-		if mi.PlayerRef.Entity.ID != excludeEntID {
+		if string(mi.PlayerRef.Entity.ID()) != excludeEntID {
 			newCr := checkCornerCollision(r, mi.PlayerRef.Entity.CollisionRect())
 			if newCr.Collides() {
 				newCr.Assert()
@@ -347,7 +358,7 @@ func (mi MapInfo) Collides(r model.Rect, excludeEntID string) model.CollisionRes
 		}
 	}
 	for _, n := range mi.NPCs {
-		if n.Entity.ID == excludeEntID {
+		if string(n.Entity.ID()) == excludeEntID {
 			continue
 		}
 		newCr := checkCornerCollision(r, n.Entity.CollisionRect())
@@ -482,12 +493,12 @@ func (mi MapInfo) GetPlayerRect() model.Rect {
 	return mi.PlayerRef.Entity.CollisionRect()
 }
 
-func (mi *MapInfo) StartTradeSession(shopkeeperID string) {
+func (mi *MapInfo) StartTradeSession(shopkeeperID defs.ShopID) {
 	mi.gameRef.SetupTradeSession(shopkeeperID)
 }
 
-func (mi *MapInfo) StartDialog(dialogID string) {
-	mi.gameRef.StartDialog(dialogID)
+func (mi *MapInfo) StartDialog(dialogProfileID defs.DialogProfileID, npcID string) {
+	mi.gameRef.StartDialogSession(dialogProfileID, npcID)
 }
 
 func (mi *MapInfo) GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC {
@@ -538,7 +549,7 @@ func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
 
 	for _, n := range mi.NPCs {
 		logz.Println("Attack Area", "entID:", n.Entity.ID)
-		if slices.Contains(attackInfo.ExcludeEntIds, n.Entity.ID) {
+		if slices.Contains(attackInfo.ExcludeEntIds, string(n.Entity.ID())) {
 			continue
 		}
 		fmt.Println("npc rect:", n.Entity.CollisionRect())
@@ -546,7 +557,7 @@ func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
 			n.Entity.ReceiveAttack(attackInfo)
 		}
 	}
-	if mi.PlayerRef != nil && !slices.Contains(attackInfo.ExcludeEntIds, mi.PlayerRef.Entity.ID) {
+	if mi.PlayerRef != nil && !slices.Contains(attackInfo.ExcludeEntIds, string(mi.PlayerRef.Entity.ID())) {
 		if attackInfo.TargetRect.Intersects(mi.PlayerRef.Entity.CollisionRect()) {
 			mi.PlayerRef.Entity.ReceiveAttack(attackInfo)
 		}

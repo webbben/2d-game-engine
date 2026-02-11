@@ -77,11 +77,11 @@ func (p *Player) handleMovement() bool {
 
 	animationTickInterval := p.Entity.Movement.WalkAnimationTickInterval
 	animation := body.AnimWalk
-	speed := p.Entity.WalkSpeed
+	speed := p.Entity.CharacterStateRef.WalkSpeed()
 	if running {
 		animationTickInterval = p.Entity.Movement.RunAnimationTickInterval
 		animation = body.AnimRun
-		speed = p.Entity.RunSpeed
+		speed = p.Entity.CharacterStateRef.RunSpeed()
 	}
 
 	travelDistance := speed * 2
@@ -103,12 +103,12 @@ func (p *Player) handleMovement() bool {
 			AnimationTickInterval: animationTickInterval,
 		})
 		if !animRes.Success && !animRes.AlreadySet {
-			logz.Println(p.Entity.DisplayName, "failed to set movement animation:", animRes)
+			logz.Println(p.Entity.DisplayName(), "failed to set movement animation:", animRes)
 			return false
 		}
 		e := p.Entity.TryMoveMaxPx(scaled.X, scaled.Y, speed)
 		if !e.Success {
-			logz.Println(p.Entity.DisplayName, "player failed to move:", e)
+			logz.Println(p.Entity.DisplayName(), "player failed to move:", e)
 			logz.Println("", e.CollisionResult)
 			p.Entity.Body.StopAnimation()
 		}
@@ -135,7 +135,7 @@ func (p *Player) handleMovement() bool {
 // handleActions handles all user actions. returns true if an action occurred.
 func (p *Player) handleActions() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
-		p.Entity.UnequipWeapon()
+		p.Entity.CharacterStateRef.UnequipWeapon()
 		return true
 	}
 

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/item"
@@ -18,7 +19,7 @@ func offsetInts(input []int, offset int) []int {
 	return newSlice
 }
 
-func GetItemDefs() []item.ItemDef {
+func GetItemDefs() []defs.ItemDef {
 	equipBodyTileset := "entities/parts/human_entity_parts.tsj"
 	equipHeadTileset := "items/equiped_head_01.tsj"
 	equipFeetTileset := "items/footwear.tsj"
@@ -31,7 +32,7 @@ func GetItemDefs() []item.ItemDef {
 		// first equipment item starts at row 6; each item's first row is the body equipment, second row is legs equipment.
 		offset := 73 * ((i * 2) + 5)
 		bodyDef := body.NewPartDef(body.PartDefParams{
-			Idle: &body.AnimationParams{
+			Idle: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesLeft:  offsetInts([]int{37}, offset),
 				AuxLeft:    offsetInts([]int{38}, offset),
@@ -42,7 +43,7 @@ func GetItemDefs() []item.ItemDef {
 				TilesDown:  offsetInts([]int{0}, offset),
 				AuxDown:    offsetInts([]int{1}, offset),
 			},
-			Walk: &body.AnimationParams{
+			Walk: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{4, 0, 6, 0}, offset),
 				AuxDown:    offsetInts([]int{4, 1, 6, 1}, offset),
@@ -53,7 +54,7 @@ func GetItemDefs() []item.ItemDef {
 				TilesUp:    offsetInts([]int{59, 55, 61, 55}, offset),
 				AuxUp:      offsetInts([]int{59, 56, 61, 56}, offset),
 			},
-			Run: &body.AnimationParams{
+			Run: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{3, 4, 0, 5, 6, 0}, offset),
 				AuxDown:    offsetInts([]int{3, 4, 1, 5, 6, 1}, offset),
@@ -64,21 +65,21 @@ func GetItemDefs() []item.ItemDef {
 				TilesUp:    offsetInts([]int{58, 59, 55, 60, 61, 55}, offset),
 				AuxUp:      offsetInts([]int{58, 59, 56, 60, 61, 56}, offset),
 			},
-			Slash: &body.AnimationParams{
+			Slash: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{7, 8, 9, 9}, offset),
 				TilesRight: offsetInts([]int{26, 27, 28, 28}, offset),
 				TilesLeft:  offsetInts([]int{44, 45, 46, 46}, offset),
 				TilesUp:    offsetInts([]int{62, 63, 64, 64}, offset),
 			},
-			Backslash: &body.AnimationParams{
+			Backslash: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{10, 9, 8, 7}, offset),
 				TilesRight: offsetInts([]int{28, 27, 26, 26}, offset),
 				TilesLeft:  offsetInts([]int{46, 45, 44, 44}, offset),
 				TilesUp:    offsetInts([]int{64, 63, 62, 62}, offset),
 			},
-			Shield: &body.AnimationParams{
+			Shield: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{11}, offset),
 				TilesRight: offsetInts([]int{29}, offset),
@@ -90,42 +91,42 @@ func GetItemDefs() []item.ItemDef {
 		offset = 73 * ((i * 2) + 6)
 
 		legsDef := body.NewPartDef(body.PartDefParams{
-			Idle: &body.AnimationParams{
+			Idle: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{0}, offset),
 				TilesRight: offsetInts([]int{19}, offset),
 				TilesLeft:  offsetInts([]int{37}, offset),
 				TilesUp:    offsetInts([]int{55}, offset),
 			},
-			Walk: &body.AnimationParams{
+			Walk: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{4, 0, 6, 0}, offset),
 				TilesRight: offsetInts([]int{23, 19, 25, 19}, offset),
 				TilesLeft:  offsetInts([]int{41, 37, 43, 37}, offset),
 				TilesUp:    offsetInts([]int{59, 55, 61, 55}, offset),
 			},
-			Run: &body.AnimationParams{
+			Run: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{3, 4, 0, 5, 6, 0}, offset),
 				TilesRight: offsetInts([]int{22, 23, 19, 24, 25, 19}, offset),
 				TilesLeft:  offsetInts([]int{40, 41, 37, 42, 43, 37}, offset),
 				TilesUp:    offsetInts([]int{58, 59, 55, 60, 61, 55}, offset),
 			},
-			Slash: &body.AnimationParams{
+			Slash: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{7, 7, 7, 7}, offset),
 				TilesRight: offsetInts([]int{23, 26, 26, 26}, offset),
 				TilesLeft:  offsetInts([]int{43, 44, 44, 44}, offset),
 				TilesUp:    offsetInts([]int{62, 62, 62, 62}, offset),
 			},
-			Backslash: &body.AnimationParams{
+			Backslash: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{7, 7, 7, 7}, offset),
 				TilesRight: offsetInts([]int{26, 26, 23, 23}, offset),
 				TilesLeft:  offsetInts([]int{44, 44, 43, 43}, offset),
 				TilesUp:    offsetInts([]int{62, 62, 62, 62}, offset),
 			},
-			Shield: &body.AnimationParams{
+			Shield: &defs.AnimationParams{
 				TilesetSrc: equipBodyTileset,
 				TilesDown:  offsetInts([]int{7}, offset),
 				TilesRight: offsetInts([]int{26}, offset),
@@ -140,46 +141,46 @@ func GetItemDefs() []item.ItemDef {
 		equipBodyOptions = append(equipBodyOptions, defs)
 	}
 
-	equipFeetOptions := []body.SelectedPartDef{}
+	equipFeetOptions := []defs.SelectedPartDef{}
 	for i := range 1 {
 		offset := (i + 1) * 32
 		def := body.NewPartDef(body.PartDefParams{
-			Idle: &body.AnimationParams{
+			Idle: &defs.AnimationParams{
 				TilesetSrc: equipFeetTileset,
 				TilesDown:  offsetInts([]int{0}, offset),
 				TilesRight: offsetInts([]int{8}, offset),
 				TilesLeft:  offsetInts([]int{16}, offset),
 				TilesUp:    offsetInts([]int{24}, offset),
 			},
-			Walk: &body.AnimationParams{
+			Walk: &defs.AnimationParams{
 				TilesetSrc: equipFeetTileset,
 				TilesDown:  offsetInts([]int{4, 0, 6, 0}, offset),
 				TilesRight: offsetInts([]int{12, 8, 14, 8}, offset),
 				TilesLeft:  offsetInts([]int{20, 16, 22, 16}, offset),
 				TilesUp:    offsetInts([]int{28, 24, 30, 24}, offset),
 			},
-			Run: &body.AnimationParams{
+			Run: &defs.AnimationParams{
 				TilesetSrc: equipFeetTileset,
 				TilesDown:  offsetInts([]int{3, 4, 0, 5, 6, 0}, offset),
 				TilesRight: offsetInts([]int{11, 12, 8, 13, 14, 8}, offset),
 				TilesLeft:  offsetInts([]int{19, 20, 16, 21, 22, 16}, offset),
 				TilesUp:    offsetInts([]int{27, 28, 24, 29, 30, 24}, offset),
 			},
-			Slash: &body.AnimationParams{
+			Slash: &defs.AnimationParams{
 				TilesetSrc: equipFeetTileset,
 				TilesDown:  offsetInts([]int{7, 7, 7, 7}, offset),
 				TilesRight: offsetInts([]int{14, 15, 15, 15}, offset),
 				TilesLeft:  offsetInts([]int{22, 23, 23, 23}, offset),
 				TilesUp:    offsetInts([]int{31, 31, 31, 31}, offset),
 			},
-			Backslash: &body.AnimationParams{
+			Backslash: &defs.AnimationParams{
 				TilesetSrc: equipFeetTileset,
 				TilesDown:  offsetInts([]int{7, 7, 7, 7}, offset),
 				TilesRight: offsetInts([]int{15, 15, 15, 14}, offset),
 				TilesLeft:  offsetInts([]int{23, 23, 23, 22}, offset),
 				TilesUp:    offsetInts([]int{31, 31, 31, 31}, offset),
 			},
-			Shield: &body.AnimationParams{
+			Shield: &defs.AnimationParams{
 				TilesetSrc: equipFeetTileset,
 				TilesDown:  offsetInts([]int{7}, offset),
 				TilesRight: offsetInts([]int{15}, offset),
@@ -191,13 +192,13 @@ func GetItemDefs() []item.ItemDef {
 		equipFeetOptions = append(equipFeetOptions, def)
 	}
 
-	equipHeadOptions := []body.SelectedPartDef{}
+	equipHeadOptions := []defs.SelectedPartDef{}
 	for i := range 10 {
 		index := i * 4
 		cropHair, found := tiled.GetTileBoolProperty(equipHeadTileset, index, "COVER_HAIR")
 
 		offset := i * 4
-		animParams := body.AnimationParams{
+		animParams := defs.AnimationParams{
 			TilesetSrc: equipHeadTileset,
 			TilesDown:  []int{0 + offset},
 			TilesRight: []int{1 + offset},
@@ -217,46 +218,46 @@ func GetItemDefs() []item.ItemDef {
 	}
 
 	weaponOptions := []weaponOption{}
-	oneHandedWeapons := []body.SelectedPartDef{}
+	oneHandedWeapons := []defs.SelectedPartDef{}
 	for i := range 2 {
 		weaponOffset := 73 * (i + 1)
 		weaponDef := body.NewPartDef(body.PartDefParams{
-			Idle: &body.AnimationParams{
+			Idle: &defs.AnimationParams{
 				TilesetSrc: equipWeaponTileset,
 				TilesDown:  offsetInts([]int{0}, weaponOffset),
 				TilesRight: offsetInts([]int{19}, weaponOffset),
 				TilesLeft:  offsetInts([]int{37}, weaponOffset),
 				TilesUp:    offsetInts([]int{55}, weaponOffset),
 			},
-			Walk: &body.AnimationParams{
+			Walk: &defs.AnimationParams{
 				TilesetSrc: equipWeaponTileset,
 				TilesDown:  offsetInts([]int{4, 0, 6, 0}, weaponOffset),
 				TilesRight: offsetInts([]int{23, 20, 25, 20}, weaponOffset),
 				TilesLeft:  offsetInts([]int{41, 37, 43, 37}, weaponOffset),
 				TilesUp:    offsetInts([]int{59, 55, 61, 55}, weaponOffset),
 			},
-			Run: &body.AnimationParams{
+			Run: &defs.AnimationParams{
 				TilesetSrc: equipWeaponTileset,
 				TilesDown:  offsetInts([]int{3, 4, 0, 5, 6, 0}, weaponOffset),
 				TilesRight: offsetInts([]int{22, 23, 20, 24, 25, 20}, weaponOffset),
 				TilesLeft:  offsetInts([]int{40, 41, 37, 42, 43, 37}, weaponOffset),
 				TilesUp:    offsetInts([]int{58, 59, 55, 60, 61, 55}, weaponOffset),
 			},
-			Slash: &body.AnimationParams{
+			Slash: &defs.AnimationParams{
 				TilesetSrc: equipWeaponTileset,
 				TilesDown:  offsetInts([]int{7, 8, 9, 9}, weaponOffset),
 				TilesRight: offsetInts([]int{26, 27, 28, 28}, weaponOffset),
 				TilesLeft:  offsetInts([]int{44, 45, 46, 46}, weaponOffset),
 				TilesUp:    offsetInts([]int{62, 63, 64, 64}, weaponOffset),
 			},
-			Backslash: &body.AnimationParams{
+			Backslash: &defs.AnimationParams{
 				TilesetSrc: equipWeaponTileset,
 				TilesDown:  offsetInts([]int{10, 9, 8, 7}, weaponOffset),
 				TilesRight: offsetInts([]int{28, 27, 26, 26}, weaponOffset),
 				TilesLeft:  offsetInts([]int{46, 45, 44, 44}, weaponOffset),
 				TilesUp:    offsetInts([]int{64, 63, 62, 62}, weaponOffset),
 			},
-			Shield: &body.AnimationParams{
+			Shield: &defs.AnimationParams{
 				TilesetSrc: equipWeaponTileset,
 				TilesDown:  offsetInts([]int{11}, weaponOffset),
 				TilesRight: offsetInts([]int{29}, weaponOffset),
@@ -267,18 +268,18 @@ func GetItemDefs() []item.ItemDef {
 		oneHandedWeapons = append(oneHandedWeapons, weaponDef)
 	}
 	swordFx01 := body.NewPartDef(body.PartDefParams{
-		Idle:   &body.AnimationParams{Skip: true},
-		Walk:   &body.AnimationParams{Skip: true},
-		Run:    &body.AnimationParams{Skip: true},
-		Shield: &body.AnimationParams{Skip: true},
-		Slash: &body.AnimationParams{
+		Idle:   &defs.AnimationParams{Skip: true},
+		Walk:   &defs.AnimationParams{Skip: true},
+		Run:    &defs.AnimationParams{Skip: true},
+		Shield: &defs.AnimationParams{Skip: true},
+		Slash: &defs.AnimationParams{
 			TilesetSrc: weaponFxTileset,
 			TilesDown:  []int{-1, 0, 1, 2},
 			TilesRight: []int{-1, 9, 10, 11},
 			TilesLeft:  []int{-1, 18, 19, 20},
 			TilesUp:    []int{-1, 27, 28, 29},
 		},
-		Backslash: &body.AnimationParams{
+		Backslash: &defs.AnimationParams{
 			TilesetSrc: weaponFxTileset,
 			TilesDown:  []int{-1, 3, 4, 5},
 			TilesRight: []int{-1, 12, 13, 14},
@@ -294,48 +295,48 @@ func GetItemDefs() []item.ItemDef {
 		})
 	}
 
-	auxAnimated := []body.SelectedPartDef{}
-	auxStatic := []body.SelectedPartDef{}
+	auxAnimated := []defs.SelectedPartDef{}
+	auxStatic := []defs.SelectedPartDef{}
 
 	for i := range 1 {
 		offset := i * 76
 		def := body.NewPartDef(body.PartDefParams{
-			Idle: &body.AnimationParams{
+			Idle: &defs.AnimationParams{
 				TilesetSrc: auxTileset,
 				TilesDown:  offsetInts([]int{0, 1, 2, 3}, offset),
 				TilesRight: offsetInts([]int{19, 20, 21, 22}, offset),
 				TilesLeft:  offsetInts([]int{38, 39, 40, 41}, offset),
 				TilesUp:    offsetInts([]int{57, 58, 59, 60}, offset),
 			},
-			Walk: &body.AnimationParams{
+			Walk: &defs.AnimationParams{
 				TilesetSrc: auxTileset,
 				TilesDown:  offsetInts([]int{5, 0, 7, 0}, offset),
 				TilesRight: offsetInts([]int{24, 19, 26, 19}, offset),
 				TilesLeft:  offsetInts([]int{43, 38, 46, 38}, offset),
 				TilesUp:    offsetInts([]int{62, 57, 64, 57}, offset),
 			},
-			Run: &body.AnimationParams{
+			Run: &defs.AnimationParams{
 				TilesetSrc: auxTileset,
 				TilesDown:  offsetInts([]int{4, 5, 0, 6, 7, 0}, offset),
 				TilesRight: offsetInts([]int{23, 24, 19, 25, 26, 19}, offset),
 				TilesLeft:  offsetInts([]int{42, 43, 38, 44, 45, 38}, offset),
 				TilesUp:    offsetInts([]int{61, 62, 57, 63, 64, 57}, offset),
 			},
-			Slash: &body.AnimationParams{
+			Slash: &defs.AnimationParams{
 				TilesetSrc: auxTileset,
 				TilesDown:  offsetInts([]int{8, 9, 10, 10}, offset),
 				TilesRight: offsetInts([]int{27, 28, 29, 30}, offset),
 				TilesLeft:  offsetInts([]int{46, 47, 48, 49}, offset),
 				TilesUp:    offsetInts([]int{65, 66, 67, 68}, offset),
 			},
-			Backslash: &body.AnimationParams{
+			Backslash: &defs.AnimationParams{
 				TilesetSrc: auxTileset,
 				TilesDown:  offsetInts([]int{11, 12, 13, 14}, offset),
 				TilesRight: offsetInts([]int{30, 31, 32, 33}, offset),
 				TilesLeft:  offsetInts([]int{49, 50, 51, 52}, offset),
 				TilesUp:    offsetInts([]int{68, 69, 70, 71}, offset),
 			},
-			Shield: &body.AnimationParams{Skip: true},
+			Shield: &defs.AnimationParams{Skip: true},
 		})
 		auxAnimated = append(auxAnimated, def)
 	}
@@ -343,42 +344,42 @@ func GetItemDefs() []item.ItemDef {
 	for i := range 1 {
 		offset := (i + 1) * 76
 		def := body.NewPartDef(body.PartDefParams{
-			Idle: &body.AnimationParams{
+			Idle: &defs.AnimationParams{
 				TilesetSrc: auxTileset,
 				TilesDown:  offsetInts([]int{0}, offset),
 				TilesRight: offsetInts([]int{19}, offset),
 				TilesLeft:  offsetInts([]int{38}, offset),
 				TilesUp:    offsetInts([]int{57}, offset),
 			},
-			Walk: &body.AnimationParams{
+			Walk: &defs.AnimationParams{
 				TilesetSrc: auxTileset,
 				TilesDown:  offsetInts([]int{5, 0, 7, 0}, offset),
 				TilesRight: offsetInts([]int{24, 19, 26, 19}, offset),
 				TilesLeft:  offsetInts([]int{43, 38, 46, 38}, offset),
 				TilesUp:    offsetInts([]int{62, 57, 64, 57}, offset),
 			},
-			Run: &body.AnimationParams{
+			Run: &defs.AnimationParams{
 				TilesetSrc: auxTileset,
 				TilesDown:  offsetInts([]int{4, 5, 0, 6, 7, 0}, offset),
 				TilesRight: offsetInts([]int{23, 24, 19, 25, 26, 19}, offset),
 				TilesLeft:  offsetInts([]int{42, 43, 38, 44, 45, 38}, offset),
 				TilesUp:    offsetInts([]int{61, 62, 57, 63, 64, 57}, offset),
 			},
-			Slash: &body.AnimationParams{
+			Slash: &defs.AnimationParams{
 				TilesetSrc: auxTileset,
 				TilesDown:  offsetInts([]int{8, 9, 10, 10}, offset),
 				TilesRight: offsetInts([]int{27, 28, 29, 30}, offset),
 				TilesLeft:  offsetInts([]int{46, 47, 48, 49}, offset),
 				TilesUp:    offsetInts([]int{65, 66, 67, 68}, offset),
 			},
-			Backslash: &body.AnimationParams{
+			Backslash: &defs.AnimationParams{
 				TilesetSrc: auxTileset,
 				TilesDown:  offsetInts([]int{11, 12, 13, 14}, offset),
 				TilesRight: offsetInts([]int{30, 31, 32, 33}, offset),
 				TilesLeft:  offsetInts([]int{49, 50, 51, 52}, offset),
 				TilesUp:    offsetInts([]int{68, 69, 70, 71}, offset),
 			},
-			Shield: &body.AnimationParams{
+			Shield: &defs.AnimationParams{
 				TilesetSrc: auxTileset,
 				TilesDown:  offsetInts([]int{15}, offset),
 				TilesRight: offsetInts([]int{34}, offset),
@@ -389,7 +390,7 @@ func GetItemDefs() []item.ItemDef {
 		auxStatic = append(auxStatic, def)
 	}
 
-	return []item.ItemDef{
+	return []defs.ItemDef{
 		&item.WeaponDef{
 			ItemBase: *item.NewItemBase(item.ItemBaseParams{
 				ID:                "longsword_01",

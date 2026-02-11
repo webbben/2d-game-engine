@@ -1,37 +1,38 @@
 package cmd
 
 import (
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/skills"
 )
 
 const (
-	Strength     skills.AttributeID = "STRENGTH"
-	Endurance    skills.AttributeID = "ENDURANCE"
-	Martial      skills.AttributeID = "MARTIAL"
-	Agility      skills.AttributeID = "AGILITY"
-	Intelligence skills.AttributeID = "INTELLIGENCE"
-	Intrigue     skills.AttributeID = "INTRIGUE"
-	Personality  skills.AttributeID = "PERSONALITY"
-	Luck         skills.AttributeID = "LUCK"
+	Strength     defs.AttributeID = "STRENGTH"
+	Endurance    defs.AttributeID = "ENDURANCE"
+	Martial      defs.AttributeID = "MARTIAL"
+	Agility      defs.AttributeID = "AGILITY"
+	Intelligence defs.AttributeID = "INTELLIGENCE"
+	Intrigue     defs.AttributeID = "INTRIGUE"
+	Personality  defs.AttributeID = "PERSONALITY"
+	Luck         defs.AttributeID = "LUCK"
 
-	Blade        skills.SkillID = "BLADE"
-	Blunt        skills.SkillID = "BLUNT"
-	Axe          skills.SkillID = "AXE"
-	Spear        skills.SkillID = "SPEAR"
-	Marksmanship skills.SkillID = "MARKSMANSHIP"
-	Repair       skills.SkillID = "REPAIR"
-	HeavyArmor   skills.SkillID = "HEAVY_ARMOR"
-	LightArmor   skills.SkillID = "LIGHT_ARMOR"
-	Security     skills.SkillID = "SECURITY"
-	Sneak        skills.SkillID = "SNEAK"
-	Speechcraft  skills.SkillID = "SPEECHCRAFT"
-	Mercantile   skills.SkillID = "MERCANTILE"
-	Alchemy      skills.SkillID = "ALCHEMY"
-	Incantation  skills.SkillID = "INCANTATION"
+	Blade        defs.SkillID = "BLADE"
+	Blunt        defs.SkillID = "BLUNT"
+	Axe          defs.SkillID = "AXE"
+	Spear        defs.SkillID = "SPEAR"
+	Marksmanship defs.SkillID = "MARKSMANSHIP"
+	Repair       defs.SkillID = "REPAIR"
+	HeavyArmor   defs.SkillID = "HEAVY_ARMOR"
+	LightArmor   defs.SkillID = "LIGHT_ARMOR"
+	Security     defs.SkillID = "SECURITY"
+	Sneak        defs.SkillID = "SNEAK"
+	Speechcraft  defs.SkillID = "SPEECHCRAFT"
+	Mercantile   defs.SkillID = "MERCANTILE"
+	Alchemy      defs.SkillID = "ALCHEMY"
+	Incantation  defs.SkillID = "INCANTATION"
 )
 
-func GetAllAttributes() []skills.AttributeDef {
-	return []skills.AttributeDef{
+func GetAllAttributes() []defs.AttributeDef {
+	return []defs.AttributeDef{
 		{
 			ID:          Strength,
 			DisplayName: "Strength",
@@ -67,8 +68,8 @@ func GetAllAttributes() []skills.AttributeDef {
 	}
 }
 
-func GetAllSkills() []skills.SkillDef {
-	return []skills.SkillDef{
+func GetAllSkills() []defs.SkillDef {
+	return []defs.SkillDef{
 		{
 			ID:          Blade,
 			DisplayName: "Blade",
@@ -142,26 +143,26 @@ const (
 )
 
 const (
-	TraitBrave    skills.TraitID = "BRAVE"
-	TraitTimid    skills.TraitID = "TIMID"
-	TraitGenerous skills.TraitID = "GENEROUS"
-	TraitGreedy   skills.TraitID = "GREEDY"
-	TraitPolite   skills.TraitID = "POLITE"
-	TraitRude     skills.TraitID = "RUDE"
-	TraitCharming skills.TraitID = "CHARMING"
-	TraitCreepy   skills.TraitID = "CREEPY"
-	TraitAnnoying skills.TraitID = "ANNOYING"
-	TraitStoic    skills.TraitID = "STOIC"
-	TraitCruel    skills.TraitID = "CRUEL"
-	TraitWrathful skills.TraitID = "WRATHFUL"
-	TraitArrogant skills.TraitID = "ARROGANT"
-	TraitParanoid skills.TraitID = "PARANOID"
-	TraitIdiot    skills.TraitID = "IDIOT"
+	TraitBrave    defs.TraitID = "BRAVE"
+	TraitTimid    defs.TraitID = "TIMID"
+	TraitGenerous defs.TraitID = "GENEROUS"
+	TraitGreedy   defs.TraitID = "GREEDY"
+	TraitPolite   defs.TraitID = "POLITE"
+	TraitRude     defs.TraitID = "RUDE"
+	TraitCharming defs.TraitID = "CHARMING"
+	TraitCreepy   defs.TraitID = "CREEPY"
+	TraitAnnoying defs.TraitID = "ANNOYING"
+	TraitStoic    defs.TraitID = "STOIC"
+	TraitCruel    defs.TraitID = "CRUEL"
+	TraitWrathful defs.TraitID = "WRATHFUL"
+	TraitArrogant defs.TraitID = "ARROGANT"
+	TraitParanoid defs.TraitID = "PARANOID"
+	TraitIdiot    defs.TraitID = "IDIOT"
 )
 
-func GetAllTraits() []skills.Trait {
+func GetAllTraits() []defs.Trait {
 	tilesetSrc := "entities/traits.tsj"
-	traits := []skills.Trait{
+	traits := []defs.Trait{
 		skills.NewSkillTrait(skills.TraitParams{
 			ID:               TraitBrave,
 			Name:             "Brave",
@@ -169,7 +170,7 @@ func GetAllTraits() []skills.Trait {
 			TilesetSrc:       tilesetSrc,
 			TileID:           0,
 			ConflictTraitIDs: []string{"timid"},
-		}, nil, map[skills.AttributeID]int{
+		}, nil, map[defs.AttributeID]int{
 			Martial:  buff2,
 			Intrigue: debuff1,
 		}),
@@ -180,9 +181,9 @@ func GetAllTraits() []skills.Trait {
 			TilesetSrc:       tilesetSrc,
 			TileID:           1,
 			ConflictTraitIDs: []string{"brave"},
-		}, map[skills.SkillID]int{
+		}, map[defs.SkillID]int{
 			Sneak: buff2,
-		}, map[skills.AttributeID]int{
+		}, map[defs.AttributeID]int{
 			Martial:     debuff2,
 			Personality: debuff1,
 		}),
@@ -193,9 +194,9 @@ func GetAllTraits() []skills.Trait {
 			TilesetSrc:       tilesetSrc,
 			TileID:           2,
 			ConflictTraitIDs: []string{"greedy"},
-		}, map[skills.SkillID]int{
+		}, map[defs.SkillID]int{
 			Mercantile: debuff3,
-		}, map[skills.AttributeID]int{
+		}, map[defs.AttributeID]int{
 			Personality: buff2,
 			Intrigue:    debuff1,
 		}),
@@ -206,9 +207,9 @@ func GetAllTraits() []skills.Trait {
 			TilesetSrc:       tilesetSrc,
 			TileID:           3,
 			ConflictTraitIDs: []string{"generous"},
-		}, map[skills.SkillID]int{
+		}, map[defs.SkillID]int{
 			Mercantile: buff3,
-		}, map[skills.AttributeID]int{
+		}, map[defs.AttributeID]int{
 			Personality: debuff2,
 		}),
 		skills.NewSkillTrait(skills.TraitParams{
@@ -218,7 +219,7 @@ func GetAllTraits() []skills.Trait {
 			TilesetSrc:       tilesetSrc,
 			TileID:           4,
 			ConflictTraitIDs: []string{"rude"},
-		}, map[skills.SkillID]int{}, map[skills.AttributeID]int{
+		}, map[defs.SkillID]int{}, map[defs.AttributeID]int{
 			Personality: buff2,
 		}),
 		skills.NewSkillTrait(skills.TraitParams{
@@ -228,9 +229,9 @@ func GetAllTraits() []skills.Trait {
 			TilesetSrc:       tilesetSrc,
 			TileID:           5,
 			ConflictTraitIDs: []string{"charming", "polite"},
-		}, map[skills.SkillID]int{
+		}, map[defs.SkillID]int{
 			Speechcraft: debuff2,
-		}, map[skills.AttributeID]int{
+		}, map[defs.AttributeID]int{
 			Personality: debuff2,
 		}),
 		skills.NewSkillTrait(skills.TraitParams{
@@ -240,9 +241,9 @@ func GetAllTraits() []skills.Trait {
 			TilesetSrc:       tilesetSrc,
 			TileID:           6,
 			ConflictTraitIDs: []string{"rude", "creepy"},
-		}, map[skills.SkillID]int{
+		}, map[defs.SkillID]int{
 			Speechcraft: buff3,
-		}, map[skills.AttributeID]int{
+		}, map[defs.AttributeID]int{
 			Personality: buff2,
 		}),
 		skills.NewSkillTrait(skills.TraitParams{
@@ -252,9 +253,9 @@ func GetAllTraits() []skills.Trait {
 			TilesetSrc:       tilesetSrc,
 			TileID:           7,
 			ConflictTraitIDs: []string{"charming"},
-		}, map[skills.SkillID]int{
+		}, map[defs.SkillID]int{
 			Sneak: buff2,
-		}, map[skills.AttributeID]int{
+		}, map[defs.AttributeID]int{
 			Personality: debuff3,
 			Intrigue:    buff1,
 		}),
@@ -265,9 +266,9 @@ func GetAllTraits() []skills.Trait {
 			TilesetSrc:       tilesetSrc,
 			TileID:           8,
 			ConflictTraitIDs: []string{"charming"},
-		}, map[skills.SkillID]int{
+		}, map[defs.SkillID]int{
 			Speechcraft: debuff2,
-		}, map[skills.AttributeID]int{
+		}, map[defs.AttributeID]int{
 			Personality: debuff2,
 		}),
 		skills.NewSkillTrait(skills.TraitParams{
@@ -277,7 +278,7 @@ func GetAllTraits() []skills.Trait {
 			TilesetSrc:       tilesetSrc,
 			TileID:           9,
 			ConflictTraitIDs: []string{"wrathful"},
-		}, map[skills.SkillID]int{}, map[skills.AttributeID]int{
+		}, map[defs.SkillID]int{}, map[defs.AttributeID]int{
 			Intelligence: buff1,
 			Endurance:    buff1,
 		}),
@@ -287,7 +288,7 @@ func GetAllTraits() []skills.Trait {
 			Description: "This person takes an odd pleasure in the sufferings of others",
 			TilesetSrc:  tilesetSrc,
 			TileID:      10,
-		}, map[skills.SkillID]int{}, map[skills.AttributeID]int{
+		}, map[defs.SkillID]int{}, map[defs.AttributeID]int{
 			Personality: debuff2,
 			Intrigue:    buff1,
 			Martial:     buff1,
@@ -300,7 +301,7 @@ func GetAllTraits() []skills.Trait {
 			TilesetSrc:       tilesetSrc,
 			TileID:           11,
 			ConflictTraitIDs: []string{"stoic"},
-		}, map[skills.SkillID]int{}, map[skills.AttributeID]int{
+		}, map[defs.SkillID]int{}, map[defs.AttributeID]int{
 			Martial:     buff1,
 			Personality: debuff2,
 		}),
@@ -311,7 +312,7 @@ func GetAllTraits() []skills.Trait {
 			Description: "This person holds his nose high and feels a sense of superiority over others",
 			TilesetSrc:  tilesetSrc,
 			TileID:      12,
-		}, map[skills.SkillID]int{}, map[skills.AttributeID]int{
+		}, map[defs.SkillID]int{}, map[defs.AttributeID]int{
 			Personality: debuff1,
 		}),
 		skills.NewSkillTrait(skills.TraitParams{
@@ -320,7 +321,7 @@ func GetAllTraits() []skills.Trait {
 			Description: "This person thinks the world is out to get him",
 			TilesetSrc:  tilesetSrc,
 			TileID:      13,
-		}, map[skills.SkillID]int{}, map[skills.AttributeID]int{
+		}, map[defs.SkillID]int{}, map[defs.AttributeID]int{
 			Intrigue:    buff3,
 			Personality: debuff2,
 		}),
@@ -330,7 +331,7 @@ func GetAllTraits() []skills.Trait {
 			Description: "This person is, quite simply, an idiot",
 			TilesetSrc:  tilesetSrc,
 			TileID:      14,
-		}, map[skills.SkillID]int{}, map[skills.AttributeID]int{
+		}, map[defs.SkillID]int{}, map[defs.AttributeID]int{
 			Intelligence: debuff4,
 			Intrigue:     debuff4,
 			Luck:         buff1,

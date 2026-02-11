@@ -2,10 +2,10 @@ package playermenu
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/mouse"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/rendering"
@@ -32,8 +32,11 @@ type InventoryComponent struct {
 	EquipedAuxiliary *inventory.ItemSlot // for shields, torches, etc
 
 	EntityInventory inventory.Inventory
-	entityRef       *entity.CharacterData
-	width, height   int
+
+	// characterInventory *state.CharacterState
+	characterInventory *defs.StandardInventory // points to the items of the character whose inventory we are opening
+	entityRef          *entity.Entity          // just have this for drawing the entity in the inventory page.
+	width, height      int
 
 	itemMover inventory.ItemMover // for moving the items between slots
 
@@ -56,9 +59,9 @@ func (ic InventoryComponent) Dimensions() (dx, dy int) {
 }
 
 // Load loads the inventory page for first time loading
-func (ip *InventoryComponent) Load(pageWidth, pageHeight int, entRef *entity.CharacterData, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
-	if entRef == nil {
-		panic("player ref is nil")
+func (ip *InventoryComponent) Load(pageWidth, pageHeight int, characterInventory *defs.StandardInventory, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
+	if characterInventory == nil {
+		panic("character inventory ref is nil")
 	}
 	if pageWidth == 0 {
 		panic("width is 0")
@@ -137,7 +140,7 @@ func (ip *InventoryComponent) Load(pageWidth, pageHeight int, entRef *entity.Cha
 	}, inventoryParams.HoverWindowParams)
 	ip.EquipedRing2.SetBGImage(tiled.GetTileImage(src, 11, true))
 
-	ip.entityRef = entRef
+	ip.characterInventory = characterInventory
 
 	tileSize := int(config.TileSize * config.UIScale)
 
@@ -154,7 +157,7 @@ func (ip *InventoryComponent) Load(pageWidth, pageHeight int, entRef *entity.Cha
 	coinPurseInvParams.RowCount = 2
 	coinPurseInvParams.ColCount = 3
 	coinPurseInvParams.EnabledSlotsCount = 6
-	coinPurseInvParams.AllowedItemTypes = []item.ItemType{item.TypeCurrency}
+	coinPurseInvParams.AllowedItemTypes = []defs.ItemType{item.TypeCurrency}
 	ip.coinPurse = inventory.NewInventory(defMgr, coinPurseInvParams)
 
 	// set up item mover
@@ -177,38 +180,39 @@ func (ip *InventoryComponent) Load(pageWidth, pageHeight int, entRef *entity.Cha
 	ip.init = true
 }
 
-// SyncEntityItems syncs the entity's items into the inventory item slots
-func (ip *InventoryComponent) SyncEntityItems() {
-	if ip.entityRef == nil {
-		panic("no entity ref found")
+// SyncCharacterItems syncs the characters's items into the inventory item slots
+func (ip *InventoryComponent) SyncCharacterItems() {
+	if ip.characterInventory == nil {
+		panic("no character inventory ref found")
 	}
 	// set equiped items
-	setInventoryItem(ip.EquipedHead, ip.entityRef.EquipedHeadwear)
-	setInventoryItem(ip.EquipedBody, ip.entityRef.EquipedBodywear)
-	setInventoryItem(ip.EquipedFeet, ip.entityRef.EquipedFootwear)
+	setInventoryItem(ip.EquipedHead, ip.characterInventory.Equipment.EquipedHeadwear)
+	setInventoryItem(ip.EquipedBody, ip.characterInventory.Equipment.EquipedBodywear)
+	setInventoryItem(ip.EquipedFeet, ip.characterInventory.Equipment.EquipedFootwear)
 
-	setInventoryItem(ip.EquipedAmulet, ip.entityRef.EquipedAmulet)
-	setInventoryItem(ip.EquipedRing1, ip.entityRef.EquipedRing1)
-	setInventoryItem(ip.EquipedRing2, ip.entityRef.EquipedRing2)
+	setInventoryItem(ip.EquipedAmulet, ip.characterInventory.Equipment.EquipedAmulet)
+	setInventoryItem(ip.EquipedRing1, ip.characterInventory.Equipment.EquipedRing1)
+	setInventoryItem(ip.EquipedRing2, ip.characterInventory.Equipment.EquipedRing2)
 
-	setInventoryItem(ip.EquipedAmmo, ip.entityRef.EquipedAmmo)
-	setInventoryItem(ip.EquipedAuxiliary, ip.entityRef.EquipedAuxiliary)
+	setInventoryItem(ip.EquipedAmmo, ip.characterInventory.Equipment.EquipedAmmo)
+	setInventoryItem(ip.EquipedAuxiliary, ip.characterInventory.Equipment.EquipedAuxiliary)
 
 	// set inventory items
-	ip.EntityInventory.SetItemSlots(ip.entityRef.InventoryItems)
+	ip.EntityInventory.SetItemSlots(ip.characterInventory.InventoryItems)
 
 	// set coin purse items
-	ip.coinPurse.SetItemSlots(ip.entityRef.CoinPurse)
+	ip.coinPurse.SetItemSlots(ip.characterInventory.CoinPurse)
 
-	moneyCount := ip.entityRef.CountMoney()
+	moneyCount := ip.characterInventory.CountMoney()
 	p := message.NewPrinter(message.MatchLanguage("en"))
 	ip.goldCount.SetText(p.Sprintf("%d", moneyCount))
 }
 
-func setInventoryItem(itemSlot *inventory.ItemSlot, invItem *item.InventoryItem) {
+func setInventoryItem(itemSlot *inventory.ItemSlot, invItem *defs.InventoryItem) {
 	if invItem == nil {
 		itemSlot.Clear()
 	} else {
+		invItem.Validate()
 		itemSlot.SetContent(
 			&invItem.Instance,
 			invItem.Def,
@@ -235,45 +239,15 @@ func (ip *InventoryComponent) Update() {
 
 	ip.itemMover.Update()
 
-	// check if any differences exist between equiped item slots and actual equiped items
-	// if so, update the playerRef version to match the equiped item slots
-	if ip.EquipedHead.Item == nil {
-		if ip.entityRef.EquipedHeadwear != nil {
-			ip.entityRef.UnequipHeadwear()
-		}
-	} else {
-		if ip.entityRef.EquipedHeadwear == nil {
-			logz.Println(ip.entityRef.DisplayName, "equiping headwear:", ip.EquipedHead.Item.Def.GetID())
-			succ := ip.entityRef.EquipItem(*ip.EquipedHead.Item)
-			if !succ {
-				logz.Panicln(ip.entityRef.DisplayName, "somehow failed to equip headwear")
-			}
-		} else if ip.entityRef.EquipedHeadwear.Def.GetID() != ip.EquipedHead.Item.Def.GetID() {
-			logz.Panicln(ip.entityRef.DisplayName, "somehow, equiped headwear slot in inventory does not match equiped headwear on body")
-		}
-	}
-	if ip.EquipedBody.Item == nil {
-		if ip.entityRef.EquipedBodywear != nil {
-			ip.entityRef.UnequipBodywear()
-		}
-	} else {
-		if ip.entityRef.EquipedBodywear == nil {
-			ip.entityRef.EquipItem(*ip.EquipedBody.Item)
-		} else if ip.entityRef.EquipedBodywear.Def.GetID() != ip.EquipedBody.Item.Def.GetID() {
-			logz.Panicln(ip.entityRef.DisplayName, "somehow, equiped bodywear slot in inventory does not match equiped bodywear on body")
-		}
-	}
-	if ip.EquipedAuxiliary.Item == nil {
-		if ip.entityRef.EquipedAuxiliary != nil {
-			ip.entityRef.UnequipAuxiliary()
-		}
-	} else {
-		if ip.entityRef.EquipedAuxiliary == nil {
-			ip.entityRef.EquipItem(*ip.EquipedAuxiliary.Item)
-		} else if ip.entityRef.EquipedAuxiliary.Def.GetID() != ip.EquipedAuxiliary.Item.Def.GetID() {
-			logz.Panicln(ip.entityRef.DisplayName, "somehow, equiped auxiliary slot in inventory does not match equiped auxiliary on body")
-		}
-	}
+	// set the "source" to match what is currently set in this inventory
+	ip.characterInventory.Equipment.EquipedHeadwear = ip.EquipedHead.Item
+	ip.characterInventory.Equipment.EquipedBodywear = ip.EquipedBody.Item
+	ip.characterInventory.Equipment.EquipedFootwear = ip.EquipedFeet.Item
+	ip.characterInventory.Equipment.EquipedAuxiliary = ip.EquipedAuxiliary.Item
+	ip.characterInventory.Equipment.EquipedAmulet = ip.EquipedAmulet.Item
+	ip.characterInventory.Equipment.EquipedRing1 = ip.EquipedRing1.Item
+	ip.characterInventory.Equipment.EquipedRing2 = ip.EquipedRing2.Item
+	ip.characterInventory.Equipment.EquipedAmmo = ip.EquipedAmmo.Item
 
 	// gold counter and coin purse
 	ip.goldCount.Update()
@@ -302,15 +276,21 @@ func (ip *InventoryComponent) Draw(screen *ebiten.Image, drawX, drawY float64, o
 	tileSize := config.TileSize * config.UIScale
 
 	// draw player avatar
-	ip.entityRef.Body.Draw(screen, drawX, drawY, config.UIScale)
+	// TODO: for now putting in here, but we need a param or something to determine if we show an entity body
+	if ip.entityRef != nil {
+		ip.entityRef.Body.Draw(screen, drawX, drawY, config.UIScale)
+	}
 
 	// draw inventory item slots
 	inventoryWidth, _ := ip.EntityInventory.Dimensions()
 	inventoryDrawX := int(drawX) + ip.width - inventoryWidth
 	ip.EntityInventory.Draw(screen, float64(inventoryDrawX), drawY, om)
 	// player equipment item slots
-	playerAvatarDx, _ := ip.entityRef.Body.Dimensions()
-	playerAvatarDx = int(float64(playerAvatarDx) * config.UIScale)
+	playerAvatarDx := 0
+	if ip.entityRef != nil {
+		playerAvatarDx, _ = ip.entityRef.Body.Dimensions()
+		playerAvatarDx = int(float64(playerAvatarDx) * config.UIScale)
+	}
 
 	equipStartX := drawX + float64(playerAvatarDx) + 10
 	equipStartY := drawY + 10
@@ -366,20 +346,25 @@ func (ip InventoryComponent) CountMoney() int {
 }
 
 // SaveEntityInventory saves the items in the inventory page into the entity's actual inventory
-func (ip *InventoryComponent) SaveEntityInventory() {
-	if len(ip.entityRef.CoinPurse) > 0 {
-		ip.entityRef.SetCoinPurseItems(ip.coinPurse.GetInventoryItems())
+// TODO: is this actually necessary? I thought all the inventory items are pointers, so they should get updated automatically.
+func (ip *InventoryComponent) SaveCharacterInventory() {
+	if len(ip.characterInventory.CoinPurse) > 0 {
+		ip.characterInventory.SetCoinPurseItems(ip.coinPurse.GetInventoryItems())
 	}
-	ip.entityRef.SetInventoryItems(ip.EntityInventory.GetInventoryItems())
+	ip.characterInventory.SetInventoryItems(ip.EntityInventory.GetInventoryItems())
 
-	ip.entityRef.EquipedHeadwear = ip.EquipedHead.Item
-	ip.entityRef.EquipedBodywear = ip.EquipedBody.Item
-	ip.entityRef.EquipedFootwear = ip.EquipedFeet.Item
+	// TODO: going to test how things work if I just comment all this out
+	// 2/11/2026 - tested now and it doesn't seem to matter that the below is commented out.
+	// I think we should probably delete this, but going to leave this for next round of fixes since I'm in the middle of a refactor.
 
-	ip.entityRef.EquipedAmulet = ip.EquipedAmulet.Item
-	ip.entityRef.EquipedRing1 = ip.EquipedRing1.Item
-	ip.entityRef.EquipedRing2 = ip.EquipedRing2.Item
-
-	ip.entityRef.EquipedAmmo = ip.EquipedAmmo.Item
-	ip.entityRef.EquipedAuxiliary = ip.EquipedAuxiliary.Item
+	// ip.characterInventory.EquipedHeadwear = ip.EquipedHead.Item
+	// ip.characterInventory.EquipedBodywear = ip.EquipedBody.Item
+	// ip.characterInventory.EquipedFootwear = ip.EquipedFeet.Item
+	//
+	// ip.characterInventory.EquipedAmulet = ip.EquipedAmulet.Item
+	// ip.characterInventory.EquipedRing1 = ip.EquipedRing1.Item
+	// ip.characterInventory.EquipedRing2 = ip.EquipedRing2.Item
+	//
+	// ip.characterInventory.EquipedAmmo = ip.EquipedAmmo.Item
+	// ip.characterInventory.EquipedAuxiliary = ip.EquipedAuxiliary.Item
 }

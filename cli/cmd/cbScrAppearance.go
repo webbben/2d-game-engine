@@ -5,6 +5,7 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
@@ -17,7 +18,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/slider"
 	"github.com/webbben/2d-game-engine/internal/ui/stepper"
 	"github.com/webbben/2d-game-engine/internal/ui/textfield"
-	"github.com/webbben/2d-game-engine/item"
 )
 
 type appearanceScreen struct {
@@ -65,7 +65,7 @@ func (g *builderGame) setupAppearanceScreen() {
 	rendering.DrawImage(g.scrAppearance.bgImg, tiled.GetTileImage(bgTileset, 215, true), t, t*2, 0)
 	rendering.DrawImage(g.scrAppearance.bgImg, tiled.GetTileImage(bgTileset, 216, true), t*2, t*2, 0)
 
-	g.characterData.Body.SetDirection('D')
+	g.Body.SetDirection('D')
 
 	turnLeftImg := tiled.GetTileImage("ui/ui-components.tsj", 224, true)
 	turnLeftImg = rendering.ScaleImage(turnLeftImg, config.UIScale, config.UIScale)
@@ -108,7 +108,7 @@ func (g *builderGame) setupAppearanceScreen() {
 
 	auxOptions := []string{noneOp}
 	for _, auxItem := range g.auxItems {
-		auxOptions = append(auxOptions, auxItem.GetID())
+		auxOptions = append(auxOptions, string(auxItem.GetID()))
 	}
 	g.scrAppearance.auxiliarySelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
@@ -122,7 +122,7 @@ func (g *builderGame) setupAppearanceScreen() {
 
 	headwearOptions := []string{noneOp}
 	for _, i := range g.headwearItems {
-		headwearOptions = append(headwearOptions, i.GetID())
+		headwearOptions = append(headwearOptions, string(i.GetID()))
 	}
 	g.scrAppearance.headwearSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
@@ -136,7 +136,7 @@ func (g *builderGame) setupAppearanceScreen() {
 
 	footwearOptions := []string{noneOp}
 	for _, i := range g.footwearItems {
-		footwearOptions = append(footwearOptions, i.GetID())
+		footwearOptions = append(footwearOptions, string(i.GetID()))
 	}
 	g.scrAppearance.footwearSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
@@ -150,7 +150,7 @@ func (g *builderGame) setupAppearanceScreen() {
 
 	bodywearOptions := []string{noneOp}
 	for _, i := range g.bodywearItems {
-		bodywearOptions = append(bodywearOptions, i.GetID())
+		bodywearOptions = append(bodywearOptions, string(i.GetID()))
 	}
 	g.scrAppearance.bodywearSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
@@ -163,7 +163,7 @@ func (g *builderGame) setupAppearanceScreen() {
 	}, &g.popupMgr)
 	weaponOptions := []string{noneOp}
 	for _, i := range g.weaponItems {
-		weaponOptions = append(weaponOptions, i.GetID())
+		weaponOptions = append(weaponOptions, string(i.GetID()))
 	}
 	g.scrAppearance.weaponSelector = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
@@ -293,9 +293,9 @@ func (g *builderGame) setupAppearanceScreen() {
 
 func (bg *builderGame) updateAppearanceScreen() {
 	if bg.scrAppearance.turnLeft.Update().Clicked {
-		bg.characterData.Body.RotateLeft()
+		bg.Body.RotateLeft()
 	} else if bg.scrAppearance.turnRight.Update().Clicked {
-		bg.characterData.Body.RotateRight()
+		bg.Body.RotateRight()
 	}
 
 	if len(bg.bodySkinSets) > 1 {
@@ -318,17 +318,17 @@ func (bg *builderGame) updateAppearanceScreen() {
 	bg.scrAppearance.hairColorSliders.Update()
 	bg.scrAppearance.eyeColorSliders.Update()
 
-	bg.characterData.Body.SetBodyHSV(
+	bg.Body.SetBodyHSV(
 		float64(bg.scrAppearance.bodyColorSliders.GetValue("H"))/256,
 		float64(bg.scrAppearance.bodyColorSliders.GetValue("S"))/256,
 		float64(bg.scrAppearance.bodyColorSliders.GetValue("V"))/256,
 	)
-	bg.characterData.Body.SetHairHSV(
+	bg.Body.SetHairHSV(
 		float64(bg.scrAppearance.hairColorSliders.GetValue("H"))/256,
 		float64(bg.scrAppearance.hairColorSliders.GetValue("S"))/256,
 		float64(bg.scrAppearance.hairColorSliders.GetValue("V"))/256,
 	)
-	bg.characterData.Body.SetEyesHSV(
+	bg.Body.SetEyesHSV(
 		float64(bg.scrAppearance.eyeColorSliders.GetValue("H"))/256,
 		float64(bg.scrAppearance.eyeColorSliders.GetValue("S"))/256,
 		float64(bg.scrAppearance.eyeColorSliders.GetValue("V"))/256,
@@ -339,8 +339,8 @@ func (bg *builderGame) updateAppearanceScreen() {
 
 	bg.scrAppearance.animationSelector.Update()
 	selectorValue := bg.scrAppearance.animationSelector.GetCurrentValue()
-	if selectorValue != bg.characterData.Body.GetCurrentAnimation() {
-		bg.characterData.Body.SetAnimation(selectorValue, body.SetAnimationOps{Force: true})
+	if selectorValue != bg.Body.GetCurrentAnimation() {
+		bg.Body.SetAnimation(selectorValue, body.SetAnimationOps{Force: true})
 	}
 	bg.scrAppearance.auxiliarySelector.Update()
 	selectorValue = bg.scrAppearance.auxiliarySelector.GetCurrentValue()
@@ -368,7 +368,7 @@ func (bg *builderGame) updateAppearanceScreen() {
 		bg.handleChangeWeapon(selectorValue)
 	}
 
-	bg.characterData.Body.SetAnimationTickCount(bg.scrAppearance.speedSlider.GetValue())
+	bg.Body.SetAnimationTickCount(bg.scrAppearance.speedSlider.GetValue())
 
 	bg.scrAppearance.nameField.Update()
 	bg.scrAppearance.idField.Update()
@@ -377,7 +377,7 @@ func (bg *builderGame) updateAppearanceScreen() {
 		bg.saveCharacter()
 	}
 
-	bg.characterData.Body.Update()
+	bg.Body.Update()
 }
 
 func (bg *builderGame) drawAppearancePage(screen *ebiten.Image) {
@@ -386,7 +386,7 @@ func (bg *builderGame) drawAppearancePage(screen *ebiten.Image) {
 
 	tileSize := int(config.TileSize * config.UIScale)
 
-	bodyDx, bodyDy := bg.characterData.Body.Dimensions()
+	bodyDx, bodyDy := bg.Body.Dimensions()
 	bodyWidth := float64(bodyDx) * characterScale
 	bodyHeight := float64(bodyDy) * characterScale
 
@@ -397,7 +397,7 @@ func (bg *builderGame) drawAppearancePage(screen *ebiten.Image) {
 	rendering.DrawImage(screen, bg.scrAppearance.bgImg, bodyX-characterTileSize, bodyY-characterTileSize, characterScale)
 
 	// Character body
-	bg.characterData.Body.Draw(screen, bodyX, bodyY, characterScale)
+	bg.Body.Draw(screen, bodyX, bodyY, characterScale)
 
 	buttonsY := bodyY + (bodyHeight) + 20
 	buttonLX := (display.SCREEN_WIDTH / 2) - bg.scrAppearance.turnLeft.Width - 20
@@ -500,16 +500,18 @@ func (bg *builderGame) handleChangeAux(val string) {
 
 	if val == noneOp {
 		// catch the initial loading time call where the selector sees a mismatch and tries to set to None
-		if bg.characterData.EquipedAuxiliary == nil {
+		if bg.CharacterDef.InitialInventory.Equipment.EquipedAuxiliary == nil {
 			return
 		}
-		bg.characterData.UnequipAuxiliary()
+		bg.CharacterDef.InitialInventory.Equipment.EquipedAuxiliary = nil
+		bg.Body.RemoveAuxiliary()
 		return
 	}
 	for _, auxItem := range bg.auxItems {
-		if auxItem.GetID() == val {
-			bg.characterData.EquipedAuxiliary = nil // unset the previous value so it's not added to inventory
-			bg.characterData.EquipItem(item.NewInventoryItem(auxItem, 1))
+		if string(auxItem.GetID()) == val {
+			invItem := defs.NewInventoryItem(auxItem, 1)
+			bg.CharacterDef.InitialInventory.Equipment.EquipedAuxiliary = &invItem
+			bg.Body.EquipAuxItem(auxItem)
 			return
 		}
 	}
@@ -520,16 +522,18 @@ func (bg *builderGame) handleChangeHeadwear(val string) {
 	bg.equipedHeadwear = val
 
 	if val == noneOp {
-		if bg.characterData.EquipedHeadwear == nil {
+		if bg.CharacterDef.InitialInventory.Equipment.EquipedHeadwear == nil {
 			return
 		}
-		bg.characterData.UnequipHeadwear()
+		bg.CharacterDef.InitialInventory.Equipment.EquipedHeadwear = nil
+		bg.Body.RemoveHeadwear()
 		return
 	}
 	for _, i := range bg.headwearItems {
-		if i.GetID() == val {
-			bg.characterData.EquipedHeadwear = nil
-			bg.characterData.EquipItem(item.NewInventoryItem(i, 1))
+		if string(i.GetID()) == val {
+			invItem := defs.NewInventoryItem(i, 1)
+			bg.CharacterDef.InitialInventory.Equipment.EquipedHeadwear = &invItem
+			bg.Body.EquipHeadItem(i)
 			return
 		}
 	}
@@ -540,16 +544,18 @@ func (bg *builderGame) handleChangeFootwear(val string) {
 	bg.equipedFootwear = val
 
 	if val == noneOp {
-		if bg.characterData.EquipedFootwear == nil {
+		if bg.CharacterDef.InitialInventory.Equipment.EquipedFootwear == nil {
 			return
 		}
-		bg.characterData.UnequipFootwear()
+		bg.CharacterDef.InitialInventory.Equipment.EquipedFootwear = nil
+		bg.Body.RemoveFootwear()
 		return
 	}
 	for _, i := range bg.footwearItems {
-		if i.GetID() == val {
-			bg.characterData.EquipedFootwear = nil
-			bg.characterData.EquipItem(item.NewInventoryItem(i, 1))
+		if string(i.GetID()) == val {
+			invItem := defs.NewInventoryItem(i, 1)
+			bg.CharacterDef.InitialInventory.Equipment.EquipedFootwear = &invItem
+			bg.Body.EquipFootItem(i)
 			return
 		}
 	}
@@ -560,16 +566,18 @@ func (bg *builderGame) handleChangeBodywear(val string) {
 	bg.equipedBodywear = val
 
 	if val == noneOp {
-		if bg.characterData.EquipedBodywear == nil {
+		if bg.CharacterDef.InitialInventory.Equipment.EquipedBodywear == nil {
 			return
 		}
-		bg.characterData.UnequipBodywear()
+		bg.CharacterDef.InitialInventory.Equipment.EquipedBodywear = nil
+		bg.Body.RemoveBodywear()
 		return
 	}
 	for _, i := range bg.bodywearItems {
-		if i.GetID() == val {
-			bg.characterData.EquipedBodywear = nil
-			bg.characterData.EquipItem(item.NewInventoryItem(i, 1))
+		if string(i.GetID()) == val {
+			invItem := defs.NewInventoryItem(i, 1)
+			bg.CharacterDef.InitialInventory.Equipment.EquipedBodywear = &invItem
+			bg.Body.EquipBodyItem(i)
 			return
 		}
 	}
@@ -580,15 +588,18 @@ func (bg *builderGame) handleChangeWeapon(val string) {
 	bg.equipedWeapon = val
 
 	if val == noneOp {
-		if bg.characterData.EquipedWeapon == nil {
+		if bg.CharacterDef.InitialInventory.Equipment.EquipedWeapon == nil {
 			return
 		}
-		bg.characterData.UnequipWeapon()
+		bg.CharacterDef.InitialInventory.Equipment.EquipedWeapon = nil
+		bg.Body.RemoveWeapon()
 		return
 	}
 	for _, i := range bg.weaponItems {
-		if i.GetID() == val {
-			bg.characterData.EquipItem(item.NewInventoryItem(i, 1))
+		if string(i.GetID()) == val {
+			invItem := defs.NewInventoryItem(i, 1)
+			bg.CharacterDef.InitialInventory.Equipment.EquipedWeapon = &invItem
+			bg.Body.EquipWeaponItem(i)
 			return
 		}
 	}
@@ -613,7 +624,12 @@ func (bg *builderGame) SetBodyIndex(i int) {
 
 	legDef := skin.Legs
 
-	bg.characterData.Body.SetBody(bodyDef, armDef, legDef)
+	bg.Body.SetBody(bodyDef, armDef, legDef)
+
+	// set charDef too
+	bg.CharacterDef.BodyDef.BodyID = bodyDef.ID
+	bg.CharacterDef.BodyDef.ArmsID = armDef.ID
+	bg.CharacterDef.BodyDef.LegsID = legDef.ID
 }
 
 func (bg *builderGame) SetEyesIndex(i int) {
@@ -622,7 +638,9 @@ func (bg *builderGame) SetEyesIndex(i int) {
 	}
 	bg.eyesSetIndex = i
 	op := bg.eyesSetOptions[i]
-	bg.characterData.Body.SetEyes(op)
+	bg.Body.SetEyes(op)
+
+	bg.CharacterDef.BodyDef.EyesID = op.ID
 }
 
 func (bg *builderGame) SetHairIndex(i int) {
@@ -631,5 +649,7 @@ func (bg *builderGame) SetHairIndex(i int) {
 	}
 	bg.hairSetIndex = i
 	op := bg.hairSetOptions[i]
-	bg.characterData.Body.SetHair(op)
+	bg.Body.SetHair(op)
+
+	bg.CharacterDef.BodyDef.HairID = op.ID
 }

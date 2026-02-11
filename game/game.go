@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/definitions"
-	"github.com/webbben/2d-game-engine/dialog"
+	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/camera"
 	"github.com/webbben/2d-game-engine/internal/config"
@@ -28,7 +29,7 @@ type Game struct {
 	Player  *player.Player // the player
 	Camera  camera.Camera  // the camera/viewport
 
-	Dialog          *dialog.Dialog // if set, a dialog is shown
+	dialogSession   *dialogv2.DialogSession
 	PlayerMenu      playermenu.PlayerMenu
 	ShowPlayerMenu  bool
 	TradeScreen     trade.TradeScreen // screen for handling trades
@@ -60,6 +61,23 @@ type Game struct {
 	debugData debugData // just used for the debug drawing
 }
 
+// StartDialogSession starts a dialog session with the given dialog profile ID
+func (g *Game) StartDialogSession(dialogProfileID defs.DialogProfileID, npcID string) {
+	if npcID == "" {
+		panic("npcID was empty")
+	}
+	params := dialogv2.DialogSessionParams{
+		NPCID:         npcID,
+		ProfileID:     dialogProfileID,
+		BoxTilesetSrc: "boxes/boxes.tsj",
+		BoxOriginID:   16,
+		TextFont:      config.DefaultFont,
+	}
+	ds := dialogv2.NewDialogSession(params, g.EventBus, g.DefinitionManager, g)
+
+	g.dialogSession = &ds
+}
+
 func (g *Game) SetHUD(hud HUD) {
 	g.hud = hud
 }
@@ -70,15 +88,11 @@ type HUD interface {
 	Update(g *Game)
 }
 
-func (g *Game) SetupTradeSession(shopkeeperID string) {
-	shopkeeper := g.DefinitionManager.GetShopkeeper(shopkeeperID)
-	g.TradeScreen.SetupTradeSession(shopkeeper)
+func (g *Game) SetupTradeSession(shopkeeperID defs.ShopID) {
+	shopkeeperDef := g.DefinitionManager.GetShopkeeperDef(shopkeeperID)
+	shopkeeperState := g.DefinitionManager.GetShopkeeperState(shopkeeperID)
+	g.TradeScreen.SetupTradeSession(*shopkeeperDef, shopkeeperState)
 	g.ShowTradeScreen = true
-}
-
-func (g *Game) StartDialog(dialogID string) {
-	d := g.DefinitionManager.GetDialog(dialogID)
-	g.Dialog = &d
 }
 
 type UpdateHooks struct {
@@ -122,6 +136,12 @@ func NewGame(hour int) *Game {
 	g.OnHourChange(hour, true)
 
 	return &g
+}
+
+func (g *Game) GetPlayerInfo() dialogv2.PlayerInfo {
+	return dialogv2.PlayerInfo{
+		PlayerName: g.Player.Entity.CharacterStateRef.DisplayName,
+	}
 }
 
 // OnHourChange handles any hourly changes that should occur; such as lighting, event publishing, etc.

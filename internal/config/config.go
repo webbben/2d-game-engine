@@ -54,7 +54,7 @@ var (
 
 	// custom paths for other data
 
-	EntityDefsDirectory string = "" // this is required to be set in order to load entity data.
+	CharacterDefsDirectory string = "" // this is required to be set in order to load entity data.
 )
 
 const (

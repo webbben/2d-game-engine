@@ -32,14 +32,11 @@ func (g *Game) worldUpdates() {
 	}
 
 	// update dialog if currently in a dialog session
-	if g.Dialog != nil {
-		g.Dialog.Update(g.EventBus)
-		if g.Dialog.Exit {
-			if g.Dialog.ShopkeeperID != "" {
-				g.SetupTradeSession(g.Dialog.ShopkeeperID)
-			}
+	if g.dialogSession != nil {
+		g.dialogSession.Update()
+		if g.dialogSession.Exit {
 			// dialog has ended, so remove it
-			g.Dialog = nil
+			g.dialogSession = nil
 		}
 	} else if g.ShowPlayerMenu {
 		g.PlayerMenu.Update()
