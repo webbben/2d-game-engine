@@ -5,84 +5,33 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/entity/body"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/tiled"
 )
 
-type ItemDef interface {
-	GetID() string          // the internal ID of this item.
-	GetName() string        // the display name of this item.
-	GetDescription() string // the description of the item
-	GetValue() int          // the full value of this item, if it were sold at maximum price.
-	GetWeight() float64     // the weight of this item, which factors into the player's inventory weight.
-	GetMaxDurability() int  // the full durability of this item. a higher value means it takes longer to break.
-
-	GetTileImg() *ebiten.Image        // gets the "tile image", i.e. the image used in places like the inventory slots
-	GetEquipedTiles() []*ebiten.Image // gets the tiles for the equiped view of this item (if equipable)
-
-	GetBodyPartDef() *body.SelectedPartDef // gets the body part set for wearing when this item is equiped, if it exists. Only exists for visible equipable items.
-	GetLegsPartDef() *body.SelectedPartDef // gets a legs body part set, if it exists (should only exist for bodywear items)
-
-	// if true, item can be grouped together with other same items in inventories
-	// this tends to be true for items that don't have durability, like potions or arrows, but not for weapons and armor.
-	IsGroupable() bool
-	// if true, this item is treated as an equipable weapon that is held
-	IsWeapon() bool
-	// if true, this item is treated as an equipable piece of armor that is worn
-	IsHeadwear() bool
-	// if true, this item is equipable on the body
-	IsBodywear() bool
-	// if true, this item is equipable on the feet
-	IsFootwear() bool
-	// if true, this item is an amulet
-	IsAmulet() bool
-	// if true, this item is a ring
-	IsRing() bool
-	// if true, this item is treated as an equipable ammunition type (arrows, etc)
-	IsAmmunition() bool
-	// if true, this item is an "auxiliary" item which is held in the left hand (torches, shields, etc)
-	IsAuxiliary() bool
-	// if true, this item is treated as an item that can be consumed (food, potions, etc)
-	IsConsumable() bool
-	// if true, this item has no specific use or utility; it just exists in your inventory and may have value or weight
-	IsMiscItem() bool
-	// if true, this item is a piece of currency (gold, coins, etc) used in transactions
-	IsCurrencyItem() bool
-	// determines if this item can be equiped
-	IsEquipable() bool
-
-	GetItemType() ItemType // returns the item type; to simply confirm a single item type, use the specific Is<itemType> functions instead.
-
-	Load() // load things like images
-
-	Validate() // checks if item def is properly defined
-}
-
-type ItemType string
-
 const (
-	TypeWeapon     ItemType = "WEAPON"
-	TypeBodywear   ItemType = "BODYWEAR"
-	TypeHeadwear   ItemType = "HEADWEAR"
-	TypeFootwear   ItemType = "FOOTWEAR"
-	TypeAmulet     ItemType = "AMULET"
-	TypeRing       ItemType = "RING"
-	TypeAmmunition ItemType = "AMMUNITION"
-	TypeAuxiliary  ItemType = "AUXILIARY" // TODO
-	TypeConsumable ItemType = "CONSUMABLE"
-	TypeMisc       ItemType = "MISC"
-	TypeCurrency   ItemType = "CURRENCY"
+	TypeWeapon     defs.ItemType = "WEAPON"
+	TypeBodywear   defs.ItemType = "BODYWEAR"
+	TypeHeadwear   defs.ItemType = "HEADWEAR"
+	TypeFootwear   defs.ItemType = "FOOTWEAR"
+	TypeAmulet     defs.ItemType = "AMULET"
+	TypeRing       defs.ItemType = "RING"
+	TypeAmmunition defs.ItemType = "AMMUNITION"
+	TypeAuxiliary  defs.ItemType = "AUXILIARY"
+	TypeConsumable defs.ItemType = "CONSUMABLE"
+	TypeMisc       defs.ItemType = "MISC"
+	TypeCurrency   defs.ItemType = "CURRENCY"
 )
 
 // ItemBase includes the basic functions required for an item to implement the ItemDef interface.
 // embed into a struct to make it effectively an item type.
 type ItemBase struct {
 	init          bool // flag to indicate if item has been loaded yet
-	ID            string
+	ID            defs.ItemID
 	Name          string
 	Description   string
-	Type          ItemType
+	Type          defs.ItemType
 	Value         int
 	Weight        float64
 	MaxDurability int
@@ -96,8 +45,8 @@ type ItemBase struct {
 
 	// wearable item properties
 
-	BodyPartDef *body.SelectedPartDef // made it a pointer so it can be nil-able
-	LegsPartDef *body.SelectedPartDef // bodywear has a legs component that moves separately from the body component
+	BodyPartDef *defs.SelectedPartDef // made it a pointer so it can be nil-able
+	LegsPartDef *defs.SelectedPartDef // bodywear has a legs component that moves separately from the body component
 }
 
 // panic is a helper for quickly throwing a panic based on this item, and giving helpful contextual info at the same time.
@@ -106,15 +55,16 @@ func (ib ItemBase) panic(s string) {
 }
 
 type ItemBaseParams struct {
-	ID, Name, Description string
-	Type                  ItemType
-	Weight                float64
-	Value, MaxDurability  int
-	TileImgTilesetSrc     string
-	TileImgIndex          int
-	Groupable             bool
-	BodyPartDef           *body.SelectedPartDef
-	LegsPartDef           *body.SelectedPartDef
+	ID                   defs.ItemID
+	Name, Description    string
+	Type                 defs.ItemType
+	Weight               float64
+	Value, MaxDurability int
+	TileImgTilesetSrc    string
+	TileImgIndex         int
+	Groupable            bool
+	BodyPartDef          *defs.SelectedPartDef
+	LegsPartDef          *defs.SelectedPartDef
 }
 
 func NewItemBase(params ItemBaseParams) *ItemBase {
@@ -183,7 +133,7 @@ func (ib ItemBase) Validate() {
 	}
 }
 
-func (ib ItemBase) GetID() string {
+func (ib ItemBase) GetID() defs.ItemID {
 	return ib.ID
 }
 
@@ -272,17 +222,17 @@ func (ib ItemBase) IsEquipable() bool {
 	}
 }
 
-func (ib ItemBase) GetItemType() ItemType {
+func (ib ItemBase) GetItemType() defs.ItemType {
 	return ib.Type
 }
 
 // GetBodyPartDef gets the body part def for equiping this item visibly on the body.
-func (ib ItemBase) GetBodyPartDef() *body.SelectedPartDef {
+func (ib ItemBase) GetBodyPartDef() *defs.SelectedPartDef {
 	return ib.BodyPartDef
 }
 
 // GetLegsPartDef gets the legs part def for equiping this (bodywear) item. Should only exist for bodywear items.
-func (ib ItemBase) GetLegsPartDef() *body.SelectedPartDef {
+func (ib ItemBase) GetLegsPartDef() *defs.SelectedPartDef {
 	return ib.LegsPartDef
 }
 
@@ -306,12 +256,7 @@ func (ib *ItemBase) Load() {
 }
 
 func CompilerCheck() {
-	_ = append([]ItemDef{}, &WeaponDef{}, &PotionDef{}, &ArmorDef{})
-}
-
-type ItemInstance struct {
-	DefID      string // ID of the ItemDef that defines this item
-	Durability int    // the current condition of this item
+	_ = append([]defs.ItemDef{}, &WeaponDef{}, &PotionDef{}, &ArmorDef{})
 }
 
 type WeaponDef struct {
@@ -319,12 +264,12 @@ type WeaponDef struct {
 	Damage        int     // damage per attack
 	HitsPerSecond float64 // speed of attacks, in terms of number of attacks possible per second
 
-	FxPartDef *body.SelectedPartDef // only defined for weapon items
+	FxPartDef *defs.SelectedPartDef // only defined for weapon items
 }
 
 // GetWeaponParts gets the two bodyPartDefs for a weapon: the actual weapon, and the fx.
 // Panics if given item is not a weaponDef, or if either part is not found.
-func GetWeaponParts(i ItemDef) (weaponPart body.SelectedPartDef, fxPart body.SelectedPartDef) {
+func GetWeaponParts(i defs.ItemDef) (weaponPart defs.SelectedPartDef, fxPart defs.SelectedPartDef) {
 	part := i.GetBodyPartDef()
 	if part == nil {
 		logz.Panicln("GetWeaponParts", "weapon part is nil:", i.GetID())
@@ -354,7 +299,7 @@ type ArmorDef struct {
 }
 
 // IsArmor determines if the given ItemDef is an instance of ArmorDef (i.e. is assertable to ArmorDef)
-func IsArmor(i ItemDef) bool {
+func IsArmor(i defs.ItemDef) bool {
 	_, ok := i.(*ArmorDef)
 	return ok
 }

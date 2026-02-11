@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/logz"
 )
 
@@ -11,9 +12,9 @@ import (
 // It is essentially a collection of animations.
 type BodyPartSet struct {
 	Name        string
-	sourceSet   bool            // indicates if a source has been set yet (tilesetSrc, etc)
-	PartSrc     SelectedPartDef // tileset and image source definitions
-	IsRemovable bool            // if true, this body part set can be removed or hidden (i.e. have None set to true).
+	sourceSet   bool                 // indicates if a source has been set yet (tilesetSrc, etc)
+	PartSrc     defs.SelectedPartDef // tileset and image source definitions
+	IsRemovable bool                 // if true, this body part set can be removed or hidden (i.e. have None set to true).
 
 	// animation definitions
 
@@ -56,7 +57,7 @@ func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
 		IsRemovable: params.IsRemovable,
 		Name:        params.Name,
 		// all parts start off as being "none"/disabled. a partSrc can be added later.
-		PartSrc: SelectedPartDef{None: true},
+		PartSrc: defs.SelectedPartDef{None: true},
 	}
 
 	return bps
@@ -112,7 +113,7 @@ func (bps *BodyPartSet) unsetAllImages() {
 	logz.Println(bps.Name, "unsetting all images")
 }
 
-func (bps *BodyPartSet) setImageSource(def SelectedPartDef, stretchX, stretchY int, aux bool) {
+func (bps *BodyPartSet) setImageSource(def defs.SelectedPartDef, stretchX, stretchY int, aux bool) {
 	bps.PartSrc = def
 	bps.sourceSet = true
 	bps.load(stretchX, stretchY, aux)
@@ -282,7 +283,7 @@ func (set *BodyPartSet) Remove() {
 	if !set.IsRemovable {
 		logz.Panic("set is not removable!")
 	}
-	set.setImageSource(SelectedPartDef{None: true}, 0, 0, false)
+	set.setImageSource(defs.SelectedPartDef{None: true}, 0, 0, false)
 
 	// sanity checks
 	if !set.PartSrc.None {

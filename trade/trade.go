@@ -3,7 +3,10 @@ package trade
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/definitions"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
@@ -16,14 +19,13 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/button"
 	"github.com/webbben/2d-game-engine/internal/ui/textbox"
 	"github.com/webbben/2d-game-engine/inventory"
-	"github.com/webbben/2d-game-engine/item"
 )
 
 type TradeScreen struct {
 	Exit       bool // once set, trading will end
 	defMgr     *definitions.DefinitionManager
 	playerRef  *player.Player
-	shopkeeper *definitions.Shopkeeper
+	shopkeeper *state.ShopkeeperState
 
 	mainBox                     box.Box
 	mainBoxImg                  *ebiten.Image
@@ -57,7 +59,7 @@ type TradeScreen struct {
 
 type tradeItem struct {
 	slot    *inventory.ItemSlot // slot the item is in
-	invItem item.InventoryItem  // item type and amount traded
+	invItem defs.InventoryItem  // item type and amount traded
 }
 
 type TradeScreenParams struct {
@@ -117,14 +119,15 @@ func NewTradeScreen(params TradeScreenParams, defMgr *definitions.DefinitionMana
 	return ts
 }
 
-func (ts *TradeScreen) loadShopkeeper(sk *definitions.Shopkeeper) {
-	ts.shopkeeper = sk
-	ts.shopkeeperInventory.SetItemSlots(sk.ShopInventory)
+func (ts *TradeScreen) loadShopkeeper(def defs.ShopkeeperDef, shopState *state.ShopkeeperState) {
+	// TODO: use def if needed to refresh shopkeeper stock and gold
+	ts.shopkeeper = shopState
+	ts.shopkeeperInventory.SetItemSlots(shopState.ShopInventory)
 }
 
 // SetupTradeSession does necessary preparation for a trade session (loads shopkeeper and items, syncs player items, etc)
 // must be called before beginning trade
-func (ts *TradeScreen) SetupTradeSession(shopkeeper *definitions.Shopkeeper) {
+func (ts *TradeScreen) SetupTradeSession(def defs.ShopkeeperDef, shopState *state.ShopkeeperState) {
 	if ts.playerRef == nil {
 		panic("no player ref!")
 	}
@@ -142,7 +145,7 @@ func (ts *TradeScreen) SetupTradeSession(shopkeeper *definitions.Shopkeeper) {
 	ts.transactionGoldCount.SetText("0")
 
 	// setup inventories
-	ts.loadShopkeeper(shopkeeper)
+	ts.loadShopkeeper(def, shopState)
 	ts.loadPlayerInventory()
 
 	ts.Exit = false
@@ -318,9 +321,9 @@ func (ts TradeScreen) calculateTransaction() int {
 
 func (ts *TradeScreen) loadPlayerInventory() {
 	// set inventory items
-	ts.playerInventory.SetItemSlots(ts.playerRef.Entity.InventoryItems)
+	ts.playerInventory.SetItemSlots(ts.playerRef.Entity.CharacterStateRef.InventoryItems)
 
-	moneyCount := ts.playerRef.Entity.CountMoney()
+	moneyCount := ts.playerRef.Entity.CharacterStateRef.CountMoney()
 	ts.playerGoldCount.SetText(general_util.ConvertIntToCommaString(moneyCount))
 }
 
@@ -329,14 +332,14 @@ func (ts *TradeScreen) acceptTransaction() {
 
 	if transactionAmount > 0 {
 		// player earns money; add to coin purse
-		ts.playerRef.Entity.EarnMoney(transactionAmount, ts.defMgr)
+		characterstate.EarnMoney(&ts.playerRef.Entity.CharacterStateRef.StandardInventory, transactionAmount, ts.defMgr)
 	} else if transactionAmount < 0 {
 		// player spends money; take it out of their coin purse
-		ts.playerRef.Entity.SpendMoney(-transactionAmount, ts.defMgr)
+		characterstate.SpendMoney(&ts.playerRef.Entity.CharacterStateRef.StandardInventory, -transactionAmount, ts.defMgr)
 	}
 
 	// update player and shopkeeper inventories to match inventories in this trade screen
-	ts.playerRef.Entity.SetInventoryItems(ts.playerInventory.GetInventoryItems())
+	ts.playerRef.Entity.CharacterStateRef.SetInventoryItems(ts.playerInventory.GetInventoryItems())
 	ts.shopkeeper.SetShopInventory(ts.shopkeeperInventory.GetInventoryItems())
 
 	ts.Exit = true

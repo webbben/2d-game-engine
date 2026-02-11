@@ -34,7 +34,7 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 	ip.height = pageHeight
 	ip.playerRef = playerRef
 
-	ip.inventoryComponent.Load(pageWidth, pageHeight, &playerRef.Entity.CharacterData, defMgr, inventoryParams)
+	ip.inventoryComponent.Load(pageWidth, pageHeight, &playerRef.Entity.CharacterStateRef.StandardInventory, defMgr, inventoryParams)
 
 	ip.init = true
 }
@@ -48,9 +48,9 @@ func (ip *InventoryPage) Draw(screen *ebiten.Image, drawX, drawY float64, om *ov
 }
 
 func (ip *InventoryPage) LoadPlayerItemsIn() {
-	ip.inventoryComponent.SyncEntityItems()
+	ip.inventoryComponent.SyncCharacterItems()
 }
 
 func (ip *InventoryPage) SaveAndClose() {
-	ip.inventoryComponent.SaveEntityInventory()
+	ip.inventoryComponent.SaveCharacterInventory()
 }

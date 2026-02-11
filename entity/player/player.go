@@ -3,11 +3,12 @@ package player
 import (
 	"time"
 
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/internal/model"
-	"github.com/webbben/2d-game-engine/item"
 )
 
 type Player struct {
@@ -44,11 +45,11 @@ func NewPlayer(defMgr *definitions.DefinitionManager, ent *entity.Entity) Player
 }
 
 // TODO: delete? just use the entity one since there is no difference now
-func (p *Player) AddItemToInventory(invItem item.InventoryItem) (bool, item.InventoryItem) {
-	return p.Entity.AddItemToInventory(invItem)
+func (p *Player) AddItemToInventory(invItem defs.InventoryItem) (bool, defs.InventoryItem) {
+	return characterstate.AddItemToInventory(p.Entity.CharacterStateRef, invItem)
 }
 
 // TODO: delete?
-func (p *Player) RemoveItemFromInventory(itemToRemove item.InventoryItem) (bool, item.InventoryItem) {
-	return p.Entity.RemoveItemFromInventory(itemToRemove)
+func (p *Player) RemoveItemFromInventory(itemToRemove defs.InventoryItem) (bool, defs.InventoryItem) {
+	return characterstate.RemoveItemFromInventory(p.Entity.CharacterStateRef, itemToRemove)
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/spf13/cobra"
 	"github.com/webbben/2d-game-engine/definitions"
-	"github.com/webbben/2d-game-engine/dialog"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/entity/player"
@@ -51,11 +50,13 @@ to quickly create a Cobra application.`,
 
 		footstepSFX := getFootstepSFX()
 
-		npcEnt := entity.NewEntity(entity.GeneralProps{
-			EntityID: "character_02",
-		}, footstepSFX, gameState.DefinitionManager)
+		charStateID := entity.CreateNewCharacterState("character_02", entity.NewCharacterStateParams{}, gameState.DefinitionManager)
 
-		n := npc.NewNPC(npc.NPCParams{Entity: &npcEnt, DefaultDialogID: "dialog1"})
+		n := npc.NewNPC(npc.NPCParams{
+			CharStateID: charStateID,
+			FootstepSFX: footstepSFX,
+		},
+			gameState.DefinitionManager)
 
 		err = n.SetFightTask(gameState.Player.Entity, false)
 		if err != nil {
@@ -93,16 +94,13 @@ func setupGameState(params gameParams) *game.Game {
 		panic(err)
 	}
 
-	footstepSFX := getFootstepSFX()
-
 	// make the player
-	// TODO: make entity loader by ID (add standard path for entity JSONs and enable loading by entity ID alone)
-	playerEnt := entity.NewEntity(entity.GeneralProps{
-		EntityID: "character_01",
-		IsPlayer: true,
-	}, footstepSFX, g.DefinitionManager)
+	// playerEnt := entity.LoadCharacterStateIntoEntity("player", g.DefinitionManager)
 
-	p := player.NewPlayer(g.DefinitionManager, &playerEnt)
+	charStateID := entity.CreateNewCharacterState("player", entity.NewCharacterStateParams{IsPlayer: true}, g.DefinitionManager)
+	playerEnt := entity.LoadCharacterStateIntoEntity(charStateID, g.DefinitionManager)
+
+	p := player.NewPlayer(g.DefinitionManager, playerEnt)
 	_ = g.PlacePlayerAtSpawnPoint(&p, 0)
 	g.Player = &p
 
@@ -128,15 +126,6 @@ func setupGameState(params gameParams) *game.Game {
 }
 
 func addCustomKeyBindings(g *game.Game) {
-	// open a test dialog
-	g.SetGlobalKeyBinding(ebiten.KeyEqual, func(gg *game.Game) {
-		// doing this async since we are loading an image file
-		go func() {
-			fmt.Println("getting dialog")
-			d := GetDialog()
-			gg.Dialog = &d
-		}()
-	})
 	g.SetGlobalKeyBinding(ebiten.KeyMinus, func(gg *game.Game) {
 		go func() {
 			fmt.Println("toggle player menu")
@@ -147,7 +136,6 @@ func addCustomKeyBindings(g *game.Game) {
 				gg.PlayerMenu.InventoryPage.SaveAndClose()
 			}
 			gg.ShowPlayerMenu = showPlayerMenu
-			fmt.Println(gg.Player.Entity.InventoryItems)
 		}()
 	})
 	g.SetGlobalKeyBinding(ebiten.Key0, func(gg *game.Game) {
@@ -219,73 +207,4 @@ func GetTradeScreen(p *player.Player, defMgr *definitions.DefinitionManager) tra
 	}, defMgr, p)
 
 	return ts
-}
-
-func GetDialog() dialog.Dialog {
-	d := dialog.Dialog{
-		BoxTilesetSource:   "boxes/boxes.tsj",
-		BoxOriginTileIndex: 16,
-		TextFont: dialog.Font{
-			Source: "ashlander-pixel.ttf",
-		},
-		TopicsEnabled: true,
-	}
-	rootTopic := dialog.Topic{
-		TopicText: "Root",
-		MainText: dialog.TextBranch{
-			Text: "Hello! Welcome to the Magical Goods Emporium. All of these items were acquired in distant lands such as Aegyptus or Indus. I assure you that you'll find nothing like this anywhere else in Rome.",
-		},
-		ReturnText: "Anything else I can help you with?",
-	}
-	rootTopic.SubTopics = append(rootTopic.SubTopics, dialog.Topic{
-		TopicText: "Rumors",
-		MainText: dialog.TextBranch{
-			Text: "They say if you go to the Forum past midnight, you might find a group of shady individuals hanging around in the dark. Not sure what for, but I'd also imagine it's a bad idea to go snooping around for them.",
-		},
-	})
-	rootTopic.SubTopics = append(rootTopic.SubTopics, dialog.Topic{
-		TopicText: "The Empire",
-		MainText: dialog.TextBranch{
-			Text: "The Empire spans the world over - they say all the peoples from the foggy isles of Britain to the Nile of Egypt all are under Imperial rule.",
-		},
-	})
-	rootTopic.SubTopics = append(rootTopic.SubTopics, dialog.Topic{
-		TopicText:    "Trade",
-		ShopkeeperID: "aurelius_tradehouse",
-	})
-
-	jokeTopic := dialog.Topic{
-		TopicText: "Tell me a joke",
-		MainText: dialog.TextBranch{
-			Text: "A joke? Alright, how about this one:\nWhy did the chicken cross the road?",
-			Options: []dialog.TextBranch{
-				{
-					OptionText: "To get to the other side?",
-					Text:       "No stupid! He was running away from a Yakitori chef!",
-				},
-				{
-					OptionText: "I don't know, why?",
-					Text:       "Come on, not even a guess?",
-				},
-			},
-		},
-	}
-	rootTopic.SubTopics = append(rootTopic.SubTopics, jokeTopic)
-
-	rootTopic.SubTopics = append(rootTopic.SubTopics, dialog.Topic{
-		TopicText: "Lorem Ipsum",
-		MainText: dialog.TextBranch{
-			Text: `
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum suscipit urna ex, laoreet gravida risus blandit consectetur. Nullam pulvinar, enim et commodo fringilla, nulla magna tempor enim, quis elementum est mauris at mauris. Nam non ligula a enim sollicitudin luctus. Sed aliquet maximus erat aliquam iaculis. In tempus sapien nisi. Etiam tortor massa, tristique nec ex in, imperdiet dignissim nisi. Vivamus id mi at dolor suscipit luctus. In nec lacus et elit rhoncus cursus. Sed porttitor, dui eu ornare fringilla, dui risus placerat eros, nec porta sem justo sit amet neque. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras vel congue tortor. Mauris aliquet molestie massa, venenatis volutpat justo convallis vestibulum.
-Integer nisi ligula, volutpat feugiat eros ut, cursus eleifend est. Quisque gravida sit amet dui vitae pellentesque. Morbi interdum facilisis tellus aliquam egestas. Nunc posuere nunc neque, a sagittis elit ultricies eget. Aliquam vel dignissim dui. Quisque mollis massa nibh, id dignissim ante semper eu. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Vivamus sed accumsan felis.
-Sed velit neque, eleifend quis arcu sed, fringilla varius augue. Aenean interdum ornare consectetur. Mauris eleifend mauris erat, non luctus nunc venenatis at. Aliquam ultricies dolor sed odio iaculis, id gravida ipsum faucibus. Morbi vitae rutrum nisl. Praesent lorem leo, tincidunt eu felis quis, ornare blandit nisl. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nulla convallis diam sed elementum posuere. Morbi vulputate urna vitae quam gravida pellentesque. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Maecenas a tincidunt turpis, sed luctus enim. Sed venenatis quam non velit viverra ultricies. Maecenas tristique lacinia mauris id interdum. Suspendisse tempus enim arcu, id fringilla mauris consectetur quis. Vestibulum placerat ante lacus, sed tempor mi pharetra ut. Aenean metus augue, vestibulum in tincidunt sed, tempus nec lacus.
-Quisque sollicitudin auctor magna, a pharetra justo consequat sed. Nulla mi leo, ultricies in neque ac, elementum posuere neque. Praesent et maximus est. Etiam pulvinar velit a felis bibendum molestie. Donec faucibus mi in elit dapibus fermentum. Quisque vestibulum libero quis lacus tincidunt volutpat. Nullam posuere mauris odio, vitae venenatis tortor sodales ac. Donec porta massa eu vehicula dapibus. Phasellus vulputate placerat urna, nec feugiat est porta sed. Curabitur ac turpis sem. Morbi nisi turpis, dignissim eu nisi at, mollis posuere lorem. Maecenas pretium congue lectus, ut tempus dolor ornare vitae.
-In et aliquet orci. Curabitur pharetra sit amet felis et faucibus. Morbi vitae massa quam. Aliquam porta, nulla quis egestas lobortis, magna diam ultrices felis, a scelerisque justo diam a est. Vestibulum nisi leo, placerat ut laoreet vel, iaculis id sapien. Ut et placerat lectus. Aliquam erat volutpat. Fusce finibus sapien quis justo lobortis feugiat.
-			`,
-		},
-	})
-
-	d.RootTopic = rootTopic
-
-	return d
 }

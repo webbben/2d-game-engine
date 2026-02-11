@@ -129,7 +129,9 @@ func (sfx *FootstepSFX) Step(stepType StepType, volumeFactor float64) {
 
 func (sfx *FootstepSFX) stepDefault(volumeFactor float64) {
 	if sfx.stepDefaultSound == nil {
-		panic("default step sound not loaded")
+		// TODO: disabling this panic for now, since I'm planning to redo the audio system into a centralized audio manager/player
+		// panic("default step sound not loaded")
+		return
 	}
 	sfx.TicksUntilNextPlay = sfx.TickDelay
 	sfx.index = (sfx.index + 1) % len(sfx.stepDefaultSound)

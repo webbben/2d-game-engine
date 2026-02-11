@@ -2,39 +2,172 @@
 package definitions
 
 import (
-	"github.com/webbben/2d-game-engine/dialog"
-	"github.com/webbben/2d-game-engine/entity/body"
+	"fmt"
+
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
-	"github.com/webbben/2d-game-engine/item"
-	"github.com/webbben/2d-game-engine/skills"
 )
 
 type DefinitionManager struct {
-	ItemDefs    map[string]item.ItemDef
-	Shopkeepers map[string]*Shopkeeper
-	Dialogs     map[string]dialog.Dialog
+	ItemDefs map[defs.ItemID]defs.ItemDef
 
-	BodyPartDefs map[string]body.SelectedPartDef // only for body "skin" parts (not for equipment, since those are part of item defs)
+	ShopkeeperDefs      map[defs.ShopID]*defs.ShopkeeperDef
+	ShopkeeperStates    map[defs.ShopID]*state.ShopkeeperState
+	DialogProfiles      map[defs.DialogProfileID]*defs.DialogProfileDef
+	DialogProfileStates map[defs.DialogProfileID]*state.DialogProfileState
+	DialogTopics        map[defs.TopicID]*defs.DialogTopic
 
-	AttributeDefs map[skills.AttributeID]skills.AttributeDef
-	SkillDefs     map[skills.SkillID]skills.SkillDef
-	TraitDefs     map[skills.TraitID]skills.Trait
+	BodyPartDefs map[defs.BodyPartID]defs.SelectedPartDef // only for body "skin" parts (not for equipment, since those are part of item defs)
+
+	CharacterDefs   map[defs.CharacterDefID]defs.CharacterDef
+	CharacterStates map[state.CharacterStateID]*state.CharacterState
+
+	AttributeDefs map[defs.AttributeID]defs.AttributeDef
+	SkillDefs     map[defs.SkillID]defs.SkillDef
+	TraitDefs     map[defs.TraitID]defs.Trait
 }
 
 func NewDefinitionManager() *DefinitionManager {
 	def := DefinitionManager{
-		ItemDefs:      make(map[string]item.ItemDef),
-		Shopkeepers:   make(map[string]*Shopkeeper),
-		Dialogs:       make(map[string]dialog.Dialog),
-		BodyPartDefs:  make(map[string]body.SelectedPartDef),
-		AttributeDefs: make(map[skills.AttributeID]skills.AttributeDef),
-		SkillDefs:     make(map[skills.SkillID]skills.SkillDef),
-		TraitDefs:     make(map[skills.TraitID]skills.Trait),
+		ItemDefs:            make(map[defs.ItemID]defs.ItemDef),
+		ShopkeeperDefs:      make(map[defs.ShopID]*defs.ShopkeeperDef),
+		ShopkeeperStates:    make(map[defs.ShopID]*state.ShopkeeperState),
+		BodyPartDefs:        make(map[defs.BodyPartID]defs.SelectedPartDef),
+		AttributeDefs:       make(map[defs.AttributeID]defs.AttributeDef),
+		SkillDefs:           make(map[defs.SkillID]defs.SkillDef),
+		TraitDefs:           make(map[defs.TraitID]defs.Trait),
+		DialogProfiles:      make(map[defs.DialogProfileID]*defs.DialogProfileDef),
+		DialogTopics:        make(map[defs.TopicID]*defs.DialogTopic),
+		DialogProfileStates: make(map[defs.DialogProfileID]*state.DialogProfileState),
+
+		CharacterDefs:   make(map[defs.CharacterDefID]defs.CharacterDef),
+		CharacterStates: make(map[state.CharacterStateID]*state.CharacterState),
 	}
 	return &def
 }
 
-func (defMgr *DefinitionManager) LoadTraitDef(trait skills.Trait) {
+func (defMgr *DefinitionManager) LoadCharacterDef(charDef defs.CharacterDef) {
+	if charDef.ID == "" {
+		panic("id was empty")
+	}
+
+	if _, exists := defMgr.CharacterDefs[charDef.ID]; exists {
+		logz.Panicln("DefinitionManager", "tried to load character def, but ID already exists:", charDef.ID)
+	}
+
+	defMgr.CharacterDefs[charDef.ID] = charDef
+}
+
+func (defMgr *DefinitionManager) GetCharacterDef(id defs.CharacterDefID) defs.CharacterDef {
+	if id == "" {
+		panic("id was empty")
+	}
+	def, exists := defMgr.CharacterDefs[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get characterDef, but ID was not found", id)
+	}
+	return def
+}
+
+func (defMgr *DefinitionManager) LoadCharacterState(charState *state.CharacterState) {
+	if charState == nil {
+		panic("charstate was nil")
+	}
+	if charState.ID == "" {
+		panic("id was empty")
+	}
+	if _, exists := defMgr.CharacterStates[charState.ID]; exists {
+		logz.Panicln("DefinitionManager", "tried to load character state, but ID already exists:", charState.ID)
+	}
+	defMgr.CharacterStates[charState.ID] = charState
+}
+
+func (defMgr *DefinitionManager) GetCharacterState(id state.CharacterStateID) *state.CharacterState {
+	if id == "" {
+		panic("id was empty")
+	}
+	charState, exists := defMgr.CharacterStates[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get character state, but ID was not found:", id)
+	}
+	return charState
+}
+
+// GetNewCharStateID generates a new and unique CharacterStateID that is guaranteed to not be defined in definitionMgr yet.
+// Also uses the charDefID as its base, for convenience and search-ability
+func (defMgr DefinitionManager) GetNewCharStateID(defID defs.CharacterDefID) state.CharacterStateID {
+	id := state.CharacterStateID(fmt.Sprintf("%s_%s", defID, general_util.GenerateUUID()))
+	if _, exists := defMgr.CharacterStates[id]; exists {
+		logz.Panicln("DefinitionManager", "Generated Unique ID for Character State was already registered... is this possible?")
+	}
+	return id
+}
+
+func (defMgr *DefinitionManager) LoadDialogTopic(topic *defs.DialogTopic) {
+	if topic.ID == "" {
+		logz.Panicln("DefinitionManager", "tried to load dialog topic, but ID was empty")
+	}
+	if _, exists := defMgr.DialogTopics[topic.ID]; exists {
+		logz.Panicln("DefinitionManager", "tried to load dialog topic, but a topic with the same ID already exists:", topic.ID)
+	}
+	defMgr.DialogTopics[topic.ID] = topic
+}
+
+func (defMgr DefinitionManager) GetDialogTopic(id defs.TopicID) *defs.DialogTopic {
+	topic, exists := defMgr.DialogTopics[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get dialog topic, but no topic with the given id was found:", id)
+	}
+	return topic
+}
+
+func (defMgr *DefinitionManager) LoadDialogProfile(profile *defs.DialogProfileDef) {
+	if profile.ProfileID == "" {
+		logz.Panicln("DefinitionManager", "tried to load dialog profile, but profile ID was empty")
+	}
+	if _, exists := defMgr.DialogProfiles[profile.ProfileID]; exists {
+		logz.Panicln("DefinitionManager", "tried to load dialog profile, but a profile with the same ID already exists:", profile.ProfileID)
+	}
+	defMgr.DialogProfiles[profile.ProfileID] = profile
+}
+
+func (defMgr DefinitionManager) GetDialogProfile(id defs.DialogProfileID) *defs.DialogProfileDef {
+	profile, exists := defMgr.DialogProfiles[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get dialog profile, but no profile with the given id was found:", id)
+	}
+	return profile
+}
+
+func (defMgr *DefinitionManager) LoadDialogProfileState(profileState *state.DialogProfileState) {
+	if profileState.ProfileID == "" {
+		logz.Panicln("DefinitionManager", "tried to load dialog profile state, but profile ID was empty")
+	}
+	if _, exists := defMgr.DialogProfileStates[profileState.ProfileID]; exists {
+		logz.Panicln("DefinitionManager", "tried to load dialog profile state, but a profile with the same ID already exists:", profileState.ProfileID)
+	}
+	defMgr.DialogProfileStates[profileState.ProfileID] = profileState
+}
+
+func (defMgr DefinitionManager) GetDialogProfileState(id defs.DialogProfileID) *state.DialogProfileState {
+	profileState, exists := defMgr.DialogProfileStates[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get dialog profile state, but no profile with the given id was found:", id)
+	}
+	return profileState
+}
+
+func (defMgr DefinitionManager) DialogProfileStateExists(id defs.DialogProfileID) bool {
+	if id == "" {
+		panic("id was empty")
+	}
+	_, exists := defMgr.DialogProfileStates[id]
+	return exists
+}
+
+func (defMgr *DefinitionManager) LoadTraitDef(trait defs.Trait) {
 	if trait.GetID() == "" {
 		logz.Panicln("DefinitionManager", "tried to load trait, but ID was empty")
 	}
@@ -44,7 +177,7 @@ func (defMgr *DefinitionManager) LoadTraitDef(trait skills.Trait) {
 	defMgr.TraitDefs[trait.GetID()] = trait
 }
 
-func (defMgr DefinitionManager) GetTraitDef(id skills.TraitID) skills.Trait {
+func (defMgr DefinitionManager) GetTraitDef(id defs.TraitID) defs.Trait {
 	trait, exists := defMgr.TraitDefs[id]
 	if !exists {
 		logz.Panicln("DefinitionManager", "tried to get trait by ID that doesn't exist:", id)
@@ -52,7 +185,7 @@ func (defMgr DefinitionManager) GetTraitDef(id skills.TraitID) skills.Trait {
 	return trait
 }
 
-func (defMgr *DefinitionManager) LoadAttributeDef(attr skills.AttributeDef) {
+func (defMgr *DefinitionManager) LoadAttributeDef(attr defs.AttributeDef) {
 	if attr.ID == "" {
 		logz.Panicln("DefinitionManager", "tried to load attribute, but ID was empty")
 	}
@@ -62,7 +195,7 @@ func (defMgr *DefinitionManager) LoadAttributeDef(attr skills.AttributeDef) {
 	defMgr.AttributeDefs[attr.ID] = attr
 }
 
-func (defMgr DefinitionManager) GetAttributeDef(id skills.AttributeID) skills.AttributeDef {
+func (defMgr DefinitionManager) GetAttributeDef(id defs.AttributeID) defs.AttributeDef {
 	attrDef, exists := defMgr.AttributeDefs[id]
 	if !exists {
 		logz.Panicln("DefinitionManager", "tried to get attribute by ID that doesn't exist:", id)
@@ -70,7 +203,7 @@ func (defMgr DefinitionManager) GetAttributeDef(id skills.AttributeID) skills.At
 	return attrDef
 }
 
-func (defMgr *DefinitionManager) LoadSkillDef(sk skills.SkillDef) {
+func (defMgr *DefinitionManager) LoadSkillDef(sk defs.SkillDef) {
 	if sk.ID == "" {
 		logz.Panicln("DefinitionManager", "tried to load skill, but ID was empty")
 	}
@@ -80,7 +213,7 @@ func (defMgr *DefinitionManager) LoadSkillDef(sk skills.SkillDef) {
 	defMgr.SkillDefs[sk.ID] = sk
 }
 
-func (defMgr DefinitionManager) GetSkillDef(id skills.SkillID) skills.SkillDef {
+func (defMgr DefinitionManager) GetSkillDef(id defs.SkillID) defs.SkillDef {
 	skillDef, exists := defMgr.SkillDefs[id]
 	if !exists {
 		logz.Panicln("DefinitionManager", "tried to get skill by ID that doesn't exist:", id)
@@ -88,7 +221,7 @@ func (defMgr DefinitionManager) GetSkillDef(id skills.SkillID) skills.SkillDef {
 	return skillDef
 }
 
-func (def *DefinitionManager) LoadBodyPartDef(partDef body.SelectedPartDef) {
+func (def *DefinitionManager) LoadBodyPartDef(partDef defs.SelectedPartDef) {
 	if partDef.ID == "" {
 		logz.Panicln("DefinitionManager", "tried to load body part def, but ID is empty")
 	}
@@ -98,7 +231,7 @@ func (def *DefinitionManager) LoadBodyPartDef(partDef body.SelectedPartDef) {
 	def.BodyPartDefs[partDef.ID] = partDef
 }
 
-func (def DefinitionManager) GetBodyPartDef(id string) body.SelectedPartDef {
+func (def DefinitionManager) GetBodyPartDef(id defs.BodyPartID) defs.SelectedPartDef {
 	partDef, exists := def.BodyPartDefs[id]
 	if !exists {
 		logz.Panicln("DefinitionManager", "entity body part def not found:", id)
@@ -106,7 +239,7 @@ func (def DefinitionManager) GetBodyPartDef(id string) body.SelectedPartDef {
 	return partDef
 }
 
-func (def *DefinitionManager) LoadItemDefs(itemDefs []item.ItemDef) {
+func (def *DefinitionManager) LoadItemDefs(itemDefs []defs.ItemDef) {
 	for _, itemDef := range itemDefs {
 		itemDef.Validate()
 		id := itemDef.GetID()
@@ -115,7 +248,7 @@ func (def *DefinitionManager) LoadItemDefs(itemDefs []item.ItemDef) {
 	}
 }
 
-func (def *DefinitionManager) GetItemDef(defID string) item.ItemDef {
+func (def *DefinitionManager) GetItemDef(defID defs.ItemID) defs.ItemDef {
 	itemDef, exists := def.ItemDefs[defID]
 	if !exists {
 		logz.Panicln("DefinitionManager", "item def not found:", defID)
@@ -123,7 +256,7 @@ func (def *DefinitionManager) GetItemDef(defID string) item.ItemDef {
 	return itemDef
 }
 
-func (def *DefinitionManager) NewInventoryItem(defID string, quantity int) item.InventoryItem {
+func (def *DefinitionManager) NewInventoryItem(defID defs.ItemID, quantity int) defs.InventoryItem {
 	if quantity <= 0 {
 		panic("quantity must be a positive number")
 	}
@@ -132,29 +265,29 @@ func (def *DefinitionManager) NewInventoryItem(defID string, quantity int) item.
 		panic("item def is nil")
 	}
 
-	return item.NewInventoryItem(itemDef, quantity)
+	return defs.NewInventoryItem(itemDef, quantity)
 }
 
-func (def *DefinitionManager) LoadShopkeeper(shopkeeperID string, shopkeeper Shopkeeper) {
-	def.Shopkeepers[shopkeeperID] = &shopkeeper
+func (def *DefinitionManager) LoadShopkeeperDef(sk defs.ShopkeeperDef) {
+	def.ShopkeeperDefs[sk.ID] = &sk
 }
 
-func (def DefinitionManager) GetShopkeeper(shopkeeperID string) *Shopkeeper {
-	shopkeeper, exists := def.Shopkeepers[shopkeeperID]
+func (def DefinitionManager) GetShopkeeperDef(id defs.ShopID) *defs.ShopkeeperDef {
+	shopkeeper, exists := def.ShopkeeperDefs[id]
 	if !exists {
-		logz.Panicf("shopkeeperID not found in defintionManager: %s", shopkeeperID)
+		logz.Panicf("shopkeeperID not found in defintionManager: %s", id)
 	}
 	return shopkeeper
 }
 
-func (def *DefinitionManager) LoadDialog(dialogID string, d dialog.Dialog) {
-	def.Dialogs[dialogID] = d
+func (def *DefinitionManager) LoadShopkeeperState(sk state.ShopkeeperState) {
+	def.ShopkeeperStates[sk.ShopID] = &sk
 }
 
-func (def DefinitionManager) GetDialog(dialogID string) dialog.Dialog {
-	d, exists := def.Dialogs[dialogID]
+func (def DefinitionManager) GetShopkeeperState(id defs.ShopID) *state.ShopkeeperState {
+	shopkeeper, exists := def.ShopkeeperStates[id]
 	if !exists {
-		logz.Panicf("dialogID not found in defMgr: %s", dialogID)
+		logz.Panicf("shopkeeperID not found in defintionManager: %s", id)
 	}
-	return d
+	return shopkeeper
 }

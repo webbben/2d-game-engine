@@ -3,11 +3,11 @@ package inventory
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
-	"github.com/webbben/2d-game-engine/item"
 )
 
 type Inventory struct {
@@ -35,13 +35,13 @@ func (inv Inventory) GetItemSlots() []*ItemSlot {
 	return inv.itemSlots
 }
 
-func (inv Inventory) GetInventoryItems() []*item.InventoryItem {
-	invItems := []*item.InventoryItem{}
+func (inv Inventory) GetInventoryItems() []*defs.InventoryItem {
+	invItems := []*defs.InventoryItem{}
 	for _, slot := range inv.itemSlots {
 		if slot.Item == nil {
 			invItems = append(invItems, nil)
 		} else {
-			invItems = append(invItems, &item.InventoryItem{
+			invItems = append(invItems, &defs.InventoryItem{
 				Instance: slot.Item.Instance,
 				Def:      slot.Item.Def,
 				Quantity: slot.Item.Quantity,
@@ -70,7 +70,7 @@ type InventoryParams struct {
 
 	HoverWindowParams textwindow.TextWindowParams
 
-	AllowedItemTypes []item.ItemType // if set, all slots in this inventory will only allow items in this list of item IDs
+	AllowedItemTypes []defs.ItemType // if set, all slots in this inventory will only allow items in this list of item IDs
 }
 
 func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams) Inventory {
@@ -128,7 +128,7 @@ func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams)
 
 // SetItemSlots sets all item slots; a nil spot represents an empty item slot.
 // items can be less than the actual total slots number, since some slots may be disabled.
-func (inv *Inventory) SetItemSlots(items []*item.InventoryItem) {
+func (inv *Inventory) SetItemSlots(items []*defs.InventoryItem) {
 	if len(items) > len(inv.itemSlots) {
 		logz.Panicf("trying to set more items than there are item slots. slots: %v items: %v", len(inv.itemSlots), len(items))
 	}
@@ -141,7 +141,7 @@ func (inv *Inventory) SetItemSlots(items []*item.InventoryItem) {
 		} else {
 			invItem.Validate()
 			if invItem.Quantity == 0 {
-				logz.Println(invItem.Instance.DefID)
+				logz.Println(string(invItem.Instance.DefID))
 				panic("trying to set an item that has 0 quantity")
 			}
 			inv.itemSlots[i].SetContent(&invItem.Instance, invItem.Def, invItem.Quantity)
@@ -150,8 +150,8 @@ func (inv *Inventory) SetItemSlots(items []*item.InventoryItem) {
 }
 
 // AddItems adds items to an inventory and returns the items that failed to be added (due to inventory being too full)
-func (inv *Inventory) AddItems(items []item.InventoryItem) []item.InventoryItem {
-	failedToAdd := []item.InventoryItem{}
+func (inv *Inventory) AddItems(items []defs.InventoryItem) []defs.InventoryItem {
+	failedToAdd := []defs.InventoryItem{}
 
 	// find matching item that can merge
 	for _, newItem := range items {

@@ -5,79 +5,112 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
 )
 
-type InventoryItem struct {
-	Instance ItemInstance
-	Def      ItemDef `json:"-"` // since this interface can't be properly loaded from JSON, lets exclude it from JSONs
-	Quantity int
-}
-
-// NewInventoryItem puts the pieces of an inventoryItem together; use the one in definitionManager to actually get an inventory item from the game state.
-func NewInventoryItem(def ItemDef, quantity int) InventoryItem {
-	if def == nil {
-		panic("def is nil")
-	}
-	invItem := InventoryItem{
-		Instance: ItemInstance{
-			DefID:      def.GetID(),
-			Durability: def.GetMaxDurability(),
-		},
-		Def:      def,
-		Quantity: quantity,
-	}
-
-	invItem.Validate()
-	return invItem
-}
-
-func (invItem *InventoryItem) String() string {
-	return fmt.Sprintf("{DefID: %s, Name: %s, Quant: %v}", invItem.Instance.DefID, invItem.Def.GetName(), invItem.Quantity)
-}
-
-func InventoryToString(inv []*InventoryItem) string {
-	s := ""
-	for _, invItem := range inv {
-		if invItem == nil {
-			continue
-		}
-		s += invItem.String() + ", "
-	}
-	return s
-}
-
-func (invItem InventoryItem) Validate() {
-	if invItem.Def == nil {
-		panic("item def is nil")
-	}
-	if invItem.Instance.DefID == "" {
-		panic("item instance has no def ID")
-	}
-	if invItem.Quantity <= 0 {
-		panic("item quantity is less than or equal to 0. all items must have a quantity of at least 1")
-	}
-	if invItem.Def.GetID() != invItem.Instance.DefID {
-		panic("def.GetID() does not match instance.defID")
-	}
-}
-
-func (i InventoryItem) Draw(screen *ebiten.Image, x, y float64) {
+func DrawInventoryItem(screen *ebiten.Image, invItem defs.InventoryItem, x, y float64) {
 	tileSize := int(config.TileSize * config.UIScale)
-	rendering.DrawImage(screen, i.Def.GetTileImg(), x, y, config.UIScale)
+	rendering.DrawImage(screen, invItem.Def.GetTileImg(), x, y, config.UIScale)
 
-	if i.Quantity > 1 {
-		qS := fmt.Sprintf("%v", i.Quantity)
+	if invItem.Quantity > 1 {
+		qS := fmt.Sprintf("%v", invItem.Quantity)
 		qDx, _, _ := text.GetStringSize(qS, config.DefaultFont)
 		qX := int(x) + tileSize - qDx - 3
 		qY := int(y) + tileSize - 5
-		text.DrawOutlinedText(screen, fmt.Sprintf("%v", i.Quantity), config.DefaultFont, qX, qY, color.Black, color.White, 0, 0)
+		text.DrawOutlinedText(screen, fmt.Sprintf("%v", invItem.Quantity), config.DefaultFont, qX, qY, color.Black, color.White, 0, 0)
 	}
 }
 
-func RemoveItemFromInventory(itemToRemove InventoryItem, removeFrom []*InventoryItem) (bool, InventoryItem) {
+func RemoveItemFromStandardInventory(inv *defs.StandardInventory, itemToRemove defs.InventoryItem) (bool, defs.InventoryItem) {
+	itemToRemove.Validate()
+
+	if itemToRemove.Def.IsCurrencyItem() && len(inv.CoinPurse) > 0 {
+		// first try the coin purse
+		success, remaining := RemoveItemFromInventory(itemToRemove, inv.CoinPurse)
+		if success {
+			if remaining.Quantity != 0 {
+				logz.Panicln("RemoveItemFromStandardInventory", "item removal was supposedly successful, but remaining is not 0:", remaining.Quantity)
+			}
+			return true, remaining
+		}
+		if remaining.Quantity == 0 {
+			panic("why is Quantity 0 if no success?")
+		}
+		// if there is still some left to remove, use the `remaining` value
+		// e.g. if some coins are not in the coin purse for some reason
+		itemToRemove.Quantity = remaining.Quantity
+	}
+
+	success, remaining := RemoveItemFromInventory(itemToRemove, inv.InventoryItems)
+	if success {
+		if remaining.Quantity != 0 {
+			logz.Panicln("RemoveItemFromInventory", "item removal was supposedly successful, but remaining is not 0:", remaining.Quantity)
+		}
+	}
+	// cd.Validate()
+	return success, remaining
+}
+
+// LoadStandardInventoryItemDefs confirms all itemDefs are loaded for every inventory item in a standard inventory.
+// The reason we need to do this is, if we are loading an inventory from a JSON file, the item defs won't be defined.
+// The reason for that is, itemdefs are interfaces, which don't really work for writing to JSON files.
+// So, whenever loading an inventory, ensure that all the defs are loaded in.
+func LoadStandardInventoryItemDefs(inv *defs.StandardInventory, defMgr *definitions.DefinitionManager) {
+	reloadItemDef := func(invItem *defs.InventoryItem) {
+		if invItem == nil {
+			return
+		}
+		if invItem.Def == nil {
+			if invItem.Instance.DefID == "" {
+				panic("tried to reload invItem def, but instance didn't have defID set")
+			}
+			invItem.Def = defMgr.GetItemDef(invItem.Instance.DefID)
+		}
+		invItem.Validate()
+	}
+
+	for _, coinItem := range inv.CoinPurse {
+		reloadItemDef(coinItem)
+	}
+	for _, invItem := range inv.InventoryItems {
+		reloadItemDef(invItem)
+	}
+	reloadItemDef(inv.Equipment.EquipedBodywear)
+	reloadItemDef(inv.Equipment.EquipedHeadwear)
+	reloadItemDef(inv.Equipment.EquipedFootwear)
+	reloadItemDef(inv.Equipment.EquipedAuxiliary)
+	reloadItemDef(inv.Equipment.EquipedWeapon)
+	reloadItemDef(inv.Equipment.EquipedAmulet)
+	reloadItemDef(inv.Equipment.EquipedRing1)
+	reloadItemDef(inv.Equipment.EquipedRing2)
+	reloadItemDef(inv.Equipment.EquipedAmmo)
+}
+
+func AddItemToStandardInventory(inv *defs.StandardInventory, invItem defs.InventoryItem) (bool, defs.InventoryItem) {
+	invItem.Validate()
+
+	// if currency, first try to place it in the coin purse
+	if len(inv.CoinPurse) > 0 {
+		if invItem.Def.IsCurrencyItem() {
+			success, remaining := AddItemToInventory(invItem, inv.CoinPurse)
+			if success {
+				return true, defs.InventoryItem{}
+			}
+			invItem = remaining
+		}
+	}
+
+	success, remaining := AddItemToInventory(invItem, inv.InventoryItems)
+
+	return success, remaining
+}
+
+func RemoveItemFromInventory(itemToRemove defs.InventoryItem, removeFrom []*defs.InventoryItem) (bool, defs.InventoryItem) {
 	for i, invItem := range removeFrom {
 		if invItem == nil {
 			continue
@@ -100,7 +133,7 @@ func RemoveItemFromInventory(itemToRemove InventoryItem, removeFrom []*Inventory
 
 // AddItemToInventory attempts to add the given inventory item to an inventory.
 // Returns true if successfully in placing the item; otherwise, returns the inventory item back (however much failed to be added)
-func AddItemToInventory(invItem InventoryItem, addTo []*InventoryItem) (bool, InventoryItem) {
+func AddItemToInventory(invItem defs.InventoryItem, addTo []*defs.InventoryItem) (bool, defs.InventoryItem) {
 	// if item is groupable, try to find a matching item already in the inventory
 	if invItem.Def.IsGroupable() {
 		for _, otherItem := range addTo {
@@ -109,7 +142,7 @@ func AddItemToInventory(invItem InventoryItem, addTo []*InventoryItem) (bool, In
 			}
 			if otherItem.Instance.DefID == invItem.Instance.DefID {
 				otherItem.Quantity += invItem.Quantity
-				return true, InventoryItem{}
+				return true, defs.InventoryItem{}
 			}
 		}
 	}
@@ -118,7 +151,7 @@ func AddItemToInventory(invItem InventoryItem, addTo []*InventoryItem) (bool, In
 	for i, otherItem := range addTo {
 		if otherItem == nil {
 			addTo[i] = &invItem
-			return true, InventoryItem{}
+			return true, defs.InventoryItem{}
 		}
 	}
 

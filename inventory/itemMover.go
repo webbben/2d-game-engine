@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/overlay"
@@ -9,7 +10,7 @@ import (
 )
 
 type ItemMover struct {
-	carryItem     *item.InventoryItem // the item that is currently being carried
+	carryItem     *defs.InventoryItem // the item that is currently being carried
 	dropableSlots []*ItemSlot         // item slots that an item can be dropped into
 	itemImg       *ebiten.Image       // image of the item as its being carried
 }
@@ -20,13 +21,13 @@ func NewItemMover(itemSlots []*ItemSlot) ItemMover {
 	}
 }
 
-func (im *ItemMover) pickupItem(itemToCarry *item.InventoryItem, amount int) bool {
+func (im *ItemMover) pickupItem(itemToCarry *defs.InventoryItem, amount int) bool {
 	if im.carryItem != nil {
 		// already carrying an item
 		return false
 	}
 
-	im.carryItem = &item.InventoryItem{
+	im.carryItem = &defs.InventoryItem{
 		Instance: itemToCarry.Instance,
 		Def:      itemToCarry.Def,
 		Quantity: amount,
@@ -45,7 +46,7 @@ func (im *ItemMover) MakeItemImage() {
 	tileSize := int(config.TileSize * config.UIScale)
 
 	im.itemImg = ebiten.NewImage(tileSize, tileSize)
-	im.carryItem.Draw(im.itemImg, 0, 0)
+	item.DrawInventoryItem(im.itemImg, *im.carryItem, 0, 0)
 }
 
 func (im *ItemMover) Draw(om *overlay.OverlayManager) {
@@ -169,7 +170,7 @@ func (im *ItemMover) handleItemPlacement() {
 	}
 }
 
-func (im *ItemMover) gatherAllOfItem(def item.ItemDef) {
+func (im *ItemMover) gatherAllOfItem(def defs.ItemDef) {
 	if !def.IsGroupable() {
 		return
 	}

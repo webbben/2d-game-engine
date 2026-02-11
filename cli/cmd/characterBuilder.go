@@ -5,11 +5,12 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/spf13/cobra"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/definitions"
-	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/image"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/overlay"
@@ -19,7 +20,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/popup"
 	"github.com/webbben/2d-game-engine/internal/ui/tab"
 	"github.com/webbben/2d-game-engine/item"
-	"github.com/webbben/2d-game-engine/skills"
 )
 
 const noneOp = "< None >"
@@ -71,19 +71,24 @@ type builderGame struct {
 	// body part options
 
 	bodySkinSets                                                                 []EntityBodySkinSet
-	eyesSetOptions, hairSetOptions                                               []body.SelectedPartDef
-	bodySetIndex, eyesSetIndex, hairSetIndex                                     int
-	bodywearItems, headwearItems, footwearItems                                  []item.ItemDef
+	eyesSetOptions, hairSetOptions                                               []defs.SelectedPartDef
+	bodySetIndex, eyesSetIndex, hairSetIndex                                     int // index of body/skin option
+	bodywearItems, headwearItems, footwearItems                                  []defs.ItemDef
 	equipedBodywear, equipedHeadwear, equipedFootwear, equipedWeapon, equipedAux string // IDs of equiped items
 
-	weaponItems []item.ItemDef
+	weaponItems []defs.ItemDef
 
-	auxItems []item.ItemDef
+	auxItems []defs.ItemDef
 
 	// character info and entity body
 
-	characterData entity.CharacterData
-	defMgr        *definitions.DefinitionManager
+	CharacterDef *defs.CharacterDef // The Character Definition that is produced when we save a new character
+
+	// Just used for showing the actual character and its body - not saved
+	// EntRef *entity.Entity
+	Body body.EntityBodySet
+
+	defMgr *definitions.DefinitionManager
 
 	// UI components
 
@@ -107,13 +112,13 @@ type builderGame struct {
 }
 
 type weaponOption struct {
-	weaponPartDef body.SelectedPartDef
-	weaponFxDef   body.SelectedPartDef
+	weaponPartDef defs.SelectedPartDef
+	weaponFxDef   defs.SelectedPartDef
 }
 
 type equipBodyOption struct {
-	bodyDef body.SelectedPartDef
-	legsDef body.SelectedPartDef
+	bodyDef defs.SelectedPartDef
+	legsDef defs.SelectedPartDef
 }
 
 func characterBuilder(fileToLoad string) {
@@ -133,11 +138,11 @@ func characterBuilder(fileToLoad string) {
 		defMgr.LoadBodyPartDef(hair)
 	}
 
-	bodywearItems := []item.ItemDef{}
-	headwearItems := []item.ItemDef{}
-	footwearItems := []item.ItemDef{}
-	weaponItems := []item.ItemDef{}
-	auxItems := []item.ItemDef{}
+	bodywearItems := []defs.ItemDef{}
+	headwearItems := []defs.ItemDef{}
+	footwearItems := []defs.ItemDef{}
+	weaponItems := []defs.ItemDef{}
+	auxItems := []defs.ItemDef{}
 
 	for _, itemDef := range itemDefs {
 		switch itemDef.GetItemType() {
@@ -154,16 +159,13 @@ func characterBuilder(fileToLoad string) {
 		}
 	}
 
-	var characterData entity.CharacterData
+	var characterDef defs.CharacterDef
+	var charBody body.EntityBodySet
 	if fileToLoad != "" {
-		var err error
-		fileToLoad = resolveCharacterJSONPath(fileToLoad)
-		characterData, err = entity.LoadCharacterDataJSON(fileToLoad, defMgr)
-		if err != nil {
-			logz.Panicln("Character Builder", "load character data:", err)
-		}
+		// TODO: load a character def from an ID
+		// for now, "fileToLoad" is actually going to just be a characterDefID
 	} else {
-		characterData = getNewCharacter()
+		characterDef, charBody = getNewCharacter()
 	}
 
 	g := builderGame{
@@ -174,10 +176,12 @@ func characterBuilder(fileToLoad string) {
 		headwearItems:  headwearItems,
 		footwearItems:  footwearItems,
 		weaponItems:    weaponItems,
-		characterData:  characterData,
 		auxItems:       auxItems,
 
 		defMgr: defMgr,
+
+		CharacterDef: &characterDef,
+		Body:         charBody,
 	}
 
 	// do this if using a new, empty slate character body
@@ -188,11 +192,12 @@ func characterBuilder(fileToLoad string) {
 		g.SetBodyIndex(0)
 		g.SetHairIndex(0)
 		g.SetEyesIndex(0)
-		g.characterData.Body.AuxItemSet.Hide()
+		g.Body.AuxItemSet.Hide()
 	}
 
 	// run this just to confirm that the regular loading process also still works (as used in the actual game)
-	g.characterData.Body.Load()
+	// TODO: confirm this function does what we want
+	g.Body.Load()
 
 	g.om = &overlay.OverlayManager{}
 
@@ -239,95 +244,66 @@ func characterBuilder(fileToLoad string) {
 	}
 }
 
-func getNewCharacter() entity.CharacterData {
-	bodySet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:   "bodySet",
-		IsBody: true,
-		HasUp:  true,
-	})
-	armsSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:  "armsSet",
-		HasUp: true,
-	})
-	legsSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:  "legsSet",
-		HasUp: true,
-	})
-	eyesSet := body.NewBodyPartSet(body.BodyPartSetParams{Name: "eyesSet"})
-	hairSet := body.NewBodyPartSet(body.BodyPartSetParams{HasUp: true, Name: "hairSet"})
-	equipBodySet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:        "equipBodySet",
-		HasUp:       true,
-		IsRemovable: true,
-	})
-	equipLegsSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:        "equipLegsSet",
-		HasUp:       true,
-		IsRemovable: true,
-	})
-	equipHeadSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		HasUp:       true,
-		Name:        "equipHeadSet",
-		IsRemovable: true,
-	})
-	equipFeetSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		HasUp:       true,
-		Name:        "equipFeetSet",
-		IsRemovable: true,
-	})
-	weaponSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:        "weaponSet",
-		HasUp:       true,
-		IsRemovable: true,
-	})
-	weaponFxSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:        "weaponFxSet",
-		HasUp:       true,
-		IsRemovable: true,
-	})
-	auxSet := body.NewBodyPartSet(body.BodyPartSetParams{
-		Name:        "auxSet",
-		HasUp:       true,
-		IsRemovable: true,
-	})
+func getNewCharacter() (defs.CharacterDef, body.EntityBodySet) {
+	charBody := body.NewHumanBodyFramework()
 
-	entBody := body.NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipLegsSet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
-
-	// Setting these various fields just to prevent validation errors (e.g. WalkSpeed). But, these values are eventually overwritten
-	// when used in the actual game.
-	cd := entity.CharacterData{
-		ID:             "newCharacter",
-		DisplayName:    "newCharacter",
-		Body:           entBody,
-		WalkSpeed:      entity.GetDefaultWalkSpeed(),
-		RunSpeed:       entity.GetDefaultRunSpeed(),
-		InventoryItems: make([]*item.InventoryItem, 18),
-		CoinPurse:      make([]*item.InventoryItem, 6),
-
-		BaseAttributes: make(map[skills.AttributeID]int),
-		BaseSkills:     make(map[skills.SkillID]int),
+	charDef := defs.CharacterDef{
+		ID:              "newCharacter",
+		DisplayName:     "New Character",
+		DialogProfileID: ProfileDefault, // TODO: at some point, we will add a control for setting dialog profile
+		BodyDef:         defs.BodyDef{
+			// Note: not setting them here because the setters will handle putting the IDs here
+		},
+		InitialInventory: defs.StandardInventory{
+			InventoryItems: make([]*defs.InventoryItem, 18),
+			CoinPurse:      make([]*defs.InventoryItem, 6),
+		},
+		BaseAttributes: make(map[defs.AttributeID]int),
+		BaseSkills:     make(map[defs.SkillID]int),
+		InitialTraits:  make([]defs.TraitID, 0),
+		BaseVitals:     defs.Vitals{}, // TODO: should vitals be calculated by attributes instead? I think yes.
 	}
-	return cd
+
+	return charDef, charBody
 }
 
 func (bg builderGame) saveCharacter() {
-	id := bg.scrAppearance.idField.GetText()
+	bg.CharacterDef.ID = defs.CharacterDefID(bg.scrAppearance.idField.GetText())
+	bg.CharacterDef.DisplayName = bg.scrAppearance.nameField.GetText()
+
+	id := bg.CharacterDef.ID
 	if id == "" {
 		return
 	}
-	name := bg.scrAppearance.nameField.GetText()
-	if name == "" {
+	if bg.CharacterDef.DisplayName == "" {
 		return
 	}
 
-	basePath := resolveCharacterJSONPath(id)
+	bg.CharacterDef.BodyDef.BodyHSV = bg.Body.BodyHSV
+	bg.CharacterDef.BodyDef.EyesHSV = bg.Body.EyesHSV
+	bg.CharacterDef.BodyDef.HairHSV = bg.Body.HairHSV
 
-	bg.characterData.ID = id
-	bg.characterData.DisplayName = name
+	// do some quick validations to ensure data isn't unexpectedly missing
+	if bg.CharacterDef.BodyDef.BodyID == "" {
+		panic("body ID empty")
+	}
+	if bg.CharacterDef.BodyDef.ArmsID == "" {
+		panic("arms ID empty")
+	}
+	if bg.CharacterDef.BodyDef.LegsID == "" {
+		panic("legs ID empty")
+	}
+	if bg.CharacterDef.BodyDef.EyesID == "" {
+		panic("eyes ID empty")
+	}
+	if bg.CharacterDef.BodyDef.HairID == "" {
+		panic("hair ID empty")
+	}
 
-	err := bg.characterData.WriteToJSON(basePath)
+	jsonPath := resolveCharacterJSONPath(string(id))
+	err := general_util.WriteToJSON(bg.CharacterDef, jsonPath)
 	if err != nil {
-		logz.Panicln("saveCharacter", "error occurred while saving character data to JSON:", err)
+		logz.Panicln("CharacterBuilder", "failed to save characterDef to JSON:", err)
 	}
 }
 

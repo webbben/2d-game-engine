@@ -1,3 +1,189 @@
+# 2026-02-11
+
+... Whew! Finally finished that massive refactor I started a few days ago. In short, I moved almost everything I could think of into this new Defs/State dichotomy.
+Everything from characters, items, shopkeepers, dialog, body parts (for entity bodies), skills, traits, etc are now all cleaned up and defined with Definitions in a
+`data/defs` package, and where applicable, with States in `data/state`. I'm pretty sure by now I've edited damn near all of the files in this project - at least, anything that
+directly deals with in-game concepts and state. But, I'm much happier with this setup, and I also feel like I understand how things will work going forward much better.
+There was always a looming question hanging over my head which I never really understood until now: "How will I save and load a game playthrough?".
+
+I'll go ahead and just sum up the details of how this "Defs/State" system works, and any rules I have going forward if I end up implementing new features or concepts in the game
+engine.
+
+## The "Defs/State" System 
+
+This basically means, all game data will be broken down into one of two things (if it's to be saved and is not temporary runtime stuff).
+I'm guessing in the last post I started diving into these concepts, but let's try to give them a good definition now that this refactor is done and I've gone through all the
+code changes.
+
+### Definitions 
+
+A "Definition" is something that defines a "starting point", or also can define "what is possible to occur" for a particular concept in the game.
+
+Let's look at the "Character" concept in the game.
+
+> By the way, up until now, I've largely been using the word "Entity" instead of "Character". I've stopped using Entity for really anything besides the runtime concept of 
+showing a character in a game map; the "entity" is just a shell in the world that is associated with a specific character, and can move, fight, etc.
+
+A Character has a definition that defines things like:
+
+- what items does this character start with when it is instantiated in the game world?
+- what are its base skills?
+- what is it's body/skin definition?
+
+... and pretty much anything else that might be considered "immutable" (unchangeable). Some of these things **will** change at some point, but they also serve to
+define how a character that is spawned into the game using this Def would start out. What items it initially has, it's initial skill levels, etc.
+
+### State 
+
+A "State" essentially keeps track of the ongoing progression of something in the game. It's what is saved when you "save the game", and it's what's loaded back in when you
+start up a previous save.
+
+Using the Character example again, the Character's state will tell you the current skill levels, the current items in the character's inventory, etc.
+As things change during a playthrough, the State is where those details are saved and remembered.
+
+## Saving and Loading Games 
+
+So, with these definitions in mind, it becomes a lot clearer exactly what you need to save and load for a specific playthrough.
+
+The Definitions are immutable, so there's nothing to "save" here. As long as the game can access these same definitions every time, there's no problem.
+
+So, for saving the game, you really just need to save all of the States for anything in the world that matters and that needs to be remembered between play sessions.
+I think that simplifies things very nicely, and it makes it clear too about what data to include in a save file. Just get all the states for anything that has a state in the whole game,
+and save it in a file.
+
+## Going Forward: New Rules
+
+From now on, here are some new rules I will try to remember and strictly adhere to:
+
+1) Whenever creating a new concept, ALWAYS design it by Def and State first.
+- Create the necessary structs and interfaces that define these two concepts, and put them in the correct data packages.
+- Do this first, since it will help in the long run. Don't build something really massive and THEN go back and try to split up the pieces.
+
+2) Clearly separate the concepts of State and Def from eachother, and ALSO (especially) from Runtime.
+- I might go as far as just defining three structs for any new concepts going forward: Def, State, and Runtime. And the concept itself will wrap these three.
+- It's just nice to have these things broken up cleanly. It will probably lead to cleaner code too. 
+
+For now, I think these rules will work nicely. If I run into any new issues in the future, I'll add em here.
+
+## Next Up 
+
+Ok, I know I've been claiming that I'm about to start working on quests for a while now... but I think I'm really finally getting to that point!
+A couple likely things that _could_ come up besides quest work though:
+
+1) Update CharacterBuilder to support choosing DialogProfileIDs
+- (I haven't introduced this concept yet here, but I will in the future. Basically, this just defines how a character behaves in a dialog session.)
+
+2) Misc bug fixes. I did a massive refactor, so I'm sure there are bound to be at least a few places where I've accidentally broken things. Hopefully no more major refactors...
+
+3) Redo the sound system: planning to make a centralized sound player, for a couple reasons:
+- I want to manage it all in a single place, so that sounds playing simultaneously are aware of each other and there can be some managing done if needed.
+- Also, reduce memory usage. The current system means each entity will load its own set of audio data, but that doesn't make sense. I think all audio data should be loaded 
+into a single, centralized sound manager so that there isn't duplicate memory usage anywhere.
+
+# 2026-02-08
+
+Currently going through another learning moment - I've discovered that I've kind of fused together the concepts of "State" and "Runtime" in a lot of places.
+I'm just now learning why I will want to ensure these two things are decoupled and clearly delineated. I'll go into the details of that concept here, and point out some of the 
+main challenging points with how things are currently set up. My goal is to get most of this worked out as soon as possible, so I can get cracking again on the actual game content.
+
+## "Definitions", "State", and "Runtime"
+
+These are three concepts that I've been gradually understanding better and better as I've been working on this. Until now, though, I haven't given it too much thought.
+The main reason is probably because, up until now, I've been mainly just testing things out, getting them to work, and not worrying about overall architecture.
+But now as I see the pieces come together and I'm ready to really get into game development, I see a lot of flaws and potential problems with how I've designed a lot of the 
+structs for things like entities, NPCs, dialog, etc.
+
+## First, Dialog 
+
+I started on this realization when I was working on improving the dialog system. I basically realized that I should try to rewrite it better, since before it was basically put 
+together just for testing, and it was well before a lot of the other concepts of the game were starting to be imagined and planned.
+
+After working through things with ChatGPT, and aiming for a "morrowind style" dialog system, I found that my current schema for dialogs was all out of whack.
+It was really just way too unsophisticated for what I was wanting. I needed reusable topics, with responses that rely on conditions about the player, game state, or
+conversation memory, and since things were so different I settled on rewriting all of the dialog schema and logic.
+
+Eventually I had a nicely designed system, and it was also decoupled nicely into these concepts of "definitions" (topic definitions, dialog profile definitions, etc)
+and "dialog state" - which topics the player has discussed before, what kind of decisions he's made. Really, just a map of strings that serves as a memory system for dialogs.
+
+Definitions were hard-coded and retrieved by ID from a centralized data store. State represented data that we want to persist in save-games and be loadable into a dialog session.
+
+Runtime logic is pretty much everything else that you need for the dialog system to work: statuses, UI flags, timers, etc. These should not be saved or persisted anywhere, as they 
+vanish once a dialog session has ended.
+
+## Next, NPCs 
+
+Once I had this shiny new-and-improved system for dialogs (and it only really took me about a day and a half, luckily), I realized I probably need to do the same for NPCs.
+At this current point, NPCs could be defined like this:  a wrapper around an entity that allows for "smart" or scheduled behavior, like fighting, following daily schedules, or any 
+miscellaneous task that you want to assign. Much as the player is a wrapper around an entity and allows the player to control it, the NPC is the same and allows an entity to 
+"come to life".
+
+I started to realize that the current definition for NPCs is pretty messy though. Firstly, there is no "NPC Def" yet. NPCs basically are just given an entity ID, and that data is
+loaded into it so it can start doing things in the map with that entity. I started trying to de-couple the NPC in the same way, picking out "Definition" data from "State" data, etc.
+However, I've now noticed that a lot of the NPC's "definition" data actually lies in the entity itself. The same with it's state - it's health, inventory items, skills, etc are 
+all defined within the entity right now. 
+
+## So, Entity first then
+
+Actually, once in the past I must've been slightly moving along this path, albeit at an earlier stage of realization, and I had done the 
+due diligence of splitting off the "character data" from the runtime logic. I even split off the "UI controller" for the entity, which is called a Body. 
+So, it's not all bad, and that is definitely not a bad place to be starting from now. I think I had made this decision to split the entity data up as such because of the
+character builder; I needed a single struct that would represent who the entity/character actually "is". I didn't want to save off a bunch of runtime logic flags and values into 
+a JSON, I just wanted to save off things like the entity's items, name, ID, skills, etc.
+
+So, now I need to go one step further: I need to split this CharacterData struct up into two things:
+
+1) The Entity's Definition: what is the immutable data and identity of this entity/character?
+2) The Entity's State: what are the details about this entity that will change over time, and that we should save in between playing sessions?
+
+Once I have these things determined, then I have to figure out how this should work with NPCs.
+
+### Q: Does an entity have a "state"? Or is that just part of the NPC's state?
+
+This is something that I'm trying to figure out now, so let's just dive into it.
+I guess the crux of the issue is, are there ever entities in the world that aren't either a Player or NPC?
+
+... I'm thinking the answer is no. First of all, what's the point of an entity that isn't either one of those? I don't think it will have any capabilities at all.
+It won't be able to engage in dialog, it won't be able to fight, and it won't be able to walk around on its own or do anything besides stand there.
+Plus, I don't see why I couldn't just make an empty little NPC wrapper for an entity, even if it wasn't going to do anything besides stand there.
+
+So let's settle it: "an entity's state is just part of its container player/npc's state."
+
+I guess the implication here is, when we load an NPC and it's spinning up it's inner entity, it will have to pass to it an `EntityState` struct. Same with the Player.
+And when saving the game, each NPC will save its inner entity's `EntityState` into its own state data.
+
+### Q: Does an entity have a "def"?
+
+I think the answer here is yes. The reason being, you can reuse a single entity def for multiple NPCs. Imagine there's a basic entity definition for a legionary soldier.
+If there were two NPCs who represent just rank-and-file legionaries, then this entity def could be reused.
+
+## Last: How Should Save Data Work?
+
+This is likely going to play a part in this issue, so I'll need to get this figured out now too.
+
+Until now, I've only had "temporary" solutions for saving data. Like I said above, I save CharacterData into JSON files, which can then be loaded at runtime.
+I think ultimately, it will probably end up something like this:
+
+Definitions:
+
+- either hard-coded in a code file somewhere (especially for more simple data, like dialog topic content)
+- or, saved as a JSON file, for data that is more complex and won't be written or defined by hand. E.g. character definitions from character builder.
+
+State:
+
+- all game state, including dialog state, NPC state, etc, will be saved in a big save file. I'm not sure what format - I guess it could be a JSON - but I also like 
+the idea of something more opaque so you can't just open the file and start making changes all willy nilly.
+
+## Next Steps 
+
+Anyway, I just wanted a chance to write this all out to help me put it all into context and contemplate my approach. I think for now, I'm going to get this Entity vs NPC thing
+worked out, get those definitions centralized in the "definition manager" (as I've taken to calling it), and once that is done I'll look around if there are yet more places I need 
+to fix up. Hopefully not many more, because I really feel like I've been in a cycle of refactoring and rewriting code over time. I guess that's the consequence of doing something
+new and learning lessons along the way.
+
+I think moving forward, I should make sure to split all data along these lines of "runtime", "def", and "state". This is only important for data concepts that might need to be
+saved and reloaded though, so if I'm designing a UI component, it may not be as important. But, for quests as an example (probably the next major thing I'll be architecting),
+I'll definitely make sure to design it from the start along these three pillars, probably simply as structs named as such.
+
 # 2026-02-03
 
 ## Attributes Screen of Character Builder

@@ -1,9 +1,8 @@
 package body
 
 import (
-	"fmt"
-
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/rendering"
@@ -71,120 +70,6 @@ type Animation struct {
 	StepsOffsetYRight []int
 	StepsOffsetYUp    []int
 	StepsOffsetYDown  []int
-}
-
-type AnimationParams struct {
-	Name                                      string
-	Skip                                      bool
-	TilesetSrc                                string
-	TilesLeft, TilesRight, TilesUp, TilesDown []int // indices of each frame of the animation
-	AuxLeft, AuxRight, AuxUp, AuxDown         []int // if aux influeces this animation, define the aux frames here
-
-	StepsOffsetY []int
-
-	// optional overrides for specific directions Y offset
-
-	StepsOffsetYLeft  []int
-	StepsOffsetYRight []int
-	StepsOffsetYUp    []int
-	StepsOffsetYDown  []int
-}
-
-func (ap AnimationParams) DebugString() string {
-	s := fmt.Sprintf("Name: %s TilesetSrc: %s Skip: %v\n", ap.Name, ap.TilesetSrc, ap.Skip)
-	s += fmt.Sprintf("L: %v\nR: %v\nU: %v\nD: %v\n", ap.TilesLeft, ap.TilesRight, ap.TilesUp, ap.TilesDown)
-	if len(ap.AuxLeft) != 0 {
-		s += fmt.Sprintf("AuxL: %v\n", ap.AuxLeft)
-	}
-	if len(ap.AuxRight) != 0 {
-		s += fmt.Sprintf("AuxR: %v\n", ap.AuxRight)
-	}
-	if len(ap.AuxUp) != 0 {
-		s += fmt.Sprintf("AuxU: %v\n", ap.AuxUp)
-	}
-	if len(ap.AuxDown) != 0 {
-		s += fmt.Sprintf("AuxD: %v\n", ap.AuxDown)
-	}
-	if len(ap.StepsOffsetY) != 0 {
-		s += fmt.Sprintf("offY: %v\n", ap.StepsOffsetY)
-	}
-	if len(ap.StepsOffsetYLeft) != 0 {
-		s += fmt.Sprintf("offYL: %v\n", ap.StepsOffsetYLeft)
-	}
-	if len(ap.StepsOffsetYRight) != 0 {
-		s += fmt.Sprintf("offYR: %v\n", ap.StepsOffsetYRight)
-	}
-	if len(ap.StepsOffsetYUp) != 0 {
-		s += fmt.Sprintf("offYU: %v\n", ap.StepsOffsetYUp)
-	}
-	if len(ap.StepsOffsetYDown) != 0 {
-		s += fmt.Sprintf("offYD: %v\n", ap.StepsOffsetYDown)
-	}
-	return s
-}
-
-func (ap AnimationParams) IsEqual(other AnimationParams) bool {
-	if ap.Name != other.Name {
-		return false
-	}
-	if ap.Skip != other.Skip {
-		return false
-	}
-	if ap.TilesetSrc != other.TilesetSrc {
-		return false
-	}
-	slicesEqual := func(a, b []int) bool {
-		if len(a) != len(b) {
-			return false
-		}
-		for i, v := range a {
-			if b[i] != v {
-				return false
-			}
-		}
-		return true
-	}
-
-	if !slicesEqual(ap.TilesLeft, other.TilesLeft) {
-		return false
-	}
-	if !slicesEqual(ap.TilesRight, other.TilesRight) {
-		return false
-	}
-	if !slicesEqual(ap.TilesUp, other.TilesUp) {
-		return false
-	}
-	if !slicesEqual(ap.TilesDown, other.TilesDown) {
-		return false
-	}
-	if !slicesEqual(ap.AuxLeft, other.AuxLeft) {
-		return false
-	}
-	if !slicesEqual(ap.AuxRight, other.AuxRight) {
-		return false
-	}
-	if !slicesEqual(ap.AuxUp, other.AuxUp) {
-		return false
-	}
-	if !slicesEqual(ap.AuxDown, other.AuxDown) {
-		return false
-	}
-	if !slicesEqual(ap.StepsOffsetY, other.StepsOffsetY) {
-		return false
-	}
-	if !slicesEqual(ap.StepsOffsetYLeft, other.StepsOffsetYLeft) {
-		return false
-	}
-	if !slicesEqual(ap.StepsOffsetYRight, other.StepsOffsetYRight) {
-		return false
-	}
-	if !slicesEqual(ap.StepsOffsetYUp, other.StepsOffsetYUp) {
-		return false
-	}
-	if !slicesEqual(ap.StepsOffsetYDown, other.StepsOffsetYDown) {
-		return false
-	}
-	return true
 }
 
 func (a Animation) validate() {
@@ -287,7 +172,7 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 // load loads the frames of an animation, given the animation params and other loading options like flipping, stretch, etc.
 //
 // flipRL: set to true to flip and reuse Right frames for the Left direction
-func (a *Animation) load(params AnimationParams, aux, hasUp, flipRL bool, stretchX, stretchY int) {
+func (a *Animation) load(params defs.AnimationParams, aux, hasUp, flipRL bool, stretchX, stretchY int) {
 	if params.Name == "" {
 		panic("name is empty")
 	}

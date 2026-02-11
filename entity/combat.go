@@ -82,20 +82,20 @@ func (e Entity) GetFrontRect() model.Rect {
 
 func (e *Entity) StartMeleeAttack() {
 	if !e.IsWeaponEquiped() {
-		logz.Panicln(e.DisplayName, "tried to swing weapon, but no weapon is equiped")
+		logz.Panicln(e.DisplayName(), "tried to swing weapon, but no weapon is equiped")
 	}
 	if e.IsStunned() {
 		return
 	}
 	if e.IsAttacking() {
-		logz.Panicln(e.DisplayName, "tried to start melee attack, but entity is already attacking")
+		logz.Panicln(e.DisplayName(), "tried to start melee attack, but entity is already attacking")
 	}
 
 	animationInterval := 6
 	e.Body.SetAnimationTickCount(animationInterval)
 	res := e.Body.SetAnimation(body.AnimSlash, body.SetAnimationOps{DoOnce: true})
 	if !res.Success {
-		logz.Println(e.DisplayName, "melee attack failed:", res.String())
+		logz.Println(e.DisplayName(), "melee attack failed:", res.String())
 		if !res.AlreadySet {
 			// if not already attacking, then just wait to do the attack once whatever the current animation is finishes
 			e.waitingToAttack = true
@@ -108,13 +108,13 @@ func (e *Entity) StartMeleeAttack() {
 		Damage:        10,
 		StunTicks:     20,
 		TargetRect:    e.GetFrontRect(),
-		ExcludeEntIds: []string{e.ID},
+		ExcludeEntIds: []string{string(e.ID())},
 		Origin:        model.Vec2{X: e.X, Y: e.Y},
 	}, animationInterval*3)
 }
 
 func (e *Entity) ReceiveAttack(attack AttackInfo) {
-	logz.Println(e.DisplayName, "received attack!")
+	logz.Println(e.DisplayName(), "received attack!")
 	if attack.Damage < 0 {
 		panic("attack can not have negative damage")
 	}
@@ -128,7 +128,7 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 		moveError := e.TryBumpBack(config.TileSize/2, defaultWalkSpeed, attack.Origin, body.AnimShield, defaultIdleAnimationTickInterval)
 		if !moveError.Success {
 			// perhaps there was a collision?
-			logz.Println(e.DisplayName, "shielded bump back failed:", moveError)
+			logz.Println(e.DisplayName(), "shielded bump back failed:", moveError)
 		}
 		return
 	}
@@ -144,14 +144,14 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	}
 	e.waitingToAttack = false
 
-	e.Vitals.Health.CurrentVal -= attack.Damage
-	logz.Println(e.DisplayName, "current health:", e.Vitals.Health.CurrentVal)
+	e.CharacterStateRef.Vitals.Health.CurrentVal -= attack.Damage
+	logz.Println(e.DisplayName(), "current health:", e.CharacterStateRef.Vitals.Health.CurrentVal)
 
 	e.Body.SetDamageFlicker(15)
 
 	moveError := e.TryBumpBack(config.TileSize, defaultRunSpeed, attack.Origin, body.AnimIdle, defaultIdleAnimationTickInterval)
 	if !moveError.Success {
-		logz.Println(e.DisplayName, "failed to bump back:", moveError)
+		logz.Println(e.DisplayName(), "failed to bump back:", moveError)
 		if !moveError.Collision {
 			logz.Panic("bump back failed, but it wasn't due to a collision. the bump back should always succeed unless the entity is up against a wall")
 		}
@@ -173,18 +173,18 @@ func (e Entity) IsStunned() bool {
 func (e Entity) IsWeaponEquiped() bool {
 	// ensure that weapon set matches equiped weapon
 	partIsNone := e.Body.WeaponSet.PartSrc.None
-	weaponIsNil := e.EquipedWeapon == nil
+	weaponIsNil := e.CharacterStateRef.Equipment.EquipedWeapon == nil
 	if weaponIsNil == partIsNone {
 		return !weaponIsNil
 	}
 	// uh oh - we have a bugged case here. let's panic so it can be noticed and fixed.
-	logz.Panicln(e.DisplayName, "equiped weapon slot and weapon body part don't seem to match... weapon is nil?:", weaponIsNil, "part is none?:", partIsNone)
+	logz.Panicln(e.DisplayName(), "equiped weapon slot and weapon body part don't seem to match... weapon is nil?:", weaponIsNil, "part is none?:", partIsNone)
 	return false
 }
 
 func (e Entity) IsShieldEquiped() bool {
-	if e.EquipedAuxiliary != nil {
-		if item.IsArmor(e.EquipedAuxiliary.Def) {
+	if e.CharacterStateRef.Equipment.EquipedAuxiliary != nil {
+		if item.IsArmor(e.CharacterStateRef.Equipment.EquipedAuxiliary.Def) {
 			return true
 		}
 	}
@@ -193,7 +193,7 @@ func (e Entity) IsShieldEquiped() bool {
 
 func (e *Entity) UseShield() {
 	if !e.IsShieldEquiped() {
-		logz.Panicln(e.DisplayName, "tried to use shield, but shield is not equipped")
+		logz.Panicln(e.DisplayName(), "tried to use shield, but shield is not equipped")
 	}
 	if e.IsUsingShield() {
 		return
@@ -212,12 +212,12 @@ func (e *Entity) UseShield() {
 
 func (e *Entity) StopUsingShield() {
 	if !e.IsUsingShield() {
-		logz.Panicln(e.DisplayName, "trying to stop using shield, but shield isn't being used")
+		logz.Panicln(e.DisplayName(), "trying to stop using shield, but shield isn't being used")
 	}
 
 	res := e.Body.SetAnimation(body.AnimIdle, body.SetAnimationOps{Force: true})
 	if !res.Success {
-		logz.Panicln(e.DisplayName, "failed to unset shield animation...")
+		logz.Panicln(e.DisplayName(), "failed to unset shield animation...")
 	}
 }
 

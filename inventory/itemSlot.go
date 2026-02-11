@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/mouse"
@@ -23,7 +24,7 @@ type ItemSlot struct {
 
 	selectedBorderFader rendering.BounceFader
 
-	Item *item.InventoryItem
+	Item *defs.InventoryItem
 
 	Enabled    bool
 	IsSelected bool
@@ -32,14 +33,14 @@ type ItemSlot struct {
 	tooltip      string
 	hoverTooltip textwindow.HoverTooltip
 
-	allowedItemTypes []item.ItemType // each item type in this array will be allowed; if nothing is set here, all items are allowed
+	allowedItemTypes []defs.ItemType // each item type in this array will be allowed; if nothing is set here, all items are allowed
 }
 
 type ItemSlotParams struct {
 	ItemSlotTiles    ItemSlotTiles
 	Enabled          bool
 	Tooltip          string
-	AllowedItemTypes []item.ItemType // each item type in this array will be allowed; if nothing is set here, all items are allowed
+	AllowedItemTypes []defs.ItemType // each item type in this array will be allowed; if nothing is set here, all items are allowed
 }
 
 func NewItemSlot(params ItemSlotParams, hoverWindowParams textwindow.TextWindowParams) *ItemSlot {
@@ -78,7 +79,7 @@ func NewItemSlot(params ItemSlotParams, hoverWindowParams textwindow.TextWindowP
 	return &itemSlot
 }
 
-func (is ItemSlot) CanTakeItemType(itemType item.ItemType) bool {
+func (is ItemSlot) CanTakeItemType(itemType defs.ItemType) bool {
 	if len(is.allowedItemTypes) == 0 {
 		return true
 	}
@@ -90,7 +91,7 @@ func (is ItemSlot) CanTakeItemType(itemType item.ItemType) bool {
 	return false
 }
 
-func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.ItemDef, quantity int) {
+func (is *ItemSlot) SetContent(itemInstance *defs.ItemInstance, itemInfo defs.ItemDef, quantity int) {
 	if itemInfo == nil {
 		panic("item info is nil")
 	}
@@ -106,7 +107,7 @@ func (is *ItemSlot) SetContent(itemInstance *item.ItemInstance, itemInfo item.It
 	if !is.CanTakeItemType(itemInfo.GetItemType()) {
 		panic("item slot can't take this item")
 	}
-	is.Item = &item.InventoryItem{
+	is.Item = &defs.InventoryItem{
 		Instance: *itemInstance,
 		Def:      itemInfo,
 		Quantity: quantity,
@@ -159,7 +160,7 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 			rendering.DrawImage(screen, is.itemSlotTiles.EquipedTile, x, y, config.UIScale)
 		}
 
-		is.Item.Draw(screen, x, y)
+		item.DrawInventoryItem(screen, *is.Item, x, y)
 
 		if is.IsSelected {
 			ops := ebiten.DrawImageOptions{}

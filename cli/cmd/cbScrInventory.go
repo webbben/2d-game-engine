@@ -4,6 +4,8 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/overlay"
@@ -13,6 +15,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/textfield"
 	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
 	"github.com/webbben/2d-game-engine/inventory"
+	"github.com/webbben/2d-game-engine/item"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
 )
 
@@ -50,7 +53,7 @@ func (bg *builderGame) setupInventoryPage() {
 		EnabledSlotsCount: 18,
 	}
 
-	bg.scrInventory.inventoryComponent.Load(width, height, &bg.characterData, bg.defMgr, invParams)
+	bg.scrInventory.inventoryComponent.Load(width, height, &bg.CharacterDef.InitialInventory, bg.defMgr, invParams)
 
 	// money setters
 	dx, _, _ := text.GetStringSize("1000000000", config.DefaultFont)
@@ -69,7 +72,7 @@ func (bg *builderGame) setupInventoryPage() {
 	itemDefs := GetItemDefs()
 	itemIDs := []string{}
 	for _, itemDef := range itemDefs {
-		itemIDs = append(itemIDs, itemDef.GetID())
+		itemIDs = append(itemIDs, string(itemDef.GetID()))
 	}
 	bg.scrInventory.itemDropdown = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
 		Font:                  config.DefaultFont,
@@ -96,12 +99,12 @@ func (bg *builderGame) setupInventoryPage() {
 }
 
 func (bg *builderGame) refreshInventory() {
-	bg.scrInventory.inventoryComponent.SyncEntityItems()
-	bg.scrInventory.moneyInput.SetNumber(bg.characterData.CountMoney()) // initialize to current money
+	bg.scrInventory.inventoryComponent.SyncCharacterItems()
+	bg.scrInventory.moneyInput.SetNumber(bg.CharacterDef.InitialInventory.CountMoney()) // initialize to current money
 }
 
 func (bg *builderGame) saveInventory() {
-	bg.scrInventory.inventoryComponent.SaveEntityInventory()
+	bg.scrInventory.inventoryComponent.SaveCharacterInventory()
 }
 
 func (bg *builderGame) updateInventoryPage() {
@@ -112,17 +115,17 @@ func (bg *builderGame) updateInventoryPage() {
 	if bg.scrInventory.moneyConfirmBtn.Update().Clicked {
 		logz.Println("", "money confirm clicked")
 		inputMoney := bg.scrInventory.moneyInput.GetNumber()
-		currentMoney := bg.characterData.CountMoney()
+		currentMoney := bg.CharacterDef.InitialInventory.CountMoney()
 		if inputMoney != currentMoney {
 			// reset character money to this value
 			bg.saveInventory() // save any changes first
 			if currentMoney > 0 {
-				bg.characterData.SpendMoney(currentMoney, bg.defMgr)
+				characterstate.SpendMoney(&bg.CharacterDef.InitialInventory, currentMoney, bg.defMgr)
 			}
 			if inputMoney > 0 {
-				bg.characterData.EarnMoney(inputMoney, bg.defMgr)
+				characterstate.EarnMoney(&bg.CharacterDef.InitialInventory, inputMoney, bg.defMgr)
 			}
-			afterUpdate := bg.characterData.CountMoney()
+			afterUpdate := bg.CharacterDef.InitialInventory.CountMoney()
 			if afterUpdate != inputMoney {
 				logz.Panicln("CB Inventory Page", "tried to set money, but looks like it failed. input:", inputMoney, "after update:", afterUpdate)
 			}
@@ -149,7 +152,7 @@ func (bg *builderGame) updateInventoryPage() {
 		if quantity == 0 {
 			panic("quantity was 0!")
 		}
-		succ, remaining := bg.characterData.AddItemToInventory(bg.defMgr.NewInventoryItem(itemID, quantity))
+		succ, remaining := item.AddItemToStandardInventory(&bg.CharacterDef.InitialInventory, bg.defMgr.NewInventoryItem(defs.ItemID(itemID), quantity))
 		if !succ {
 			logz.Println("Add Item", "failed to add item! remaining that failed to add:", remaining)
 		}

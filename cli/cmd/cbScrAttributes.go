@@ -5,7 +5,9 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/definitions"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/internal/mouse"
@@ -15,7 +17,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/tiled"
 	"github.com/webbben/2d-game-engine/internal/ui/textfield"
 	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
-	"github.com/webbben/2d-game-engine/skills"
 )
 
 type attributesScreen struct {
@@ -24,7 +25,7 @@ type attributesScreen struct {
 	StealthSkillSetters []attributeSetter
 	MagicSkillSetters   []attributeSetter
 
-	traitsMasterList []skills.Trait
+	traitsMasterList []defs.Trait
 
 	entityTraits []traitIcon
 	openTraits   []traitIcon
@@ -84,7 +85,7 @@ func (as *attributeSetter) Draw(screen *ebiten.Image, drawX, drawY float64, maxA
 }
 
 type traitIcon struct {
-	trait                skills.Trait
+	trait                defs.Trait
 	traitImg             *ebiten.Image
 	hwContentPlaceholder *ebiten.Image
 	hoverWindow          textwindow.CustomHoverWindow
@@ -98,7 +99,7 @@ type traitIcon struct {
 	x, y, w, h int
 }
 
-func newTraitIcon(traitDef skills.Trait, defMgr *definitions.DefinitionManager) traitIcon {
+func newTraitIcon(traitDef defs.Trait, defMgr *definitions.DefinitionManager) traitIcon {
 	ti := traitIcon{
 		trait: traitDef,
 	}
@@ -225,6 +226,7 @@ func (ti traitIcon) buildBodyContent(defMgr *definitions.DefinitionManager) *ebi
 	return ti.hwContentPlaceholder
 }
 
+// TODO: load existing characterDef data, if loading an existing characterDef file
 func (bg *builderGame) setupAttributesPage() {
 	attributes := GetAllAttributes()
 	for _, attr := range attributes {
@@ -239,13 +241,13 @@ func (bg *builderGame) setupAttributesPage() {
 		bg.defMgr.LoadTraitDef(trait)
 	}
 
-	combatSkillIDs := []skills.SkillID{
+	combatSkillIDs := []defs.SkillID{
 		Blade, Blunt, Axe, Spear, Marksmanship, Repair, HeavyArmor, LightArmor,
 	}
-	stealthSkillIDs := []skills.SkillID{
+	stealthSkillIDs := []defs.SkillID{
 		Security, Sneak, Speechcraft, Mercantile,
 	}
-	magicSkillIDs := []skills.SkillID{
+	magicSkillIDs := []defs.SkillID{
 		Alchemy, Incantation,
 	}
 
@@ -331,11 +333,11 @@ func (bg *builderGame) updateAttributesPage() {
 
 	// save trait changes
 	if traitChanged {
-		entityTraits := []skills.TraitID{}
+		entityTraits := []defs.TraitID{}
 		for _, trait := range bg.scrAttributes.entityTraits {
 			entityTraits = append(entityTraits, trait.trait.GetID())
 		}
-		bg.characterData.Traits = entityTraits
+		bg.CharacterDef.InitialTraits = entityTraits
 
 		// reload attribute and skill setters
 		bg.updateAttributeSelectors()
@@ -343,10 +345,10 @@ func (bg *builderGame) updateAttributesPage() {
 }
 
 func (bg *builderGame) updateAttributeSelectors() {
-	skillMods, attrMods := bg.characterData.GetTraitModifiers(bg.defMgr)
+	skillMods, attrMods := characterstate.GetNetTraitModifiers(bg.CharacterDef.InitialTraits, bg.defMgr)
 
 	for i := range bg.scrAttributes.AttributeSetters {
-		id := skills.AttributeID(bg.scrAttributes.AttributeSetters[i].ID)
+		id := defs.AttributeID(bg.scrAttributes.AttributeSetters[i].ID)
 		modVal := 0
 		if val, exists := attrMods[id]; exists {
 			modVal = val
@@ -354,7 +356,7 @@ func (bg *builderGame) updateAttributeSelectors() {
 		bg.scrAttributes.AttributeSetters[i].ModVal = modVal
 	}
 	for i := range bg.scrAttributes.CombatSkillSetters {
-		id := skills.SkillID(bg.scrAttributes.CombatSkillSetters[i].ID)
+		id := defs.SkillID(bg.scrAttributes.CombatSkillSetters[i].ID)
 		modVal := 0
 		if val, exists := skillMods[id]; exists {
 			modVal = val
@@ -362,7 +364,7 @@ func (bg *builderGame) updateAttributeSelectors() {
 		bg.scrAttributes.CombatSkillSetters[i].ModVal = modVal
 	}
 	for i := range bg.scrAttributes.StealthSkillSetters {
-		id := skills.SkillID(bg.scrAttributes.StealthSkillSetters[i].ID)
+		id := defs.SkillID(bg.scrAttributes.StealthSkillSetters[i].ID)
 		modVal := 0
 		if val, exists := skillMods[id]; exists {
 			modVal = val
@@ -370,7 +372,7 @@ func (bg *builderGame) updateAttributeSelectors() {
 		bg.scrAttributes.StealthSkillSetters[i].ModVal = modVal
 	}
 	for i := range bg.scrAttributes.MagicSkillSetters {
-		id := skills.SkillID(bg.scrAttributes.MagicSkillSetters[i].ID)
+		id := defs.SkillID(bg.scrAttributes.MagicSkillSetters[i].ID)
 		modVal := 0
 		if val, exists := skillMods[id]; exists {
 			modVal = val
@@ -382,24 +384,24 @@ func (bg *builderGame) updateAttributeSelectors() {
 func (bg *builderGame) saveBaseAttributesToCharacter() {
 	// get the numbers set in the attribute setters, and set those in the characterData
 	for _, attrSetter := range bg.scrAttributes.AttributeSetters {
-		attrID := skills.AttributeID(attrSetter.ID)
+		attrID := defs.AttributeID(attrSetter.ID)
 		attrVal := attrSetter.Input.GetNumber()
-		bg.characterData.BaseAttributes[attrID] = attrVal
+		bg.CharacterDef.BaseAttributes[attrID] = attrVal
 	}
 	for _, skillSetter := range bg.scrAttributes.CombatSkillSetters {
-		skillID := skills.SkillID(skillSetter.ID)
+		skillID := defs.SkillID(skillSetter.ID)
 		skillVal := skillSetter.Input.GetNumber()
-		bg.characterData.BaseSkills[skillID] = skillVal
+		bg.CharacterDef.BaseSkills[skillID] = skillVal
 	}
 	for _, skillSetter := range bg.scrAttributes.StealthSkillSetters {
-		skillID := skills.SkillID(skillSetter.ID)
+		skillID := defs.SkillID(skillSetter.ID)
 		skillVal := skillSetter.Input.GetNumber()
-		bg.characterData.BaseSkills[skillID] = skillVal
+		bg.CharacterDef.BaseSkills[skillID] = skillVal
 	}
 	for _, skillSetter := range bg.scrAttributes.MagicSkillSetters {
-		skillID := skills.SkillID(skillSetter.ID)
+		skillID := defs.SkillID(skillSetter.ID)
 		skillVal := skillSetter.Input.GetNumber()
-		bg.characterData.BaseSkills[skillID] = skillVal
+		bg.CharacterDef.BaseSkills[skillID] = skillVal
 	}
 }
 

@@ -37,8 +37,8 @@ func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {
 	lights.DrawMapLighting(screen, g.worldScene, g.MapInfo.Lights, objectLights, g.daylightFader.GetCurrentColor(), g.daylightFader.GetDarknessFactor(), offsetX, offsetY)
 
 	// draw dialog
-	if g.Dialog != nil {
-		g.Dialog.Draw(screen)
+	if g.dialogSession != nil {
+		g.dialogSession.Draw(screen)
 	} else if g.ShowPlayerMenu {
 		g.PlayerMenu.Draw(screen, om)
 	} else if g.ShowTradeScreen {

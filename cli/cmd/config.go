@@ -10,14 +10,14 @@ func SetConfig() {
 	config.ShowPlayerCoords = true
 	config.ShowGameDebugInfo = true
 	// config.DrawGridLines = true
-	config.ShowEntityPositions = true
+	// config.ShowEntityPositions = true
 	// config.TrackMemoryUsage = true
 	// config.HourSpeed = time.Second * 20
-	config.ShowCollisions = true
+	// config.ShowCollisions = true
 	// config.ShowNPCPaths = true
 
 	config.GameDataPathOverride = "/Users/benwebb/dev/personal/ancient-rome"
-	config.EntityDefsDirectory = "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json"
+	config.CharacterDefsDirectory = "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json"
 
 	// CharacterDataSrc: "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json/character_02.json",
 
