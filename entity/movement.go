@@ -447,15 +447,15 @@ func (e *Entity) updateMovement() updateMovementResult {
 		volFactor := 1 - distToPlayer
 		switch groundMaterial {
 		case "wood":
-			e.footstepSFX.Step(audio.STEP_WOOD, volFactor)
+			e.footstepSFX.Step(audio.StepWood, volFactor)
 		case "stone":
-			e.footstepSFX.Step(audio.STEP_STONE, volFactor)
+			e.footstepSFX.Step(audio.StepStone, volFactor)
 		case "grass":
-			e.footstepSFX.Step(audio.STEP_GRASS, volFactor)
+			e.footstepSFX.Step(audio.StepGrass, volFactor)
 		case "tile":
-			e.footstepSFX.Step(audio.STEP_STONE, volFactor) // TODO get new sound specifically for tile?
+			e.footstepSFX.Step(audio.StepStone, volFactor) // TODO get new sound specifically for tile?
 		case "":
-			e.footstepSFX.Step(audio.STEP_DEFAULT, volFactor)
+			e.footstepSFX.Step(audio.StepDefault, volFactor)
 		default:
 			// if we don't have the string registered (and it's not an empty string) then error
 			panic("ground material not recognized: " + groundMaterial)

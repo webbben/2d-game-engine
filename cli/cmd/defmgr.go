@@ -3,6 +3,7 @@ package cmd
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/general_util"
 )
@@ -56,4 +57,13 @@ func LoadDefMgr(defMgr *definitions.DefinitionManager) {
 	for _, p := range profiles {
 		defMgr.LoadDialogProfile(&p)
 	}
+
+	// SOUNDS
+	for _, footstepSfxDef := range GetFootstepSFXDefs() {
+		defMgr.LoadFootstepSFXDef(footstepSfxDef)
+	}
+}
+
+func LoadAudioManager(audioMgr *audio.AudioManager) {
+	LoadAllSoundEffects(audioMgr)
 }

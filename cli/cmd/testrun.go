@@ -48,15 +48,12 @@ to quickly create a Cobra application.`,
 
 		// add a test NPC
 
-		footstepSFX := getFootstepSFX()
-
 		charStateID := entity.CreateNewCharacterState("character_02", entity.NewCharacterStateParams{}, gameState.DefinitionManager)
 
 		n := npc.NewNPC(npc.NPCParams{
 			CharStateID: charStateID,
-			FootstepSFX: footstepSFX,
 		},
-			gameState.DefinitionManager)
+			gameState.DefinitionManager, gameState.AudioManager)
 
 		err = n.SetFightTask(gameState.Player.Entity, false)
 		if err != nil {
@@ -85,6 +82,7 @@ func setupGameState(params gameParams) *game.Game {
 	g := game.NewGame(params.startHour)
 
 	LoadDefMgr(g.DefinitionManager)
+	LoadAudioManager(g.AudioManager)
 
 	err := g.SetupMap(params.startMapID, &game.OpenMapOptions{
 		RunNPCManager:    true,
@@ -95,10 +93,9 @@ func setupGameState(params gameParams) *game.Game {
 	}
 
 	// make the player
-	// playerEnt := entity.LoadCharacterStateIntoEntity("player", g.DefinitionManager)
 
 	charStateID := entity.CreateNewCharacterState("player", entity.NewCharacterStateParams{IsPlayer: true}, g.DefinitionManager)
-	playerEnt := entity.LoadCharacterStateIntoEntity(charStateID, g.DefinitionManager)
+	playerEnt := entity.LoadCharacterStateIntoEntity(charStateID, g.DefinitionManager, g.AudioManager)
 
 	p := player.NewPlayer(g.DefinitionManager, playerEnt)
 	_ = g.PlacePlayerAtSpawnPoint(&p, 0)

@@ -19,7 +19,8 @@ type DefinitionManager struct {
 	DialogProfileStates map[defs.DialogProfileID]*state.DialogProfileState
 	DialogTopics        map[defs.TopicID]*defs.DialogTopic
 
-	BodyPartDefs map[defs.BodyPartID]defs.SelectedPartDef // only for body "skin" parts (not for equipment, since those are part of item defs)
+	BodyPartDefs    map[defs.BodyPartID]defs.SelectedPartDef // only for body "skin" parts (not for equipment, since those are part of item defs)
+	FootstepSFXDefs map[defs.FootstepSFXDefID]defs.FootstepSFXDef
 
 	CharacterDefs   map[defs.CharacterDefID]defs.CharacterDef
 	CharacterStates map[state.CharacterStateID]*state.CharacterState
@@ -35,6 +36,7 @@ func NewDefinitionManager() *DefinitionManager {
 		ShopkeeperDefs:      make(map[defs.ShopID]*defs.ShopkeeperDef),
 		ShopkeeperStates:    make(map[defs.ShopID]*state.ShopkeeperState),
 		BodyPartDefs:        make(map[defs.BodyPartID]defs.SelectedPartDef),
+		FootstepSFXDefs:     make(map[defs.FootstepSFXDefID]defs.FootstepSFXDef),
 		AttributeDefs:       make(map[defs.AttributeID]defs.AttributeDef),
 		SkillDefs:           make(map[defs.SkillID]defs.SkillDef),
 		TraitDefs:           make(map[defs.TraitID]defs.Trait),
@@ -290,4 +292,27 @@ func (def DefinitionManager) GetShopkeeperState(id defs.ShopID) *state.Shopkeepe
 		logz.Panicf("shopkeeperID not found in defintionManager: %s", id)
 	}
 	return shopkeeper
+}
+
+func (def *DefinitionManager) LoadFootstepSFXDef(sfxDef defs.FootstepSFXDef) {
+	id := sfxDef.ID
+	if id == "" {
+		panic("id was empty")
+	}
+
+	if _, exists := def.FootstepSFXDefs[id]; exists {
+		logz.Panicln("DefinitionManager", "tried to load footstep sfx def that already exists:", id)
+	}
+	def.FootstepSFXDefs[id] = sfxDef
+}
+
+func (def DefinitionManager) GetFootstepSFXDef(id defs.FootstepSFXDefID) defs.FootstepSFXDef {
+	if id == "" {
+		panic("id was empty")
+	}
+	sfxDef, exists := def.FootstepSFXDefs[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to load footstepSfxDef that doesn't exist yet:", id)
+	}
+	return sfxDef
 }

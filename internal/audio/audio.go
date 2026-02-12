@@ -1,3 +1,4 @@
+// Package audio provides functionality for playing sounds, music, etc.
 package audio
 
 import (
@@ -19,7 +20,7 @@ type Sound struct {
 	player     *audio.Player
 	baseVolume float64
 	volume     float64
-	//data   []byte
+	// data   []byte
 }
 
 func (s *Sound) SetVolume(v float64) {
@@ -55,7 +56,7 @@ func (s *Sound) Play() {
 	s.player.Play()
 }
 
-// for loading mp3
+// NewSound is for loading mp3
 func NewSound(relAudioPath string, volume float64) (Sound, error) {
 	if relAudioPath == "" {
 		return Sound{}, errors.New("no relative audio path given")

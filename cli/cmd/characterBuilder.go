@@ -248,10 +248,11 @@ func getNewCharacter() (defs.CharacterDef, body.EntityBodySet) {
 	charBody := body.NewHumanBodyFramework()
 
 	charDef := defs.CharacterDef{
-		ID:              "newCharacter",
-		DisplayName:     "New Character",
-		DialogProfileID: ProfileDefault, // TODO: at some point, we will add a control for setting dialog profile
-		BodyDef:         defs.BodyDef{
+		ID:               "newCharacter",
+		DisplayName:      "New Character",
+		DialogProfileID:  ProfileDefault,       // TODO: at some point, we will add a control for setting dialog profile
+		FootstepSFXDefID: DefaultFootstepSFXID, // TODO: also for this
+		BodyDef:          defs.BodyDef{
 			// Note: not setting them here because the setters will handle putting the IDs here
 		},
 		InitialInventory: defs.StandardInventory{

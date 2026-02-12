@@ -165,7 +165,7 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 		charStateID := entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), entity.NewCharacterStateParams{}, g.DefinitionManager)
 		n := npc.NewNPC(npc.NPCParams{
 			CharStateID: charStateID,
-		}, g.DefinitionManager)
+		}, g.DefinitionManager, g.AudioManager)
 
 		_ = n.SetTask(&npc.IdleTask{}, true)
 		r := model.NewRect(obj.X, obj.Y, obj.Width, obj.Height)
@@ -273,7 +273,7 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 }
 
 func (mi *MapInfo) AddObjectToMap(obj tiled.Object, m tiled.Map) {
-	o := object.LoadObject(obj, m)
+	o := object.LoadObject(obj, m, mi.gameRef.AudioManager)
 	o.World = mi
 	mi.Objects = append(mi.Objects, o)
 	if o.Light.On {
@@ -548,7 +548,7 @@ func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
 	}
 
 	for _, n := range mi.NPCs {
-		logz.Println("Attack Area", "entID:", n.Entity.ID)
+		logz.Println("Attack Area", "entID:", n.Entity.ID())
 		if slices.Contains(attackInfo.ExcludeEntIds, string(n.Entity.ID())) {
 			continue
 		}
