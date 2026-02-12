@@ -10,6 +10,7 @@ import (
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/entity/player"
+	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/camera"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/display"
@@ -57,6 +58,7 @@ type Game struct {
 	UpdateHooks
 
 	DefinitionManager *definitions.DefinitionManager
+	AudioManager      *audio.AudioManager
 
 	debugData debugData // just used for the debug drawing
 }
@@ -143,6 +145,7 @@ func NewGame(hour int) *Game {
 		EventBus:          pubsub.NewEventBus(),
 		OverlayManager:    &overlay.OverlayManager{},
 		DefinitionManager: definitions.NewDefinitionManager(),
+		AudioManager:      audio.NewAudioManager(),
 		Clock:             clock.NewClock(config.HourSpeed, hour, 0, 0, 0, 762, 90),
 	}
 

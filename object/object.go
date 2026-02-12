@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/audio"
@@ -61,6 +62,8 @@ type Object struct {
 	World WorldContext
 
 	PlayerHovering bool
+
+	AudioMgr *audio.AudioManager
 }
 
 // GetRect is general purpose function to get the rect that this object occupies in the map. does not scale the values.
@@ -141,7 +144,7 @@ type Door struct {
 type Gate struct {
 	open          bool
 	changingState bool
-	openSFX       *audio.Sound
+	openSFXID     defs.SoundID
 }
 
 func (g Gate) IsOpen() bool {
@@ -152,13 +155,14 @@ type SpawnPoint struct {
 	SpawnIndex int
 }
 
-func LoadObject(obj tiled.Object, m tiled.Map) *Object {
+func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager) *Object {
 	o := Object{
-		Name:   obj.Name,
-		xPos:   obj.X,
-		yPos:   obj.Y,
-		Width:  int(obj.Width),
-		Height: int(obj.Height),
+		AudioMgr: audioMgr,
+		Name:     obj.Name,
+		xPos:     obj.X,
+		yPos:     obj.Y,
+		Width:    int(obj.Width),
+		Height:   int(obj.Height),
 		Rect: model.Rect{
 			X: obj.X,
 			Y: obj.Y,
@@ -346,17 +350,16 @@ func (obj *Object) loadGateObject(props []tiled.Property) {
 	for _, prop := range props {
 		switch prop.Name {
 		case "SFX":
-			gateSound := prop.GetStringValue()
-			sound, err := audio.NewSound(gateSound, 0.5)
-			if err != nil {
-				logz.Panicf("failed to load gate sound: %s", err.Error())
+			gateSoundID := defs.SoundID(prop.GetStringValue())
+			if gateSoundID == "" {
+				panic("no gate sound ID found. TODO: should we make a default one?")
 			}
-			obj.Gate.openSFX = &sound
+			obj.Gate.openSFXID = gateSoundID
 		}
 	}
 
-	if obj.Gate.openSFX == nil {
-		panic("no open SFX set for gate. make sure to set the 'SFX' property for this object in Tiled.")
+	if obj.Gate.openSFXID == "" {
+		panic("no open SFX ID set for gate. make sure to set the 'SFX' property for this object in Tiled.")
 	}
 }
 

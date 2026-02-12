@@ -98,10 +98,10 @@ func (obj *Object) activateGate() ObjectUpdateResult {
 
 	obj.Gate.changingState = true
 	obj.Gate.open = !obj.Gate.open
-	if obj.Gate.openSFX == nil {
+	if obj.Gate.openSFXID == "" {
 		panic("gate has no open SFX set. make sure the 'SFX' property is set for this object in Tiled.")
 	}
-	obj.Gate.openSFX.Play()
+	obj.AudioMgr.PlaySFX(obj.Gate.openSFXID, 0.2)
 
 	return ObjectUpdateResult{
 		UpdateOccurred: true,

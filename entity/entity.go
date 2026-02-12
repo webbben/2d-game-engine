@@ -97,15 +97,15 @@ type NewCharacterParams struct {
 
 // LoadCharacterStateIntoEntity loads a character state into an Entity, for rendering and interacting in a game map.
 // Grabs the character state from definition manager, outfits it in an entity, and prepares it for runtime use.
-func LoadCharacterStateIntoEntity(charStateID state.CharacterStateID, defMgr *definitions.DefinitionManager) *Entity {
-	// TODO: load sfx from ID found in character def
-	footstepSFX := audio.FootstepSFX{}
-
+func LoadCharacterStateIntoEntity(charStateID state.CharacterStateID, defMgr *definitions.DefinitionManager, audioMgr *audio.AudioManager) *Entity {
 	charState := defMgr.GetCharacterState(charStateID)
 
 	// load body def from charDef
 	charDef := defMgr.GetCharacterDef(charState.DefID)
 	skin := LoadBodySkin(charDef.BodyDef, defMgr)
+
+	// load footstep SFX
+	sfxDef := defMgr.GetFootstepSFXDef(charDef.FootstepSFXDefID)
 
 	ent := Entity{
 		Body: skin,
@@ -114,6 +114,11 @@ func LoadCharacterStateIntoEntity(charStateID state.CharacterStateID, defMgr *de
 			RunAnimationTickInterval:  defaultRunAnimationTickInterval,
 		},
 		CharacterStateRef: charState,
+		footstepSFX: audio.NewFootstepSFX(audio.FootstepSFXParams{
+			Def:           sfxDef,
+			TickDelay:     20,  // TODO: this should actually be calculated by the movement speed / speed of movement animation
+			DefaultVolume: 0.2, // TODO: look into how this is being used, because I'm not really sure about it
+		}, audioMgr),
 	}
 
 	// save char state to definition manager, since that's really where the character state will "live".
@@ -129,9 +134,6 @@ func LoadCharacterStateIntoEntity(charStateID state.CharacterStateID, defMgr *de
 	if len(ent.CharacterStateRef.InventoryItems) == 0 {
 		logz.Panicln(ent.CharacterStateRef.DisplayName, "inventory size is 0")
 	}
-
-	// load sounds
-	ent.LoadFootstepSFX(footstepSFX)
 
 	// prepare initial image frames
 	ent.Movement.Direction = 'D'
@@ -401,11 +403,6 @@ func (e Entity) CollisionRect() model.Rect {
 	}
 }
 
-func (e *Entity) LoadFootstepSFX(source audio.FootstepSFX) {
-	e.footstepSFX = source
-	e.footstepSFX.Load()
-}
-
 type WorldContext interface {
 	Collides(r model.Rect, excludeEntityID string) model.CollisionResult
 	FindPath(start, goal model.Coords) ([]model.Coords, bool)
@@ -413,10 +410,6 @@ type WorldContext interface {
 	GetGroundMaterial(tileX, tileY int) string
 	GetDistToPlayer(x, y float64) float64
 	AttackArea(attackInfo AttackInfo)
-}
-
-type AudioProps struct {
-	FootstepSFX audio.FootstepSFX
 }
 
 type GeneralProps struct {

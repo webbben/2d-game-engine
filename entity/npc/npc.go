@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity"
+	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
@@ -50,17 +51,14 @@ type WorldContext interface {
 
 type NPCParams struct {
 	CharStateID state.CharacterStateID
-	FootstepSFX entity.AudioProps
 }
 
-func NewNPC(params NPCParams, defMgr *definitions.DefinitionManager) NPC {
+func NewNPC(params NPCParams, defMgr *definitions.DefinitionManager, audioMgr *audio.AudioManager) NPC {
 	if params.CharStateID == "" {
 		panic("CharStateID is empty")
 	}
 
-	// TODO: figure out how entity works here
-
-	ent := entity.LoadCharacterStateIntoEntity(params.CharStateID, defMgr)
+	ent := entity.LoadCharacterStateIntoEntity(params.CharStateID, defMgr, audioMgr)
 
 	// get dialog profile ID from character def
 	charDef := defMgr.GetCharacterDef(ent.CharacterStateRef.DefID)
@@ -68,7 +66,8 @@ func NewNPC(params NPCParams, defMgr *definitions.DefinitionManager) NPC {
 	return NPC{
 		Entity: ent,
 		NPCInfo: NPCInfo{
-			ID: string(ent.ID()),
+			ID:          string(ent.ID()),
+			DisplayName: ent.DisplayName(),
 		},
 		dialogProfileID: charDef.DialogProfileID,
 	}
