@@ -462,3 +462,24 @@ func (e *Entity) SetPositionPx(x, y float64) {
 	e.TargetX = e.X
 	e.TargetY = e.Y
 }
+
+func ValidateCharacterDef(cd defs.CharacterDef) {
+	if cd.DisplayName == "" {
+		panic("display name empty")
+	}
+	if cd.ID == "" {
+		panic("ID empty")
+	}
+	if cd.ClassName == "" {
+		panic("class name empty")
+	}
+	if cd.ClassDefID == "" {
+		panic("class def ID is empty")
+	}
+	if cd.DialogProfileID == "" {
+		panic("dialog profile ID is empty")
+	}
+	if cd.FootstepSFXDefID == "" {
+		panic("footstep sfx is empty")
+	}
+}

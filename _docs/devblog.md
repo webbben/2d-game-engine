@@ -1,3 +1,172 @@
+# 2026-02-12
+
+I've gotten things fixed up a bit, and have started working on the dialog for the opening "scene" of the game. So that's very exciting, and I'm ready to keep working on it.
+
+I've also finished up making the AudioManager, so now we have a good basis for gradually implementing more advanced audio playing logic, as the need arises in the future.
+
+Right now, I'm back in the Character Builder and making some more updates. The main things I've decided I want/need to add are:
+
+1) Input field for setting the DialogProfileID and default footstepSFX set (that's a must)
+
+2) Extending the name system to have both a "Display Name" and "Full Name", and also adding a "Class Name".
+
+Number 2 there is just something that I think will add more flavor to the game. It also makes logical sense, since this game is going to be set in the classical Roman world.
+So, we will need to have simple "display names" that are what characters are referred to as in regular gameplay interactions, but for some "flavor" we can allow some characters,
+especially Roman elites, to have fuller names.
+
+## A More Nuanced Naming System
+
+### The "Full Name"
+
+In classical Rome, Romans usually followed a naming convention that included multiple names, not just a "first" and "last" name.
+
+I'm probably going to mix it up a bit here, since I looked it up a long while back and am just attempting to remember the details now. But I think it goes like this:
+
+"Praenomen" (I think that's what it's called): Essentially the "first name" or "personal name". There was a small set of these, things like Marcus, Gaius, Publius, etc.
+
+"Nomen": I think this roughly equates to "family name" or "clan name". There are a lot of these, and they are things like "Cornelius", "Claudius", "Julius", etc.
+I usually think of Julius Caesar's "first name" being Julius, but I believe that's actually his clan's name; his "Praenomen" is Gaius, I believe.
+
+"Cognomen": Now, it's possible I'm getting this mixed up with "Nomen", but I believe this one is sort of a "nickname" that can be passed down. They usually have some sort of 
+literal-ish meaning, or at least are often derived from actual Latin words. I think Julius Caesar's cognomen must've been "Caesar" then? For Scipio Africanus, I think "Scipio"
+is his cognomen.
+
+"Honorary Titles/nicknames": I don't remember the actual name for this, but I believe you can get an extra name tacked on the end if you are extra special.
+In the example I gave above, Scipio Africanus' "honorary title" is "Africanus" actually. I think it literally means "the African", however don't get that twisted: he was a Latin Roman,
+and not from anywhere near Africa to my knowledge; Instead, he got the title since he was conquered Carthage, which was situated in Northern Africa, and therefore it sort of has more of
+a ring of "conqueror of Africa" too. I think there were others of these thrown around, like Britannicus, or Asiaticus, etc.
+
+Ok, so that's probably riddled with mistakes, but you get the picture: Romans can have a lot of names.
+So, while it might be nice to add some details in, like calling Scipio "Publius Cornelius Scipio Africanus", it can also be burdensome to always have that name shown.
+Actually, it would be very annoying and confusing if all of the Roman characters had these excessively long names, and you had to keep track of them all.
+
+So, instead, I think we can also keep a "Display Name".
+
+### The "Display Name"
+
+This will just be a shorter, more manageable and easy to use/remember name. It will more or less be "what a character is called" in dialog or anywhere else you would see his name
+in game interfaces, etc. The Full Name will just be a detail you can find on his profile, to give players more context or even identify specific historical characters.
+
+So, for example, instead of a character running around using the name "Publius Cornelius Scipio Africanus", I think we could shorten this to a nice "display name" of 
+just "Scipio Africanus". That's how I usually hear his name referenced anyway. Instead of "Gaius Julius Caesar", we can just use "Julius Caesar".
+
+For some extremely well known characters, like emperor Augustus, I'll just make his display name "Augustus" probably.
+
+### Will all characters have full names? What about non-Roman culture characters?
+
+I don't think most characters will have full names. This will be reserved for specific characters who have some historicity to them, or are otherwise very special or important 
+to a major questline. So, due to this, I can imagine that only the elite of the elite will have these long "full names". I might use the "full name" section to include extra fancy 
+titles, when appropriate.
+
+If I have time to do more research on different cultures present in the game, maybe they will have more nuanced naming systems too. But until that happens, I predict the full name 
+category will mainly be used by Romans, or other historical characters who had famous nicknames maybe. 
+
+## A Different, but Bigger Topic: Skills, Attributes, and Levels
+
+I'm pretty sure I've gone over this topic already before, so I won't explain the concepts of Skills, Attributes, etc here. But, as a quick reference,
+these things basically are intended to function the same as in games like Morrowind.
+
+I'm back in the Character Builder, and I've decided I need to go ahead and tackle the issue of calculating levels based on skills, how attributes and levels are influenced
+by each other, and other things like adding a "class" system.
+
+### A Class System 
+
+First thing I'll explain is the idea of a "class". To be honest, it doesn't really mean much for the player, because I don't think the player will be choosing a specific class,
+unless they want to as a means of convenience and to avoid spending time manually choosing skills, attributes, etc.
+
+But the main motivation for me to make a class system is just for speeding up NPC character creation. I don't want to have to manually set each and every skill/attribute for every
+character. I'd rather pick a class, set a level for the character, and let it compute the skills and attributes for me. Then, I can handle adding traits for extra flavor.
+
+Here's what I'm thinking (I'm also just inventing this as I type, using this as a thinking space). A class defines:
+
+"Favored attributes": Simply, these attributes get a boost right from the start.
+
+"Major and Minor (and misc) skills": setting a skill as a major or minor skill affect the following:
+
+- a higher base skill level: major skills start out with a bigger base than minor, which starts out bigger than misc.
+- how much a skill increase affects overall level-up progress (major being more significant than minor, etc)
+
+Note: I believe in Morrowind, misc skill increases did not contribute to level growth (I think?). But in this game, they will contribute to level growth. Just not as much 
+as major and minor skills.
+
+Now, for each "level", we will calculate a valid number for each skill and attribute. But, these skill and attribute levels will be distributed based on what was selected for 
+major and minor skills.
+
+> Note: this is me explaining how the "automatic character creating" system will work. For actual players, they will just hone their skills however they like and their attributes
+and skills will change organically based on that.
+
+#### A Level Calculation Model 
+
+Let's remind ourselves how leveling up works, and its relationship to Attributes:
+
+If you gain enough level-ups in skills, you increase in your overall character level.
+Each skill has a different "weight" in this calculation since major skills are more important than minor skills, which are more important than "misc" skills.
+
+Here's a formula for calculating levels which looks decent. 
+
+> Level = 1 + floor( (WeightedSkillTotal - BaseSkillTotal) / K )
+
+WeightedSkillTotal: sum of all skills with weights (weights applied to major and minor skills)
+BaseSkillTotal: starting skill baseline 
+K: how much skill growth equals one level
+
+Skill Weights:
+
+- Major: 3 
+- Minor: 2 
+- Misc: 1
+
+So... 
+
+> WeightedSkillTotal = 3(sum of major skills) + 2(sum of minor skills) + (sum of misc skills)
+
+Let's also clarify how BaseSkillTotal works, since that is also needed. Each major skill will have a base of a certain level (starting at level 1).
+The same applies to Minor and Misc skills. Let's set them like this:
+
+- BaseMajor: 30
+- BaseMinor: 15
+- BaseMisc: 5
+
+So, now we can calculate the BaseSkillTotal like this:
+
+> BaseSkillTotal = 30(number of major skills) + 15(number of minor skills) + 5(number of misc skills)
+
+Finally, we choose a value for K. K is a number of "weighted skill points per level", which means if the (weighted) skill points reaches a certain number, we have reached
+the next level.
+
+To decide this value, we can sort of reverse engineer a value based on how fast we want leveling to occur.
+
+Let's say, for each level, we could expect some sort of "rate of change" like this to each level group.
+
+Major rate: 5 
+Minor rate: 4 
+Misc rate: 2
+
+What this means is, maybe on average, we would expect 5 levels of increase to all major skills, 4 increases to minor skills, and 2 increases to misc skills.
+This is of course not going to be "true" for a player who is leveling up organically (all misc skills definitely won't be always going up by 2, for example) but
+it sets an expectation for what we could expect as an "overall, averaged character" at a given level.
+
+So, you take these "rates" and multiply them by the _number_ of skills in its category, and then multiply by the weight of skills in that category too:
+
+> Major Gain = (number of major skills) * (major rate) * (major weight)
+>
+> Minor Gain = (... same thing for minor skills, rate, and weight)
+>
+> ...
+
+And finally, you add them all up to calculate a value for K:
+
+> K = MajorGain + MinorGain + MiscGain
+
+Now we have all the pieces needed to calculate a level based on skills.
+
+### To be continued 
+
+I think this whole skill and attributes topic is a lot bigger than I initially realized, so I'm going to pick up on the topic again in a later post.
+For now, I'm satisfied with this level calculating formula, and I know I can reverse it to ultimately figure out how to generate skill levels for a character of a certain level.
+
+Next time, I think we will need to dive into the topic of: how do attributes and skills affect gameplay, fighting, and other mechanics? That's gonna be a pretty big topic I imagine.
+
 # 2026-02-11
 
 ... Whew! Finally finished that massive refactor I started a few days ago. In short, I moved almost everything I could think of into this new Defs/State dichotomy.

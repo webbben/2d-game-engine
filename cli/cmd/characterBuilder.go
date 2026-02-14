@@ -105,6 +105,7 @@ type builderGame struct {
 	scrAppearance appearanceScreen
 	scrAttributes attributesScreen
 	scrInventory  inventoryScreen
+	scrInfo       infoScreen
 
 	popupMgr popup.Manager
 
@@ -227,6 +228,10 @@ func characterBuilder(fileToLoad string) {
 			DisplayName: "Inventory",
 			ImgTileID:   64,
 		},
+		{
+			DisplayName: "Info",
+			ImgTileID:   68,
+		},
 	})
 
 	b := box.NewBox(config.DefaultUIBox.TilesetSrc, config.DefaultUIBox.OriginIndex)
@@ -238,6 +243,7 @@ func characterBuilder(fileToLoad string) {
 	g.setupAppearanceScreen()
 	g.setupAttributesPage()
 	g.setupInventoryPage()
+	g.setupInfoScreen()
 
 	if err := ebiten.RunGame(&g); err != nil {
 		panic(err)
@@ -269,14 +275,24 @@ func getNewCharacter() (defs.CharacterDef, body.EntityBodySet) {
 }
 
 func (bg builderGame) saveCharacter() {
-	bg.CharacterDef.ID = defs.CharacterDefID(bg.scrAppearance.idField.GetText())
-	bg.CharacterDef.DisplayName = bg.scrAppearance.nameField.GetText()
+	bg.CharacterDef.ID = defs.CharacterDefID(bg.scrInfo.CharacterIDInput.GetText())
+	bg.CharacterDef.DisplayName = bg.scrInfo.DisplayNameInput.GetText()
+	bg.CharacterDef.FullName = bg.scrInfo.FullNameInput.GetText()
+	bg.CharacterDef.ClassName = bg.scrInfo.ClassNameInput.GetText()
 
+	// TODO: create UI component for showing error messages, info, etc.
+	// I'm picturing a bubble or chip style info box the fades in and slowly slides up to the top of the screen on the right side.
 	id := bg.CharacterDef.ID
 	if id == "" {
+		logz.Warnln("CharacterBuilder", "failed to save: id was empty")
 		return
 	}
 	if bg.CharacterDef.DisplayName == "" {
+		logz.Warnln("CharacterBuilder", "failed to save: display name was empty")
+		return
+	}
+	if bg.CharacterDef.ClassName == "" {
+		logz.Warnln("CharacterBuilder", "failed to save: class name was empty")
 		return
 	}
 
@@ -328,6 +344,8 @@ func (bg *builderGame) Draw(screen *ebiten.Image) {
 		bg.drawAttributesPage(screen)
 	case "Inventory":
 		bg.drawInventoryPage(screen, bg.om)
+	case "Info":
+		bg.drawInfoScreen(screen)
 	}
 
 	bg.popupMgr.Draw(screen)
@@ -362,6 +380,8 @@ func (bg *builderGame) Update() error {
 			bg.refreshInventory() // if changing to inventory page, refresh items
 		}
 		bg.updateInventoryPage()
+	case "Info":
+		bg.updateInfoScreen()
 	}
 
 	bg.lastOpenedTab = currentTab

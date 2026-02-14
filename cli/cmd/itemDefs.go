@@ -28,7 +28,7 @@ func GetItemDefs() []defs.ItemDef {
 	auxTileset := "items/equiped_aux.tsj"
 
 	equipBodyOptions := []equipBodyOption{}
-	for i := range 2 {
+	for i := range 3 {
 		// first equipment item starts at row 6; each item's first row is the body equipment, second row is legs equipment.
 		offset := 73 * ((i * 2) + 5)
 		bodyDef := body.NewPartDef(body.PartDefParams{
@@ -391,6 +391,7 @@ func GetItemDefs() []defs.ItemDef {
 	}
 
 	return []defs.ItemDef{
+		// WEAPONS
 		&item.WeaponDef{
 			ItemBase: *item.NewItemBase(item.ItemBaseParams{
 				ID:                "longsword_01",
@@ -408,6 +409,7 @@ func GetItemDefs() []defs.ItemDef {
 			HitsPerSecond: 1,
 			FxPartDef:     &weaponOptions[0].weaponFxDef,
 		},
+		// CONSUMABLES
 		item.NewItemBase(
 			item.ItemBaseParams{
 				ID:                "potion_herculean_strength",
@@ -421,6 +423,7 @@ func GetItemDefs() []defs.ItemDef {
 				Type:              item.TypeConsumable,
 			},
 		),
+		// CURRENCY
 		item.NewItemBase(
 			item.ItemBaseParams{
 				ID:                "currency_value_1",
@@ -499,6 +502,7 @@ func GetItemDefs() []defs.ItemDef {
 				Type:              item.TypeCurrency,
 			},
 		),
+		// ARMOR / CLOTHES
 		&item.ArmorDef{
 			ItemBase: *item.NewItemBase(item.ItemBaseParams{
 				ID:                "legionary_helm",
@@ -591,7 +595,18 @@ func GetItemDefs() []defs.ItemDef {
 			BodyPartDef:       &equipBodyOptions[1].bodyDef,
 			LegsPartDef:       &equipBodyOptions[1].legsDef,
 		}),
-
+		item.NewItemBase(item.ItemBaseParams{
+			ID:                "peasant_tunic_01",
+			Name:              "Peasant Tunic",
+			Description:       "A cheap, dirty old tunic.",
+			Value:             1,
+			Weight:            5,
+			TileImgTilesetSrc: "items/items_01.tsj",
+			TileImgIndex:      193,
+			Type:              item.TypeBodywear,
+			BodyPartDef:       &equipBodyOptions[2].bodyDef,
+			LegsPartDef:       &equipBodyOptions[2].legsDef,
+		}),
 		item.NewItemBase(item.ItemBaseParams{
 			ID:                "laurel_wreath",
 			Name:              "Laurel Wreath",
