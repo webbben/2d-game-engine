@@ -748,14 +748,14 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 
 	// render order decisions (for not so obvious things):
 	// - Arms: after equip body, equip head, hair so that hands show when doing U slash (we subtract arms by equip_body)
-	renderOrder := []string{"body", "legs", "equip_legs", "equip_feet", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_weapon", "aux"}
+	renderOrder := []string{"body", "legs", "equip_feet", "equip_body", "equip_legs", "eyes", "hair", "equip_head", "arms", "equip_weapon", "aux"}
 	switch eb.currentDirection {
 	case model.Directions.Up:
 		// aux first: since facing up, aux items (e.g. torches) will generally be covered by everything
-		renderOrder = []string{"aux", "body", "legs", "equip_legs", "equip_feet", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_weapon"}
+		renderOrder = []string{"aux", "body", "legs", "equip_feet", "equip_body", "equip_legs", "eyes", "hair", "equip_head", "arms", "equip_weapon"}
 	case model.Directions.Right:
 		// aux after arms: shield may cover part of hands, so aux should render after arms
-		renderOrder = []string{"body", "legs", "equip_legs", "equip_feet", "equip_body", "eyes", "hair", "equip_head", "arms", "aux", "equip_weapon"}
+		renderOrder = []string{"body", "legs", "equip_feet", "equip_body", "equip_legs", "eyes", "hair", "equip_head", "arms", "aux", "equip_weapon"}
 	}
 
 	yOff := eb.globalOffsetY

@@ -186,7 +186,7 @@ func (t *TextField) Draw(screen *ebiten.Image, x, y float64) {
 		vector.FillRect(screen, float32(x), float32(y), float32(width), float32(height), t.bgColor, false)
 	}
 
-	textStartX := 0
+	textStartX := 2
 	// if the text has exceeded the width of the textbox, start pushing it back so we can see the last characters
 	textWidth := int(text.Advance(t.textInput.GetCurrentText(), t.fontFace))
 	if textWidth > t.bounds.Dx() {
@@ -194,7 +194,7 @@ func (t *TextField) Draw(screen *ebiten.Image, x, y float64) {
 	}
 
 	op := text.DrawOptions{}
-	op.GeoM.Translate(float64(textStartX), 0)
+	op.GeoM.Translate(float64(textStartX), -4)
 	op.ColorScale.ScaleWithColor(t.textColor)
 	op.LineSpacing = t.fontFace.Metrics().HLineGap + t.fontFace.Metrics().HAscent + t.fontFace.Metrics().HDescent
 
@@ -203,7 +203,7 @@ func (t *TextField) Draw(screen *ebiten.Image, x, y float64) {
 	// Draw cursor
 	if t.isFocused && t.showCursor {
 		cursorX := int(x) + textStartX + textWidth
-		cursorY := int(y) + 4
+		cursorY := int(y)
 		vector.StrokeLine(
 			screen,
 			float32(cursorX),

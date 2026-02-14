@@ -102,7 +102,7 @@ func NewButton(buttonText string, fontFace font.Face, width, height int) *Button
 	b.hoverBoxImg = ebiten.NewImage(b.Width, b.Height)
 	b.hoverBoxImg.Fill(color.RGBA{30, 30, 30, 5})
 	b.textImg = ebiten.NewImage(dx, dy)
-	//b.textImg.Fill(color.RGBA{100, 0, 0, 50})
+	// b.textImg.Fill(color.RGBA{100, 0, 0, 50})
 	text.DrawShadowText(b.textImg, b.ButtonText, b.fontFace, baselineX, baselineY, nil, nil, 0, 0)
 
 	return &b
@@ -113,6 +113,9 @@ type ButtonUpdateResult struct {
 }
 
 func (b *Button) Update() ButtonUpdateResult {
+	if b == nil {
+		panic("button is... nil? how did that happen?")
+	}
 	if !b.init {
 		panic("button not created yet: " + b.ButtonText)
 	}

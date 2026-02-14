@@ -17,7 +17,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/ui/popup"
 	"github.com/webbben/2d-game-engine/internal/ui/slider"
 	"github.com/webbben/2d-game-engine/internal/ui/stepper"
-	"github.com/webbben/2d-game-engine/internal/ui/textfield"
 )
 
 type appearanceScreen struct {
@@ -40,11 +39,6 @@ type appearanceScreen struct {
 	bodyColorSliders slider.SliderGroup
 	hairColorSliders slider.SliderGroup
 	eyeColorSliders  slider.SliderGroup
-
-	saveButton *button.Button
-
-	nameField textfield.TextField
-	idField   textfield.TextField
 }
 
 func (g *builderGame) setupAppearanceScreen() {
@@ -270,25 +264,6 @@ func (g *builderGame) setupAppearanceScreen() {
 			Params: sliderParams,
 		},
 	})
-
-	g.scrAppearance.nameField = *textfield.NewTextField(textfield.TextFieldParams{
-		FontFace:     config.DefaultFont,
-		WidthPx:      200,
-		AllowSpecial: true,
-		TextColor:    color.White,
-		BorderColor:  color.Black,
-		BgColor:      color.Black,
-	})
-	g.scrAppearance.idField = *textfield.NewTextField(textfield.TextFieldParams{
-		FontFace:     config.DefaultFont,
-		WidthPx:      200,
-		AllowSpecial: true,
-		TextColor:    color.White,
-		BorderColor:  color.Black,
-		BgColor:      color.Black,
-	})
-
-	g.scrAppearance.saveButton = button.NewLinearBoxButton("Save", "ui/ui-components.tsj", 352, config.DefaultTitleFont)
 }
 
 func (bg *builderGame) updateAppearanceScreen() {
@@ -370,13 +345,6 @@ func (bg *builderGame) updateAppearanceScreen() {
 
 	bg.Body.SetAnimationTickCount(bg.scrAppearance.speedSlider.GetValue())
 
-	bg.scrAppearance.nameField.Update()
-	bg.scrAppearance.idField.Update()
-
-	if bg.scrAppearance.saveButton.Update().Clicked {
-		bg.saveCharacter()
-	}
-
 	bg.Body.Update()
 }
 
@@ -444,23 +412,6 @@ func (bg *builderGame) drawAppearancePage(screen *ebiten.Image) {
 	text.DrawShadowText(screen, "Weapon", config.DefaultTitleFont, sliderX, sliderY, color.Black, nil, 0, 0)
 	sliderY += 10
 	bg.scrAppearance.weaponSelector.Draw(screen, float64(sliderX), float64(sliderY), nil)
-
-	// Character Info Input - Middle Top
-	drawX := (display.SCREEN_WIDTH / 3) - 100
-	drawY := bg.windowY + tileSize
-	text.DrawShadowText(screen, "Character Info", config.DefaultTitleFont, drawX, drawY, color.Black, nil, 0, 0)
-	drawY += 50
-	text.DrawShadowText(screen, "Name", config.DefaultFont, drawX, drawY, color.Black, nil, 0, 0)
-	drawX += 100
-	bg.scrAppearance.nameField.Draw(screen, float64(drawX), float64(drawY-25))
-	drawX -= 100
-	drawY += 50
-	text.DrawShadowText(screen, "ID", config.DefaultFont, drawX, drawY, color.Black, nil, 0, 0)
-	drawX += 100
-	bg.scrAppearance.idField.Draw(screen, float64(drawX), float64(drawY-25))
-	drawX = (display.SCREEN_WIDTH / 3) + 350
-	drawY = 250
-	bg.scrAppearance.saveButton.Draw(screen, drawX, drawY)
 
 	// UI controls - Right side
 	ctlX := (display.SCREEN_WIDTH * 3 / 4) - 110

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"image/color"
+	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -15,8 +16,11 @@ import (
 	"github.com/webbben/2d-game-engine/internal/rendering"
 	"github.com/webbben/2d-game-engine/internal/text"
 	"github.com/webbben/2d-game-engine/internal/tiled"
+	"github.com/webbben/2d-game-engine/internal/ui/button"
+	"github.com/webbben/2d-game-engine/internal/ui/dropdown"
 	"github.com/webbben/2d-game-engine/internal/ui/textfield"
 	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
+	"github.com/webbben/2d-game-engine/skills"
 )
 
 type attributesScreen struct {
@@ -24,6 +28,10 @@ type attributesScreen struct {
 	CombatSkillSetters  []attributeSetter
 	StealthSkillSetters []attributeSetter
 	MagicSkillSetters   []attributeSetter
+
+	GenLevelInput  textfield.TextField
+	ClassDropdown  dropdown.OptionSelect
+	GenLevelButton *button.Button
 
 	traitsMasterList []defs.Trait
 
@@ -226,7 +234,6 @@ func (ti traitIcon) buildBodyContent(defMgr *definitions.DefinitionManager) *ebi
 	return ti.hwContentPlaceholder
 }
 
-// TODO: load existing characterDef data, if loading an existing characterDef file
 func (bg *builderGame) setupAttributesPage() {
 	attributes := GetAllAttributes()
 	for _, attr := range attributes {
@@ -242,10 +249,10 @@ func (bg *builderGame) setupAttributesPage() {
 	}
 
 	combatSkillIDs := []defs.SkillID{
-		Blade, Blunt, Axe, Spear, Marksmanship, Repair, HeavyArmor, LightArmor,
+		LongBlade, Blunt, Axe, Spear, Repair, HeavyArmor, Block,
 	}
 	stealthSkillIDs := []defs.SkillID{
-		Security, Sneak, Speechcraft, Mercantile,
+		Security, Sneak, Speechcraft, Mercantile, LightArmor, ShortBlade, Marksmanship,
 	}
 	magicSkillIDs := []defs.SkillID{
 		Alchemy, Incantation,
@@ -269,6 +276,35 @@ func (bg *builderGame) setupAttributesPage() {
 		scr.MagicSkillSetters = append(scr.MagicSkillSetters, newAttributeSetter(string(sk.ID), sk.DisplayName))
 	}
 
+	// leveled character generator
+	scr.GenLevelInput = *textfield.NewTextField(textfield.TextFieldParams{
+		WidthPx:            100,
+		FontFace:           config.DefaultFont,
+		AllowSpecial:       false,
+		NumericOnly:        true,
+		TextColor:          color.White,
+		BorderColor:        color.White,
+		BgColor:            color.Black,
+		MaxCharacterLength: 3,
+	})
+	scr.GenLevelButton = button.NewLinearBoxButton("Generate", "ui/ui-components.tsj", 352, config.DefaultTitleFont)
+
+	classIDs := []string{}
+	for _, class := range DefaultClasses() {
+		classIDs = append(classIDs, string(class.ID))
+	}
+
+	scr.ClassDropdown = dropdown.NewOptionSelect(dropdown.OptionSelectParams{
+		Font:                  config.DefaultFont,
+		Options:               classIDs,
+		InitialOptionIndex:    0,
+		TilesetSrc:            "ui/ui-components.tsj",
+		OriginIndex:           288,
+		DropDownBoxTilesetSrc: "boxes/boxes.tsj",
+		DropDownBoxOrigin:     128,
+		InputEnabled:          true,
+	}, &bg.popupMgr)
+
 	scr.traitsMasterList = GetAllTraits()
 
 	for _, t := range scr.traitsMasterList {
@@ -278,7 +314,64 @@ func (bg *builderGame) setupAttributesPage() {
 	bg.scrAttributes = scr
 }
 
+func (bg *builderGame) generateLevels() {
+	level := bg.scrAttributes.GenLevelInput.GetNumber()
+	if level == 0 {
+		return
+	}
+	classes := DefaultClasses()
+	classID := defs.ClassDefID(bg.scrAttributes.ClassDropdown.GetCurrentValue())
+	var class *defs.ClassDef
+
+	for _, classDef := range classes {
+		if classDef.ID == classID {
+			class = &classDef
+			break
+		}
+	}
+	if class == nil {
+		panic("class id not found")
+	}
+
+	// set class name to this class's name
+	bg.CharacterDef.ClassName = class.Name
+	bg.scrInfo.ClassNameInput.SetText(class.Name)
+
+	rng := rand.New(rand.NewSource(12345))
+
+	skills, attributes := skills.GenerateSkillsAndAttributes(level, *class, LevelSystemParameters(), bg.defMgr, 0.1, 0.05, rng, 0.5)
+
+	// set skills and attributes into their setters
+	for i, setter := range bg.scrAttributes.AttributeSetters {
+		id := defs.AttributeID(setter.ID)
+		newVal := attributes[id]
+		bg.scrAttributes.AttributeSetters[i].Input.SetNumber(newVal)
+	}
+	for i, setter := range bg.scrAttributes.CombatSkillSetters {
+		id := defs.SkillID(setter.ID)
+		newVal := skills[id]
+		bg.scrAttributes.CombatSkillSetters[i].Input.SetNumber(newVal)
+	}
+	for i, setter := range bg.scrAttributes.StealthSkillSetters {
+		id := defs.SkillID(setter.ID)
+		newVal := skills[id]
+		bg.scrAttributes.StealthSkillSetters[i].Input.SetNumber(newVal)
+	}
+	for i, setter := range bg.scrAttributes.MagicSkillSetters {
+		id := defs.SkillID(setter.ID)
+		newVal := skills[id]
+		bg.scrAttributes.MagicSkillSetters[i].Input.SetNumber(newVal)
+	}
+}
+
 func (bg *builderGame) updateAttributesPage() {
+	bg.scrAttributes.GenLevelInput.Update()
+	bg.scrAttributes.ClassDropdown.Update()
+
+	if bg.scrAttributes.GenLevelButton.Update().Clicked {
+		bg.generateLevels()
+	}
+
 	attrChangeOccurred := false
 	for i := range bg.scrAttributes.AttributeSetters {
 		bg.scrAttributes.AttributeSetters[i].Update()
@@ -493,6 +586,20 @@ func (bg *builderGame) drawAttributesPage(screen *ebiten.Image) {
 		bg.scrAttributes.MagicSkillSetters[i].Input.Draw(screen, drawX+float64(maxAttrWidth), drawY)
 		drawY += float64(inputFieldDy + skillRowMargin)
 	}
+
+	drawY = topY
+	drawX += float64(maxAttrWidth) + float64(inputFieldDx) + 70
+
+	// Last column; NPC skills generator
+
+	text.DrawShadowText(screen, "Generate By Class/Level", config.DefaultTitleFont, int(drawX), int(drawY), nil, nil, 0, 0)
+	drawY += 20
+	bg.scrAttributes.GenLevelInput.Draw(screen, drawX, drawY)
+	drawY += 50
+	bg.scrAttributes.ClassDropdown.Draw(screen, drawX, drawY, bg.om)
+	drawY += 50
+
+	bg.scrAttributes.GenLevelButton.Draw(screen, int(drawX), int(drawY+50))
 
 	// Traits Section
 
