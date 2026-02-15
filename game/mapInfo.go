@@ -174,8 +174,8 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 		g.MapInfo.AddNPCToMap(&n, tilePos)
 	}
 
-	g.EventBus.Publish(pubsub.Event{
-		Type: pubsub.Event_VisitMap,
+	g.EventBus.Publish(defs.Event{
+		Type: pubsub.EventVisitMap,
 		Data: map[string]any{
 			"MapID":          g.MapInfo.ID,
 			"MapDisplayName": g.MapInfo.DisplayName,
