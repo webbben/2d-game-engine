@@ -1,55 +1,76 @@
+// Package pubsub provides a pub/sub event bus for use throughout the game engine
 package pubsub
 
 import (
-	"encoding/json"
-
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/logz"
 )
 
 const (
-	Event_EntityAttacked string = "entity_attacked" // (TODO) entity was attacked by player's attacks
-	Event_EntityKilled   string = "entity_killed"   // (TODO) entity was directly killed by player's attacks
-	Event_EntityDied     string = "entity_died"     // (TODO) entity died (but not by player's hand)
-	Event_StartDialog    string = "start_dialog"    // player started dialog
-	Event_StartTopic     string = "start_topic"     // player has started a topic in a dialog
-	Event_EndDialog      string = "end_dialog"      // player ended dialog
-	Event_GetItem        string = "get_item"        // (TODO) player gets item
-	Event_UseItem        string = "use_item"        // (TODO) player uses (or equips) an item
-	Event_VisitMap       string = "visit_map"       // player enters a map
-	Event_TimePass       string = "time_pass"       // event called on every hour; can be used for tracking time passage
+	// General world
+
+	EventVisitMap defs.EventType = "visit_map" // player enters a map
+	EventTimePass defs.EventType = "time_pass" // event called on every hour; can be used for tracking time passage
+
+	// Quests
+
+	EventQuestStarted defs.EventType = "quest_started" // a quest is started by the player
 )
 
-type Event struct {
-	Type string
-	Data map[string]any
-}
-
-func (e Event) log() {
-	jsonString, err := json.Marshal(e.Data)
-	if err != nil {
-		logz.Errorln("event log", err)
-	}
-	logz.Println("EVENT", e.Type, string(jsonString))
-}
-
 type EventBus struct {
-	subscribers map[string][]func(Event)
+	alreadySubscribed map[string]bool // tracks what subscriptions have already been registered. used to detect extra, unintended subscriptions.
+	subscribers       map[defs.EventType][]func(defs.Event)
+	subscribeAll      map[string]func(defs.Event)
 }
 
 func NewEventBus() *EventBus {
 	logz.Warnln("EVENT BUS", "New event bus created! any previous subscriptions are no longer active.")
 	return &EventBus{
-		subscribers: make(map[string][]func(Event)),
+		subscribers:  make(map[defs.EventType][]func(defs.Event)),
+		subscribeAll: make(map[string]func(defs.Event)),
 	}
 }
 
-func (eb *EventBus) Subscribe(eventType string, fn func(Event)) {
+// Subscribe subscribes a function to all events of a certain event type.
+//
+// subscriberID: describes who/where is subscribed. used for detecting duplicate subscriptions, so if a place subscribes to multiple events,
+// give the subscriberID a per-eventType based ID. Will panic if the same subscriberID is given more than once.
+func (eb *EventBus) Subscribe(subscriberID string, eventType defs.EventType, fn func(defs.Event)) {
+	if subscriberID == "" {
+		panic("subscriber ID empty")
+	}
+	if _, exists := eb.alreadySubscribed[subscriberID]; exists {
+		logz.Panicln("EVENT BUS", "duplicate subscription detected:", subscriberID)
+	}
+
+	logz.Printf("EVENT BUS", "%s subscribed to event type %s\n", subscriberID, eventType)
+	eb.alreadySubscribed[subscriberID] = true
 	eb.subscribers[eventType] = append(eb.subscribers[eventType], fn)
 }
 
-func (eb *EventBus) Publish(e Event) {
-	e.log()
+// SubscribeAll subscribes a function to all events of a certain event type.
+//
+// subscriberID should be unique and not registered for any other subscription; otherwise we panic, to avoid double subscription of the same thing.
+func (eb *EventBus) SubscribeAll(subscriberID string, fn func(defs.Event)) {
+	if subscriberID == "" {
+		panic("subscriber ID empty")
+	}
+	if _, exists := eb.alreadySubscribed[subscriberID]; exists {
+		logz.Panicln("EVENT BUS", "duplicate subscription detected:", subscriberID)
+	}
+
+	logz.Printf("EVENT BUS", "%s subscribed to ALL event types\n", subscriberID)
+	eb.alreadySubscribed[subscriberID] = true
+	eb.subscribeAll[subscriberID] = fn
+}
+
+func (eb *EventBus) Publish(e defs.Event) {
+	e.Log()
 	for _, fn := range eb.subscribers[e.Type] {
+		fn(e)
+	}
+	// broadcast every published event to the "subscribe all" list
+	for _, fn := range eb.subscribeAll {
 		fn(e)
 	}
 }

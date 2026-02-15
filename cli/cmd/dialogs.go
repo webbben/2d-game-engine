@@ -68,6 +68,14 @@ func GetDialogProfiles() []defs.DialogProfileDef {
 											NextResponse: &defs.DialogResponse{
 												Text: fmt.Sprintf(" - Oh, Quiet! Here comes the guard! I wish you the best of luck, %s.", dialogv2.VarPlayerName),
 											},
+											Effects: []defs.Effect{
+												dialogv2.EventEffect{
+													Event: defs.Event{
+														Type: Q001GuardApproaching,
+														// TODO: need to actually make the context controller that fires events; as of now this won't actually fire
+													},
+												},
+											},
 										},
 									},
 								},

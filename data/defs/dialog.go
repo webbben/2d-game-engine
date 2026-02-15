@@ -79,6 +79,7 @@ type Effect interface {
 type EffectContext interface {
 	MarkTopicSeen(id TopicID)
 	UnlockTopic(id TopicID)
+	BroadcastEvent(event Event)
 
 	AddGold(amount int)
 }

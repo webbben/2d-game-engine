@@ -19,6 +19,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/overlay"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
+	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/trade"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -59,6 +60,7 @@ type Game struct {
 
 	DefinitionManager *definitions.DefinitionManager
 	AudioManager      *audio.AudioManager
+	QuestManager      *quest.QuestManager
 
 	debugData debugData // just used for the debug drawing
 }
@@ -140,14 +142,19 @@ func (g *Game) RunGame() error {
 
 func NewGame(hour int) *Game {
 	g := Game{
-		worldScene:        ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
-		daylightFader:     lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20),
+		worldScene:    ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
+		daylightFader: lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20),
+		Clock:         clock.NewClock(config.HourSpeed, hour, 0, 0, 0, 762, 90),
+
+		// managers
+
 		EventBus:          pubsub.NewEventBus(),
 		OverlayManager:    &overlay.OverlayManager{},
 		DefinitionManager: definitions.NewDefinitionManager(),
 		AudioManager:      audio.NewAudioManager(),
-		Clock:             clock.NewClock(config.HourSpeed, hour, 0, 0, 0, 762, 90),
 	}
+
+	g.QuestManager = quest.NewQuestManager(g.EventBus, &g)
 
 	// make sure lighting is initialized
 	g.OnHourChange(hour, true)
@@ -178,8 +185,8 @@ func (g *Game) OnHourChange(hour int, skipFade bool) {
 		g.daylightFader.TargetDarknessFactor = darknessFactor
 	}
 
-	g.EventBus.Publish(pubsub.Event{
-		Type: pubsub.Event_TimePass,
+	g.EventBus.Publish(defs.Event{
+		Type: pubsub.EventTimePass,
 		Data: map[string]any{
 			"hour": hour,
 		},
