@@ -1,3 +1,56 @@
+# 2026-02-18
+
+Excited to announce that the quest system is working! So far, I've just been testing with a simple type of quest that is activated by a dialog session.
+
+It goes like this:
+
+1) player starts dialog with NPC 
+2) when the dialog progresses to its last node, it has an "effect" that broadcasts an event. The event gives a series of tasks to another NPC.
+3) the other NPC "hears" this event and starts running the specified tasks, and walks up to the player.
+- cool part: the NPC can detect obstacles and react. There is a gate in the way, and the NPC is able to open it and proceed!
+4) the NPC walks toward the player and starts a short dialog.
+5) once that dialog ends, the NPC finishes its sequence of tasks by walking back to its original location.
+
+... anyway, I'm super stoked about that - And we're just getting started.
+
+My plan from here is to continue developing the "starting quest" for the game I'm planning to make, and as I go, I'll continue to implement new quest actions,
+dialog effects, etc. At some point, I anticipate that I'll need to work on the "fight" task, which will basically mean I need to develop the "AI" for combat.
+That will surely take some time, and I might be refining that task on and off for a long time as game development progresses and new edge cases, bugs, etc arise.
+
+Anyway, I just wanted to report the progress there. I think I'll still spend some time refining things in other areas too, but for now it feels like I can start "running"
+a little more; up until now, there's been a lot of walking.
+
+Here's a little peek at the current state of the starting map:
+
+![the "prison ship" starting map, as of now](./20260218.png)
+
+## Enhancement Ideas (for existing systems)
+
+- Dialog
+  - I've noticed that dialog text writes to the screen pretty fast, and if you are trying to read along with the speed of the dialog, it's hard to notice things like 
+  when one sentence ends and the next begins. I think I'd like to add some more nuanced "pacing" to dialogs; either I will introduce some notation that will tell the
+  dialog when to "pause writing" (or slow down), or I might just do something simple like this: anytime a "sentence ending" character is reached (./?/!), 
+  the writing pauses for a second. That way, It feels a little more like as the text is writing to the dialog box, it's following a natural pace as though it's being spoken.
+- Background music / sound effects 
+  - right now, the game is still very silent. I'm thinking of just putting some "place holder" BGM in so that the game feels more alive. I don't have my own music, of course,
+  so maybe I'll throw in some morrowind music or something. Of course, I'll be removing it eventually once I get around to figuring out the songs for a game.
+
+## Next Steps
+
+1) continue designing the "starting quest", which is the quest the player would initially spawn into the world playing in. So far, the idea is this:
+  - Player spawns into a ship hold; this is similar to Morrowind, and they are apparently a prisoner of some sort.
+  - Player leaves the boat and enters some kind of government building ("Census & Excise?") and sorts out character creation.
+    - up until this point, the player may be hidden in some kind of clothing with a hood, so that you can't see what they look like until the character has been designed.
+  - After character creation, the player finds out he will be sent off to a new location (avoiding too many spoilers here) and the game does some kind of "fade to black" transition.
+
+2) Improve dialog flow (read above)
+
+3) Update Character Builder to allow setting some of the new fields in a CharacterDef, like:
+  - DialogProfileID 
+  - ScheduleID (a default schedule for tasks, when none are assigned)
+
+4) Oh, and probably more artwork. I'm gonna need to design some more maps, and probably would like to improve the "prison ship" map that I've been using.
+
 # 2026-02-12
 
 I've gotten things fixed up a bit, and have started working on the dialog for the opening "scene" of the game. So that's very exciting, and I'm ready to keep working on it.
