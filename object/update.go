@@ -47,12 +47,12 @@ func (obj *Object) Update() ObjectUpdateResult {
 	}
 }
 
-func (obj *Object) Activate() ObjectUpdateResult {
+func (obj *Object) Activate(fromX, fromY float64) ObjectUpdateResult {
 	switch obj.Type {
 	case TypeDoor:
 		return obj.activateDoor()
 	case TypeGate:
-		return obj.activateGate()
+		return obj.activateGate(fromX, fromY)
 	case TypeLight:
 		return obj.activateLight()
 	}
@@ -83,7 +83,7 @@ func (obj *Object) activateDoor() ObjectUpdateResult {
 	}
 }
 
-func (obj *Object) activateGate() ObjectUpdateResult {
+func (obj *Object) activateGate(fromX, fromY float64) ObjectUpdateResult {
 	if obj.Type != TypeGate {
 		panic("tried to activate gate, but object is not a gate")
 	}
@@ -91,10 +91,12 @@ func (obj *Object) activateGate() ObjectUpdateResult {
 		// can't open or close a gate if it's already changing state
 		return ObjectUpdateResult{}
 	}
-	if obj.World.GetPlayerRect().Intersects(obj.CollisionRect) || obj.collidesWithNPC() {
+	if obj.World.GetPlayerRect().Intersects(obj.CollisionRect) || obj.collidesWithEntityOrObject() {
 		// don't allow gate to open if the player or any NPC is standing in its way
 		return ObjectUpdateResult{}
 	}
+
+	// ensure the activation origin point (NPC/player position) isn't too far away
 
 	obj.Gate.changingState = true
 	obj.Gate.open = !obj.Gate.open
@@ -146,17 +148,8 @@ func (obj *Object) updateGate() ObjectUpdateResult {
 	return ObjectUpdateResult{}
 }
 
-func (obj Object) collidesWithNPC() bool {
-	for _, n := range obj.World.GetNearbyNPCs(
-		obj.CollisionRect.X+(obj.CollisionRect.W/2), // use center of collision rect
-		obj.CollisionRect.Y+(obj.CollisionRect.H/2),
-		obj.CollisionRect.W+obj.CollisionRect.H,
-	) {
-		if obj.CollisionRect.Intersects(n.Entity.CollisionRect()) {
-			return true
-		}
-	}
-	return false
+func (obj Object) collidesWithEntityOrObject() bool {
+	return obj.World.RectCollidesWithOthers(obj.GetRect(), "", obj.ID)
 }
 
 func (obj *Object) nextFrame(forwards bool) (done bool) {

@@ -1,6 +1,8 @@
 package defs
 
-import "github.com/webbben/2d-game-engine/internal/logz"
+import (
+	"github.com/webbben/2d-game-engine/internal/logz"
+)
 
 /*
 *
@@ -96,10 +98,10 @@ func NewQuestDef(id QuestID, name string, stages map[QuestStageID]QuestStageDef,
 // - Knows what the next stage is
 type QuestStageDef struct {
 	ID          QuestStageID
-	Title       string           // OPT: shows a title for the quest stage to the player
-	Objective   string           // REQ: what the player sees as the current objective. Should be somewhat brief and to the point.
-	Description string           // OPT: longer context about the current objective, and adds some narrative to the events.
-	OnEnter     []QuestActionDef // a list of (non-conditional) actions that execute right when this stage is reached.
+	Title       string        // OPT: shows a title for the quest stage to the player
+	Objective   string        // REQ: what the player sees as the current objective. Should be somewhat brief and to the point.
+	Description string        // OPT: longer context about the current objective, and adds some narrative to the events.
+	OnEnter     []QuestAction // a list of (non-conditional) actions that execute right when this stage is reached.
 	Reactions   []QuestReactionDef
 }
 
@@ -121,7 +123,7 @@ func (stage QuestStageDef) Validate() {
 type QuestReactionDef struct {
 	SubscribeEvent EventType // The event type to listen to, that triggers this Reaction to run, and check its conditions. This is so that we aren't constantly checking conditions on every loop.
 	Conditions     []QuestConditionDef
-	Actions        []QuestActionDef
+	Actions        []QuestAction
 	NextStage      QuestStageID        // Points to the next quest stage. If a next stage is set, there should be no terminal status.
 	TerminalStatus QuestTerminalStatus // Determines if this reaction is a "quest end". If this is set, there should be no NextStage
 }
@@ -133,7 +135,7 @@ func (qr QuestReactionDef) Validate() {
 	// TODO: validate conditions and all that
 }
 
-// QuestActionDef defines actions that occur right when a quest stage is reached.
+// QuestAction defines actions that occur right when a quest stage is reached.
 //
 // Examples of actions concepts:
 //
@@ -148,9 +150,15 @@ func (qr QuestReactionDef) Validate() {
 // - Trigger cutscene
 //
 // ... etc.
-type QuestActionDef struct {
-	Type   QuestActionType
-	Params map[string]string
+type QuestAction interface {
+	Fire(ctx QuestActionContext)
+}
+
+type QuestActionContext interface {
+	// assigns a task to an NPC;
+	// NPCs are assigned to characters, so you pass a CharacterDefID.
+	// The characterDef must be "unique", which means only one instance can exist.
+	AssignTaskToNPC(id CharacterDefID, taskDef TaskDef)
 }
 
 type QuestConditionDef struct {

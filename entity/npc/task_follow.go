@@ -3,8 +3,8 @@ package npc
 import (
 	"time"
 
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity"
-	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
 )
@@ -25,15 +25,18 @@ func (t FollowTask) ZzCompileCheck() {
 	_ = append([]Task{}, &t)
 }
 
-func NewFollowTask(target *entity.Entity, distance int) FollowTask {
+func NewFollowTask(target *entity.Entity, distance int, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) FollowTask {
 	if target == nil {
 		panic("target is nil")
 	}
 	t := FollowTask{
 		TaskBase: NewTaskBase(
-			general_util.GenerateUUID(),
+			TaskFollow,
 			"follow task",
 			"NPC follows a target entity",
+			owner,
+			p,
+			nextTask,
 		),
 		targetEntity: target,
 		distance:     distance,
@@ -42,21 +45,18 @@ func NewFollowTask(target *entity.Entity, distance int) FollowTask {
 	return t
 }
 
-func (n *NPC) SetFollowTask(target *entity.Entity, distance int, force bool) error {
-	t := NewFollowTask(target, distance)
-	return n.SetTask(&t, force)
-}
-
 func (t *FollowTask) End() {
 	if len(t.Owner.Entity.Movement.TargetPath) > 0 {
 		t.Owner.Entity.CancelCurrentPath()
 	}
 
-	t.Status = TASK_STATUS_END
+	t.Status = TaskEnded
 }
+
 func (t FollowTask) IsComplete() bool {
 	return false
 }
+
 func (t FollowTask) IsFailure() bool {
 	return false
 }
@@ -66,7 +66,7 @@ func (t *FollowTask) Start() {
 		panic("no owner set")
 	}
 
-	t.Status = TASK_STATUS_INPROG
+	t.Status = TaskInProg
 
 	if t.Owner.Entity.Movement.IsMoving {
 		t.restart = true
@@ -78,8 +78,8 @@ func (t *FollowTask) Start() {
 	// so, if the entity as at position x/y and facing 'R', then this NPC will try to go to x-1/y
 	// Start: go to the position behind the target entity
 	target := _followGetTargetPosition(*t.targetEntity, t.distance)
-	if target.Equals(t.Owner.Entity.TilePos) {
-		//logz.Println(t.Owner.DisplayName, "already at target position")
+	if target.Equals(t.Owner.Entity.TilePos()) {
+		// logz.Println(t.Owner.DisplayName, "already at target position")
 		return
 	}
 
@@ -97,7 +97,7 @@ func (t *FollowTask) Start() {
 }
 
 func _followGetTargetPosition(e entity.Entity, dist int) model.Coords {
-	target := e.TilePos
+	target := e.TilePos()
 	switch e.Movement.Direction {
 	case model.Directions.Left:
 		target.X += dist + 1
@@ -114,9 +114,10 @@ func _followGetTargetPosition(e entity.Entity, dist int) model.Coords {
 }
 
 func (t *FollowTask) Update() {
-	t.Status = TASK_STATUS_INPROG
+	t.Status = TaskInProg
 
-	t.HandleNPCCollision(t.Start)
+	// TODO: we need to redo this task probably. commenting this part out just to avoid errors
+	// t.HandleNPCCollision(t.Start)
 
 	if t.restart {
 		t.restart = false
@@ -145,7 +146,7 @@ func (t *FollowTask) Update() {
 
 	// while following, there is no defined end goal. the NPC keeps trying to follow the entity until specifically told to stop.
 	// so, check for when the NPC has reached its current goal and then try to recalculate a new one.
-	if t.Owner.Entity.TilePos.Equals(t.targetPosition) {
+	if t.Owner.Entity.TilePos().Equals(t.targetPosition) {
 		// we've met our first goal, now time to try and recalculate.
 		t.Start()
 		return

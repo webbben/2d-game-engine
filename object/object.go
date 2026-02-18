@@ -6,8 +6,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/entity/npc"
-	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/lights"
@@ -31,7 +29,9 @@ const (
 )
 
 type Object struct {
-	Name          string
+	Name string // TODO: I don't think most objects actually have Names; the name property in Tiled is usually left empty.
+
+	ID            int     // the ID property from Tiled; just a counter I believe.
 	Type          string  // NOT from Tiled; set by our code in Load
 	xPos, yPos    float64 // logical position in the map
 	zOffset       int     // for influencing render order
@@ -64,6 +64,15 @@ type Object struct {
 	PlayerHovering bool
 
 	AudioMgr *audio.AudioManager
+}
+
+func (obj Object) IsCurrentlyActivating() bool {
+	switch obj.Type {
+	case TypeGate:
+		return obj.Gate.changingState
+	}
+
+	return false
 }
 
 // GetRect is general purpose function to get the rect that this object occupies in the map. does not scale the values.
@@ -129,9 +138,12 @@ type Light struct {
 }
 
 type WorldContext interface {
+	// Used for checking how far an object is from the player, when the player tries to activate it (among other things).
+	// TODO: should we have this? also, it seems possible that NPCs will need to be able to activate objects (like doors, to open them)
 	GetPlayerRect() model.Rect
-	GetPlayer() *player.Player
-	GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC
+
+	// Used for checking if an object like a gate has other entities colliding with it
+	RectCollidesWithOthers(r model.Rect, excludeEntID string, excludeObjID int) bool
 }
 
 type Door struct {
@@ -159,6 +171,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager) *Ob
 	o := Object{
 		AudioMgr: audioMgr,
 		Name:     obj.Name,
+		ID:       obj.ID,
 		xPos:     obj.X,
 		yPos:     obj.Y,
 		Width:    int(obj.Width),

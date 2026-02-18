@@ -55,7 +55,7 @@ func (g *Game) worldUpdates() {
 	if g.Clock.Update() {
 		// hour just changed
 		_, h, _, _, _, _ := g.Clock.GetCurrentDateAndTime()
-		g.OnHourChange(h, false)
+		g.OnHourChange(h, false, true)
 	}
 
 	g.daylightFader.Update()

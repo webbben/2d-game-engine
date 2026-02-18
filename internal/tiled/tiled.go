@@ -44,10 +44,10 @@ type Map struct {
 	DisplayName    string
 	DaylightFactor float64
 
-	TileImageMap   map[int]TileData // a map of gid to tile image data
-	CostMap        [][]int          // each tile's cost (used for path finding and collisions)
-	CollisionRects [][]CollisionRect
-	GroundMaterial [][]string // the "material" each tile on the ground represents; used for things like footstep sounds
+	TileImageMap   map[int]TileData  // a map of gid to tile image data
+	CostMap        [][]int           // each tile's cost (used for path finding and collisions)
+	CollisionRects [][]CollisionRect // collision rects that are embedded in maps
+	GroundMaterial [][]string        // the "material" each tile on the ground represents; used for things like footstep sounds
 	MapMeta
 }
 

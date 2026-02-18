@@ -154,8 +154,10 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 	// StaticEntities: These are basically one-off characters that appear in a specific room for a specific reason.
 	// They aren't actually "existing in the overworld" as other characters will. So, we instantiate them with their set character def,
 	// and show them in the world.
+	//
 	// TODO: things we will need to decide/handle:
 	// - do static entities have their state saved long term? or do we need to "clean it up" after its done?
+	// 	- probably not? I think these "static" entities will not have their character state persisted. ideally deleted, but need to add support for this.
 	for _, obj := range entObjs {
 		charDefID, found := tiled.GetStringProperty("CHARACTER_DEF_ID", obj.Properties)
 		if !found {
@@ -165,13 +167,12 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 		charStateID := entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), entity.NewCharacterStateParams{}, g.DefinitionManager)
 		n := npc.NewNPC(npc.NPCParams{
 			CharStateID: charStateID,
-		}, g.DefinitionManager, g.AudioManager)
+		}, g.DefinitionManager, g.AudioManager, g.EventBus)
 
-		_ = n.SetTask(&npc.IdleTask{}, true)
 		r := model.NewRect(obj.X, obj.Y, obj.Width, obj.Height)
 		tilePos := model.GetTilePosOfRectCenter(r)
 		logz.Println("static NPC pos", tilePos, "original obj pos:", "x:", obj.X, "y:", obj.Y)
-		g.MapInfo.AddNPCToMap(&n, tilePos)
+		g.MapInfo.AddNPCToMap(n, tilePos)
 	}
 
 	g.EventBus.Publish(defs.Event{
@@ -201,20 +202,6 @@ type NPCManager struct {
 	// if false, the background jobs goroutine will stop.
 	RunBackgroundJobs     bool
 	backgroundJobsRunning bool // flag that indicates if background jobs loop already running.
-}
-
-func (mi *MapInfo) ResolveNPCJams() {
-	// get all existing NPC jams
-	npcJams := mi.findNPCJams()
-	if len(npcJams) == 0 {
-		// no jams found
-		return
-	}
-
-	// resolve each jam, one at a time
-	for _, npcJam := range npcJams {
-		mi.resolveJam(npcJam)
-	}
 }
 
 // AddPlayerToMap is the official way to add the player to a map
@@ -426,7 +413,17 @@ func (mi MapInfo) MapDimensions() (width int, height int) {
 	return mi.Map.Width, mi.Map.Height
 }
 
-// CostMap gets a cost map that includes entity positions
+// CostMap gets a cost map for a map.
+//
+// Currently includes:
+//
+// - tiledMap costmap (mainly just collision rects embedded in tiles, I believe)
+//
+// - NPC positions
+//
+// Not included:
+//
+// - Object collisions; These are shown in the debug "showCollisions", but not actually in the cost map here.
 func (mi MapInfo) CostMap() [][]int {
 	if mi.Map.CostMap == nil {
 		panic("tried to get MapInfo cost map before Map costmap was created")
@@ -438,10 +435,12 @@ func (mi MapInfo) CostMap() [][]int {
 	}
 
 	for _, n := range mi.NPCs {
-		costMap[n.Entity.TilePos.Y][n.Entity.TilePos.X] += 10
+		tilePos := n.Entity.TilePos()
+		costMap[tilePos.Y][tilePos.X] += 10
 		// if the entity is currently moving, mark its destination tile as a collision too
-		if !n.Entity.Movement.TargetTile.Equals(n.Entity.TilePos) {
-			costMap[n.Entity.Movement.TargetTile.Y][n.Entity.Movement.TargetTile.X] += 10
+		targetTile := n.Entity.TargetTilePos()
+		if !targetTile.Equals(tilePos) {
+			costMap[targetTile.Y][targetTile.X] += 10
 		}
 	}
 
@@ -565,7 +564,7 @@ func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
 }
 
 // ActivateArea attempts to activate an object or npc in an area. if an activation occurs, true is returned.
-func (mi *MapInfo) ActivateArea(r model.Rect) bool {
+func (mi *MapInfo) ActivateArea(r model.Rect, originX, originY float64) bool {
 	// check for activated objects
 	// try to get the object that is the "best match" (i.e. closest to the center of the activated area)
 	var closestObject *object.Object = nil
@@ -583,7 +582,7 @@ func (mi *MapInfo) ActivateArea(r model.Rect) bool {
 		}
 	}
 	if closestObject != nil {
-		result := closestObject.Activate()
+		result := closestObject.Activate(originX, originY)
 		logz.Println("Activate Area", closestObject.Type, "Activating...")
 
 		if result.UpdateOccurred {
@@ -629,7 +628,8 @@ func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
 		if obj.GetDrawRect().Within(mouseX, mouseY) {
 			if general_util.EuclideanDistCenter(mi.GetPlayerRect(), obj.GetRect()) <= distThreshold {
 				fmt.Println("object clicked")
-				result := obj.Activate()
+				x, y := mi.PlayerRef.Entity.X, mi.PlayerRef.Entity.Y
+				result := obj.Activate(x, y)
 				if result.UpdateOccurred {
 					if result.ChangeMapID != "" {
 						mi.gameRef.handleMapDoor(result)
@@ -647,6 +647,43 @@ func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
 				n.Activate()
 				return true
 			}
+		}
+	}
+
+	return false
+}
+
+// FindObjectsAtPosition finds all objects that intersect with a given tile position.
+// This includes collidable and non-collidable objects, as long as they have a draw rect.
+func (mi *MapInfo) FindObjectsAtPosition(c model.Coords) []*object.Object {
+	posRect := model.NewRect(float64(c.X)*config.TileSize, float64(c.Y)*config.TileSize, config.TileSize, config.TileSize)
+	objs := []*object.Object{}
+	for _, obj := range mi.Objects {
+		if obj.GetRect().Intersects(posRect) {
+			objs = append(objs, obj)
+		}
+	}
+	return objs
+}
+
+// RectCollidesWithOthers is a general purpose function to see if a rect in a world map collides with anything.
+// Can pass exclusion IDs so that the caller can ignore itself.
+func (mi *MapInfo) RectCollidesWithOthers(r model.Rect, excludeEntID string, excludeObjID int) bool {
+	for _, n := range mi.NPCs {
+		if string(n.Entity.ID()) == excludeEntID {
+			continue
+		}
+		if n.Entity.CollisionRect().Intersects(r) {
+			return true
+		}
+	}
+
+	for _, obj := range mi.Objects {
+		if obj.ID == excludeObjID {
+			continue
+		}
+		if obj.GetRect().Intersects(r) {
+			return true
 		}
 	}
 

@@ -86,7 +86,7 @@ type DialogSession struct {
 	userInputModal *modal.TextInputModal
 }
 
-func ConditionsMet(conditions []defs.Condition, ctx defs.ConditionContext) bool {
+func ConditionsMet(conditions []defs.DialogCondition, ctx defs.ConditionContext) bool {
 	for _, cond := range conditions {
 		if !cond.IsMet(ctx) {
 			return false
@@ -127,15 +127,12 @@ func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, def
 		panic("game state was nil")
 	}
 
+	// Note: we expect the profile state to already have been made. If we decide to have "ad hoc" dialog profiles, this should change.
+
 	profileDef := defMgr.GetDialogProfile(params.ProfileID)
 	profileState := defMgr.GetDialogProfileState(params.ProfileID)
-	if profileDef == nil {
-		panic("defMgr gave back nil profile def")
-	}
-	if profileState == nil {
-		panic("defMgr gave back nil profile state")
-	}
-	ctx := NewDialogContext(params.NPCID, profileState, gameState)
+
+	ctx := NewDialogContext(params.NPCID, profileState, gameState, eventBus)
 	ds := DialogSession{
 		ProfileState: profileState,
 		ProfileDef:   profileDef,
@@ -160,6 +157,13 @@ func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, def
 	// when starting a new dialog session, we start with the first greeting from the NPC/DialogProfile
 	firstGreeting := GetGreeting(*ds.ProfileDef, ds.Ctx)
 	ds.ApplyResponse(firstGreeting)
+
+	ds.eventBus.Publish(defs.Event{
+		Type: pubsub.EventDialogStarted,
+		Data: map[string]any{
+			"profileID": ds.ProfileDef.ProfileID,
+		},
+	})
 
 	return ds
 }
@@ -265,10 +269,18 @@ func (ds *DialogSession) ApplyResponse(dr defs.DialogResponse) {
 	if ds.LineWriter.IsWriting() {
 		panic("tried to apply response, but linewriter is already writing")
 	}
+	if dr.ID != "" && dr.Once && ds.Ctx.HasSeenResponse(dr.ID) {
+		logz.Panicln("Dialog", "tried to apply response that is only supposed to be seen once")
+	}
 
 	// response has started, so we don't need topic buttons anymore
 	ds.topicButtons = []*button.Button{}
 	ds.topicList = []defs.TopicID{}
+
+	// if the response has an ID, mark it as seen
+	if dr.ID != "" {
+		ds.Ctx.RecordResponseSeen(dr.ID)
+	}
 
 	ds.currentResponse = &dr
 
@@ -324,7 +336,9 @@ func (ds *DialogSession) continueApplyResponse() {
 		ds.Ctx.RecordTopicUnlocked(topicID)
 	}
 
-	// TODO: apply effects
+	for _, effect := range ds.currentResponse.Effects {
+		effect.Apply(&ds.Ctx)
+	}
 
 	// reply handling is done once text is finished
 
@@ -362,7 +376,9 @@ func (ds *DialogSession) ApplyReply(dr defs.DialogReply) {
 	ds.replyButtons = []*button.Button{}
 	ds.replyList = []defs.DialogReply{}
 
-	// TODO: apply effects
+	for _, effect := range dr.Effects {
+		effect.Apply(&ds.Ctx)
+	}
 
 	if dr.NextResponse == nil {
 		// no response to reply... so, time to go back to topic selection
@@ -385,6 +401,12 @@ func (ds *DialogSession) SetTopic(topicID defs.TopicID) {
 	if topicID == "QUIT" {
 		// end dialog
 		ds.Exit = true
+		ds.eventBus.Publish(defs.Event{
+			Type: pubsub.EventDialogEnded,
+			Data: map[string]any{
+				"profileID": ds.ProfileDef.ProfileID,
+			},
+		})
 		return
 	}
 	topic := ds.defMgr.GetDialogTopic(topicID)
@@ -401,20 +423,22 @@ func (ds *DialogSession) SetTopic(topicID defs.TopicID) {
 	}
 }
 
-func GetNPCResponse(dt defs.DialogTopic, ctx defs.ConditionContext) defs.DialogResponse {
-	for _, resp := range dt.Responses {
-		if ConditionsMet(resp.Conditions, ctx) {
-			return resp
+func GetNPCResponse(dt defs.DialogTopic, ctx DialogContext) defs.DialogResponse {
+	return chooseResponse(dt.Responses, ctx)
+}
+
+func GetGreeting(def defs.DialogProfileDef, ctx DialogContext) defs.DialogResponse {
+	return chooseResponse(def.Greeting, ctx)
+}
+
+func chooseResponse(responses []defs.DialogResponse, ctx DialogContext) defs.DialogResponse {
+	for _, response := range responses {
+		if response.ID != "" && response.Once && ctx.HasSeenResponse(response.ID) {
+			continue
+		}
+		if ConditionsMet(response.Conditions, ctx) {
+			return response
 		}
 	}
 	panic("no valid response found")
-}
-
-func GetGreeting(def defs.DialogProfileDef, ctx defs.ConditionContext) defs.DialogResponse {
-	for _, greeting := range def.Greeting {
-		if ConditionsMet(greeting.Conditions, ctx) {
-			return greeting
-		}
-	}
-	panic("no valid greeting found")
 }

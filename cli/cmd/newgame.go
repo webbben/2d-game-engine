@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/game"
 	"github.com/webbben/2d-game-engine/internal/display"
 )
@@ -42,6 +43,8 @@ to quickly create a Cobra application.`,
 			startHour:  23,
 			startMapID: "prison_ship",
 		})
+
+		g.EventBus.Publish(defs.Event{Type: Q001PlayerWakesUp})
 
 		if err := g.RunGame(); err != nil {
 			panic(err)

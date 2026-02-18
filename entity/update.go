@@ -68,6 +68,7 @@ func (e *Entity) Update() {
 	movementResult := e.updateMovement()
 
 	if movementResult.UnexpectedCollision {
+		e.Movement.Interrupted = true
 		e.StopMovement()
 	} else if movementResult.ReachedTarget {
 		e.Movement.IsMoving = false
@@ -85,10 +86,8 @@ func (e *Entity) Update() {
 				if res.AlreadyMoving {
 					logz.Panicf("movement failed because we are already moving... but IsMoving is false? %s", res)
 				}
-				// ensure no movement animation is still active
-				if e.Body.IsMoving() {
-					e.Body.StopAnimation()
-				}
+				e.Movement.Interrupted = true
+				e.StopMovement()
 			}
 		}
 	} else if movementResult.ContinuingTowardsTarget {

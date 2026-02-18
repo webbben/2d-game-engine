@@ -2,6 +2,8 @@
 package pubsub
 
 import (
+	"fmt"
+
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/logz"
 )
@@ -15,7 +17,26 @@ const (
 	// Quests
 
 	EventQuestStarted defs.EventType = "quest_started" // a quest is started by the player
+
+	// Dialog
+
+	EventDialogStarted defs.EventType = "dialog_started"
+	EventDialogEnded   defs.EventType = "dialog_ended"
 )
+
+func NpcAssignTaskType(npcID string) defs.EventType {
+	return defs.EventType(fmt.Sprintf("NPC:%s:assign_task", npcID))
+}
+
+// NPCAssignTask returns an event definition for assigning a task to an NPC
+func NPCAssignTask(npcID string, taskDef defs.TaskDef) defs.Event {
+	return defs.Event{
+		Type: NpcAssignTaskType(npcID),
+		Data: map[string]any{
+			"taskDef": taskDef,
+		},
+	}
+}
 
 type EventBus struct {
 	alreadySubscribed map[string]bool // tracks what subscriptions have already been registered. used to detect extra, unintended subscriptions.
@@ -26,8 +47,9 @@ type EventBus struct {
 func NewEventBus() *EventBus {
 	logz.Warnln("EVENT BUS", "New event bus created! any previous subscriptions are no longer active.")
 	return &EventBus{
-		subscribers:  make(map[defs.EventType][]func(defs.Event)),
-		subscribeAll: make(map[string]func(defs.Event)),
+		subscribers:       make(map[defs.EventType][]func(defs.Event)),
+		subscribeAll:      make(map[string]func(defs.Event)),
+		alreadySubscribed: make(map[string]bool),
 	}
 }
 
@@ -62,6 +84,15 @@ func (eb *EventBus) SubscribeAll(subscriberID string, fn func(defs.Event)) {
 	logz.Printf("EVENT BUS", "%s subscribed to ALL event types\n", subscriberID)
 	eb.alreadySubscribed[subscriberID] = true
 	eb.subscribeAll[subscriberID] = fn
+}
+
+// SubscribeToNPCEvents subscribes to all events related to a specific NPC
+func (eb *EventBus) SubscribeToNPCEvents(subscriberID string, npcID string, fn func(defs.Event)) {
+	if npcID == "" {
+		panic("npcID is empty")
+	}
+	subID := fmt.Sprintf("%s_%s_%s", subscriberID, npcID, "assign_task")
+	eb.Subscribe(subID, NpcAssignTaskType(npcID), fn)
 }
 
 func (eb *EventBus) Publish(e defs.Event) {

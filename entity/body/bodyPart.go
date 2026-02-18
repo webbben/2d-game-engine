@@ -110,7 +110,6 @@ func (bps *BodyPartSet) unsetAllImages() {
 	bps.IdleAnimation.reset()
 	bps.ShieldAnimation.reset()
 	bps.img = nil
-	logz.Println(bps.Name, "unsetting all images")
 }
 
 func (bps *BodyPartSet) setImageSource(def defs.SelectedPartDef, stretchX, stretchY int, aux bool) {
@@ -121,7 +120,6 @@ func (bps *BodyPartSet) setImageSource(def defs.SelectedPartDef, stretchX, stret
 
 func (set *BodyPartSet) load(stretchX, stretchY int, aux bool) {
 	set.unsetAllImages()
-	logz.Println(set.Name, "loading bodyPartSet")
 
 	set.animIndex = 0
 

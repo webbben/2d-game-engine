@@ -194,16 +194,16 @@ func (g Game) showEntityCoords() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf(
 		"Player pos: [%v, %v] (%v, %v)\n",
-		g.Player.Entity.TilePos.X,
-		g.Player.Entity.TilePos.Y,
+		g.Player.Entity.TilePos().X,
+		g.Player.Entity.TilePos().Y,
 		g.Player.Entity.X,
 		g.Player.Entity.Y))
 	for _, n := range g.MapInfo.NPCs {
 		sb.WriteString(fmt.Sprintf(
 			"%s: [%v, %v] (%v, %v)\n",
 			n.DisplayName,
-			n.Entity.TilePos.X,
-			n.Entity.TilePos.Y,
+			n.Entity.TilePos().X,
+			n.Entity.TilePos().Y,
 			n.Entity.X,
 			n.Entity.Y,
 		))

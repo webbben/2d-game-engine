@@ -7,6 +7,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/spf13/cobra"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/npc"
@@ -53,13 +54,9 @@ to quickly create a Cobra application.`,
 		n := npc.NewNPC(npc.NPCParams{
 			CharStateID: charStateID,
 		},
-			gameState.DefinitionManager, gameState.AudioManager)
+			gameState.DefinitionManager, gameState.AudioManager, gameState.EventBus)
 
-		err = n.SetFightTask(gameState.Player.Entity, false)
-		if err != nil {
-			panic(err)
-		}
-		gameState.MapInfo.AddNPCToMap(&n, model.Coords{X: 0, Y: 0})
+		gameState.MapInfo.AddNPCToMap(n, model.Coords{X: 0, Y: 0})
 
 		// Load player inventory page
 
@@ -83,6 +80,8 @@ func setupGameState(params gameParams) *game.Game {
 
 	LoadDefMgr(g.DefinitionManager)
 	LoadAudioManager(g.AudioManager)
+	questDefs := GetAllQuestDefs()
+	g.QuestManager.LoadAllQuestData(questDefs, []state.QuestState{})
 
 	err := g.SetupMap(params.startMapID, &game.OpenMapOptions{
 		RunNPCManager:    true,

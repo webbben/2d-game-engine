@@ -46,7 +46,7 @@ type QuestManager struct {
 }
 
 type WorldController interface {
-	// TODO: define functions for controlling/seeing world
+	AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef)
 }
 
 func NewQuestManager(eventBus *pubsub.EventBus, worldRef WorldController) *QuestManager {
@@ -84,9 +84,12 @@ func (qm *QuestManager) OnEvent(event defs.Event) {
 		logz.Panicln("QuestManager", "OnEvent: event indices were nil. are you sure you created event indices/loaded quest data yet?")
 	}
 
+	logz.Println("QuestManager:OnEvent", "event incoming:", event.Type)
+
 	// check for quest start triggers
 	notStartedQuests, exists := qm.startTriggersByEvent[event.Type]
 	if exists {
+		logz.Println("QuestManager:OnEvent", "event type matches with a quest start trigger")
 		for _, questID := range notStartedQuests {
 			// it's possible some of these could've started, so skip those
 			if qm.GetQuestStatus(questID) != NotStarted {
@@ -107,6 +110,7 @@ func (qm *QuestManager) OnEvent(event defs.Event) {
 
 	activeQuests, exists := qm.stageReactionsByEvent[event.Type]
 	if exists {
+		logz.Println("QuestManager:OnEvent", "event type matches with a stage reaction")
 		for _, questID := range activeQuests {
 			if qm.GetQuestStatus(questID) != Active {
 				// possibly, this quest was active at load time but has already finished
@@ -132,8 +136,7 @@ func (qm *QuestManager) OnEvent(event defs.Event) {
 
 func (qm *QuestManager) RunReaction(questID defs.QuestID, reaction defs.QuestReactionDef, event defs.Event) {
 	for _, action := range reaction.Actions {
-		// TODO: run action
-		logz.Println("TODO: execute action", action.Type)
+		action.Fire(qm.world)
 	}
 
 	switch reaction.TerminalStatus {
@@ -158,8 +161,7 @@ func (qm *QuestManager) SetQuestStage(questID defs.QuestID, nextStage defs.Quest
 	stageDef := questDef.Stages[nextStage]
 
 	for _, action := range stageDef.OnEnter {
-		// TODO: run actions
-		logz.Println("TODO: execute action", action.Type)
+		action.Fire(qm.world)
 	}
 
 	// set current stage ID in quest state
@@ -191,14 +193,20 @@ func (qm *QuestManager) LoadAllQuestData(questDefs []defs.QuestDef, questStates 
 		qm.loadQuestState(questState)
 	}
 
+	logz.Println("QuestManager:LoadAllQuestData", "Loaded", len(questDefs), "quest defs and", len(questStates), "quest states")
+
 	// now that all quest defs and states are loaded in, create the indices
 	qm.CreateEventTypeIndices()
 }
 
 // CreateEventTypeIndices creates all the event indices that we use for knowing which quests are listening to which events.
 // This should only be done once all quest defs and quest states have been loaded.
-// It should probably be done once at the beginning of every play session, but I doubt it is important to refresh the indices during a play session.
+// It should probably be done once at the beginning of every play session, and also whenever a new quest is started.
+// This is because when a new quest is started, we now need to find its stage reaction events and add them.
+// NOTE: if we decide there's a performance hit on creating these indices, we can adapt to just adding the new quest's
+// stage reaction events instead of recalculating all indices.
 func (qm *QuestManager) CreateEventTypeIndices() {
+	logz.Println("QuestManager", "creating event type indices")
 	qm.stageReactionsByEvent = make(map[defs.EventType][]defs.QuestID)
 	qm.startTriggersByEvent = make(map[defs.EventType][]defs.QuestID)
 
@@ -228,6 +236,13 @@ func (qm *QuestManager) CreateEventTypeIndices() {
 			}
 		}
 	}
+
+	if len(qm.stageReactionsByEvent) == 0 && len(qm.startTriggersByEvent) == 0 {
+		panic("both indices are empty... this doesn't seem right")
+	}
+
+	logz.Println("QuestManager", "start triggers index:", qm.startTriggersByEvent)
+	logz.Println("QuestManager", "stage reaction triggers index:", qm.stageReactionsByEvent)
 }
 
 func (qm *QuestManager) loadQuestState(questState state.QuestState) {
@@ -320,6 +335,9 @@ func (qm *QuestManager) StartQuest(id defs.QuestID) {
 	}
 
 	qm.active[id] = &questState
+
+	// recreate indices since we need this quests' events included
+	qm.CreateEventTypeIndices()
 
 	qm.eventBus.Publish(defs.Event{
 		Type: pubsub.EventQuestStarted,

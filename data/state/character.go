@@ -7,7 +7,6 @@ import (
 )
 
 type (
-	CharacterID      string
 	NPCID            string
 	CharacterStateID string
 )

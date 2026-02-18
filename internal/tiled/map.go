@@ -347,6 +347,7 @@ func (m *Map) CalculateCostMap() {
 	}
 
 	// Go through each layer and add any 'cost' properties up
+	// TODO: are we using this "cost" property? I think not
 	for _, layer := range m.Layers {
 		i := 0
 		for y := 0; y < layer.Height; y++ {

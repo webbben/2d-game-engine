@@ -6,20 +6,30 @@ import (
 
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/internal/pubsub"
+)
+
+const (
+	TopicSeenKey     string = "TOPIC_SEEN"
+	TopicUnlockedKey string = "TOPIC_UNLOCKED"
+	ResponseSeenKey  string = "RESPONSE_SEEN"
 )
 
 type DialogContext struct {
 	NPCID     string
 	Profile   *state.DialogProfileState
 	GameState GameStateContext
+	eventBus  *pubsub.EventBus
 
 	seenTopics     map[defs.TopicID]bool
 	unlockedTopics map[defs.TopicID]bool
+	seenResponses  map[string]bool
 }
 
 type GameStateContext interface {
 	GetPlayerInfo() PlayerInfo
 	SetPlayerName(name string)
+	DialogCtxAddGold(amount int)
 }
 
 // PlayerInfo is information about the player that dialogs might use
@@ -27,7 +37,7 @@ type PlayerInfo struct {
 	PlayerName string
 }
 
-func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState GameStateContext) DialogContext {
+func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState GameStateContext, eventBus *pubsub.EventBus) DialogContext {
 	// just confirming dialog context implements the necessary interfaces
 	_ = append([]defs.ConditionContext{}, &DialogContext{})
 	if profile == nil {
@@ -43,9 +53,11 @@ func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState
 		NPCID:     npcID,
 		Profile:   profile,
 		GameState: gameState,
+		eventBus:  eventBus,
 	}
 	ds.seenTopics = make(map[defs.TopicID]bool)
 	ds.unlockedTopics = make(map[defs.TopicID]bool)
+	ds.seenResponses = make(map[string]bool)
 
 	// parse out data from memory map
 	for k := range ds.Profile.Memory {
@@ -55,10 +67,12 @@ func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState
 			key := parts[0]
 			value := parts[1]
 			switch key {
-			case "TOPIC_SEEN":
+			case TopicSeenKey:
 				ds.seenTopics[defs.TopicID(value)] = true
-			case "TOPIC_UNLOCKED":
+			case TopicUnlockedKey:
 				ds.unlockedTopics[defs.TopicID(value)] = true
+			case ResponseSeenKey:
+				ds.seenResponses[value] = true
 			}
 		} else {
 			// so far, we only have the above pattern, so panic
@@ -73,7 +87,7 @@ func (ctx *DialogContext) RecordTopicSeen(topicID defs.TopicID) {
 	if topicID == "" {
 		panic("topicID was empty")
 	}
-	key := fmt.Sprintf("TOPIC_SEEN:%s", topicID)
+	key := fmt.Sprintf("%s:%s", TopicSeenKey, topicID)
 	ctx.Profile.Memory[key] = true
 
 	ctx.seenTopics[topicID] = true
@@ -83,10 +97,20 @@ func (ctx *DialogContext) RecordTopicUnlocked(topicID defs.TopicID) {
 	if topicID == "" {
 		panic("topicID was empty")
 	}
-	key := fmt.Sprintf("TOPIC_UNLOCKED:%s", topicID)
+	key := fmt.Sprintf("%s:%s", TopicUnlockedKey, topicID)
 	ctx.Profile.Memory[key] = true
 
 	ctx.unlockedTopics[topicID] = true
+}
+
+func (ctx *DialogContext) RecordResponseSeen(greetingID string) {
+	if greetingID == "" {
+		panic("greetingID was empty")
+	}
+	key := fmt.Sprintf("%s:%s", ResponseSeenKey, greetingID)
+	ctx.Profile.Memory[key] = true
+
+	ctx.seenResponses[greetingID] = true
 }
 
 func (ctx *DialogContext) GetUnlockedTopics() []defs.TopicID {
@@ -113,6 +137,19 @@ func (ctx DialogContext) IsTopicUnlocked(id defs.TopicID) bool {
 	return ctx.unlockedTopics[id]
 }
 
+func (ctx DialogContext) HasSeenResponse(id string) bool {
+	_, exists := ctx.seenResponses[id]
+	return exists
+}
+
 func (ctx *DialogContext) GetNPCID() string {
 	return ctx.NPCID
+}
+
+func (ctx *DialogContext) BroadcastEvent(e defs.Event) {
+	ctx.eventBus.Publish(e)
+}
+
+func (ctx *DialogContext) AddGold(amount int) {
+	ctx.GameState.DialogCtxAddGold(amount)
 }

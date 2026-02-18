@@ -255,9 +255,11 @@ func getNewCharacter() (defs.CharacterDef, body.EntityBodySet) {
 
 	charDef := defs.CharacterDef{
 		ID:               "newCharacter",
+		Unique:           true,
 		DisplayName:      "New Character",
 		DialogProfileID:  ProfileDefault,       // TODO: at some point, we will add a control for setting dialog profile
 		FootstepSFXDefID: DefaultFootstepSFXID, // TODO: also for this
+		ScheduleID:       ScheduleIdle,
 		BodyDef:          defs.BodyDef{
 			// Note: not setting them here because the setters will handle putting the IDs here
 		},
