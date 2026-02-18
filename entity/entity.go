@@ -180,6 +180,11 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 
 	// find unique ID based on this characterDefID
 	id := defMgr.GetNewCharStateID(charDefID)
+	if charDef.Unique {
+		if string(id) != string(charDef.ID) {
+			logz.Panicln("CreateNewCharacterState", "new charStateID should match the defID since the charDef is unique, but it doesn't:", charDef.ID, id)
+		}
+	}
 
 	// check if this characters' dialog profile has a state created yet. if not, create it now.
 	// Note: the player as a character doesn't have a dialog profile. so skip the player.
@@ -418,10 +423,19 @@ type GeneralProps struct {
 }
 
 type Position struct {
-	X, Y             float64      `json:"-"` // the exact position the entity is at on the map
-	drawX, drawY     float64      `json:"-"` // the actual position on the screen where the entity would be drawn
-	TargetX, TargetY float64      `json:"-"` // the target position the entity is moving to
-	TilePos          model.Coords `json:"-"` // the tile the entity is technically inside of
+	X, Y             float64 `json:"-"` // the exact position the entity is at on the map
+	drawX, drawY     float64 `json:"-"` // the actual position on the screen where the entity would be drawn
+	TargetX, TargetY float64 `json:"-"` // the target position the entity is moving to
+}
+
+// TilePos converts the current X/Y position to an absolute tile position
+func (e Entity) TilePos() model.Coords {
+	return model.ConvertPxToTilePos(int(e.X), int(e.Y))
+}
+
+// TargetTilePos converts the current target X/Y position to an absolute tile position
+func (e Entity) TargetTilePos() model.Coords {
+	return model.ConvertPxToTilePos(int(e.TargetX), int(e.TargetY))
 }
 
 // Movement is Runtime logic for movement
@@ -434,7 +448,6 @@ type Movement struct {
 	WalkAnimationTickInterval int
 	RunAnimationTickInterval  int
 
-	TargetTile          model.Coords   `json:"-"` // next tile the entity is currently moving
 	TargetPath          []model.Coords `json:"-"` // path the entity is currently trying to travel on
 	SuggestedTargetPath []model.Coords `json:"-"` // a suggested path for this entity to consider merging into the target path
 }
@@ -448,7 +461,6 @@ func (e *Entity) SetPosition(c model.Coords) {
 	if c.Y > mapHeight {
 		panic("c.Y is outside of map bounds")
 	}
-	e.TilePos = c
 	e.X = float64(c.X) * float64(config.TileSize)
 	e.Y = float64(c.Y) * float64(config.TileSize)
 	e.TargetX = e.X
@@ -456,7 +468,6 @@ func (e *Entity) SetPosition(c model.Coords) {
 }
 
 func (e *Entity) SetPositionPx(x, y float64) {
-	e.TilePos = model.ConvertPxToTilePos(int(x), int(y))
 	e.X = x
 	e.Y = y
 	e.TargetX = e.X

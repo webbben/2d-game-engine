@@ -62,6 +62,11 @@ func LoadDefMgr(defMgr *definitions.DefinitionManager) {
 	for _, footstepSfxDef := range GetFootstepSFXDefs() {
 		defMgr.LoadFootstepSFXDef(footstepSfxDef)
 	}
+
+	// SCHEDULES
+	for _, sched := range GetAllSchedules() {
+		defMgr.LoadScheduleDef(sched)
+	}
 }
 
 func LoadAudioManager(audioMgr *audio.AudioManager) {

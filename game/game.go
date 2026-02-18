@@ -157,7 +157,8 @@ func NewGame(hour int) *Game {
 	g.QuestManager = quest.NewQuestManager(g.EventBus, &g)
 
 	// make sure lighting is initialized
-	g.OnHourChange(hour, true)
+	// TODO: maybe this should be moved somewhere else. In fact, I wonder if we need this at all.
+	g.OnHourChange(hour, true, false)
 
 	return &g
 }
@@ -169,7 +170,10 @@ func (g *Game) GetPlayerInfo() dialogv2.PlayerInfo {
 }
 
 // OnHourChange handles any hourly changes that should occur; such as lighting, event publishing, etc.
-func (g *Game) OnHourChange(hour int, skipFade bool) {
+// postEvent: this exists to suppress the event when we initialize the first time. the main reason being that the quest manager
+// won't have its data set yet, and will panic if it receives events beforehand.
+// TODO: should we just move the place where the first hour/lighting is initialized?
+func (g *Game) OnHourChange(hour int, skipFade bool, postEvent bool) {
 	if hour < 0 || hour > 23 {
 		panic("invalid hour")
 	}
@@ -185,12 +189,14 @@ func (g *Game) OnHourChange(hour int, skipFade bool) {
 		g.daylightFader.TargetDarknessFactor = darknessFactor
 	}
 
-	g.EventBus.Publish(defs.Event{
-		Type: pubsub.EventTimePass,
-		Data: map[string]any{
-			"hour": hour,
-		},
-	})
+	if postEvent {
+		g.EventBus.Publish(defs.Event{
+			Type: pubsub.EventTimePass,
+			Data: map[string]any{
+				"hour": hour,
+			},
+		})
+	}
 }
 
 func (g Game) LastPlayerUpdate() time.Time {

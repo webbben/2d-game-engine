@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/entity/npc"
+	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/quest"
 )
 
@@ -20,6 +22,7 @@ func GetAllQuestDefs() []defs.QuestDef {
 			StartTrigger: defs.QuestStartTrigger{
 				EventType: Q001PlayerWakesUp,
 			},
+			StartStage: "Awakening",
 			Stages: map[defs.QuestStageID]defs.QuestStageDef{
 				"Awakening": {
 					ID:    "Awakening",
@@ -49,6 +52,29 @@ func GetAllQuestDefs() []defs.QuestDef {
 					I've spoken to a man named Jovis who claims we are prisoners, and likely to be sold off into slavery.
 					I'm completely dumbfounded by all of this, and I almost thought he had gone mad.
 					`,
+					OnEnter: []defs.QuestAction{
+						quest.AssignTaskAction{
+							CharDefID: "prisonship_guard_01",
+							TaskDef: defs.TaskDef{
+								TaskID: npc.TaskGoto,
+								Params: npc.GotoTaskParams{
+									Target: model.Coords{X: 9, Y: 33},
+								},
+								NextTask: &defs.TaskDef{
+									TaskID: npc.TaskStartDialog,
+									Params: npc.StartDialogTaskParams{
+										ProfileID: ProfileQ001PrisonGuard,
+									},
+									NextTask: &defs.TaskDef{
+										TaskID: npc.TaskGoto,
+										Params: npc.GotoTaskParams{
+											Target: model.Coords{X: 5, Y: 21},
+										},
+									},
+								},
+							},
+						},
+					},
 					Reactions: []defs.QuestReactionDef{
 						{
 							SubscribeEvent: Q001CharacterCreationComplete,

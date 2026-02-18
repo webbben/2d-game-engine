@@ -9,6 +9,7 @@ type (
 // Note: it is NOT Character State
 type CharacterDef struct {
 	ID          CharacterDefID
+	Unique      bool // if true, this character can only be instantiated once at any given time. this enables its characterState to be found by CharacterDefID
 	BodyDef     BodyDef
 	DisplayName string // REQ: the main name this character uses. Somewhat short so it can be used everywhere. Ex: "Scipio Africanus".
 	FullName    string // OPT: a longer version of the name. Ex: Roman elites will have multiple names, like "Publius Cornelius Scipio Africanus".
@@ -21,6 +22,7 @@ type CharacterDef struct {
 
 	DialogProfileID  DialogProfileID
 	FootstepSFXDefID FootstepSFXDefID
+	ScheduleID       ScheduleID
 
 	BaseAttributes map[AttributeID]int // Base attribute levels (not including modifiers from traits, etc)
 	BaseSkills     map[SkillID]int     // Base skill levels (not including modifiers from traits, etc)

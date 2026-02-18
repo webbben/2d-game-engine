@@ -1,6 +1,7 @@
 package npc
 
 import (
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/config"
@@ -42,23 +43,18 @@ func (t FightTask) ZzCompileCheck() {
 	_ = append([]Task{}, &t)
 }
 
-func NewFightTask(targetEnt *entity.Entity) FightTask {
+func NewFightTask(targetEnt *entity.Entity, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) FightTask {
 	if targetEnt == nil {
 		panic("target is nil")
 	}
+	if owner == nil {
+		panic("owner was nil")
+	}
 	return FightTask{
-		TaskBase: TaskBase{
-			Name:        "fight task",
-			Description: "task for NPC to attack an entity",
-		},
+		TaskBase:     NewTaskBase(TaskFight, "Fight", "Fight another entity", owner, p, nextTask),
 		status:       fight_status_idle,
 		targetEntity: targetEnt,
 	}
-}
-
-func (n *NPC) SetFightTask(targetEnt *entity.Entity, force bool) error {
-	t := NewFightTask(targetEnt)
-	return n.SetTask(&t, force)
 }
 
 /*
@@ -82,7 +78,7 @@ func (t *FightTask) Start() {
 		logz.Panicf("Start: fight task should be idle when (re)starting. (%s)", t.status)
 	}
 
-	t.Status = TASK_STATUS_INPROG
+	t.Status = TaskInProg
 
 	// get real path distance first, to determine if we need to follow
 	dist := t.Owner.Entity.DistFromEntity(*t.targetEntity)
@@ -105,8 +101,8 @@ func (t *FightTask) startFollowing() {
 	}
 	logz.Println(t.Owner.DisplayName, "start follow")
 
-	t.FollowTask = NewFollowTask(t.targetEntity, 0)
-	t.FollowTask.SetOwner(t.Owner)
+	// TODO: probably need to set a next task? but I might need to redo this entire task tbh lol
+	t.FollowTask = NewFollowTask(t.targetEntity, 0, t.Owner, Emergency, nil)
 	t.FollowTask.Start()
 	if !t.FollowTask.IsActive() {
 		logz.Panicf("follow subtask should've started, but appears inactive (%s)", t.FollowTask.GetStatus())
@@ -138,7 +134,7 @@ func (t *FightTask) startCombat() {
 }
 
 func (t *FightTask) Update() {
-	t.Status = TASK_STATUS_INPROG
+	t.Status = TaskInProg
 	switch t.status {
 	case fight_status_idle:
 		// why are you idle? you should've already been directed to a new status from wherever the previous action was cancelled
@@ -208,7 +204,7 @@ func (t *FightTask) handleCombat() {
 }
 
 func (t *FightTask) End() {
-	t.Status = TASK_STATUS_END
+	t.Status = TaskEnded
 }
 
 func (t FightTask) IsComplete() bool {

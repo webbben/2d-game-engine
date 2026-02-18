@@ -52,25 +52,30 @@ func (e *Entity) GoToPos(c model.Coords, closeEnough bool) (model.Coords, MoveEr
 	if len(e.Movement.TargetPath) > 0 {
 		logz.Warnln(e.DisplayName(), "GoToPos: entity already has a target path. Target path should be cancelled first.")
 	}
-	if e.TilePos.Equals(c) {
+	if e.TilePos().Equals(c) {
 		logz.Errorln(e.DisplayName(), "entity attempted to GoToPos for position it is already in")
 		return c, MoveError{Cancelled: true, Info: "already in target position"}
 	}
 
-	path, found := e.World.FindPath(e.TilePos, c)
+	path, found := e.World.FindPath(e.TilePos(), c)
 	if !found {
 		if !closeEnough {
 			return c, MoveError{Cancelled: true, Info: "path not found, and 'close enough' not enabled"}
 		}
-		logz.Warnln(e.DisplayName(), "going a partial path since original path is blocked.", "start:", e.TilePos, "path:", path, "original goal:", c)
+		logz.Warnln(e.DisplayName(), "going a partial path since original path is blocked.", "start:", e.TilePos(), "path:", path, "original goal:", c)
 	}
 	if len(path) == 0 {
-		fmt.Println("tile pos:", e.TilePos, "goal:", c)
+		fmt.Println("tile pos:", e.TilePos(), "goal:", c)
 		logz.Warnln(e.DisplayName(), "GoToPos: calculated path is empty. Is the entity completely blocked in?")
 		return c, MoveError{Cancelled: true, Info: "calculated path is empty"}
 	}
 
 	e.Movement.TargetPath = path
+	// set first target in our new path
+	moveError := e.trySetNextTargetPath()
+	if !moveError.Success {
+		logz.Panicln(string(e.ID()), "GoToPos: managed to get path, but failed when trying to target the first step of the path...")
+	}
 	return path[len(path)-1], MoveError{Success: true}
 }
 
@@ -344,6 +349,7 @@ func (e *Entity) TryMovePx(dx, dy, speed float64) MoveError {
 	}
 
 	e.Movement.IsMoving = true
+	e.Movement.Interrupted = false
 	e.TargetX = float64(x)
 	e.TargetY = float64(y)
 
@@ -422,8 +428,6 @@ func (e *Entity) updateMovement() updateMovementResult {
 		panic("entity position is NaN")
 	}
 
-	e.TilePos = model.ConvertPxToTilePos(int(e.X), int(e.Y))
-
 	result := updateMovementResult{ContinuingTowardsTarget: true}
 
 	if target.Equals(newPos) {
@@ -434,7 +438,8 @@ func (e *Entity) updateMovement() updateMovementResult {
 	// footstep sound effects
 	e.footstepSFX.TicksUntilNextPlay--
 	if e.footstepSFX.TicksUntilNextPlay <= 0 {
-		groundMaterial := e.World.GetGroundMaterial(e.TilePos.X, e.TilePos.Y)
+		tilePos := e.TilePos()
+		groundMaterial := e.World.GetGroundMaterial(tilePos.X, tilePos.Y)
 		var distToPlayer float64
 		if e.IsPlayer() {
 			distToPlayer = 0
@@ -465,9 +470,6 @@ func (e *Entity) updateMovement() updateMovementResult {
 }
 
 func (e *Entity) StopMovement() {
-	if !e.Movement.IsMoving {
-		panic("told to stop movement, but entity is not moving?")
-	}
 	logz.Println(e.DisplayName(), "Stopping movement")
 	e.TargetX = e.X
 	e.TargetY = e.Y
@@ -482,16 +484,18 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		panic("tried to set next target along path for entity that has no set target path")
 	}
 	nextTarget := e.Movement.TargetPath[0]
-	if nextTarget.Equals(e.TilePos) {
+	if nextTarget.Equals(e.TilePos()) {
 		panic("trySetNextTargetPath: next target is the same tile as current position")
 	}
 
-	if float64(e.TilePos.X) != e.X/config.TileSize || float64(e.TilePos.Y) != e.Y/config.TileSize {
+	tilePos := e.TilePos()
+
+	if float64(tilePos.X) != e.X/config.TileSize || float64(tilePos.Y) != e.Y/config.TileSize {
 		logz.Println(e.DisplayName(), "trySetNextTargetPath: entity is not at its tile position. Was it bumped by an enemy attack or something?")
-		logz.Println(e.DisplayName(), "tilePos:", e.TilePos, "e.X:", e.X/config.TileSize, "e.Y:", e.Y/config.TileSize)
+		logz.Println(e.DisplayName(), "tilePos:", e.TilePos(), "e.X:", e.X/config.TileSize, "e.Y:", e.Y/config.TileSize)
 		logz.Println(e.DisplayName(), "Clamping to current tile position. TODO: perhaps we should make a more graceful way of recovering the position than this?")
-		e.TargetX = float64(e.TilePos.X * config.TileSize)
-		e.TargetY = float64(e.TilePos.Y * config.TileSize)
+		e.TargetX = float64(tilePos.X * config.TileSize)
+		e.TargetY = float64(tilePos.Y * config.TileSize)
 		e.Movement.IsMoving = true
 		return MoveError{Cancelled: true, Info: "entity was unexpectedly not at its tile position - possibly bumped by an enemy attack or something?"}
 	}
@@ -542,7 +546,7 @@ func (e *Entity) tryMergeSuggestedPath(newPath []model.Coords) bool {
 	if len(e.Movement.TargetPath) <= 3 {
 		return false
 	}
-	if newPath[0].Equals(e.TilePos) {
+	if newPath[0].Equals(e.TilePos()) {
 		logz.Println("tryMergeSuggestedPath", "error: new path starts at entity's current position. it should start at a position in the target path ahead of the current position.")
 		return false
 	}

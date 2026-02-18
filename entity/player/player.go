@@ -24,7 +24,7 @@ type Player struct {
 
 type WorldContext interface {
 	GetNearbyNPCs(x, y, radius float64) []*npc.NPC
-	ActivateArea(r model.Rect) bool
+	ActivateArea(r model.Rect, originX, originY float64) bool
 	HandleMouseClick(mouseX, mouseY int) bool
 }
 

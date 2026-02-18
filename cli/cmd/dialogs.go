@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	ProfileTest      defs.DialogProfileID = "test1"
-	ProfileDefault   defs.DialogProfileID = "default"
-	ProfileCharJovis defs.DialogProfileID = "char_jovis"
+	ProfileTest            defs.DialogProfileID = "test1"
+	ProfileDefault         defs.DialogProfileID = "default"
+	ProfileCharJovis       defs.DialogProfileID = "char_jovis"
+	ProfileQ001PrisonGuard defs.DialogProfileID = "Q001_prisonguard"
 
 	TopicRumors defs.TopicID = "rumors"
 	TopicJoke   defs.TopicID = "joke"
@@ -37,9 +38,24 @@ func GetDialogProfiles() []defs.DialogProfileDef {
 			},
 		},
 		{
+			ProfileID: ProfileQ001PrisonGuard,
+			Greeting: []defs.DialogResponse{
+				{
+					ID:   "head_on_up",
+					Once: true,
+					Text: "Prisoner! This is where you get off. Head on up to the deck and follow the guards orders from there.",
+				},
+				{
+					Text: "Come on now, don't keep them waiting.",
+				},
+			},
+		},
+		{
 			ProfileID: ProfileCharJovis,
 			Greeting: []defs.DialogResponse{
 				{
+					ID:   "here_comes_the_guard",
+					Once: true,
 					Text: "Oh, you're awake? I don't think I've seen you so much as stir for the past few days. Tell me, what's your name?",
 					NextResponse: &defs.DialogResponse{
 						Action: &defs.DialogAction{
@@ -68,11 +84,10 @@ func GetDialogProfiles() []defs.DialogProfileDef {
 											NextResponse: &defs.DialogResponse{
 												Text: fmt.Sprintf(" - Oh, Quiet! Here comes the guard! I wish you the best of luck, %s.", dialogv2.VarPlayerName),
 											},
-											Effects: []defs.Effect{
+											Effects: []defs.DialogEffect{
 												dialogv2.EventEffect{
 													Event: defs.Event{
 														Type: Q001GuardApproaching,
-														// TODO: need to actually make the context controller that fires events; as of now this won't actually fire
 													},
 												},
 											},
@@ -82,6 +97,9 @@ func GetDialogProfiles() []defs.DialogProfileDef {
 							},
 						},
 					},
+				},
+				{
+					Text: "Not now - you better do what they tell you.",
 				},
 			},
 		},

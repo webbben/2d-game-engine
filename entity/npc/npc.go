@@ -2,7 +2,6 @@
 package npc
 
 import (
-	"errors"
 	"time"
 
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -12,23 +11,26 @@ import (
 	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/internal/pubsub"
+	"github.com/webbben/2d-game-engine/object"
 )
 
-// TODO:
-// - add NPC defs to definition manager
-
-type NPCDef struct{}
-
 type NPC struct {
-	debug debug
-	NPCInfo
+	debug  debug
 	Entity *entity.Entity
 
 	dialogProfileID defs.DialogProfileID // retrieved from character state, but set here for convenience
 
 	TaskMGMT
+	eventBus   *pubsub.EventBus
 	OnUpdateFn func(n *NPC)
 	World      WorldContext
+
+	ID          string // TODO: What is ID for? Should we just refer directly to CharacterStateID instead?
+	DisplayName string
+
+	// priority assigned to this NPC by the map it is added to. used for prioritizing which NPC moves first in a collision.
+	Priority int
 }
 
 func (n *NPC) Activate() {
@@ -46,6 +48,7 @@ func (n NPC) Y() float64 {
 
 type WorldContext interface {
 	FindNPCAtPosition(c model.Coords) (NPC, bool)
+	FindObjectsAtPosition(c model.Coords) []*object.Object
 	StartDialog(dialogProfileID defs.DialogProfileID, npcID string)
 }
 
@@ -53,43 +56,72 @@ type NPCParams struct {
 	CharStateID state.CharacterStateID
 }
 
-func NewNPC(params NPCParams, defMgr *definitions.DefinitionManager, audioMgr *audio.AudioManager) NPC {
+func NewNPC(params NPCParams, defMgr *definitions.DefinitionManager, audioMgr *audio.AudioManager, eventBus *pubsub.EventBus) *NPC {
 	if params.CharStateID == "" {
 		panic("CharStateID is empty")
+	}
+	if defMgr == nil {
+		panic("defMgr was nil")
+	}
+	if audioMgr == nil {
+		panic("audioMgr was nil")
+	}
+	if eventBus == nil {
+		panic("eventBus was nil")
 	}
 
 	ent := entity.LoadCharacterStateIntoEntity(params.CharStateID, defMgr, audioMgr)
 
 	// get dialog profile ID from character def
 	charDef := defMgr.GetCharacterDef(ent.CharacterStateRef.DefID)
+	scheduleDef := defMgr.GetScheduleDef(charDef.ScheduleID)
 
-	return NPC{
-		Entity: ent,
-		NPCInfo: NPCInfo{
-			ID:          string(ent.ID()),
-			DisplayName: ent.DisplayName(),
-		},
+	n := NPC{
+		eventBus:        eventBus,
+		Entity:          ent,
+		ID:              string(ent.ID()),
+		DisplayName:     ent.DisplayName(),
 		dialogProfileID: charDef.DialogProfileID,
+		TaskMGMT: TaskMGMT{
+			Schedule: scheduleDef,
+			defMgr:   defMgr,
+		},
+	}
+
+	n.eventBus.SubscribeToNPCEvents(n.ID, n.ID, n.OnEvent)
+
+	return &n
+}
+
+func (n *NPC) OnEvent(e defs.Event) {
+	logz.Println(n.ID, "received event:", e)
+	assignTask := pubsub.NpcAssignTaskType(n.ID)
+	switch e.Type {
+	case assignTask:
+		taskDefData, exists := e.Data["taskDef"]
+		if !exists {
+			logz.Panicln(n.ID, "recieved assign task event, but data was missing expected key")
+		}
+		taskDef, ok := taskDefData.(defs.TaskDef)
+		if !ok {
+			logz.Panicln(n.ID, "failed to type event data as taskDef")
+		}
+		n.RunTask(taskDef, n)
 	}
 }
 
-type NPCInfo struct {
-	ID          string
-	DisplayName string
-	Priority    int // priority assigned to this NPC by the map it is added to
-}
-
+// TaskMGMT manages all task related stuff, such as schedules and whatnot.
+// TODO:
+// - default to Idle task if no schedule or current task is set?
 type TaskMGMT struct {
 	CurrentTask         Task
-	TaskQueue           []*Task // TODO queue of tasks to run one after the other. not implemented yet.
 	waitUntil           time.Time
 	waitUntilDoneMoving bool // if set, will wait until entity has stopped moving before processing next update
 	// A default task that will run whenever no other task is active.
 	// Useful for if this NPC should always just continuously do one task.
-	DefaultTask Task
-	// number of ticks this NPC has been stuck (failing to move to its goal).
-	// TODO implement this if needed. so far, haven't needed to report stuck NPCs.
-	StuckCount int
+	Schedule defs.ScheduleDef
+
+	defMgr *definitions.DefinitionManager
 }
 
 // IsActive checks if the npc is currently working on a task
@@ -98,40 +130,6 @@ func (tm TaskMGMT) IsActive() bool {
 		return false
 	}
 	return !tm.CurrentTask.IsDone()
-}
-
-// ErrAlreadyActive indicates the NPC is already active with a task
-var ErrAlreadyActive error = errors.New("NPC already has an active task")
-
-// SetTask sets a task for this NPC to carry out.
-// For setting fundamental tasks, use the respective Set<taskType>Task command.
-//
-// Directly using this task outside of the game engine would be for setting customly defined tasks.
-func (n *NPC) SetTask(t Task, force bool) error {
-	if t == nil {
-		panic("SetTask: task is nil")
-	}
-	if n.IsActive() {
-		if force {
-			// TODO force quit current task
-		} else {
-			logz.Warnln(n.DisplayName, "tried to set task on already active NPC")
-			return ErrAlreadyActive
-		}
-	}
-
-	t.SetOwner(n)
-	n.CurrentTask = t
-	return nil
-}
-
-// EndCurrentTask ends the current task. Causes the task to run its "end" hook logic.
-func (n *NPC) EndCurrentTask() {
-	if n.CurrentTask == nil {
-		logz.Warnln(n.DisplayName, "tried to cancel current task, but no current task exists.")
-		return
-	}
-	n.CurrentTask.End()
 }
 
 // Wait interrupts regular NPC updates for a certain duration

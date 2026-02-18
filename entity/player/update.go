@@ -107,7 +107,7 @@ func (p *Player) handleMovement() bool {
 			return false
 		}
 		e := p.Entity.TryMoveMaxPx(scaled.X, scaled.Y, speed)
-		if !e.Success {
+		if !e.Success && !e.Collision {
 			logz.Println(p.Entity.DisplayName(), "player failed to move:", e)
 			logz.Println("", e.CollisionResult)
 			p.Entity.Body.StopAnimation()
@@ -168,7 +168,8 @@ func (p *Player) handleActions() bool {
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		if p.World.ActivateArea(p.Entity.GetFrontRect()) {
+		x, y := p.Entity.X, p.Entity.Y
+		if p.World.ActivateArea(p.Entity.GetFrontRect(), x, y) {
 			return true
 		}
 	}

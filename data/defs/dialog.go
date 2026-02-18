@@ -21,20 +21,35 @@ type DialogProfileDef struct {
 type DialogTopic struct {
 	ID         TopicID
 	Prompt     string            // Text shown to the player
-	Conditions []Condition       // Whether topic appears. AND logic.
+	Conditions []DialogCondition // Whether topic appears. AND logic.
 	Responses  []DialogResponse  // NPC replies
-	Metadata   map[string]string // Optional (UI hints, tags, etc)
+}
+
+func (dt DialogTopic) Validate() {
+	if dt.ID == "" {
+		panic("id was empty")
+	}
+	if dt.Prompt == "" {
+		panic("prompt was empty")
+	}
+	if len(dt.Responses) == 0 {
+		panic("responses was empty")
+	}
+	for _, resp := range dt.Responses {
+		resp.Validate()
+	}
 }
 
 // DialogResponse defines a specific response to a topic prompt, according to an NPC's role or identity, a quest state, etc.
 // It represents a single possible response that can be given to a topic/prompt, and defines the conditions for that response.
 type DialogResponse struct {
+	ID string // only needed if this dialog response is used in any sort of memory tracking; if you want to use the Only flag, this is required, otherwise it's okay to omit.
 	// Notes:
 	// - DONT centralize in definitions manager as independent DialogResponses. These are contextual and often one-off. not good for global re-use.
 
 	Text       string
-	Conditions []Condition // Whether this response is given to a topic. AND logic.
-	Effects    []Effect
+	Conditions []DialogCondition // Whether this response is given to a topic. AND logic.
+	Effects    []DialogEffect
 	NextTopics []TopicID // IDs to unlock/emphasize
 	Once       bool      // if set, this response will only be possible to show once. after that, it is no longer eligible.
 
@@ -48,17 +63,29 @@ type DialogResponse struct {
 	NextResponse *DialogResponse
 }
 
+func (dr DialogResponse) Validate() {
+	if dr.Once && dr.ID == "" {
+		panic("responses marked as Once must have an ID")
+	}
+	if dr.Text == "" {
+		panic("text was empty")
+	}
+	if dr.NextResponse != nil {
+		dr.NextResponse.Validate()
+	}
+}
+
 // DialogReply is a reply the player can give to a certain dialog response.
 type DialogReply struct {
 	Text       string // The text for the reply option (which represents how the player is responding)
-	Conditions []Condition
-	Effects    []Effect
+	Conditions []DialogCondition
+	Effects    []DialogEffect
 
 	NextResponse *DialogResponse // once this reply is chosen, this is how the NPC reacts. If nil, no response is given by the NPC.
 	NextTopicID  TopicID
 }
 
-type Condition interface {
+type DialogCondition interface {
 	IsMet(ctx ConditionContext) bool
 }
 
@@ -72,13 +99,13 @@ type MemoryCondition struct {
 	Seen bool
 }
 
-type Effect interface {
+type DialogEffect interface {
 	Apply(ctx EffectContext)
 }
 
 type EffectContext interface {
-	MarkTopicSeen(id TopicID)
-	UnlockTopic(id TopicID)
+	RecordTopicSeen(id TopicID)
+	RecordTopicUnlocked(id TopicID)
 	BroadcastEvent(event Event)
 
 	AddGold(amount int)

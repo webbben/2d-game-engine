@@ -672,7 +672,6 @@ func (eb *EntityBodySet) cropHair() {
 // - facing up, doing a sword slash: the arm is cocked back behind the head. body equipment is "on top" of the arms, hair is on top of body equipment, but hands can still show
 // over the hair.
 func (eb *EntityBodySet) subtractArms() {
-	logz.Println(eb.Name, "subtracting arms")
 	if eb.EquipBodySet.PartSrc.None {
 		logz.Panicln(eb.Name, "trying to subtract arms, but no bodywear is set")
 	}

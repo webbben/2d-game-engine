@@ -1,30 +1,46 @@
 package npc
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/object"
 )
 
 type TaskStatus int
 
 const (
 	// the task has not started yet
-	TASK_STATUS_NOTSTARTED TaskStatus = iota
+	TaskNotStarted TaskStatus = iota
 	// task has started processing updates
-	TASK_STATUS_INPROG
+	TaskInProg
 	// task has ended and is no longer active
-	TASK_STATUS_END
+	TaskEnded
+)
+
+const (
+	TaskIdle        defs.TaskID = "IDLE"
+	TaskGoto        defs.TaskID = "GOTO"
+	TaskFollow      defs.TaskID = "FOLLOW"
+	TaskFight       defs.TaskID = "FIGHT"
+	TaskStartDialog defs.TaskID = "START_DIALOG"
+	TaskFaceDir     defs.TaskID = "FACE_DIR"
+)
+
+const (
+	Schedule defs.TaskPriority = iota
+	Assign
+	Emergency
 )
 
 func (ts TaskStatus) String() string {
 	switch ts {
-	case TASK_STATUS_NOTSTARTED:
+	case TaskNotStarted:
 		return "NOTSTARTED (0)"
-	case TASK_STATUS_INPROG:
+	case TaskInProg:
 		return "INPROG (1)"
-	case TASK_STATUS_END:
+	case TaskEnded:
 		return "END (2)"
 	default:
 		return "(Error: task status not given a string representation yet)"
@@ -32,36 +48,26 @@ func (ts TaskStatus) String() string {
 }
 
 type Task interface {
+	GetID() defs.TaskID
+
+	GetNextTaskDef() *defs.TaskDef
+
 	// the NPC who "owns" this task (i.e. the NPC who is currently running this task)
 	GetOwner() *NPC
-	SetOwner(ownerNPC *NPC)
 
 	GetDescription() string
-	SetDescription(desc string)
 
-	GetID() string
-	SetID(id string)
+	GetPriority() defs.TaskPriority
 
 	GetName() string
-	SetName(name string)
 
 	GetStatus() TaskStatus // current status of function
-	SetStatus(status TaskStatus)
 
 	IsDone() bool   // flag that indicates this task is finished or ended. causes no further updates to process.
 	IsActive() bool // indicates that the task is currently underway (already started, and hasn't stopped yet)
 
-	// Optional custom logic for task completion
-	IsComplete() bool
-	// Optional custom logic for task failure
-	IsFailure() bool
-
-	// logic to execute in order to start the task
-	Start()
 	// logic to execute on each update tick
 	Update()
-	// logic to execute to end the task; do any cleanup necessary, and ensure that IsDone returns true.
-	End()
 
 	// background task assistance
 	BackgroundAssist()
@@ -71,151 +77,133 @@ type Task interface {
 type TaskBase struct {
 	Owner       *NPC
 	Description string
-	ID          string
+	ID          defs.TaskID
+	Priority    defs.TaskPriority
 	Name        string
 	Status      TaskStatus
+	NextTaskDef *defs.TaskDef
 }
 
-func NewTaskBase(id, name, desc string) TaskBase {
+// NewTaskBase defines a task base that covers all the bases of the Task interface.
+//
+// nextTask: OPT (only set if you want another task to start right after this one finishes)
+func NewTaskBase(id defs.TaskID, name, desc string, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) TaskBase {
+	if owner == nil {
+		panic("owner was nil")
+	}
 	return TaskBase{
 		ID:          id,
+		Priority:    p,
 		Name:        name,
 		Description: desc,
-		Status:      TASK_STATUS_NOTSTARTED,
+		Status:      TaskNotStarted,
+		Owner:       owner,
+		NextTaskDef: nextTask,
 	}
+}
+
+func (tb TaskBase) GetNextTaskDef() *defs.TaskDef {
+	return tb.NextTaskDef
 }
 
 func (tb TaskBase) GetOwner() *NPC {
 	return tb.Owner
 }
 
-func (tb *TaskBase) SetOwner(n *NPC) {
-	tb.Owner = n
-}
-
 func (tb TaskBase) GetDescription() string {
 	return tb.Description
 }
 
-func (tb *TaskBase) SetDescription(desc string) {
-	tb.Description = desc
-}
-
-func (tb TaskBase) GetID() string {
+func (tb TaskBase) GetID() defs.TaskID {
 	return tb.ID
 }
 
-func (tb *TaskBase) SetID(id string) {
-	tb.ID = id
+func (tb TaskBase) GetPriority() defs.TaskPriority {
+	return tb.Priority
 }
 
 func (tb TaskBase) GetName() string {
 	return tb.Name
 }
 
-func (tb *TaskBase) SetName(name string) {
-	tb.Name = name
-}
-
 func (tb TaskBase) GetStatus() TaskStatus {
 	return tb.Status
 }
 
-func (tb *TaskBase) SetStatus(status TaskStatus) {
-	tb.Status = status
-}
-
 func (tb TaskBase) IsDone() bool {
-	return tb.Status == TASK_STATUS_END
+	return tb.Status == TaskEnded
 }
 
 func (tb TaskBase) IsActive() bool {
-	return tb.Status > TASK_STATUS_NOTSTARTED && tb.Status < TASK_STATUS_END
-}
-
-// does various checks to ensure task status is consistent with other state variables.
-func validateStatus(t Task) {
-	status := t.GetStatus()
-	if !(status == TASK_STATUS_INPROG ||
-		status == TASK_STATUS_END ||
-		status == TASK_STATUS_NOTSTARTED) {
-		panic("invalid task status:" + status.String())
-	}
-	if status == TASK_STATUS_END {
-		if t.GetOwner() != nil {
-			panic("task.validateStatus: task has ended but still has an owner")
-		}
-		if !t.IsDone() {
-			panic("task.validateStatus: task has ended but 'done' bool is still false")
-		}
-	} else {
-		if t.IsDone() {
-			panic("task.validateStatus: task marked as 'done' but hasn't ended yet")
-		}
-	}
+	return tb.Status > TaskNotStarted && tb.Status < TaskEnded
 }
 
 func (n *NPC) HandleTaskUpdate() {
 	if n.CurrentTask.GetOwner() == nil {
 		panic("tried to run task that has no owner set")
 	}
+	if n.CurrentTask == nil {
+		panic("current task is nil?")
+	}
 	if n.CurrentTask.IsDone() {
 		return
 	}
 
-	switch n.CurrentTask.GetStatus() {
-	case TASK_STATUS_NOTSTARTED:
-		n.CurrentTask.Start()
-	default:
-		n.CurrentTask.Update()
-	}
-
-	validateStatus(n.CurrentTask)
+	n.CurrentTask.Update()
 }
 
-func (t *TaskBase) HandleNPCCollision(continueFunc func()) {
+type NPCCollisionResult struct {
+	NoneDetected bool
+	Wait         bool
+	ReRoute      bool
+}
+
+// HandleNPCCollision handles any collisions that are occurring.
+// Basically, if the NPC has run up into an object, like a gate, they can try to open it.
+// Note: entities don't collide, they should just move slower and incur more "cost" by walking into each other.
+func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 	if !t.Owner.Entity.Movement.Interrupted {
-		return
+		return NPCCollisionResult{NoneDetected: true}
 	}
 	logz.Println(t.Owner.DisplayName, "NPC interrupted; handling collision")
 	// path entity was moving on has been interrupted.
 	// if interrupted by NPC, try to negotiate resolution to collision.
-	if !t.Owner.Entity.Movement.TargetTile.Equals(t.Owner.Entity.TilePos) {
+	// TODO: this probably belongs as validation in the entity movement logic itself
+	if !t.Owner.Entity.TargetTilePos().Equals(t.Owner.Entity.TilePos()) {
+		logz.Println(t.Owner.ID, "Goto task: since NPC movement was interrupted, we expect its target position to be the same as its current position. target:", t.Owner.Entity.TargetTilePos(), t.Owner.Entity.TilePos())
 		panic("Goto task: since NPC movement was interrupted, we expect its target position to be the same as its current position")
 	}
+	// TODO: same with this?
 	if len(t.Owner.Entity.Movement.TargetPath) == 0 {
 		panic("Goto task: npc movement was interrupted, but there is no next step in target path")
 	}
 
 	// get NPCs that are at the next target tile - i.e. the next position in the target path
 	nextTarget := t.Owner.Entity.Movement.TargetPath[0]
-	collisionNpc, found := t.Owner.World.FindNPCAtPosition(nextTarget)
-	if collisionNpc.ID == t.Owner.ID {
-		panic("Goto task: npc collided with itself?! that shouldn't be happening")
-	}
-	if !found {
-		// TODO check if NPC collided with player. NPC doesn't collide with player yet.
 
-		// if NPC didn't collide with player, and no collision NPC found, then it seems the blocking NPC is now gone, so proceed
-		continueFunc()
-		return
-	} else {
-		logz.Println(t.Owner.DisplayName, "collided with NPC", collisionNpc.DisplayName)
-	}
-	if collisionNpc.Priority > t.Owner.Priority {
-		// other NPC is higher priority; let him go first.
-		logz.Println(t.Owner.DisplayName, "waiting for other NPC to go first")
-		t.Owner.Wait(time.Second) // wait a second before we check logic again for this NPC
-		return
-	} else {
-		if collisionNpc.Priority == t.Owner.Priority {
-			fmt.Println(collisionNpc.DisplayName, collisionNpc.Priority, " / ", t.Owner.DisplayName, t.Owner.Priority)
-			panic("updateGoto: other NPC has same priority as this one! that's not suppposed to happen.")
+	collidingObjs := t.Owner.World.FindObjectsAtPosition(nextTarget)
+	if len(collidingObjs) > 0 {
+		// see if any of these objects are things like gates, that can be opened.
+		for _, obj := range collidingObjs {
+			if !obj.IsCollidable() {
+				continue
+			}
+			if obj.Type == object.TypeGate {
+				if !obj.IsCurrentlyActivating() {
+					x, y := t.Owner.Entity.X, t.Owner.Entity.Y
+					obj.Activate(x, y)
+				}
+				// wait a little for the gate to open
+				t.Owner.Wait(time.Second)
+				return NPCCollisionResult{Wait: true}
+			}
+			// found an object that is collidable and cannot be opened or resolved;
+			// tell NPC to reroute.
+			return NPCCollisionResult{ReRoute: true}
 		}
-		// this NPC has higher priority, so it can re-route first
-		continueFunc()
-		return
 	}
+	// no collidable objects found; should be good to continue?
+	return NPCCollisionResult{NoneDetected: true}
 }
 
 // Made an Idle task for NPCs that don't do anything

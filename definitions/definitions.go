@@ -19,6 +19,8 @@ type DefinitionManager struct {
 	DialogProfileStates map[defs.DialogProfileID]*state.DialogProfileState
 	DialogTopics        map[defs.TopicID]*defs.DialogTopic
 
+	NPCSchedules map[defs.ScheduleID]defs.ScheduleDef
+
 	BodyPartDefs    map[defs.BodyPartID]defs.SelectedPartDef // only for body "skin" parts (not for equipment, since those are part of item defs)
 	FootstepSFXDefs map[defs.FootstepSFXDefID]defs.FootstepSFXDef
 
@@ -43,11 +45,33 @@ func NewDefinitionManager() *DefinitionManager {
 		DialogProfiles:      make(map[defs.DialogProfileID]*defs.DialogProfileDef),
 		DialogTopics:        make(map[defs.TopicID]*defs.DialogTopic),
 		DialogProfileStates: make(map[defs.DialogProfileID]*state.DialogProfileState),
-
-		CharacterDefs:   make(map[defs.CharacterDefID]defs.CharacterDef),
-		CharacterStates: make(map[state.CharacterStateID]*state.CharacterState),
+		CharacterDefs:       make(map[defs.CharacterDefID]defs.CharacterDef),
+		CharacterStates:     make(map[state.CharacterStateID]*state.CharacterState),
+		NPCSchedules:        make(map[defs.ScheduleID]defs.ScheduleDef),
 	}
 	return &def
+}
+
+func (defMgr *DefinitionManager) LoadScheduleDef(sched defs.ScheduleDef) {
+	if sched.ID == "" {
+		panic("id was empty")
+	}
+	if _, exists := defMgr.NPCSchedules[sched.ID]; exists {
+		logz.Panicln("DefinitionManager", "tried to load schedule def, but id already exists:", sched.ID)
+	}
+	sched.Validate()
+	defMgr.NPCSchedules[sched.ID] = sched
+}
+
+func (defMgr *DefinitionManager) GetScheduleDef(id defs.ScheduleID) defs.ScheduleDef {
+	if id == "" {
+		panic("id was empty")
+	}
+	sched, exists := defMgr.NPCSchedules[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get schedule def, but id doesn't exist:", id)
+	}
+	return sched
 }
 
 func (defMgr *DefinitionManager) LoadCharacterDef(charDef defs.CharacterDef) {
@@ -100,8 +124,18 @@ func (defMgr *DefinitionManager) GetCharacterState(id state.CharacterStateID) *s
 // GetNewCharStateID generates a new and unique CharacterStateID that is guaranteed to not be defined in definitionMgr yet.
 // Also uses the charDefID as its base, for convenience and search-ability
 func (defMgr DefinitionManager) GetNewCharStateID(defID defs.CharacterDefID) state.CharacterStateID {
-	id := state.CharacterStateID(fmt.Sprintf("%s_%s", defID, general_util.GenerateUUID()))
+	charDef := defMgr.GetCharacterDef(defID)
+	var id state.CharacterStateID
+	if charDef.Unique {
+		// if unique, we just use the def ID
+		id = state.CharacterStateID(defID)
+	} else {
+		id = state.CharacterStateID(fmt.Sprintf("%s_%s", defID, general_util.GenerateUUID()))
+	}
 	if _, exists := defMgr.CharacterStates[id]; exists {
+		if charDef.Unique {
+			logz.Panicln("DefinitionManager", "Tried to get charStateID for a unique character def, but the base characterDefID was already taken. ensure this characterDef is not instantiated more than once:", defID)
+		}
 		logz.Panicln("DefinitionManager", "Generated Unique ID for Character State was already registered... is this possible?")
 	}
 	return id
@@ -114,6 +148,7 @@ func (defMgr *DefinitionManager) LoadDialogTopic(topic *defs.DialogTopic) {
 	if _, exists := defMgr.DialogTopics[topic.ID]; exists {
 		logz.Panicln("DefinitionManager", "tried to load dialog topic, but a topic with the same ID already exists:", topic.ID)
 	}
+	topic.Validate()
 	defMgr.DialogTopics[topic.ID] = topic
 }
 
