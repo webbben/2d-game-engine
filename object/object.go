@@ -147,7 +147,7 @@ type WorldContext interface {
 }
 
 type Door struct {
-	targetMapID      string
+	targetMapID      defs.MapID
 	targetSpawnIndex int
 	openSound        *audio.Sound
 	activateType     string // "click", "step"
@@ -390,7 +390,7 @@ func (obj *Object) loadDoorObject(props []tiled.Property) {
 	for _, prop := range props {
 		switch prop.Name {
 		case "door_to":
-			obj.Door.targetMapID = prop.GetStringValue()
+			obj.Door.targetMapID = defs.MapID(prop.GetStringValue())
 		case "door_spawn_index":
 			obj.Door.targetSpawnIndex = prop.GetIntValue()
 		case "door_activate":

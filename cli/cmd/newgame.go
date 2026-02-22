@@ -39,12 +39,15 @@ to quickly create a Cobra application.`,
 			panic(err)
 		}
 
-		g := setupGameState(gameParams{
+		g := SetupGameState(gameParams{
 			startHour:  23,
 			startMapID: "prison_ship",
+			startEvents: []defs.Event{
+				{
+					Type: Q001PlayerWakesUp,
+				},
+			},
 		})
-
-		g.EventBus.Publish(defs.Event{Type: Q001PlayerWakesUp})
 
 		if err := g.RunGame(); err != nil {
 			panic(err)

@@ -67,6 +67,16 @@ func LoadDefMgr(defMgr *definitions.DefinitionManager) {
 	for _, sched := range GetAllSchedules() {
 		defMgr.LoadScheduleDef(sched)
 	}
+
+	// MAPS
+	for _, mapDef := range GetAllMapDefs() {
+		defMgr.LoadMapDef(mapDef)
+	}
+
+	// SCENARIOS
+	for _, scenario := range GetAllScenarios() {
+		defMgr.LoadScenarioDef(scenario)
+	}
 }
 
 func LoadAudioManager(audioMgr *audio.AudioManager) {

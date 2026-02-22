@@ -27,6 +27,11 @@ func GetAllQuestDefs() []defs.QuestDef {
 				"Awakening": {
 					ID:    "Awakening",
 					Title: "Awakening",
+					OnEnter: []defs.QuestAction{
+						quest.QueueScenarioAction{
+							ScenarioID: ScenarioQ001PrisonShip,
+						},
+					},
 					Objective: `
 					Find out where you are and what's happened.
 					`,

@@ -7,7 +7,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/spf13/cobra"
-	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/npc"
@@ -42,7 +41,7 @@ to quickly create a Cobra application.`,
 		}
 
 		// get our testrun game state
-		gameState := setupGameState(gameParams{
+		gameState := SetupGameState(gameParams{
 			startMapID: "village_surano",
 			startHour:  12,
 		})
@@ -68,57 +67,6 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(testrunCmd)
-}
-
-type gameParams struct {
-	startHour  int
-	startMapID string
-}
-
-func setupGameState(params gameParams) *game.Game {
-	g := game.NewGame(params.startHour)
-
-	LoadDefMgr(g.DefinitionManager)
-	LoadAudioManager(g.AudioManager)
-	questDefs := GetAllQuestDefs()
-	g.QuestManager.LoadAllQuestData(questDefs, []state.QuestState{})
-
-	err := g.SetupMap(params.startMapID, &game.OpenMapOptions{
-		RunNPCManager:    true,
-		RegenerateImages: true,
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// make the player
-
-	charStateID := entity.CreateNewCharacterState("player", entity.NewCharacterStateParams{IsPlayer: true}, g.DefinitionManager)
-	playerEnt := entity.LoadCharacterStateIntoEntity(charStateID, g.DefinitionManager, g.AudioManager)
-
-	p := player.NewPlayer(g.DefinitionManager, playerEnt)
-	_ = g.PlacePlayerAtSpawnPoint(&p, 0)
-	g.Player = &p
-
-	// add my test key bindings
-	addCustomKeyBindings(g)
-
-	// TODO: make these interfaces similar to how we handle HUDs
-	g.PlayerMenu = GetPlayerMenu(g.Player, g.DefinitionManager)
-	g.TradeScreen = GetTradeScreen(g.Player, g.DefinitionManager)
-
-	g.PlayerMenu.InventoryPage.LoadPlayerItemsIn()
-
-	hud := NewWorldHUD(WorldHUDParams{
-		ClockTilesetSrc:     "ui/clock.tsj",
-		ClockDayIndex:       1,
-		ClockEveningIndex:   2,
-		ClockNightIndex:     3,
-		ClockLateNightIndex: 4,
-	})
-	g.SetHUD(&hud)
-
-	return g
 }
 
 func addCustomKeyBindings(g *game.Game) {
