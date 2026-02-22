@@ -159,6 +159,7 @@ type QuestActionContext interface {
 	// NPCs are assigned to characters, so you pass a CharacterDefID.
 	// The characterDef must be "unique", which means only one instance can exist.
 	AssignTaskToNPC(id CharacterDefID, taskDef TaskDef)
+	QueueScenario(id ScenarioID)
 }
 
 type QuestConditionDef struct {

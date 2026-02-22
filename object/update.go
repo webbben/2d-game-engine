@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
@@ -12,9 +13,9 @@ import (
 )
 
 type ObjectUpdateResult struct {
-	ChangeMapID         string // if set, change to this map
-	ChangeMapSpawnIndex int    // spawn point index to send player to
-	UpdateOccurred      bool   // if true, an update happened to the object
+	ChangeMapID         defs.MapID // if set, change to this map
+	ChangeMapSpawnIndex int        // spawn point index to send player to
+	UpdateOccurred      bool       // if true, an update happened to the object
 }
 
 func (obj *Object) Update() ObjectUpdateResult {

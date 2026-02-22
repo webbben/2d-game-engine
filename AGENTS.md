@@ -83,10 +83,12 @@ GOOS=windows GOARCH=amd64 go build -o game.exe .  # cross-compile
 ## Architecture
 
 ### Key Packages
-- `game/` - Core game loop, camera, time system, events
+- `game/` - Core game loop, events, map management
 - `entity/` - Base entity, player, NPCs, body system
 - `item/` - Item definitions, inventory items
 - `internal/ui/` - Buttons, text fields, dropdowns, layout
+- `internal/camera/` - Camera/viewport system
+- `clock/` - Time system
 - `dialogv2/` - Topic-based conversations
 - `quest/` - Event-driven quest system (stage-based progression)
 - `trade/` - Player-merchant trading
@@ -96,7 +98,7 @@ GOOS=windows GOARCH=amd64 go build -o game.exe .  # cross-compile
 
 ### Patterns
 - Constructor: `New[Type]()` with validation
-- Interface-based: `ItemDef`, `WorldContext`, `Renderable`
+- Interface-based: `ItemDef`, `WorldContext`
 - Fail-fast: panic on invalid internal state
 
 ## Common Tasks

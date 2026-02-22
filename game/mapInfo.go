@@ -6,6 +6,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/entity/player"
@@ -55,7 +56,7 @@ type OpenMapOptions struct {
 }
 
 // EnterMap sets up a map and puts the player in it at the given position. meant for use once player already exists in game state
-func (g *Game) EnterMap(mapID string, op *OpenMapOptions, playerSpawnIndex int) error {
+func (g *Game) EnterMap(mapID defs.MapID, op *OpenMapOptions, playerSpawnIndex int) error {
 	if g.MapInfo != nil {
 		g.MapInfo.CloseMap()
 	}
@@ -68,8 +69,25 @@ func (g *Game) EnterMap(mapID string, op *OpenMapOptions, playerSpawnIndex int) 
 	return g.PlacePlayerAtSpawnPoint(g.Player, playerSpawnIndex)
 }
 
+// EnsureMapStateExists checks if a map state exists, and instantiates it if it doesn't.
+// So, anytime you're dealing with a map, just run this function to make sure its state exists and/or has been instantiated correctly.
+func (g *Game) EnsureMapStateExists(mapID defs.MapID) {
+	// make sure def exists for this mapID
+	_ = g.DefinitionManager.GetMapDef(mapID)
+
+	if g.DefinitionManager.MapStateExists(mapID) {
+		return
+	}
+
+	g.DefinitionManager.LoadMapState(state.MapState{
+		ID: mapID,
+	})
+}
+
 // SetupMap prepares the MapInfo for in-game play
-func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
+func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
+	logz.Println("SetupMap", "Setting up map", mapID, "for in-game play")
+
 	if op == nil {
 		op = &OpenMapOptions{}
 	}
@@ -78,7 +96,9 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 		g.MapInfo.CloseMap()
 	}
 
-	mapSource := config.ResolveMapPath(mapID)
+	g.EnsureMapStateExists(mapID)
+
+	mapSource := config.ResolveMapPath(string(mapID))
 	fmt.Println("map source:", mapSource)
 
 	// load and setup the map
@@ -123,17 +143,9 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 	}
 
 	// find all objects in the map
-	entObjs := []tiled.Object{}
 	for _, layer := range m.Layers {
 		if layer.Type == tiled.LayerTypeObject {
 			for _, obj := range layer.Objects {
-				// look for objects that are actually static entities
-				// Note: if the entity type is stored deeper than the object itself, I don't think it'll be found here.
-				objType, found := tiled.GetStringProperty("TYPE", obj.Properties)
-				if found && objType == object.TypeEntity {
-					entObjs = append(entObjs, obj)
-					continue
-				}
 				g.MapInfo.AddObjectToMap(obj, m)
 			}
 		}
@@ -150,29 +162,36 @@ func (g *Game) SetupMap(mapID string, op *OpenMapOptions) error {
 
 	g.MapInfo.Loaded = true
 
-	// add static ents after Loaded = true, since that is checked in AddNPCToMap
-	// StaticEntities: These are basically one-off characters that appear in a specific room for a specific reason.
-	// They aren't actually "existing in the overworld" as other characters will. So, we instantiate them with their set character def,
-	// and show them in the world.
-	//
-	// TODO: things we will need to decide/handle:
-	// - do static entities have their state saved long term? or do we need to "clean it up" after its done?
-	// 	- probably not? I think these "static" entities will not have their character state persisted. ideally deleted, but need to add support for this.
-	for _, obj := range entObjs {
-		charDefID, found := tiled.GetStringProperty("CHARACTER_DEF_ID", obj.Properties)
-		if !found {
-			logz.Panicln("NewStaticEntity", "no character def ID property found on object")
+	// add NPCs after Loaded = true, since that is checked in AddNPCToMap
+
+	// check if a scenario should be loaded into the map
+	mapState := g.DefinitionManager.GetMapState(mapID)
+	if len(mapState.QueuedScenarios) > 0 {
+		scenarioID := mapState.QueuedScenarios[0]
+		mapState.QueuedScenarios = mapState.QueuedScenarios[1:]
+		logz.Println("Loading Scenario", "MapID:", mapID, "ScenarioID:", scenarioID)
+		scenarioDef := g.DefinitionManager.GetScenarioDef(scenarioID)
+		if scenarioDef.MapID != mapID {
+			logz.Panicln("SetupMap", "found queued scenario for map, but mapID in scenario def doesn't match. mapID:", mapID, "found in scenario def:", scenarioDef.MapID)
 		}
 
-		charStateID := entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), entity.NewCharacterStateParams{}, g.DefinitionManager)
-		n := npc.NewNPC(npc.NPCParams{
-			CharStateID: charStateID,
-		}, g.DefinitionManager, g.AudioManager, g.EventBus)
+		for _, charDef := range scenarioDef.Characters {
 
-		r := model.NewRect(obj.X, obj.Y, obj.Width, obj.Height)
-		tilePos := model.GetTilePosOfRectCenter(r)
-		logz.Println("static NPC pos", tilePos, "original obj pos:", "x:", obj.X, "y:", obj.Y)
-		g.MapInfo.AddNPCToMap(n, tilePos)
+			// TODO: add support for the dialog profile and schedule overrides
+
+			charStateID := entity.CreateNewCharacterState(
+				charDef.CharDefID,
+				entity.NewCharacterStateParams{},
+				g.DefinitionManager)
+			n := npc.NewNPC(npc.NPCParams{
+				CharStateID: charStateID,
+			}, g.DefinitionManager, g.AudioManager, g.EventBus)
+
+			startPos := model.Coords{X: charDef.SpawnCoordX, Y: charDef.SpawnCoordY}
+			g.MapInfo.AddNPCToMap(n, startPos)
+		}
+	} else {
+		// TODO: No scenario, so figure out if regular world NPCs should be in this map.
 	}
 
 	g.EventBus.Publish(defs.Event{

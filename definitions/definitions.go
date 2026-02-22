@@ -11,6 +11,11 @@ import (
 )
 
 type DefinitionManager struct {
+	MapDefs   map[defs.MapID]defs.MapDef
+	MapStates map[defs.MapID]*state.MapState
+
+	ScenarioDef map[defs.ScenarioID]defs.ScenarioDef
+
 	ItemDefs map[defs.ItemID]defs.ItemDef
 
 	ShopkeeperDefs      map[defs.ShopID]*defs.ShopkeeperDef
@@ -35,6 +40,9 @@ type DefinitionManager struct {
 func NewDefinitionManager() *DefinitionManager {
 	def := DefinitionManager{
 		ItemDefs:            make(map[defs.ItemID]defs.ItemDef),
+		MapDefs:             make(map[defs.MapID]defs.MapDef),
+		MapStates:           make(map[defs.MapID]*state.MapState),
+		ScenarioDef:         make(map[defs.ScenarioID]defs.ScenarioDef),
 		ShopkeeperDefs:      make(map[defs.ShopID]*defs.ShopkeeperDef),
 		ShopkeeperStates:    make(map[defs.ShopID]*state.ShopkeeperState),
 		BodyPartDefs:        make(map[defs.BodyPartID]defs.SelectedPartDef),
@@ -50,6 +58,74 @@ func NewDefinitionManager() *DefinitionManager {
 		NPCSchedules:        make(map[defs.ScheduleID]defs.ScheduleDef),
 	}
 	return &def
+}
+
+func (defMgr *DefinitionManager) LoadScenarioDef(def defs.ScenarioDef) {
+	if def.ID == "" {
+		panic("id was empty")
+	}
+	if _, exists := defMgr.ScenarioDef[def.ID]; exists {
+		logz.Panicln("DefinitionManager", "tried to load scenario def, but id already exists:", def.ID)
+	}
+	defMgr.ScenarioDef[def.ID] = def
+}
+
+func (defMgr *DefinitionManager) GetScenarioDef(id defs.ScenarioID) defs.ScenarioDef {
+	if id == "" {
+		panic("id was empty")
+	}
+	def, exists := defMgr.ScenarioDef[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get scenario def, but id doesn't exist:", id)
+	}
+	return def
+}
+
+func (defMgr *DefinitionManager) LoadMapDef(def defs.MapDef) {
+	if def.ID == "" {
+		panic("id was empty")
+	}
+	if _, exists := defMgr.MapDefs[def.ID]; exists {
+		logz.Panicln("DefinitionManager", "tried to load map def, but id already exists:", def.ID)
+	}
+	defMgr.MapDefs[def.ID] = def
+}
+
+func (defMgr *DefinitionManager) GetMapDef(id defs.MapID) defs.MapDef {
+	if id == "" {
+		panic("id was empty")
+	}
+	def, exists := defMgr.MapDefs[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get map def, but id doesn't exist:", id)
+	}
+	return def
+}
+
+func (defMgr *DefinitionManager) LoadMapState(mapState state.MapState) {
+	if mapState.ID == "" {
+		panic("id was empty")
+	}
+	if _, exists := defMgr.MapStates[mapState.ID]; exists {
+		logz.Panicln("DefinitionManager", "tried to load map state, but id already exists:", mapState.ID)
+	}
+	defMgr.MapStates[mapState.ID] = &mapState
+}
+
+func (defMgr *DefinitionManager) GetMapState(id defs.MapID) *state.MapState {
+	if id == "" {
+		panic("id was empty")
+	}
+	mapState, exists := defMgr.MapStates[id]
+	if !exists {
+		logz.Panicln("DefinitionManager", "tried to get map state, but id doesn't exist:", id)
+	}
+	return mapState
+}
+
+func (defMgr *DefinitionManager) MapStateExists(id defs.MapID) bool {
+	_, exists := defMgr.MapStates[id]
+	return exists
 }
 
 func (defMgr *DefinitionManager) LoadScheduleDef(sched defs.ScheduleDef) {

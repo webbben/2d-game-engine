@@ -21,3 +21,27 @@ func (g *Game) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef) {
 	// send an event to the NPC, assuming he exists...
 	g.EventBus.Publish(pubsub.NPCAssignTask(string(id), taskDef))
 }
+
+func (g *Game) QueueScenario(id defs.ScenarioID) {
+	scenarioDef := g.DefinitionManager.GetScenarioDef(id)
+
+	mapID := scenarioDef.MapID
+	if mapID == "" {
+		panic("mapID was empty")
+	}
+
+	g.EnsureMapStateExists(mapID)
+
+	mapState := g.DefinitionManager.GetMapState(mapID)
+
+	// ensure this scenario is not already queued up
+	for _, scenarioID := range mapState.QueuedScenarios {
+		if scenarioID == id {
+			logz.Panicln("QueueScenario", "tried to queue a scenario, but its ID was already in the scenario queue for this map:", id)
+		}
+	}
+
+	mapState.QueuedScenarios = append(mapState.QueuedScenarios, id)
+
+	logz.Println("Scenario Queued", "queued", id, "in map", mapID)
+}

@@ -47,6 +47,7 @@ type QuestManager struct {
 
 type WorldController interface {
 	AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef)
+	QueueScenario(id defs.ScenarioID)
 }
 
 func NewQuestManager(eventBus *pubsub.EventBus, worldRef WorldController) *QuestManager {
@@ -329,9 +330,8 @@ func (qm *QuestManager) StartQuest(id defs.QuestID) {
 
 	// instantiate quest state
 	questState := state.QuestState{
-		DefID:        questDef.ID,
-		CurrentStage: questDef.StartStage,
-		Status:       Active,
+		DefID:  questDef.ID,
+		Status: Active,
 	}
 
 	qm.active[id] = &questState
@@ -345,6 +345,9 @@ func (qm *QuestManager) StartQuest(id defs.QuestID) {
 			QuestIDKey: id,
 		},
 	})
+
+	// start the first stage
+	qm.SetQuestStage(id, questDef.StartStage)
 }
 
 func (qm *QuestManager) CompleteQuest(id defs.QuestID) {
