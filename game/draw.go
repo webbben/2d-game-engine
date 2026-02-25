@@ -2,9 +2,9 @@ package game
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/internal/lights"
-	"github.com/webbben/2d-game-engine/internal/overlay"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 )
 
 func (g *Game) Draw(screen *ebiten.Image) {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/internal/general_util"
 	"github.com/webbben/2d-game-engine/internal/logz"
-	m "github.com/webbben/2d-game-engine/internal/model"
+	m "github.com/webbben/2d-game-engine/model"
 )
 
 type Node struct {

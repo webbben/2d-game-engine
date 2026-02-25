@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/model"
 	"golang.org/x/text/message"
 )
 

@@ -4,7 +4,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity/player"
-	"github.com/webbben/2d-game-engine/internal/overlay"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/inventory"
 )
 

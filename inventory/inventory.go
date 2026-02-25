@@ -6,8 +6,8 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/logz"
-	"github.com/webbben/2d-game-engine/internal/overlay"
-	"github.com/webbben/2d-game-engine/internal/ui/textwindow"
+	"github.com/webbben/2d-game-engine/ui/overlay"
+	"github.com/webbben/2d-game-engine/ui/textwindow"
 )
 
 type Inventory struct {

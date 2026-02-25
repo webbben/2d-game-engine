@@ -5,7 +5,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/logz"
-	"github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/model"
 )
 
 type GotoTask struct {
@@ -19,13 +19,13 @@ func (t *GotoTask) BackgroundAssist() {
 }
 
 type GotoTaskParams struct {
-	Target model.Coords
+	TileX, TileY int
 }
 
 func NewGotoTask(params GotoTaskParams, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) *GotoTask {
 	t := GotoTask{
 		TaskBase: NewTaskBase(TaskGoto, "Goto", "Goto a position", owner, p, nextTask),
-		goalPos:  params.Target,
+		goalPos:  model.Coords{X: params.TileX, Y: params.TileY},
 	}
 
 	return &t

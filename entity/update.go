@@ -2,10 +2,10 @@ package entity
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/internal/logz"
-	"github.com/webbben/2d-game-engine/internal/model"
-	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
 )
 
 func (e *Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {

@@ -10,7 +10,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/internal/logz"
-	"github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/model"
 )
 
 // MovementMechanics keep track of variables or state related to managing movement mechanics

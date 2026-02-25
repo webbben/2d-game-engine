@@ -9,10 +9,10 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/webbben/2d-game-engine/internal/config"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
-	"github.com/webbben/2d-game-engine/internal/display"
-	"github.com/webbben/2d-game-engine/internal/rendering"
+	"github.com/webbben/2d-game-engine/display"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
 )
 
 type debugData struct {
