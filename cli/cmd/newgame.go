@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/game"
-	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/display"
 )
 
 /*

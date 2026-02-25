@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/image"
+	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/imgutil/image"
 )
 
 func SetConfig() {

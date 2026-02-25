@@ -3,12 +3,12 @@ package dialogv2
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/internal/logz"
-	"github.com/webbben/2d-game-engine/internal/rendering"
-	"github.com/webbben/2d-game-engine/internal/text"
-	"github.com/webbben/2d-game-engine/internal/ui/modal"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/ui/modal"
 )
 
 // updateDialogResponse handles the logic for what to do next from the current node in the current topic's conversation
@@ -35,6 +35,18 @@ func (ds *DialogSession) updateDialogResponse() {
 			resp := ds.userInputModal.Update()
 			if resp.Done {
 				ds.handleUserInputActionResp(resp, *ds.currentResponse.Action)
+				ds.continueApplyResponse()
+				return
+			}
+			return
+		case ActionTypeShowScreen:
+			if ds.midDialogScreen == nil {
+				panic("screen was nil during show screen action")
+			}
+			ds.midDialogScreen.Update()
+			if ds.midDialogScreen.IsDone() {
+				// we can disconnect the screen now
+				ds.midDialogScreen = nil
 				ds.continueApplyResponse()
 				return
 			}

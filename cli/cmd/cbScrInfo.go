@@ -4,11 +4,11 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/text"
-	"github.com/webbben/2d-game-engine/internal/ui/button"
-	"github.com/webbben/2d-game-engine/internal/ui/dropdown"
-	"github.com/webbben/2d-game-engine/internal/ui/textfield"
+	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/ui/button"
+	"github.com/webbben/2d-game-engine/ui/dropdown"
+	"github.com/webbben/2d-game-engine/ui/textfield"
 )
 
 type infoScreen struct {

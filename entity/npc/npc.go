@@ -8,9 +8,9 @@ import (
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/entity"
-	"github.com/webbben/2d-game-engine/internal/audio"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/internal/logz"
-	"github.com/webbben/2d-game-engine/internal/model"
+	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/object"
 )

@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/internal/audio"
+	"github.com/webbben/2d-game-engine/audio"
 )
 
 const (

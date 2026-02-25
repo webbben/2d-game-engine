@@ -3,7 +3,6 @@ package cmd
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity/npc"
-	"github.com/webbben/2d-game-engine/internal/model"
 	"github.com/webbben/2d-game-engine/quest"
 )
 
@@ -69,7 +68,8 @@ func GetAllQuestDefs() []defs.QuestDef {
 							TaskDef: defs.TaskDef{
 								TaskID: npc.TaskGoto,
 								Params: npc.GotoTaskParams{
-									Target: model.Coords{X: 9, Y: 33},
+									TileX: 9,
+									TileY: 33,
 								},
 								NextTask: &defs.TaskDef{
 									TaskID: npc.TaskStartDialog,
@@ -79,7 +79,8 @@ func GetAllQuestDefs() []defs.QuestDef {
 									NextTask: &defs.TaskDef{
 										TaskID: npc.TaskGoto,
 										Params: npc.GotoTaskParams{
-											Target: model.Coords{X: 5, Y: 21},
+											TileX: 5,
+											TileY: 21,
 										},
 									},
 								},

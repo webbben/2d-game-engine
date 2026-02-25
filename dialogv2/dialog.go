@@ -8,14 +8,15 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/definitions"
-	"github.com/webbben/2d-game-engine/internal/config"
-	"github.com/webbben/2d-game-engine/internal/display"
+	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/internal/logz"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
-	"github.com/webbben/2d-game-engine/internal/text"
-	"github.com/webbben/2d-game-engine/internal/ui/box"
-	"github.com/webbben/2d-game-engine/internal/ui/button"
-	"github.com/webbben/2d-game-engine/internal/ui/modal"
+	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/ui/box"
+	"github.com/webbben/2d-game-engine/ui/button"
+	"github.com/webbben/2d-game-engine/ui/modal"
+	"github.com/webbben/2d-game-engine/screen"
 	"golang.org/x/image/font"
 )
 
@@ -32,6 +33,7 @@ const (
 const (
 	ActionTypeGetUserInput defs.DialogActionType        = "get_user_input"
 	ActionScopePlayerName  defs.DialogActionResultScope = "player_name"
+	ActionTypeShowScreen   defs.DialogActionType        = "show_screen"
 )
 
 const (
@@ -41,6 +43,10 @@ const (
 type GetUserInputActionParams struct {
 	ModalTitle        string
 	ConfirmButtonText string
+}
+
+type ShowScreenActionParams struct {
+	ScreenID screen.ScreenID
 }
 
 var quitTopic defs.DialogTopic = defs.DialogTopic{
@@ -64,6 +70,7 @@ type DialogSession struct {
 
 	eventBus *pubsub.EventBus
 	defMgr   *definitions.DefinitionManager
+	scrMgr   *screen.ScreenManager
 
 	flashContinueIcon   bool
 	iconFlashTimer      int
@@ -84,7 +91,8 @@ type DialogSession struct {
 
 	// possible action modals
 
-	userInputModal *modal.TextInputModal
+	userInputModal  *modal.TextInputModal
+	midDialogScreen screen.Screen
 }
 
 func ConditionsMet(conditions []defs.DialogCondition, ctx defs.ConditionContext) bool {
@@ -394,7 +402,7 @@ func (ds *DialogSession) startAction() {
 	case ActionTypeGetUserInput:
 		params, ok := action.Params.(GetUserInputActionParams)
 		if !ok {
-			panic("unable to cast params as GetUserInputActionParams... was the wrong params type chosen?")
+			panic("unable to resolve params as GetUserInputActionParams... was the wrong params type chosen?")
 		}
 		m := modal.NewTextInputModal(modal.TextInputModalParams{
 			BoxTilesetSrc:     config.DefaultUIBox.TilesetSrc,
@@ -403,6 +411,14 @@ func (ds *DialogSession) startAction() {
 			ConfirmButtonText: params.ConfirmButtonText,
 		})
 		ds.userInputModal = &m
+	case ActionTypeShowScreen:
+		params, ok := action.Params.(ShowScreenActionParams)
+		if !ok {
+			panic("unable to resolve params as ShowScreenActionParams... was the wrong params type chosen?")
+		}
+		s := ds.scrMgr.GetScreen(params.ScreenID)
+		ds.midDialogScreen = s
+		ds.midDialogScreen.Load(ds.defMgr)
 	default:
 		logz.Panicln("startAction", "action type not recognized:", action.Type)
 	}
