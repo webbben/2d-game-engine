@@ -7,6 +7,42 @@ import (
 	"github.com/webbben/2d-game-engine/item"
 )
 
+const (
+
+	// Misc
+
+	ItemCurrency1    defs.ItemID = "currency_value_1"
+	ItemCurrency5    defs.ItemID = "currency_value_5"
+	ItemCurrency10   defs.ItemID = "currency_value_10"
+	ItemCurrency50   defs.ItemID = "currency_value_50"
+	ItemCurrency100  defs.ItemID = "currency_value_100"
+	ItemCurrency1000 defs.ItemID = "currency_value_1000"
+	ItemTorch        defs.ItemID = "torch"
+
+	// Weapons
+
+	ItemLongsword01 defs.ItemID = "longsword_01"
+
+	// Potions
+
+	ItemPotionHerculeanStrength defs.ItemID = "potion_herculean_strength"
+
+	// Armor
+
+	ItemLegionaryHelm    defs.ItemID = "legionary_helm"
+	ItemLegionaryCuirass defs.ItemID = "legionary_cuirass"
+	ItemCaligaeBoots     defs.ItemID = "caligae_boots"
+	ItemLegionaryShield  defs.ItemID = "legionary_shield"
+
+	// Clothes
+
+	ItemExpensiveTunic01 defs.ItemID = "expensive_tunic_01"
+	ItemPeasantTunic01   defs.ItemID = "peasant_tunic_01"
+	ItemLaurelWreath     defs.ItemID = "laurel_wreath"
+	ItemPeasantRobe01    defs.ItemID = "peasant_robe_01"
+	ItemCommonRobe01     defs.ItemID = "common_robe_01"
+)
+
 // At some point, these will probably be moved into the actual game repo. For now, defining here for testing.
 
 func offsetInts(input []int, offset int) []int {
@@ -28,7 +64,9 @@ func GetItemDefs() []defs.ItemDef {
 	auxTileset := "items/equiped_aux.tsj"
 
 	equipBodyOptions := []equipBodyOption{}
-	for i := range 3 {
+
+	equipBodyCount := 5
+	for i := range equipBodyCount {
 		// first equipment item starts at row 6; each item's first row is the body equipment, second row is legs equipment.
 		offset := 73 * ((i * 2) + 5)
 		bodyDef := body.NewPartDef(body.PartDefParams{
@@ -394,7 +432,7 @@ func GetItemDefs() []defs.ItemDef {
 		// WEAPONS
 		&item.WeaponDef{
 			ItemBase: *item.NewItemBase(item.ItemBaseParams{
-				ID:                "longsword_01",
+				ID:                ItemLongsword01,
 				Name:              "Iron Longsword",
 				Description:       "An iron longsword forged by blacksmiths in Gaul.",
 				Value:             100,
@@ -412,7 +450,7 @@ func GetItemDefs() []defs.ItemDef {
 		// CONSUMABLES
 		item.NewItemBase(
 			item.ItemBaseParams{
-				ID:                "potion_herculean_strength",
+				ID:                ItemPotionHerculeanStrength,
 				Name:              "Potion of Herculean Strength",
 				Description:       "This potion invigorates the drinker and gives him strength only matched by Hercules himself.",
 				Value:             200,
@@ -426,7 +464,7 @@ func GetItemDefs() []defs.ItemDef {
 		// CURRENCY
 		item.NewItemBase(
 			item.ItemBaseParams{
-				ID:                "currency_value_1",
+				ID:                ItemCurrency1,
 				Name:              "Aes",
 				Description:       "A Roman bronze coin",
 				Value:             1,
@@ -439,7 +477,7 @@ func GetItemDefs() []defs.ItemDef {
 		),
 		item.NewItemBase(
 			item.ItemBaseParams{
-				ID:                "currency_value_5",
+				ID:                ItemCurrency5,
 				Name:              "Dupondius",
 				Description:       "A Roman brass coin",
 				Value:             5,
@@ -452,7 +490,7 @@ func GetItemDefs() []defs.ItemDef {
 		),
 		item.NewItemBase(
 			item.ItemBaseParams{
-				ID:                "currency_value_10",
+				ID:                ItemCurrency10,
 				Name:              "Sestertius",
 				Description:       "A Roman brass coin",
 				Value:             10,
@@ -465,7 +503,7 @@ func GetItemDefs() []defs.ItemDef {
 		),
 		item.NewItemBase(
 			item.ItemBaseParams{
-				ID:                "currency_value_50",
+				ID:                ItemCurrency50,
 				Name:              "Quinarius",
 				Description:       "A Roman silver coin",
 				Value:             50,
@@ -478,7 +516,7 @@ func GetItemDefs() []defs.ItemDef {
 		),
 		item.NewItemBase(
 			item.ItemBaseParams{
-				ID:                "currency_value_100",
+				ID:                ItemCurrency100,
 				Name:              "Denarius",
 				Description:       "A Roman silver coin",
 				Value:             100,
@@ -491,7 +529,7 @@ func GetItemDefs() []defs.ItemDef {
 		),
 		item.NewItemBase(
 			item.ItemBaseParams{
-				ID:                "currency_value_1000",
+				ID:                ItemCurrency1000,
 				Name:              "Aureus",
 				Description:       "A Roman gold coin",
 				Value:             1000,
@@ -505,7 +543,7 @@ func GetItemDefs() []defs.ItemDef {
 		// ARMOR / CLOTHES
 		&item.ArmorDef{
 			ItemBase: *item.NewItemBase(item.ItemBaseParams{
-				ID:                "legionary_helm",
+				ID:                ItemLegionaryHelm,
 				Name:              "Legionary Helm",
 				Description:       "A standard issue steel helmet for Roman legionaries.",
 				Value:             250,
@@ -519,7 +557,7 @@ func GetItemDefs() []defs.ItemDef {
 		},
 		&item.ArmorDef{
 			ItemBase: *item.NewItemBase(item.ItemBaseParams{
-				ID:                "legionary_cuirass",
+				ID:                ItemLegionaryCuirass,
 				Name:              "Legionary Cuirass",
 				Description:       "A set of Lorica Segmentata body armor, used by Roman legionaries.",
 				Value:             700,
@@ -534,7 +572,7 @@ func GetItemDefs() []defs.ItemDef {
 		},
 		&item.ArmorDef{
 			ItemBase: *item.NewItemBase(item.ItemBaseParams{
-				ID:                "caligae_boots",
+				ID:                ItemCaligaeBoots,
 				Name:              "Caligae",
 				Description:       "A pair of caligae, heavy leather sandals commonly worn by Roman soldiers.",
 				Value:             15,
@@ -547,7 +585,7 @@ func GetItemDefs() []defs.ItemDef {
 			Protection: 5,
 		},
 		item.NewItemBase(item.ItemBaseParams{
-			ID:                "torch",
+			ID:                ItemTorch,
 			Name:              "Torch",
 			Description:       "A torch to light your way in dark places.",
 			Value:             5,
@@ -559,7 +597,7 @@ func GetItemDefs() []defs.ItemDef {
 		}),
 		&item.ArmorDef{
 			ItemBase: *item.NewItemBase(item.ItemBaseParams{
-				ID:                "legionary_shield",
+				ID:                ItemLegionaryShield,
 				Name:              "Legionary Shield",
 				Description:       "A standard-issue shield used by Roman legionaries.",
 				Value:             80,
@@ -584,7 +622,7 @@ func GetItemDefs() []defs.ItemDef {
 		// 	LegsPartDef:       &equipBodyOptions[0].legsDef,
 		// }),
 		item.NewItemBase(item.ItemBaseParams{
-			ID:                "expensive_tunic_01",
+			ID:                ItemExpensiveTunic01,
 			Name:              "Expensive Tunic",
 			Description:       "A tunic worn by commoners with a bit of extra pocket gold and sense of style.",
 			Value:             15,
@@ -596,7 +634,7 @@ func GetItemDefs() []defs.ItemDef {
 			LegsPartDef:       &equipBodyOptions[1].legsDef,
 		}),
 		item.NewItemBase(item.ItemBaseParams{
-			ID:                "peasant_tunic_01",
+			ID:                ItemPeasantTunic01,
 			Name:              "Peasant Tunic",
 			Description:       "A cheap, dirty old tunic.",
 			Value:             1,
@@ -608,7 +646,31 @@ func GetItemDefs() []defs.ItemDef {
 			LegsPartDef:       &equipBodyOptions[2].legsDef,
 		}),
 		item.NewItemBase(item.ItemBaseParams{
-			ID:                "laurel_wreath",
+			ID:                ItemPeasantRobe01,
+			Name:              "Peasant Robe",
+			Description:       "A cheap, dirty old robe.",
+			Value:             1,
+			Weight:            7,
+			TileImgTilesetSrc: "items/items_01.tsj",
+			TileImgIndex:      193,
+			Type:              item.TypeBodywear,
+			BodyPartDef:       &equipBodyOptions[3].bodyDef,
+			LegsPartDef:       &equipBodyOptions[3].legsDef,
+		}),
+		item.NewItemBase(item.ItemBaseParams{
+			ID:                ItemCommonRobe01,
+			Name:              "Common Robe",
+			Description:       "A robe worn by the common folk.",
+			Value:             5,
+			Weight:            7,
+			TileImgTilesetSrc: "items/items_01.tsj",
+			TileImgIndex:      193,
+			Type:              item.TypeBodywear,
+			BodyPartDef:       &equipBodyOptions[4].bodyDef,
+			LegsPartDef:       &equipBodyOptions[4].legsDef,
+		}),
+		item.NewItemBase(item.ItemBaseParams{
+			ID:                ItemLaurelWreath,
 			Name:              "Laurel Wreath",
 			Description:       "A wreath of laurel branches, ceremonially worn by triumphant generals, athletes, and poets alike. It's just leaves and branches though.",
 			Value:             50,

@@ -31,6 +31,12 @@ func GetAllQuestDefs() []defs.QuestDef {
 						quest.QueueScenarioAction{
 							ScenarioID: ScenarioQ001PrisonShip,
 						},
+						quest.QueueScenarioAction{
+							ScenarioID: ScenarioQ001Harbor,
+						},
+						quest.QueueScenarioAction{
+							ScenarioID: ScenarioQ001CustomsOffice,
+						},
 					},
 					Objective: `
 					Find out where you are and what's happened.
@@ -84,7 +90,7 @@ func GetAllQuestDefs() []defs.QuestDef {
 						{
 							SubscribeEvent: Q001CharacterCreationComplete,
 							TerminalStatus: quest.TerminalStatusComplete,
-							// TODO: trigger next quest to start: probably a timelapse occurs and the character is in a legionary camp, having been conscripted
+							Text:           "Apparently I am to be conscripted into the Roman legion. We're setting out at dawn for the frontier in Germania, so I've got quite the journey ahead of me.",
 						},
 					},
 				},

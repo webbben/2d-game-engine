@@ -19,7 +19,7 @@ func SetConfig() {
 	config.GameDataPathOverride = "/Users/benwebb/dev/personal/ancient-rome"
 	config.CharacterDefsDirectory = "/Users/benwebb/dev/personal/ancient-rome/src/data/characters/json"
 
-	config.DefaultFont = image.LoadFont("ashlander-pixel.ttf", 22, 0)
+	config.DefaultFont = image.LoadFont("ashlander-pixel.ttf", 24, 0)
 	config.DefaultTitleFont = image.LoadFont("ashlander-pixel.ttf", 28, 0)
 
 	config.DefaultTooltipBox = config.DefaultBox{

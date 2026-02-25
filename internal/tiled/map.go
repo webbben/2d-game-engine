@@ -34,23 +34,12 @@ func OpenMap(mapSource string) (Map, error) {
 // Load a map and all its tilesets or other pre-processable data
 func (m *Map) Load(regenerateImages bool) error {
 	// load property data
-	id, found := GetStringProperty("ID", m.Properties)
-	if !found {
-		panic("Map required property not found: ID. Be sure to set this as a custom property within Tiled.")
-	}
-	displayName, found := GetStringProperty("DisplayName", m.Properties)
-	if !found {
-		panic("Map required property not found: DisplayName. Be sure to set this as a custom property within Tiled.")
-	}
 	daylightFactor, found := GetFloatProperty("DAYLIGHT", m.Properties)
 	if found {
 		m.DaylightFactor = daylightFactor
 	} else {
 		m.DaylightFactor = 1 // default to full daylight influence (outdoors)
 	}
-
-	m.ID = id
-	m.DisplayName = displayName
 
 	// ensure all tilesets have been loaded and created
 	for i, tileset := range m.Tilesets {
@@ -82,10 +71,22 @@ func (m *Map) Load(regenerateImages bool) error {
 		m.GroundMaterial[i] = make([]string, m.Width)
 	}
 
-	// find all information embedded in tile properties in layers:
-	// - collision rects
-	// - material types
-	for _, layer := range m.Layers {
+	for _, l := range m.Layers {
+		m.findTilePropertiesInLayer(l)
+	}
+
+	m.CalculateCostMap()
+
+	m.Loaded = true
+	return nil
+}
+
+// find all information embedded in tile properties in layers:
+// - collision rects
+// - material types
+func (m *Map) findTilePropertiesInLayer(layer Layer) {
+	switch layer.Type {
+	case LayerTypeTile:
 		for i, d := range layer.Data {
 			tile, _, found := m.GetTileByGID(d)
 			if !found {
@@ -99,6 +100,15 @@ func (m *Map) Load(regenerateImages bool) error {
 			if found {
 				cr := NewCollisionRect(collisionVal)
 				m.CollisionRects[y][x] = cr
+			} else {
+				// no collision found
+				// since there could be a colliding tile that is covered by a non-colliding tile, we should reset the collision rects map for this position.
+				// for example: a layer of water underneath a layer that has a bridge; we want to be able to walk across the bridge, even though water is below it.
+				m.CollisionRects[y][x] = CollisionRect{IsCollision: false}
+			}
+			if isWater, found := GetBoolProperty("WATER", tile.Properties); found && isWater {
+				cr := NewCollisionRect("WHOLE")
+				m.CollisionRects[y][x] = cr
 			}
 			// ground material
 			materialVal, found := GetStringProperty("MATERIAL", tile.Properties)
@@ -106,12 +116,11 @@ func (m *Map) Load(regenerateImages bool) error {
 				m.GroundMaterial[y][x] = materialVal
 			}
 		}
+	case LayerTypeGroup:
+		for _, l := range layer.Layers {
+			m.findTilePropertiesInLayer(l)
+		}
 	}
-
-	m.CalculateCostMap()
-
-	m.Loaded = true
-	return nil
 }
 
 func (m *Map) LoadTileImageMap() error {
@@ -177,10 +186,8 @@ func (m Map) DrawGroundLayers(screen *ebiten.Image, offsetX float64, offsetY flo
 
 	// draw all tile layers except:
 	// - the BUILDING_ROOF layer: parts of buildings that the player can walk behind
+	// TODO: should I just make a property on an individual tile that makes the tile draw on top of all other layers/tiles?
 	for _, layer := range m.Layers {
-		if layer.Type != LayerTypeTile {
-			continue
-		}
 		if layer.Name == "BUILDING_ROOF" {
 			continue
 		}
@@ -206,7 +213,16 @@ func (m Map) DrawRooftopLayer(screen *ebiten.Image, offsetX, offsetY float64) {
 }
 
 func (m Map) drawTileLayer(screen *ebiten.Image, offsetX, offsetY float64, layer Layer) {
-	if layer.Type != "tilelayer" {
+	if layer.Type == LayerTypeGroup {
+		if len(layer.Layers) == 0 {
+			logz.Panicln("drawTileLayer", "group layer has no layers within:", layer.Name, layer.ID)
+		}
+		for _, l := range layer.Layers {
+			m.drawTileLayer(screen, offsetX, offsetY, l)
+		}
+		return
+	}
+	if layer.Type != LayerTypeTile {
 		return
 	}
 

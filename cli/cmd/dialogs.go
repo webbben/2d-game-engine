@@ -8,10 +8,13 @@ import (
 )
 
 const (
-	ProfileTest            defs.DialogProfileID = "test1"
-	ProfileDefault         defs.DialogProfileID = "default"
-	ProfileCharJovis       defs.DialogProfileID = "char_jovis"
-	ProfileQ001PrisonGuard defs.DialogProfileID = "Q001_prisonguard"
+	ProfileTest               defs.DialogProfileID = "test1"
+	ProfileDefault            defs.DialogProfileID = "default"
+	ProfileCharJovis          defs.DialogProfileID = "char_jovis"
+	ProfileQ001PrisonGuard    defs.DialogProfileID = "Q001_prisonguard"
+	ProfileQ001HarborGuard    defs.DialogProfileID = "Q001_harbor_guard"
+	ProfileQ001MiscGuard      defs.DialogProfileID = "Q001_misc_guard"
+	ProfileQ001CustomsOfficer defs.DialogProfileID = "Q001_customs_officer"
 
 	TopicRumors defs.TopicID = "rumors"
 	TopicJoke   defs.TopicID = "joke"
@@ -47,6 +50,27 @@ func GetDialogProfiles() []defs.DialogProfileDef {
 				},
 				{
 					Text: "Come on now, don't keep them waiting.",
+				},
+			},
+		},
+		{
+			ProfileID: ProfileQ001HarborGuard,
+			Greeting: []defs.DialogResponse{
+				{
+					ID:   "instructions",
+					Once: true,
+					Text: "There you are. Head down the docks to the customs office and they'll take care of your paperwork there.",
+				},
+				{
+					Text: "Hurry up now, you don't want to test the patience of the magistrates. It's just down the docks, in the building with the banners.",
+				},
+			},
+		},
+		{
+			ProfileID: ProfileQ001MiscGuard,
+			Greeting: []defs.DialogResponse{
+				{
+					Text: "Huh? What're you looking at me for? Do as you're told, prisoner.",
 				},
 			},
 		},
@@ -100,6 +124,33 @@ func GetDialogProfiles() []defs.DialogProfileDef {
 				},
 				{
 					Text: "Not now - you better do what they tell you.",
+				},
+			},
+		},
+		{
+			ProfileID: ProfileQ001CustomsOfficer,
+			Greeting: []defs.DialogResponse{
+				{
+					Text: "Ah yes, here he is... Prisoner name is... " + string(dialogv2.VarPlayerName) + "? Interesting. Let's see here...",
+					NextResponse: &defs.DialogResponse{
+						Text: "... Huh. Well, that's odd. It appears we don't have any information about your background in here. Who wrote up this report? " +
+							"The people running these slave ships have been doing a really lousy job recently. Ah well, at least you got here in one piece, and you look strong enough.",
+						NextResponse: &defs.DialogResponse{
+							Text: "Well, I've gotta fill these papers out, so we have two ways we can do this: if you like, I can just give you all of the papers and let you fill them out yourself. " +
+								"Er.. you can read, right? " +
+								"Or, if it's easier, I can just ask you a series of questions and to find out who you are and where you come from. How would you like to proceed?",
+							Replies: []defs.DialogReply{
+								{
+									Text:         "Fill out myself",
+									NextResponse: DRQ001FillOutMyself,
+								},
+								{
+									Text:         "Answer questions",
+									NextResponse: DRQ001Questionaire1,
+								},
+							},
+						},
+					},
 				},
 			},
 		},

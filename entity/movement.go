@@ -459,6 +459,8 @@ func (e *Entity) updateMovement() updateMovementResult {
 			e.footstepSFX.Step(audio.StepGrass, volFactor)
 		case "tile":
 			e.footstepSFX.Step(audio.StepStone, volFactor) // TODO get new sound specifically for tile?
+		case "dirt":
+			e.footstepSFX.Step(audio.StepDefault, volFactor)
 		case "":
 			e.footstepSFX.Step(audio.StepDefault, volFactor)
 		default:

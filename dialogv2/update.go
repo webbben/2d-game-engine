@@ -233,9 +233,21 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 	rendering.DrawImage(screen, ds.TopicBoxImg, float64(optionBoxX), float64(optionBoxY), 0)
 
 	if len(ds.replyButtons) > 0 {
+		// replies are shown either in the topic box, or a larger "big reply box" if the replies are too long to fit.
+		replyX := optionBoxX + int(tileSize/2)
+		replyY := optionBoxY + int(tileSize/2)
+		if ds.BigReplyBoxImg != nil {
+			// show in big reply box
+			replyBoxDx, replyBoxDy := ds.BigReplyBoxImg.Bounds().Dx(), ds.BigReplyBoxImg.Bounds().Dy()
+			bigReplyBoxX := (display.SCREEN_WIDTH / 2) - (replyBoxDx / 2)
+			bigReplyBoxY := (textBoxY / 2) - (replyBoxDy / 2)
+			rendering.DrawImage(screen, ds.BigReplyBoxImg, float64(bigReplyBoxX), float64(bigReplyBoxY), 0)
+			replyX = int(bigReplyBoxX) + (int(tileSize) / 2)
+			replyY = int(bigReplyBoxY) + (int(tileSize) / 2)
+		}
 		// show reply buttons where topic buttons normally go
 		for i, b := range ds.replyButtons {
-			b.Draw(screen, optionBoxX+int(tileSize/2), optionBoxY+(i*buttonHeight)+(int(tileSize/2)))
+			b.Draw(screen, replyX, replyY+(i*buttonHeight))
 		}
 	} else if len(ds.topicButtons) > 0 {
 		for i, b := range ds.topicButtons {

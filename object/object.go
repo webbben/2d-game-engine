@@ -6,6 +6,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/definitions"
 	"github.com/webbben/2d-game-engine/internal/audio"
 	"github.com/webbben/2d-game-engine/internal/config"
 	"github.com/webbben/2d-game-engine/internal/lights"
@@ -23,6 +24,8 @@ const (
 	TypeContainer  = "CONTAINER" // TODO
 	TypeMisc       = "MISC"      // general purpose; just takes up space
 
+	TypeItem = "ITEM"
+
 	// Types that aren't actually supported here (specific cases)
 
 	TypeEntity = "ENTITY" // This shouldn't be used for actual objects - just for static entities in maps that are defined by objects.
@@ -30,6 +33,8 @@ const (
 
 type Object struct {
 	Name string // TODO: I don't think most objects actually have Names; the name property in Tiled is usually left empty.
+
+	mapID defs.MapID // used for knowing which map state to check
 
 	ID            int     // the ID property from Tiled; just a counter I believe.
 	Type          string  // NOT from Tiled; set by our code in Load
@@ -42,6 +47,8 @@ type Object struct {
 	collidable    bool       // if set, game will check for collisions with this object
 
 	tileData tiled.TileData // data of a tile embedded in this object
+
+	lockID string // if this object has a lock, this will be set. lock info can be accessed from map state.
 
 	// frames for a "nextTile" animation when changing state. can go forward and backwards
 	imgFrames      []*ebiten.Image
@@ -64,6 +71,7 @@ type Object struct {
 	PlayerHovering bool
 
 	AudioMgr *audio.AudioManager
+	defMgr   *definitions.DefinitionManager
 }
 
 func (obj Object) IsCurrentlyActivating() bool {
@@ -77,7 +85,7 @@ func (obj Object) IsCurrentlyActivating() bool {
 
 // GetRect is general purpose function to get the rect that this object occupies in the map. does not scale the values.
 func (obj Object) GetRect() model.Rect {
-	if obj.collidable {
+	if obj.IsCollidable() {
 		return obj.CollisionRect
 	}
 	return model.Rect{
@@ -167,9 +175,19 @@ type SpawnPoint struct {
 	SpawnIndex int
 }
 
-func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager) *Object {
+func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, defMgr *definitions.DefinitionManager, mapID defs.MapID, world WorldContext) *Object {
+	if defMgr == nil {
+		panic("defMgr was nil")
+	}
+	if audioMgr == nil {
+		panic("audioMgr was nil")
+	}
+	if world == nil {
+		panic("world context was nil")
+	}
 	o := Object{
 		AudioMgr: audioMgr,
+		defMgr:   defMgr,
 		Name:     obj.Name,
 		ID:       obj.ID,
 		xPos:     obj.X,
@@ -183,26 +201,21 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager) *Ob
 			H: obj.Height,
 		},
 		imgFrames: make([]*ebiten.Image, 0),
+		World:     world,
+		mapID:     mapID,
 	}
 
-	allProps := []tiled.Property{}
+	// We need to load all properties for an object. an Object can come in two forms:
+	//
+	// 1) an object with a tile embedded; used when we want to place an object with an image in it somewhere, like placing barrels, or torches, etc.
+	//
+	// 2) an object without a tile; used when we want to just insert data at a certain position, like spawn points, or light sources that don't have tiles, etc.
+	//
+	// if GID is set, there should be a tile embedded in the object.
 
-	// first, get all properties that exist - either at the object level or tile level
-	// this is because sometimes the properties might be set at the tile level
-	allProps = append(allProps, obj.Properties...)
-	if obj.GID != 0 {
-		tile, tileset, found := m.GetTileByGID(obj.GID)
-
-		if found {
-			allProps = append(allProps, tile.Properties...)
-		} else {
-			// try to get the tileset still, since we need it for loading tile data
-			tileset, found = m.FindTilesetForGID(obj.GID)
-			if !found {
-				panic("failed to find tileset for object's tile!")
-			}
-		}
-
+	objectInfo := m.GetObjectPropsAndTile(obj)
+	allProps := objectInfo.AllProps
+	if objectInfo.HasEmbeddedTile {
 		// Weird bug/inconsistency issue that originates in Tiled:
 		// https://discourse.mapeditor.org/t/objects-are-shown-at-the-wrong-position-in-tiled-map/1166
 		// https://github.com/mapeditor/tiled/issues/91
@@ -214,7 +227,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager) *Ob
 		}
 
 		// also, since there is a tile embedded, load all tile-related info, including tile frames
-		o.loadTileData(obj.GID, tile.Properties, tileset, m)
+		o.loadTileData(obj.GID, objectInfo.Tile.Properties, *objectInfo.Tileset, m)
 	}
 
 	// get the type first - so we know what values to parse out
@@ -227,30 +240,61 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager) *Ob
 	}
 	o.Type = resolveObjectType(objType)
 
+	// check if there's a lock
+	lockID, found := tiled.GetStringProperty("lock_id", allProps)
+	if found {
+		if lockID == "" {
+			panic("lockID is empty")
+		}
+		// confirm that this lockID is in the map state
+		mapState := defMgr.GetMapState(mapID)
+		if _, exists := mapState.MapLocks[lockID]; !exists {
+			logz.Panicln("LoadObject", "lock ID not found in map state:", lockID, "mapID:", mapID)
+		}
+	}
+
+	// other flags set in objects
+	noCollision, _ := tiled.GetBoolProperty("no_collision", allProps)
+
 	// load data for specific object type
 	switch o.Type {
 	case TypeDoor:
+		if objectInfo.HasEmbeddedTile && !noCollision {
+			// if this door object is represented by a tile, then it should probably have built-in collisions.
+			// other doors without tiles are probably just zones that the player can walk into to trigger a map change.
+			o.addDefaultCollision()
+		}
 		o.loadDoorObject(allProps)
 	case TypeSpawnPoint:
 		o.loadSpawnObject(allProps)
 	case TypeGate:
+		if noCollision {
+			panic("gate object has no collision property?")
+		}
+		o.addDefaultCollision()
 		o.loadGateObject(allProps)
 	case TypeLight:
 		o.loadLightObject(allProps)
 	case TypeContainer:
-		o.addDefaultCollision()
+		if !noCollision {
+			o.addDefaultCollision()
+		}
 	case TypeMisc:
-		o.addDefaultCollision()
+		if !noCollision {
+			o.addDefaultCollision()
+		}
+	case TypeItem:
+		// TODO: add item loading
 	default:
 		panic("object type invalid")
 	}
 
 	o.loadGlobal(allProps)
 
-	if o.Type == TypeDoor {
+	switch o.Type {
+	case TypeDoor:
 		o.validateDoorObject()
-	}
-	if o.Type == TypeGate {
+	case TypeGate:
 		o.validateGateObject()
 	}
 
@@ -358,8 +402,6 @@ func (obj Object) validateDoorObject() {
 }
 
 func (obj *Object) loadGateObject(props []tiled.Property) {
-	obj.addDefaultCollision()
-
 	for _, prop := range props {
 		switch prop.Name {
 		case "SFX":
@@ -429,6 +471,8 @@ func resolveObjectType(objType string) string {
 		return TypeContainer
 	case TypeMisc:
 		return TypeMisc
+	case TypeItem:
+		return TypeItem
 	default:
 		panic("object type doesn't exist: " + objType)
 	}

@@ -45,3 +45,12 @@ func (g *Game) QueueScenario(id defs.ScenarioID) {
 
 	logz.Println("Scenario Queued", "queued", id, "in map", mapID)
 }
+
+func (g *Game) UnlockMapLock(mapID defs.MapID, lockID string) {
+	g.EnsureMapStateExists(mapID)
+
+	mapState := g.DefinitionManager.GetMapState(mapID)
+	lockState := mapState.MapLocks[lockID]
+	lockState.Unlocked = true
+	mapState.MapLocks[lockID] = lockState
+}

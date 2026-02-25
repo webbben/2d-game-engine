@@ -18,6 +18,7 @@ import (
 type debugData struct {
 	positionDot    *ebiten.Image
 	rectImg        *ebiten.Image
+	activateRect   *ebiten.Image
 	costTile       *ebiten.Image
 	collisionRects map[string]*ebiten.Image
 
@@ -163,6 +164,11 @@ func (g *Game) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY float6
 		g.debugData.rectImg = ebiten.NewImage(int(rect.W), int(rect.H))
 		g.debugData.rectImg.Fill(color.RGBA{0, 0, 255, 50})
 	}
+	if g.debugData.activateRect == nil {
+		rect := g.Player.Entity.GetFrontRect()
+		g.debugData.activateRect = ebiten.NewImage(int(rect.W), int(rect.H))
+		g.debugData.activateRect.Fill(color.RGBA{255, 0, 255, 50})
+	}
 
 	// tile2 := ebiten.NewImage(config.TileSize, config.TileSize)
 	// color2 := color.RGBA{0, 0, 255, 50}
@@ -181,9 +187,17 @@ func (g *Game) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY float6
 	op.GeoM.Scale(config.GameScale, config.GameScale)
 	screen.DrawImage(g.debugData.rectImg, op)
 
+	op = &ebiten.DrawImageOptions{}
+	rect = g.Player.Entity.GetFrontRect()
+	drawX, drawY = rect.X-offsetX, rect.Y-offsetY
+	op.GeoM.Translate(drawX, drawY)
+	op.GeoM.Scale(config.GameScale, config.GameScale)
+	screen.DrawImage(g.debugData.activateRect, op)
+
 	for _, n := range g.MapInfo.NPCs {
 		op := &ebiten.DrawImageOptions{}
-		drawX, drawY := rendering.GetImageDrawPos(g.debugData.positionDot, n.Entity.X, n.Entity.Y, offsetX, offsetY)
+		// drawX, drawY := rendering.GetImageDrawPos(g.debugData.positionDot, n.Entity.X, n.Entity.Y, offsetX, offsetY)
+		drawX, drawY := n.Entity.X-offsetX, n.Entity.Y-offsetY
 		op.GeoM.Translate(drawX, drawY)
 		op.GeoM.Scale(config.GameScale, config.GameScale)
 		screen.DrawImage(g.debugData.positionDot, op)

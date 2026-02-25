@@ -126,6 +126,9 @@ type QuestReactionDef struct {
 	Actions        []QuestAction
 	NextStage      QuestStageID        // Points to the next quest stage. If a next stage is set, there should be no terminal status.
 	TerminalStatus QuestTerminalStatus // Determines if this reaction is a "quest end". If this is set, there should be no NextStage
+	// if this reaction should inform the player about anything, it can go here. especially if this is a terminal reaction, since the quest could use a conclusion.
+	// TODO: make sure this is recorded somewhere? I guess the quest state should be able to find this, at least.
+	Text string
 }
 
 func (qr QuestReactionDef) Validate() {
@@ -160,6 +163,7 @@ type QuestActionContext interface {
 	// The characterDef must be "unique", which means only one instance can exist.
 	AssignTaskToNPC(id CharacterDefID, taskDef TaskDef)
 	QueueScenario(id ScenarioID)
+	UnlockMapLock(mapID MapID, lockID string)
 }
 
 type QuestConditionDef struct {

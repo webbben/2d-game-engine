@@ -18,19 +18,33 @@ const (
 	TextDone   LineWriterStatus = "text_done"
 )
 
+const ticksPerTextWrite = 1
+
+var slowDownChars = map[byte]bool{
+	'.': true,
+	'!': true,
+	'?': true,
+}
+
+func isSlowdownChar(c byte) bool {
+	_, exists := slowDownChars[c]
+	return exists
+}
+
 // LineWriter is a tool to write lines of text that handle various functions like wrapping lines, etc.
 type LineWriter struct {
-	init            bool        // flag to indicate if this LineWriter was properly initialized
-	sourceText      string      // full text the line writer is currently aiming to write
-	textUpdateTimer int         // number of ticks until the next text character is added
-	maxLineWidth    int         // max width (in pixels) of a line. lines will be
-	maxHeight       int         // max height that the lineWriter's body of text can go. If the limit is met, lineWriter will split text into pages
-	lineHeight      int         // the (max) height of a single line in this set of lines
-	pageLineCount   int         // based on max height and line height, the number of lines that can fit in a single page
-	fontFace        font.Face   // font to use when writing
-	fgColor         color.Color // color of the text (foreground). defaults to black
-	bgColor         color.Color // color of the text shadow. defaults to a semi-transparent gray.
-	shadow          bool        // if set, text is drawn with the shadow (bgColor) effect
+	init             bool        // flag to indicate if this LineWriter was properly initialized
+	sourceText       string      // full text the line writer is currently aiming to write
+	textUpdateTimer  int         // number of ticks until the next text character is added
+	addedUpdateTimer int         // added ticks for next update, to slow down pace of writing
+	maxLineWidth     int         // max width (in pixels) of a line. lines will be
+	maxHeight        int         // max height that the lineWriter's body of text can go. If the limit is met, lineWriter will split text into pages
+	lineHeight       int         // the (max) height of a single line in this set of lines
+	pageLineCount    int         // based on max height and line height, the number of lines that can fit in a single page
+	fontFace         font.Face   // font to use when writing
+	fgColor          color.Color // color of the text (foreground). defaults to black
+	bgColor          color.Color // color of the text shadow. defaults to a semi-transparent gray.
+	shadow           bool        // if set, text is drawn with the shadow (bgColor) effect
 
 	linesToWrite      []string         // source text broken down into their lines
 	pages             [][]string       // pages to write (linesToWrite broken down)
@@ -203,12 +217,20 @@ func (lw *LineWriter) Update() {
 		if lw.currentLineNumber < len(currentPage) {
 			if lw.currentLineIndex < len(currentPage[lw.currentLineNumber]) {
 				lw.textUpdateTimer++
-				if lw.textUpdateTimer >= 0 {
+
+				if lw.textUpdateTimer >= ticksPerTextWrite+lw.addedUpdateTimer {
 					// continue to write the current line
 					nextChar := currentPage[lw.currentLineNumber][lw.currentLineIndex]
 					lw.writtenLines[lw.currentLineNumber] += string(nextChar)
 					lw.currentLineIndex++
 					lw.textUpdateTimer = 0
+
+					// see if we should slow down the writing due to an upcoming end of sentence
+					if isSlowdownChar(nextChar) {
+						lw.addedUpdateTimer = 25
+					} else {
+						lw.addedUpdateTimer = 0
+					}
 				}
 			} else {
 				// go to the next line

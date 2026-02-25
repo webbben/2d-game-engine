@@ -206,7 +206,7 @@ func (defMgr DefinitionManager) GetNewCharStateID(defID defs.CharacterDefID) sta
 		// if unique, we just use the def ID
 		id = state.CharacterStateID(defID)
 	} else {
-		id = state.CharacterStateID(fmt.Sprintf("%s_%s", defID, general_util.GenerateUUID()))
+		id = state.CharacterStateID(fmt.Sprintf("%s_%s", defID, general_util.GenerateUUID()[:8]))
 	}
 	if _, exists := defMgr.CharacterStates[id]; exists {
 		if charDef.Unique {

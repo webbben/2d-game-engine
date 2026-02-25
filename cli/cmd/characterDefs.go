@@ -12,8 +12,12 @@ const (
 	Player defs.CharacterDefID = "player" // this is a special one; but used to signify the player when needed.
 
 	// Q001: Awakening
-	CharJovePrisonShip    defs.CharacterDefID = "jovis_prisonship"
-	CharPrisonShipGuard01 defs.CharacterDefID = "prisonship_guard_01"
+
+	CharJovePrisonShip     defs.CharacterDefID = "jovis_prisonship"
+	CharPrisonShipGuard01  defs.CharacterDefID = "prisonship_guard_01"
+	CharQ001ShipCaptain    defs.CharacterDefID = "Q001_harbor_guard"
+	CharQ001MiscGuard      defs.CharacterDefID = "Q001_misc_guard"
+	CharQ001CustomsOfficer defs.CharacterDefID = "Q001_customs_officer"
 )
 
 func ValidateAllCharacterDefs() {

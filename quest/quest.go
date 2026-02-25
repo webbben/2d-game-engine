@@ -48,6 +48,7 @@ type QuestManager struct {
 type WorldController interface {
 	AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef)
 	QueueScenario(id defs.ScenarioID)
+	UnlockMapLock(mapID defs.MapID, lockID string)
 }
 
 func NewQuestManager(eventBus *pubsub.EventBus, worldRef WorldController) *QuestManager {

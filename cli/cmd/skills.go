@@ -219,6 +219,25 @@ func DefaultClasses() []defs.ClassDef {
 			I deal with the crooks, drunks, thieves, and most of the undesirable elements society has to offer.
 			`,
 		},
+		{
+			ID:                "scholar",
+			Name:              "Scholar",
+			FavoredAttributes: []defs.AttributeID{Intelligence, Intrigue},
+			SkillCategories: map[defs.SkillID]defs.SkillCategory{
+				Alchemy:     skills.SkillCategoryMajor,
+				Incantation: skills.SkillCategoryMajor,
+				Mercantile:  skills.SkillCategoryMajor,
+				Blunt:       skills.SkillCategoryMajor,
+
+				Security:   skills.SkillCategoryMinor,
+				Repair:     skills.SkillCategoryMinor,
+				LightArmor: skills.SkillCategoryMinor,
+				ShortBlade: skills.SkillCategoryMinor,
+			},
+			AboutMe: `
+			I'm a scholar who has studied a wide breadth of academic disciplines; I study Plato, recite Homer, and seek to explore the mysteries of the universe.
+			`,
+		},
 	}
 
 	for _, class := range classes {
