@@ -42,6 +42,8 @@ func (obj *Object) Update() ObjectUpdateResult {
 	case TypeMisc:
 		// misc has no update logic
 		return ObjectUpdateResult{}
+	case TypeItem:
+		return ObjectUpdateResult{}
 	default:
 		// just putting this here so we always know objects in the map are of a recognized type; but not really necessary tbh.
 		panic("unrecognized object type: " + obj.Type)
@@ -49,6 +51,9 @@ func (obj *Object) Update() ObjectUpdateResult {
 }
 
 func (obj *Object) Activate(fromX, fromY float64) ObjectUpdateResult {
+	if !obj.IsActivatable() {
+		logz.Panicln("Activate", "tried to activate object that is not activatable")
+	}
 	switch obj.Type {
 	case TypeDoor:
 		return obj.activateDoor()
@@ -72,6 +77,16 @@ func (obj *Object) activateDoor() ObjectUpdateResult {
 	}
 	if obj.Door.openSound == nil {
 		panic("activated door's open sound is nil!")
+	}
+	if obj.lockID != "" {
+		// check the lock state from the map state
+		mapState := obj.defMgr.GetMapState(obj.mapID)
+		lockState := mapState.MapLocks[obj.lockID]
+		if !lockState.Unlocked {
+			// door is locked; cannot enter
+			// TODO: play a locked door sound effect
+			return ObjectUpdateResult{}
+		}
 	}
 
 	log.Println("going to room:", obj.Door.targetMapID)

@@ -172,7 +172,14 @@ func (tileset *Tileset) GenerateTiles() error {
 func (m Map) GetTileByGID(gid int) (Tile, Tileset, bool) {
 	for _, tileset := range m.Tilesets {
 		if !tileset.Loaded {
-			panic("tried to get tile from tileset before tileset was loaded!")
+			if m.AbsSourcePath != "" {
+				err := tileset.LoadJSONData(m.AbsSourcePath)
+				if err != nil {
+					panic(err)
+				}
+			} else {
+				panic("tried to get tile from tileset before tileset was loaded!")
+			}
 		}
 		localTileID := gid - tileset.FirstGID
 		for _, tile := range tileset.Tiles {

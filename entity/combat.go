@@ -61,11 +61,17 @@ type AttackInfo struct {
 
 // GetFrontRect returns the tile rect that is right in front of the entity
 func (e Entity) GetFrontRect() model.Rect {
+	// we want to make a rect that's a little smaller, so that we can't reach things that are too far away.
+	// It seems like a rect that is a full tilesize is a little too big
+	targetRectSize := config.TileSize / 2
+	collisionRect := e.CollisionRect()
+	offsetX := (collisionRect.W - float64(targetRectSize)) / 2
+	offsetY := (collisionRect.H - float64(targetRectSize)) / 2
 	targetRect := model.Rect{
-		W: config.TileSize,
-		H: config.TileSize,
-		X: e.X,
-		Y: e.Y,
+		W: float64(targetRectSize),
+		H: float64(targetRectSize),
+		X: e.X + offsetX,
+		Y: e.Y + offsetY,
 	}
 	switch e.Movement.Direction {
 	case model.Directions.Left:

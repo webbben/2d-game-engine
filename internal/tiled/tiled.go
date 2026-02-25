@@ -40,8 +40,6 @@ type Map struct {
 	// game engine data - not from Tiled
 	// Properties Ben adds in the Tiled map
 
-	ID             string
-	DisplayName    string
 	DaylightFactor float64
 
 	TileImageMap   map[int]TileData  // a map of gid to tile image data
@@ -137,7 +135,7 @@ type Layer struct {
 type Object struct {
 	ID         int        `json:"id"`
 	Name       string     `json:"name,omitempty"`
-	Type       string     `json:"type,omitempty"`
+	Type       string     `json:"type,omitempty"` // TODO: is this used anywhere? I don't even know where it would come from in Tiled.
 	Class      string     `json:"class,omitempty"`
 	X          float64    `json:"x"`
 	Y          float64    `json:"y"`
@@ -250,10 +248,15 @@ func (t Tileset) validate() {
 		logz.Panicln("failed to get image config:", err)
 	}
 	if t.ImageWidth != config.Width {
-		logz.Panicf("[%s] image width in tsj (%v) does not appear to match actual source image width (%v)", t.Name, t.ImageWidth, config.Width)
+		logz.Panicf("[%s] image width in tsj (%v) does not appear to match actual source image width (%v). did the source image width change?", t.Name, t.ImageWidth, config.Width)
 	}
 	if t.ImageHeight != config.Height {
-		logz.Panicf("[%s] image height in tsj (%v) does not appear to match actual source image height (%v)", t.Name, t.ImageHeight, config.Height)
+		logz.Panicf("[%s] image height in tsj (%v) does not appear to match actual source image height (%v). did the source image height change?", t.Name, t.ImageHeight, config.Height)
+	}
+	// tilecount should equal (imagewidth / tilewidth) * (imageheight / tileheight)
+	actualTileCount := (t.ImageWidth / t.TileWidth) * (t.ImageHeight / t.TileHeight)
+	if actualTileCount != t.TileCount {
+		logz.Panicln("ValidateTileset", "calculated tile count doesn't match tile count set in tileset json. expected:", actualTileCount, "in tsj:", t.TileCount)
 	}
 }
 
@@ -356,4 +359,41 @@ func (p *Property) GetBoolValue() bool {
 		return b
 	}
 	return false
+}
+
+type ObjectInfo struct {
+	AllProps        []Property // all properties in the object or its embedded tile (if one exists)
+	HasEmbeddedTile bool
+	Tile            *Tile    // if a tile exists (and has properties, custom fields, animations etc) then this will be populated. If it's just a plain tile, then this will be nil.
+	Tileset         *Tileset // if there is an embedded tile, this will be set (even if the Tile itself is returned nil due to lack of extra data).
+}
+
+// GetObjectPropsAndTile finds all properties for an object (object level and embedded tile properties, if set).
+// Also returns the embedded tile's data, if it exists.
+func (m Map) GetObjectPropsAndTile(obj Object) ObjectInfo {
+	info := ObjectInfo{}
+	// get all properties that exist - either at the object level or tile level
+	// this is because sometimes the properties might be set at the tile level
+	info.AllProps = append(info.AllProps, obj.Properties...)
+	// if GID is set, that means a tile is embedded in the object, so get the tile's properties too.
+	if obj.GID != 0 {
+		info.HasEmbeddedTile = true
+		tile, tileset, found := m.GetTileByGID(obj.GID)
+
+		if found {
+			info.AllProps = append(info.AllProps, tile.Properties...)
+			info.Tile = &tile
+			info.Tileset = &tileset
+		} else {
+			// tile exists, but it has no metadata on it so no Tile was defined by Tiled editor.
+			// still get the tileset based on the GID.
+			tileset, found = m.FindTilesetForGID(obj.GID)
+			if !found {
+				panic("failed to find tileset for object's tile!")
+			}
+			info.Tileset = &tileset
+		}
+	}
+
+	return info
 }

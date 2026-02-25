@@ -3,6 +3,8 @@ package clock
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/webbben/2d-game-engine/internal/logz"
@@ -37,10 +39,7 @@ var (
 )
 
 type Clock struct {
-	hour, minute int
-	year         int
-	season       int
-	dayOfSeason  int
+	GameTime         // the current time
 	daysInSeason int // number of days that a single season lasts
 
 	dowBasisYear int // used to calculate day of week. day 0 season 0 of this year is defined as sunday/first day of week
@@ -51,19 +50,26 @@ type Clock struct {
 }
 
 func (c Clock) String() string {
-	season := Seasons[c.season]
+	season := Seasons[c.Season]
 	dow := DaysOfWeek[c.dayOfWeek]
-	return fmt.Sprintf("%02d:%02d Y %v S %v (%s) DoS %v/%v DoW %v (%s)", c.hour, c.minute, c.year, c.season, season, c.dayOfSeason, c.daysInSeason-1, c.dayOfWeek, dow)
+	return fmt.Sprintf("%02d:%02d Y %v S %v (%s) DoS %v/%v DoW %v (%s)", c.Hour, c.Minute, c.Year, c.Season, season, c.DayOfSeason, c.daysInSeason-1, c.dayOfWeek, dow)
+}
+
+// GameTime represents a specific instant in in-game time
+type GameTime struct {
+	Hour, Minute int
+	Year, Season int
+	DayOfSeason  int
 }
 
 func (c Clock) GetCurrentDateAndTime() (m, h, y, season, seasonDay int, dow DayOfWeek) {
-	return c.minute, c.hour, c.year, c.season, c.dayOfSeason, DaysOfWeek[c.dayOfWeek]
+	return c.Minute, c.Hour, c.Year, c.Season, c.DayOfSeason, DaysOfWeek[c.dayOfWeek]
 }
 
 func (c Clock) GetTimeString(formatAmPm bool) string {
 	if formatAmPm {
 		// do AM/PM system with 12 hour clocks
-		hour := c.hour
+		hour := c.Hour
 		meridiem := "AM"
 		if hour > 12 {
 			meridiem = "PM"
@@ -73,11 +79,11 @@ func (c Clock) GetTimeString(formatAmPm bool) string {
 			// midnight is 12 AM, not 0 o'clock
 			hour = 12
 		}
-		return fmt.Sprintf("%v:%02d %s", hour, c.minute, meridiem)
+		return fmt.Sprintf("%v:%02d %s", hour, c.Minute, meridiem)
 	}
 
 	// do 24 hr clock
-	return fmt.Sprintf("%v:%02d", c.hour, c.minute)
+	return fmt.Sprintf("%v:%02d", c.Hour, c.Minute)
 }
 
 func (c Clock) minuteSpeed() time.Duration {
@@ -89,14 +95,14 @@ func (c *Clock) TickTock() {
 	c.lastMinuteTick = time.Now()
 
 	// MINUTE
-	c.minute++
-	if c.minute > 59 {
-		c.minute = 0
+	c.Minute++
+	if c.Minute > 59 {
+		c.Minute = 0
 
 		// HOUR
-		c.hour++
-		if c.hour > 23 {
-			c.hour = 0
+		c.Hour++
+		if c.Hour > 23 {
+			c.Hour = 0
 
 			// DAY OF WEEK
 			c.dayOfWeek++
@@ -105,43 +111,133 @@ func (c *Clock) TickTock() {
 			}
 
 			// DAY OF SEASON
-			c.dayOfSeason++
-			if c.dayOfSeason > c.daysInSeason-1 {
-				c.dayOfSeason = 0
+			c.DayOfSeason++
+			if c.DayOfSeason > c.daysInSeason-1 {
+				c.DayOfSeason = 0
 
 				// SEASON
-				c.season++
-				if c.season >= len(Seasons) {
-					c.season = 0
+				c.Season++
+				if c.Season >= len(Seasons) {
+					c.Season = 0
 
 					// YEAR
-					c.year++
+					c.Year++
 				}
 			}
 		}
 	}
 }
 
+func (c Clock) GetCurrentGameTime() GameTime {
+	return c.GameTime
+}
+
+func (c Clock) IsTimePast(gt GameTime) bool {
+	return c.IsAfter(gt)
+}
+
+func (c Clock) GetFutureGameTime(hours int) GameTime {
+	gt := c.GameTime
+
+	gt.AddTime(hours, c.daysInSeason)
+	return gt
+}
+
+func (gt GameTime) IsAfter(other GameTime) bool {
+	if gt.Year > other.Year {
+		return true
+	}
+	if gt.Year < other.Year {
+		return false
+	}
+	if gt.Season > other.Season {
+		return true
+	}
+	if gt.Season < other.Season {
+		return false
+	}
+	if gt.DayOfSeason > other.DayOfSeason {
+		return true
+	}
+	if gt.DayOfSeason < other.DayOfSeason {
+		return false
+	}
+	if gt.Hour > other.Hour {
+		return true
+	}
+	if gt.Hour < other.Hour {
+		return false
+	}
+	if gt.Minute > other.Minute {
+		return true
+	}
+	// they are completely equal
+	return false
+}
+
 func (c *Clock) PassTime(hours int) {
+	c.AddTime(hours, c.daysInSeason)
+}
+
+func (gt *GameTime) AddTime(hours int, daysInSeason int) {
 	days := hours / 23
 	if days == 0 {
-		c.hour += hours
+		gt.Hour += hours
 		return
 	}
 
-	seasons := days / c.daysInSeason
+	seasons := days / daysInSeason
 	if seasons == 0 {
-		c.dayOfSeason += days
+		gt.DayOfSeason += days
 		return
 	}
 
 	years := seasons / 3
 	if years == 0 {
-		c.season += seasons
+		gt.Season += seasons
 	}
 
 	// Hmmm... why are we waiting entire years? Let's panic for now, unless we have a use case in the future.
 	logz.Panicln("Clock", "tried to pass a year or more of time, which seems wrong... hours:", hours)
+}
+
+type GameTimestamp string
+
+func (gt GameTime) GetTimestamp() GameTimestamp {
+	timestamp := fmt.Sprintf("%v-%v-%v-%v-%v", gt.Year, gt.Season, gt.DayOfSeason, gt.Hour, gt.Minute)
+	return GameTimestamp(timestamp)
+}
+
+func TimestampToGameTime(timestamp GameTimestamp) GameTime {
+	parts := strings.Split(string(timestamp), "-")
+	y, err := strconv.Atoi(parts[0])
+	if err != nil {
+		panic(err)
+	}
+	s, err := strconv.Atoi(parts[0])
+	if err != nil {
+		panic(err)
+	}
+	d, err := strconv.Atoi(parts[0])
+	if err != nil {
+		panic(err)
+	}
+	h, err := strconv.Atoi(parts[0])
+	if err != nil {
+		panic(err)
+	}
+	m, err := strconv.Atoi(parts[0])
+	if err != nil {
+		panic(err)
+	}
+
+	return GameTime{
+		Year:        y,
+		Season:      s,
+		DayOfSeason: d,
+		Hour:        h,
+		Minute:      m,
+	}
 }
 
 // SetDateAndTime sets the exact date and time of the clock.
@@ -194,11 +290,11 @@ func (c *Clock) SetDateAndTime(hour, minute, seasonDay, season, year int) {
 	}
 	c.dayOfWeek = dow
 
-	c.minute = minute
-	c.hour = hour
-	c.season = season
-	c.dayOfSeason = seasonDay
-	c.year = year
+	c.Minute = minute
+	c.Hour = hour
+	c.Season = season
+	c.DayOfSeason = seasonDay
+	c.Year = year
 }
 
 func NewClock(hourSpeed time.Duration, initHour, initMin, initSeason, initDayOfSeason, initYear, seasonDays int) Clock {
@@ -226,12 +322,12 @@ func NewClock(hourSpeed time.Duration, initHour, initMin, initSeason, initDayOfS
 
 func (c *Clock) Update() (hourChanged bool) {
 	// update time
-	beforeTickHour := c.hour
+	beforeTickHour := c.Hour
 	if time.Since(c.lastMinuteTick) >= c.minuteSpeed() {
 		c.TickTock()
 	}
 	// check if the hour changed, to pass back to caller
-	if beforeTickHour != c.hour {
+	if beforeTickHour != c.Hour {
 		hourChanged = true
 	}
 

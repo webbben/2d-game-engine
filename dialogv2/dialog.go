@@ -34,10 +34,8 @@ const (
 	ActionScopePlayerName  defs.DialogActionResultScope = "player_name"
 )
 
-type DialogVariable string
-
 const (
-	VarPlayerName DialogVariable = "{player_name}"
+	VarPlayerName string = "{player_name}"
 )
 
 type GetUserInputActionParams struct {
@@ -56,8 +54,11 @@ type DialogSession struct {
 	ProfileDef   *defs.DialogProfileDef    // the actual dialog profile definition
 	Ctx          DialogContext             // the dialog state that things within the dialog can read/write on
 
-	TextBoxImg  *ebiten.Image
-	TopicBoxImg *ebiten.Image
+	boxSrc                box.Box
+	TextBoxImg            *ebiten.Image
+	TopicBoxImg           *ebiten.Image
+	topicBoxDefaultHeight int
+	BigReplyBoxImg        *ebiten.Image
 
 	LineWriter text.LineWriter
 
@@ -147,10 +148,13 @@ func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, def
 	textBoxWidth := display.SCREEN_WIDTH - tileSize - topicBoxWidth
 	textBoxWidth -= textBoxWidth % tileSize
 	textBoxHeight := tileSize * 6
+	ds.topicBoxDefaultHeight = textBoxHeight
 
 	b := box.NewBox(params.BoxTilesetSrc, params.BoxOriginID)
+	ds.boxSrc = b
+
 	ds.TextBoxImg = b.BuildBoxImage(textBoxWidth, textBoxHeight)
-	ds.TopicBoxImg = b.BuildBoxImage(int(topicBoxWidth), textBoxHeight)
+	ds.buildTopicBox(textBoxHeight)
 
 	ds.LineWriter = text.NewLineWriter(textBoxWidth-tileSize, textBoxHeight-tileSize, params.TextFont, nil, nil, true, false)
 
@@ -166,6 +170,22 @@ func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, def
 	})
 
 	return ds
+}
+
+// builds the topic box to fit the given height. has a minimum height it defaults to.
+func (ds *DialogSession) buildTopicBox(height int) {
+	if ds.topicBoxDefaultHeight <= 0 {
+		panic("topic box default height was <= 0")
+	}
+
+	tileSize := int(config.GetScaledTilesize())
+	topicBoxWidth := tileSize * 8
+
+	height -= height % tileSize
+
+	textBoxHeight := max(height, ds.topicBoxDefaultHeight)
+
+	ds.TopicBoxImg = ds.boxSrc.BuildBoxImage(int(topicBoxWidth), textBoxHeight)
 }
 
 func (ds *DialogSession) setupTopicOptions() {
@@ -186,7 +206,17 @@ func (ds *DialogSession) setupTopicOptions() {
 	h, _ := text.GetRealisticFontMetrics(ds.f)
 	w := ds.TopicBoxImg.Bounds().Dx() - int(tileSize)
 
+	// if we need to increase the size of the topic box, do so here.
+	// if a previous set of topics caused the topic box to enlarge, but it's no longer necessary, shrink it back down to default size here too.
+	topicTotalHeight := h * len(options)
+	ds.calculateTopicBoxSize(topicTotalHeight)
+
 	for _, topic := range options {
+		dx, _, _ := text.GetStringSize(topic.Prompt, ds.f)
+		if dx > w {
+			// TODO: probably at some point we can just make this a warn instead of panic. just want this here for now to catch oversized topic prompts early on.
+			logz.Panicln("setupTopicOptions", "topic prompt was too long for the topic box. prompt width:", dx, "boxWidth:", w)
+		}
 		ds.topicButtons = append(ds.topicButtons, button.NewButton(topic.Prompt, ds.f, w, h))
 		ds.topicList = append(ds.topicList, topic.ID)
 	}
@@ -197,6 +227,26 @@ func (ds *DialogSession) setupTopicOptions() {
 	}
 	if len(ds.topicButtons) != len(ds.topicList) {
 		panic("number of topic buttons does not equal number of topics?")
+	}
+}
+
+func (ds *DialogSession) calculateTopicBoxSize(optionsTotalHeight int) {
+	tileSize := config.GetScaledTilesize()
+	topicBoxCurrentHeight := ds.TopicBoxImg.Bounds().Bounds().Dy()
+	optionsTotalHeight -= optionsTotalHeight % int(tileSize)
+	optionsTotalHeight += int(tileSize)
+
+	if optionsTotalHeight > topicBoxCurrentHeight-int(tileSize) {
+		// need to expand
+		ds.buildTopicBox(optionsTotalHeight)
+	} else {
+		// check if we should shrink?
+		if optionsTotalHeight < topicBoxCurrentHeight {
+			if topicBoxCurrentHeight > ds.topicBoxDefaultHeight {
+				// we can shrink back down, since it's taller than the default.
+				ds.buildTopicBox(optionsTotalHeight)
+			}
+		}
 	}
 }
 
@@ -215,6 +265,15 @@ func (ds *DialogSession) setupReplyOptions() {
 		panic("tried to setup reply buttons, but there are no reply options")
 	}
 
+	// reply options can show in two possible places:
+	//
+	// 1) in the topic box
+	// - when all replies are short enough to fit, like simple "yes/no" or answers with only a few words.
+	//
+	// 2) a larger reply box that appears above the dialog box
+	// - when (at least one of) the replies are too long to fit in the topic box.
+	// - e.g. when the player needs to give a lengthier reply that is an entire sentence.
+
 	ds.replyButtons = make([]*button.Button, 0)
 	ds.replyList = make([]defs.DialogReply, 0)
 
@@ -222,12 +281,39 @@ func (ds *DialogSession) setupReplyOptions() {
 
 	h, _ := text.GetRealisticFontMetrics(ds.f)
 	w := ds.TopicBoxImg.Bounds().Dx() - int(tileSize)
+	maxReplyWidth := w
 
+	// first, find out if all replies can fit in the topic box, and get the maximum reply width.
+	replies := []defs.DialogReply{}
 	for _, reply := range ds.currentResponse.Replies {
 		if ConditionsMet(reply.Conditions, ds.Ctx) {
-			continue
+			replies = append(replies, reply)
+			dx, _, _ := text.GetStringSize(reply.Text, ds.f)
+			if dx > maxReplyWidth {
+				maxReplyWidth = dx
+			}
 		}
-		ds.replyButtons = append(ds.replyButtons, button.NewButton(reply.Text, ds.f, w, h))
+	}
+
+	totalHeight := max(len(replies)*h, int(tileSize)*4)
+	// now that we have all valid replies and the max width, create the buttons, and if needed, the larger replies box.
+	if maxReplyWidth > w {
+		maxReplyWidth -= maxReplyWidth % int(tileSize)
+		maxReplyWidth += int(tileSize)
+		totalHeight -= totalHeight % int(tileSize)
+		totalHeight += int(tileSize)
+		// create the big replies box
+		// we add the extra padding here since we want the reply box to be wider, but not the buttons themselves
+		ds.BigReplyBoxImg = ds.boxSrc.BuildBoxImage(maxReplyWidth+int(tileSize), totalHeight)
+	} else {
+		// using regular topic box; make sure it is the correct height
+		ds.BigReplyBoxImg = nil // if set to nil, we know not to use it at draw time
+		ds.calculateTopicBoxSize(totalHeight)
+	}
+
+	// build all the buttons, now that we know the width to use
+	for _, reply := range replies {
+		ds.replyButtons = append(ds.replyButtons, button.NewButton(reply.Text, ds.f, maxReplyWidth, h))
 		ds.replyList = append(ds.replyList, reply)
 	}
 
@@ -354,10 +440,10 @@ func (ds *DialogSession) setResponseText(s string) {
 
 	// detect if there are any variables to fill in
 	if strings.Contains(s, "{") {
-		allVars := []DialogVariable{VarPlayerName}
+		allVars := []string{VarPlayerName}
 
 		for _, v := range allVars {
-			s = strings.ReplaceAll(s, string(v), ds.Ctx.GameState.GetPlayerInfo().PlayerName)
+			s = strings.ReplaceAll(s, v, ds.Ctx.GameState.GetPlayerInfo().PlayerName)
 		}
 	}
 

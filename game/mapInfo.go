@@ -23,9 +23,9 @@ import (
 
 // MapInfo contains information about the current room the player is in
 type MapInfo struct {
+	MapID   defs.MapID
 	gameRef *Game
 
-	ID          string
 	DisplayName string // the name of the map shown to the player
 	Loaded      bool   // flag indicating if this map has been loaded
 	ReadyToPlay bool   // flag indicating if all loading steps are done, and this map is ready to show in the game
@@ -79,9 +79,99 @@ func (g *Game) EnsureMapStateExists(mapID defs.MapID) {
 		return
 	}
 
-	g.DefinitionManager.LoadMapState(state.MapState{
-		ID: mapID,
-	})
+	g.CreateNewMapState(mapID)
+}
+
+func (g *Game) CreateNewMapState(mapID defs.MapID) {
+	if g.DefinitionManager.MapStateExists(mapID) {
+		logz.Panicln("CreateNewMapState", "tried to create a new map state, but one already exists:", mapID)
+	}
+
+	mapState := state.MapState{
+		ID:       mapID,
+		MapLocks: make(map[string]state.LockState),
+	}
+
+	// look through Tiled map data to initialize state for things like pre-defined item placements, door locks, etc.
+	mapSource := config.ResolveMapPath(string(mapID))
+
+	m, err := tiled.OpenMap(mapSource)
+	if err != nil {
+		logz.Panicf("error while opening Tiled map: %s", err)
+	}
+
+	objLayers := getAllObjectLayers(m.Layers)
+
+	// Get initial items
+	for _, layer := range objLayers {
+		for _, obj := range layer.Objects {
+			objectInfo := m.GetObjectPropsAndTile(obj)
+			objType, found := tiled.GetStringProperty("TYPE", objectInfo.AllProps)
+			if !found {
+				logz.Panicln("CreateNewMapState", "object didn't have a TYPE property:", obj.Name, obj.ID, "mapID:", mapID)
+			}
+
+			// check if there is a lock on this object
+			var lockLevel int
+			var lockID string
+			lockLevel, found = tiled.GetIntProperty("lock_level", objectInfo.AllProps)
+			if found {
+				if lockLevel <= 0 {
+					logz.Panicln("CreateNewMapState", "found lock level property on object, but it had a level of <= 0.", obj.Name, obj.ID, "mapID:", mapID)
+				}
+				lockID, found = tiled.GetStringProperty("lock_id", objectInfo.AllProps)
+				if !found {
+					logz.Panicln("CreateNewMapState", "found lock level property on object, but no lock ID.", obj.Name, obj.ID, "mapID:", mapID)
+				}
+				if lockID == "" {
+					logz.Panicln("CreateNewMapState", "lock ID property was empty:", obj.Name, obj.ID, "mapID:", mapID)
+				}
+				// add it to the lock map
+				mapState.MapLocks[lockID] = state.LockState{
+					LockID:    lockID,
+					LockLevel: lockLevel,
+				}
+			}
+
+			switch objType {
+			case object.TypeItem:
+				if lockID != "" {
+					logz.Panicln("CreateNewMapState", "a lock was put on an item, which doesn't make any sense.", obj.Name, obj.ID, "mapID:", mapID)
+				}
+				// get item ID
+				itemID, found := tiled.GetStringProperty("item_id", objectInfo.AllProps)
+				if !found {
+					logz.Panicln("CreateNewMapState", "found item object, but no item_id property was found:", obj.Name, obj.ID, "mapID:", mapID)
+				}
+				// confirm item exists
+				defID := defs.ItemID(itemID)
+				_ = g.DefinitionManager.GetItemDef(defID)
+				mapState.MapItems = append(mapState.MapItems, state.MapItemState{
+					ItemInstance: defs.ItemInstance{DefID: defID},
+					Quantity:     1,
+					X:            obj.X,
+					Y:            obj.Y,
+				})
+			}
+		}
+	}
+
+	g.DefinitionManager.LoadMapState(mapState)
+}
+
+func getAllObjectLayers(layers []tiled.Layer) []tiled.Layer {
+	objLayers := []tiled.Layer{}
+	for _, layer := range layers {
+		if layer.Type == tiled.LayerTypeGroup {
+			objLayers = append(objLayers, getAllObjectLayers(layer.Layers)...)
+			continue
+		}
+		if layer.Type == tiled.LayerTypeObject {
+			objLayers = append(objLayers, layer)
+		}
+	}
+
+	return objLayers
 }
 
 // SetupMap prepares the MapInfo for in-game play
@@ -98,6 +188,8 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 
 	g.EnsureMapStateExists(mapID)
 
+	mapDef := g.DefinitionManager.GetMapDef(mapID)
+
 	mapSource := config.ResolveMapPath(string(mapID))
 	fmt.Println("map source:", mapSource)
 
@@ -113,10 +205,11 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 	}
 
 	g.MapInfo = &MapInfo{
-		ID:          m.ID,
-		DisplayName: m.DisplayName,
+		MapID:       mapID,
+		DisplayName: mapDef.DisplayName,
 	}
 	g.MapInfo.Map = m
+	// NOTE: I guess this is for NPCManager? looks really dumb here though... lol
 	g.MapInfo.mapRef = g.MapInfo.Map
 	g.MapInfo.gameRef = g
 
@@ -144,11 +237,7 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 
 	// find all objects in the map
 	for _, layer := range m.Layers {
-		if layer.Type == tiled.LayerTypeObject {
-			for _, obj := range layer.Objects {
-				g.MapInfo.AddObjectToMap(obj, m)
-			}
-		}
+		g.getObjectsFromLayer(layer, mapID)
 	}
 
 	// start up background jobs loop
@@ -197,12 +286,25 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 	g.EventBus.Publish(defs.Event{
 		Type: pubsub.EventVisitMap,
 		Data: map[string]any{
-			"MapID":          g.MapInfo.ID,
+			"MapID":          mapID,
 			"MapDisplayName": g.MapInfo.DisplayName,
 		},
 	})
 
 	return nil
+}
+
+func (g *Game) getObjectsFromLayer(layer tiled.Layer, mapID defs.MapID) {
+	switch layer.Type {
+	case tiled.LayerTypeObject:
+		for _, obj := range layer.Objects {
+			g.MapInfo.AddObjectToMap(obj, g.MapInfo.mapRef, mapID)
+		}
+	case tiled.LayerTypeGroup:
+		for _, l := range layer.Layers {
+			g.getObjectsFromLayer(l, mapID)
+		}
+	}
 }
 
 func (mi *MapInfo) CloseMap() {
@@ -269,6 +371,7 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 		H: h,
 	}
 	if res := mi.Collides(r, ""); res.Collides() {
+		logz.Panicln("AddNPCToMap", "NPC added to map on colliding tile. r:", r, "mapID:", mi.MapID, "npcID:", n.ID)
 		panic("npc added to map on colliding tile")
 	}
 	n.Entity.World = mi
@@ -278,9 +381,8 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	mi.NPCs = append(mi.NPCs, n)
 }
 
-func (mi *MapInfo) AddObjectToMap(obj tiled.Object, m tiled.Map) {
-	o := object.LoadObject(obj, m, mi.gameRef.AudioManager)
-	o.World = mi
+func (mi *MapInfo) AddObjectToMap(obj tiled.Object, m tiled.Map, mapID defs.MapID) {
+	o := object.LoadObject(obj, m, mi.gameRef.AudioManager, mi.gameRef.DefinitionManager, mapID, mi)
 	mi.Objects = append(mi.Objects, o)
 	if o.Light.On {
 		mi.LightObjects = append(mi.LightObjects, o)

@@ -257,8 +257,8 @@ func getNewCharacter() (defs.CharacterDef, body.EntityBodySet) {
 		ID:               "newCharacter",
 		Unique:           true,
 		DisplayName:      "New Character",
-		DialogProfileID:  ProfileDefault,       // TODO: at some point, we will add a control for setting dialog profile
-		FootstepSFXDefID: DefaultFootstepSFXID, // TODO: also for this
+		DialogProfileID:  ProfileDefault,
+		FootstepSFXDefID: DefaultFootstepSFXID, // TODO: add control for selecting this
 		ScheduleID:       ScheduleIdle,
 		BodyDef:          defs.BodyDef{
 			// Note: not setting them here because the setters will handle putting the IDs here
@@ -277,10 +277,13 @@ func getNewCharacter() (defs.CharacterDef, body.EntityBodySet) {
 }
 
 func (bg builderGame) saveCharacter() {
+	// info screen
 	bg.CharacterDef.ID = defs.CharacterDefID(bg.scrInfo.CharacterIDInput.GetText())
 	bg.CharacterDef.DisplayName = bg.scrInfo.DisplayNameInput.GetText()
 	bg.CharacterDef.FullName = bg.scrInfo.FullNameInput.GetText()
 	bg.CharacterDef.ClassName = bg.scrInfo.ClassNameInput.GetText()
+	bg.CharacterDef.DialogProfileID = defs.DialogProfileID(bg.scrInfo.DialogProfileSelector.GetCurrentValue())
+	bg.CharacterDef.ScheduleID = defs.ScheduleID(bg.scrInfo.ScheduleSelector.GetCurrentValue())
 
 	// TODO: create UI component for showing error messages, info, etc.
 	// I'm picturing a bubble or chip style info box the fades in and slowly slides up to the top of the screen on the right side.
