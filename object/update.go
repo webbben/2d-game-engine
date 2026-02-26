@@ -80,7 +80,7 @@ func (obj *Object) activateDoor() ObjectUpdateResult {
 	}
 	if obj.lockID != "" {
 		// check the lock state from the map state
-		mapState := obj.defMgr.GetMapState(obj.mapID)
+		mapState := obj.dataman.GetMapState(obj.mapID)
 		lockState := mapState.MapLocks[obj.lockID]
 		if !lockState.Unlocked {
 			// door is locked; cannot enter

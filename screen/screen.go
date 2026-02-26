@@ -3,7 +3,7 @@ package screen
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
@@ -13,7 +13,7 @@ type Screen interface {
 	GetID() ScreenID
 	// Load is for preparing the screen for use.
 	// The definition manager effectively gives read and write access to all states, so this should suffice.
-	Load(defMgr *definitions.DefinitionManager)
+	Load(dataman *datamanager.DataManager)
 	Update()
 	Draw(screen *ebiten.Image)
 	// IsDone tells the code that triggered this screen that it can move on now.

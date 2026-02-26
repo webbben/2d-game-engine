@@ -7,7 +7,7 @@ import (
 	"slices"
 
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 )
 
 const (
@@ -101,7 +101,7 @@ func GenerateSkillsAndAttributes(
 	level int,
 	class defs.ClassDef,
 	lvlParams defs.LevelSystemParameters,
-	defMgr *definitions.DefinitionManager,
+	dataman *datamanager.DataManager,
 
 	// randomness params
 	randomnessSkill float64,
@@ -117,7 +117,7 @@ func GenerateSkillsAndAttributes(
 
 	attributes := generateAttributesFromSkills(
 		level, skills, class, lvlParams,
-		levelAttributeRate, randomnessAttr, rng, defMgr,
+		levelAttributeRate, randomnessAttr, rng, dataman,
 	)
 
 	return skills, attributes
@@ -198,7 +198,7 @@ func generateSkillsForLevel(
 // levelAttributeRate: a baseline expectation for how fast attributes would "theoretically" grow on each level up.
 // this doesn't factor anything in; just a baseline expectation that we will blend in to "normalize" attribute growth a bit.
 //
-// defMgr: used for getting a skill's definition, so we can see what its governing skill is.
+// dataman: used for getting a skill's definition, so we can see what its governing skill is.
 func generateAttributesFromSkills(
 	level int,
 	skills map[defs.SkillID]int,
@@ -207,7 +207,7 @@ func generateAttributesFromSkills(
 	levelAttributeRate float64,
 	randomness float64,
 	rng *rand.Rand,
-	defMgr *definitions.DefinitionManager,
+	dataman *datamanager.DataManager,
 ) map[defs.AttributeID]int {
 	// aggregate governing skills
 	type agg struct {
@@ -237,7 +237,7 @@ func generateAttributesFromSkills(
 
 		skillGrowth := max(skillLevel-baseLevel, 0)
 
-		skillDef := defMgr.GetSkillDef(skillID)
+		skillDef := dataman.GetSkillDef(skillID)
 		govAttr := skillDef.GoverningAttributes
 
 		if len(govAttr) == 0 {

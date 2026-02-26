@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/entity/npc"
@@ -15,7 +15,7 @@ type Player struct {
 	Entity *entity.Entity
 	MovementMechanics
 
-	defMgr *definitions.DefinitionManager
+	dataman *datamanager.DataManager
 
 	World WorldContext
 
@@ -33,13 +33,13 @@ func (p Player) Y() float64 {
 	return p.Entity.Y
 }
 
-func NewPlayer(defMgr *definitions.DefinitionManager, ent *entity.Entity) Player {
+func NewPlayer(dataman *datamanager.DataManager, ent *entity.Entity) Player {
 	if ent == nil {
 		panic("player must have entity")
 	}
 
 	return Player{
-		defMgr: defMgr,
+		dataman: dataman,
 		Entity: ent,
 	}
 }

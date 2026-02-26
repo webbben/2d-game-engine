@@ -5,7 +5,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/config"
@@ -23,7 +23,7 @@ import (
 
 type TradeScreen struct {
 	Exit       bool // once set, trading will end
-	defMgr     *definitions.DefinitionManager
+	dataman     *datamanager.DataManager
 	playerRef  *player.Player
 	shopkeeper *state.ShopkeeperState
 
@@ -72,7 +72,7 @@ type TradeScreenParams struct {
 	TextBoxOrigin             int
 }
 
-func NewTradeScreen(params TradeScreenParams, defMgr *definitions.DefinitionManager, playerRef *player.Player) TradeScreen {
+func NewTradeScreen(params TradeScreenParams, dataman *datamanager.DataManager, playerRef *player.Player) TradeScreen {
 	if params.BoxTilesetSrc == "" {
 		params.BoxTilesetSrc = config.DefaultUIBox.TilesetSrc
 		params.BoxTilesetOrigin = config.DefaultUIBox.OriginIndex
@@ -81,7 +81,7 @@ func NewTradeScreen(params TradeScreenParams, defMgr *definitions.DefinitionMana
 	tileSize := int(config.TileSize * config.UIScale)
 
 	ts := TradeScreen{
-		defMgr:    defMgr,
+		dataman:    dataman,
 		playerRef: playerRef,
 	}
 
@@ -97,8 +97,8 @@ func NewTradeScreen(params TradeScreenParams, defMgr *definitions.DefinitionMana
 	ts.boxTitle = box.NewBoxTitle(params.BoxTilesetSrc, params.BoxTitleOrigin, " Aurelius' Tradehouse ", config.DefaultTitleFont)
 
 	// build inventories
-	ts.shopkeeperInventory = inventory.NewInventory(defMgr, params.ShopkeeperInventoryParams)
-	ts.playerInventory = inventory.NewInventory(defMgr, params.PlayerInventoryParams)
+	ts.shopkeeperInventory = inventory.NewInventory(dataman, params.ShopkeeperInventoryParams)
+	ts.playerInventory = inventory.NewInventory(dataman, params.PlayerInventoryParams)
 
 	ts.itemTransfer = inventory.NewItemTransfer(ts.playerInventory.GetItemSlots(), ts.shopkeeperInventory.GetItemSlots())
 
@@ -332,10 +332,10 @@ func (ts *TradeScreen) acceptTransaction() {
 
 	if transactionAmount > 0 {
 		// player earns money; add to coin purse
-		characterstate.EarnMoney(&ts.playerRef.Entity.CharacterStateRef.StandardInventory, transactionAmount, ts.defMgr)
+		characterstate.EarnMoney(&ts.playerRef.Entity.CharacterStateRef.StandardInventory, transactionAmount, ts.dataman)
 	} else if transactionAmount < 0 {
 		// player spends money; take it out of their coin purse
-		characterstate.SpendMoney(&ts.playerRef.Entity.CharacterStateRef.StandardInventory, -transactionAmount, ts.defMgr)
+		characterstate.SpendMoney(&ts.playerRef.Entity.CharacterStateRef.StandardInventory, -transactionAmount, ts.dataman)
 	}
 
 	// update player and shopkeeper inventories to match inventories in this trade screen

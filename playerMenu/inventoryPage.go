@@ -2,7 +2,7 @@ package playermenu
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/inventory"
@@ -16,11 +16,11 @@ type InventoryPage struct {
 	playerRef     *player.Player
 	width, height int
 
-	defMgr *definitions.DefinitionManager
+	dataman *datamanager.DataManager
 }
 
 // Load loads the inventory page for first time loading
-func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Player, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
+func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Player, dataman *datamanager.DataManager, inventoryParams inventory.InventoryParams) {
 	if playerRef == nil {
 		panic("player ref is nil")
 	}
@@ -28,13 +28,13 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 		panic("player entity is nil")
 	}
 
-	ip.defMgr = defMgr
+	ip.dataman = dataman
 
 	ip.width = pageWidth
 	ip.height = pageHeight
 	ip.playerRef = playerRef
 
-	ip.inventoryComponent.Load(pageWidth, pageHeight, &playerRef.Entity.CharacterStateRef.StandardInventory, defMgr, inventoryParams)
+	ip.inventoryComponent.Load(pageWidth, pageHeight, &playerRef.Entity.CharacterStateRef.StandardInventory, dataman, inventoryParams)
 
 	ip.init = true
 }

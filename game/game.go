@@ -5,22 +5,22 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/webbben/2d-game-engine/clock"
-	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/definitions"
-	"github.com/webbben/2d-game-engine/dialogv2"
-	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/audio"
-	"github.com/webbben/2d-game-engine/internal/camera"
+	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/datamanager"
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/display"
+	"github.com/webbben/2d-game-engine/entity/player"
+	"github.com/webbben/2d-game-engine/internal/camera"
 	"github.com/webbben/2d-game-engine/internal/lights"
-	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
+	"github.com/webbben/2d-game-engine/logz"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
 	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/trade"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -58,7 +58,7 @@ type Game struct {
 
 	UpdateHooks
 
-	DefinitionManager *definitions.DefinitionManager
+	Dataman *datamanager.DataManager
 	AudioManager      *audio.AudioManager
 	QuestManager      *quest.QuestManager
 
@@ -77,7 +77,7 @@ func (g *Game) StartDialogSession(dialogProfileID defs.DialogProfileID, npcID st
 		BoxOriginID:   16,
 		TextFont:      config.DefaultFont,
 	}
-	ds := dialogv2.NewDialogSession(params, g.EventBus, g.DefinitionManager, g)
+	ds := dialogv2.NewDialogSession(params, g.EventBus, g.Dataman, g)
 
 	g.dialogSession = &ds
 }
@@ -107,8 +107,8 @@ type HUD interface {
 }
 
 func (g *Game) SetupTradeSession(shopkeeperID defs.ShopID) {
-	shopkeeperDef := g.DefinitionManager.GetShopkeeperDef(shopkeeperID)
-	shopkeeperState := g.DefinitionManager.GetShopkeeperState(shopkeeperID)
+	shopkeeperDef := g.Dataman.GetShopkeeperDef(shopkeeperID)
+	shopkeeperState := g.Dataman.GetShopkeeperState(shopkeeperID)
 	g.TradeScreen.SetupTradeSession(*shopkeeperDef, shopkeeperState)
 	g.ShowTradeScreen = true
 }
@@ -150,7 +150,7 @@ func NewGame(hour int) *Game {
 
 		EventBus:          pubsub.NewEventBus(),
 		OverlayManager:    &overlay.OverlayManager{},
-		DefinitionManager: definitions.NewDefinitionManager(),
+		Dataman: datamanager.NewDataManager(),
 		AudioManager:      audio.NewAudioManager(),
 	}
 

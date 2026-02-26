@@ -7,7 +7,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/logz"
@@ -69,7 +69,7 @@ type DialogSession struct {
 	LineWriter text.LineWriter
 
 	eventBus *pubsub.EventBus
-	defMgr   *definitions.DefinitionManager
+	dataman   *datamanager.DataManager
 	scrMgr   *screen.ScreenManager
 
 	flashContinueIcon   bool
@@ -113,7 +113,7 @@ type DialogSessionParams struct {
 	TextFont      font.Face
 }
 
-func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, defMgr *definitions.DefinitionManager, gameState GameStateContext) DialogSession {
+func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, dataman *datamanager.DataManager, gameState GameStateContext) DialogSession {
 	if params.ProfileID == "" {
 		panic("profile ID was empty")
 	}
@@ -126,8 +126,8 @@ func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, def
 	if eventBus == nil {
 		panic("event bus was nil")
 	}
-	if defMgr == nil {
-		panic("defMgr was nil")
+	if dataman == nil {
+		panic("dataman was nil")
 	}
 	if params.TextFont == nil {
 		panic("text font was nil")
@@ -138,8 +138,8 @@ func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, def
 
 	// Note: we expect the profile state to already have been made. If we decide to have "ad hoc" dialog profiles, this should change.
 
-	profileDef := defMgr.GetDialogProfile(params.ProfileID)
-	profileState := defMgr.GetDialogProfileState(params.ProfileID)
+	profileDef := dataman.GetDialogProfile(params.ProfileID)
+	profileState := dataman.GetDialogProfileState(params.ProfileID)
 
 	ctx := NewDialogContext(params.NPCID, profileState, gameState, eventBus)
 	ds := DialogSession{
@@ -147,7 +147,7 @@ func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, def
 		ProfileDef:   profileDef,
 		Ctx:          ctx,
 		eventBus:     eventBus,
-		defMgr:       defMgr,
+		dataman:       dataman,
 		f:            params.TextFont,
 	}
 
@@ -337,7 +337,7 @@ func (ds *DialogSession) GetTopicOptions() []defs.DialogTopic {
 
 	// first, get them from the profile
 	for _, topicID := range ds.ProfileDef.TopicsIDs {
-		topic := ds.defMgr.GetDialogTopic(topicID)
+		topic := ds.dataman.GetDialogTopic(topicID)
 		if ConditionsMet(topic.Conditions, ds.Ctx) {
 			topics[topicID] = *topic
 		}
@@ -345,7 +345,7 @@ func (ds *DialogSession) GetTopicOptions() []defs.DialogTopic {
 
 	// next, go through unlocked topics
 	for _, topicID := range ds.Ctx.GetUnlockedTopics() {
-		topic := ds.defMgr.GetDialogTopic(topicID)
+		topic := ds.dataman.GetDialogTopic(topicID)
 		if ConditionsMet(topic.Conditions, ds.Ctx) {
 			topics[topicID] = *topic
 		}
@@ -418,7 +418,7 @@ func (ds *DialogSession) startAction() {
 		}
 		s := ds.scrMgr.GetScreen(params.ScreenID)
 		ds.midDialogScreen = s
-		ds.midDialogScreen.Load(ds.defMgr)
+		ds.midDialogScreen.Load(ds.dataman)
 	default:
 		logz.Panicln("startAction", "action type not recognized:", action.Type)
 	}
@@ -511,7 +511,7 @@ func (ds *DialogSession) SetTopic(topicID defs.TopicID) {
 		})
 		return
 	}
-	topic := ds.defMgr.GetDialogTopic(topicID)
+	topic := ds.dataman.GetDialogTopic(topicID)
 	ds.currentTopic = topic
 
 	ds.Ctx.RecordTopicSeen(topicID)

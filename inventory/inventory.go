@@ -4,7 +4,7 @@ package inventory
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/ui/textwindow"
@@ -28,7 +28,7 @@ type Inventory struct {
 
 	itemSlots []*ItemSlot
 
-	defMgr *definitions.DefinitionManager
+	dataman *datamanager.DataManager
 }
 
 func (inv Inventory) GetItemSlots() []*ItemSlot {
@@ -73,9 +73,9 @@ type InventoryParams struct {
 	AllowedItemTypes []defs.ItemType // if set, all slots in this inventory will only allow items in this list of item IDs
 }
 
-func NewInventory(defMgr *definitions.DefinitionManager, params InventoryParams) Inventory {
+func NewInventory(dataman *datamanager.DataManager, params InventoryParams) Inventory {
 	inv := Inventory{
-		defMgr:                   defMgr,
+		dataman:                   dataman,
 		itemSlotTilesetSource:    params.ItemSlotTilesetSource,
 		slotEnabledTileID:        params.SlotEnabledTileID,
 		slotDisabledTileID:       params.SlotDisabledTileID,

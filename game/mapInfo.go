@@ -73,9 +73,9 @@ func (g *Game) EnterMap(mapID defs.MapID, op *OpenMapOptions, playerSpawnIndex i
 // So, anytime you're dealing with a map, just run this function to make sure its state exists and/or has been instantiated correctly.
 func (g *Game) EnsureMapStateExists(mapID defs.MapID) {
 	// make sure def exists for this mapID
-	_ = g.DefinitionManager.GetMapDef(mapID)
+	_ = g.Dataman.GetMapDef(mapID)
 
-	if g.DefinitionManager.MapStateExists(mapID) {
+	if g.Dataman.MapStateExists(mapID) {
 		return
 	}
 
@@ -83,7 +83,7 @@ func (g *Game) EnsureMapStateExists(mapID defs.MapID) {
 }
 
 func (g *Game) CreateNewMapState(mapID defs.MapID) {
-	if g.DefinitionManager.MapStateExists(mapID) {
+	if g.Dataman.MapStateExists(mapID) {
 		logz.Panicln("CreateNewMapState", "tried to create a new map state, but one already exists:", mapID)
 	}
 
@@ -145,7 +145,7 @@ func (g *Game) CreateNewMapState(mapID defs.MapID) {
 				}
 				// confirm item exists
 				defID := defs.ItemID(itemID)
-				_ = g.DefinitionManager.GetItemDef(defID)
+				_ = g.Dataman.GetItemDef(defID)
 				mapState.MapItems = append(mapState.MapItems, state.MapItemState{
 					ItemInstance: defs.ItemInstance{DefID: defID},
 					Quantity:     1,
@@ -156,7 +156,7 @@ func (g *Game) CreateNewMapState(mapID defs.MapID) {
 		}
 	}
 
-	g.DefinitionManager.LoadMapState(mapState)
+	g.Dataman.LoadMapState(mapState)
 }
 
 func getAllObjectLayers(layers []tiled.Layer) []tiled.Layer {
@@ -188,7 +188,7 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 
 	g.EnsureMapStateExists(mapID)
 
-	mapDef := g.DefinitionManager.GetMapDef(mapID)
+	mapDef := g.Dataman.GetMapDef(mapID)
 
 	mapSource := config.ResolveMapPath(string(mapID))
 	fmt.Println("map source:", mapSource)
@@ -254,12 +254,12 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 	// add NPCs after Loaded = true, since that is checked in AddNPCToMap
 
 	// check if a scenario should be loaded into the map
-	mapState := g.DefinitionManager.GetMapState(mapID)
+	mapState := g.Dataman.GetMapState(mapID)
 	if len(mapState.QueuedScenarios) > 0 {
 		scenarioID := mapState.QueuedScenarios[0]
 		mapState.QueuedScenarios = mapState.QueuedScenarios[1:]
 		logz.Println("Loading Scenario", "MapID:", mapID, "ScenarioID:", scenarioID)
-		scenarioDef := g.DefinitionManager.GetScenarioDef(scenarioID)
+		scenarioDef := g.Dataman.GetScenarioDef(scenarioID)
 		if scenarioDef.MapID != mapID {
 			logz.Panicln("SetupMap", "found queued scenario for map, but mapID in scenario def doesn't match. mapID:", mapID, "found in scenario def:", scenarioDef.MapID)
 		}
@@ -271,10 +271,10 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 			charStateID := entity.CreateNewCharacterState(
 				charDef.CharDefID,
 				entity.NewCharacterStateParams{},
-				g.DefinitionManager)
+				g.Dataman)
 			n := npc.NewNPC(npc.NPCParams{
 				CharStateID: charStateID,
-			}, g.DefinitionManager, g.AudioManager, g.EventBus)
+			}, g.Dataman, g.AudioManager, g.EventBus)
 
 			startPos := model.Coords{X: charDef.SpawnCoordX, Y: charDef.SpawnCoordY}
 			g.MapInfo.AddNPCToMap(n, startPos)
@@ -382,7 +382,7 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 }
 
 func (mi *MapInfo) AddObjectToMap(obj tiled.Object, m tiled.Map, mapID defs.MapID) {
-	o := object.LoadObject(obj, m, mi.gameRef.AudioManager, mi.gameRef.DefinitionManager, mapID, mi)
+	o := object.LoadObject(obj, m, mi.gameRef.AudioManager, mi.gameRef.Dataman, mapID, mi)
 	mi.Objects = append(mi.Objects, o)
 	if o.Light.On {
 		mi.LightObjects = append(mi.LightObjects, o)

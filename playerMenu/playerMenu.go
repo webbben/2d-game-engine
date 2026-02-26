@@ -3,7 +3,7 @@ package playermenu
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/display"
@@ -41,7 +41,7 @@ type PlayerMenu struct {
 	mainContentActualWidth, mainContentActualHeight int // actual area main content tabs can take
 }
 
-func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
+func (pm *PlayerMenu) Load(playerRef *player.Player, dataman *datamanager.DataManager, inventoryParams inventory.InventoryParams) {
 	if pm.BoxTilesetSource == "" {
 		panic("no box tileset source set")
 	}
@@ -127,7 +127,7 @@ func (pm *PlayerMenu) Load(playerRef *player.Player, defMgr *definitions.Definit
 	// load each page
 	pm.mainContentActualWidth = pm.mainContentBoxWidth - (tileSize)
 	pm.mainContentActualHeight = pm.mainContentBoxHeight - (tileSize)
-	pm.InventoryPage.Load(pm.mainContentActualWidth, pm.mainContentActualHeight, pm.playerRef, defMgr, inventoryParams)
+	pm.InventoryPage.Load(pm.mainContentActualWidth, pm.mainContentActualHeight, pm.playerRef, dataman, inventoryParams)
 
 	pm.init = true
 }

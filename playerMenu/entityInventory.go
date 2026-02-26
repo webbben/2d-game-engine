@@ -3,7 +3,7 @@ package playermenu
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/mouse"
@@ -51,7 +51,7 @@ type InventoryComponent struct {
 	showCoinPurse          bool
 	coinPurseMouse         mouse.MouseBehavior // for detecting if the user clicks outside the coin purse
 
-	defMgr *definitions.DefinitionManager
+	dataman *datamanager.DataManager
 }
 
 func (ic InventoryComponent) Dimensions() (dx, dy int) {
@@ -59,7 +59,7 @@ func (ic InventoryComponent) Dimensions() (dx, dy int) {
 }
 
 // Load loads the inventory page for first time loading
-func (ip *InventoryComponent) Load(pageWidth, pageHeight int, characterInventory *defs.StandardInventory, defMgr *definitions.DefinitionManager, inventoryParams inventory.InventoryParams) {
+func (ip *InventoryComponent) Load(pageWidth, pageHeight int, characterInventory *defs.StandardInventory, dataman *datamanager.DataManager, inventoryParams inventory.InventoryParams) {
 	if characterInventory == nil {
 		panic("character inventory ref is nil")
 	}
@@ -70,14 +70,14 @@ func (ip *InventoryComponent) Load(pageWidth, pageHeight int, characterInventory
 		panic("height is 0")
 	}
 
-	ip.defMgr = defMgr
+	ip.dataman = dataman
 
 	ip.width = pageWidth
 	ip.height = pageHeight
 	ip.EntityInventory.RowCount = 9
 	ip.EntityInventory.ColCount = 9
 	ip.EntityInventory.EnabledSlotsCount = 18
-	ip.EntityInventory = inventory.NewInventory(defMgr, inventoryParams)
+	ip.EntityInventory = inventory.NewInventory(dataman, inventoryParams)
 
 	// load the item slot images for our equiped items slots
 	itemSlotImages := inventory.LoadItemSlotTiles(
@@ -158,7 +158,7 @@ func (ip *InventoryComponent) Load(pageWidth, pageHeight int, characterInventory
 	coinPurseInvParams.ColCount = 3
 	coinPurseInvParams.EnabledSlotsCount = 6
 	coinPurseInvParams.AllowedItemTypes = []defs.ItemType{item.TypeCurrency}
-	ip.coinPurse = inventory.NewInventory(defMgr, coinPurseInvParams)
+	ip.coinPurse = inventory.NewInventory(dataman, coinPurseInvParams)
 
 	// set up item mover
 	itemSlots := []*inventory.ItemSlot{}
