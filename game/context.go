@@ -8,12 +8,12 @@ import (
 )
 
 func (g *Game) DialogCtxAddGold(amount int) {
-	characterstate.EarnMoney(&g.Player.Entity.CharacterStateRef.StandardInventory, amount, g.DefinitionManager)
+	characterstate.EarnMoney(&g.Player.Entity.CharacterStateRef.StandardInventory, amount, g.Dataman)
 }
 
 func (g *Game) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef) {
 	// confirm this is the ID of a unique characterDef
-	charDef := g.DefinitionManager.GetCharacterDef(id)
+	charDef := g.Dataman.GetCharacterDef(id)
 	if !charDef.Unique {
 		logz.Panicln("AssignTaskToNPC", "characterDef of ID given is not unique; can only assign tasks to specific characters if they are unique.")
 	}
@@ -23,7 +23,7 @@ func (g *Game) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef) {
 }
 
 func (g *Game) QueueScenario(id defs.ScenarioID) {
-	scenarioDef := g.DefinitionManager.GetScenarioDef(id)
+	scenarioDef := g.Dataman.GetScenarioDef(id)
 
 	mapID := scenarioDef.MapID
 	if mapID == "" {
@@ -32,7 +32,7 @@ func (g *Game) QueueScenario(id defs.ScenarioID) {
 
 	g.EnsureMapStateExists(mapID)
 
-	mapState := g.DefinitionManager.GetMapState(mapID)
+	mapState := g.Dataman.GetMapState(mapID)
 
 	// ensure this scenario is not already queued up
 	for _, scenarioID := range mapState.QueuedScenarios {
@@ -49,7 +49,7 @@ func (g *Game) QueueScenario(id defs.ScenarioID) {
 func (g *Game) UnlockMapLock(mapID defs.MapID, lockID string) {
 	g.EnsureMapStateExists(mapID)
 
-	mapState := g.DefinitionManager.GetMapState(mapID)
+	mapState := g.Dataman.GetMapState(mapID)
 	lockState := mapState.MapLocks[lockID]
 	lockState.Unlocked = true
 	mapState.MapLocks[lockID] = lockState

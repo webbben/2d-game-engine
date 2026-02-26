@@ -6,7 +6,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/logz"
@@ -56,12 +56,12 @@ type NPCParams struct {
 	CharStateID state.CharacterStateID
 }
 
-func NewNPC(params NPCParams, defMgr *definitions.DefinitionManager, audioMgr *audio.AudioManager, eventBus *pubsub.EventBus) *NPC {
+func NewNPC(params NPCParams, dataman *datamanager.DataManager, audioMgr *audio.AudioManager, eventBus *pubsub.EventBus) *NPC {
 	if params.CharStateID == "" {
 		panic("CharStateID is empty")
 	}
-	if defMgr == nil {
-		panic("defMgr was nil")
+	if dataman == nil {
+		panic("dataman was nil")
 	}
 	if audioMgr == nil {
 		panic("audioMgr was nil")
@@ -70,11 +70,11 @@ func NewNPC(params NPCParams, defMgr *definitions.DefinitionManager, audioMgr *a
 		panic("eventBus was nil")
 	}
 
-	ent := entity.LoadCharacterStateIntoEntity(params.CharStateID, defMgr, audioMgr)
+	ent := entity.LoadCharacterStateIntoEntity(params.CharStateID, dataman, audioMgr)
 
 	// get dialog profile ID from character def
-	charDef := defMgr.GetCharacterDef(ent.CharacterStateRef.DefID)
-	scheduleDef := defMgr.GetScheduleDef(charDef.ScheduleID)
+	charDef := dataman.GetCharacterDef(ent.CharacterStateRef.DefID)
+	scheduleDef := dataman.GetScheduleDef(charDef.ScheduleID)
 
 	n := NPC{
 		eventBus:        eventBus,
@@ -84,7 +84,7 @@ func NewNPC(params NPCParams, defMgr *definitions.DefinitionManager, audioMgr *a
 		dialogProfileID: charDef.DialogProfileID,
 		TaskMGMT: TaskMGMT{
 			Schedule: scheduleDef,
-			defMgr:   defMgr,
+			dataman:   dataman,
 		},
 	}
 
@@ -121,7 +121,7 @@ type TaskMGMT struct {
 	// Useful for if this NPC should always just continuously do one task.
 	Schedule defs.ScheduleDef
 
-	defMgr *definitions.DefinitionManager
+	dataman *datamanager.DataManager
 }
 
 // IsActive checks if the npc is currently working on a task

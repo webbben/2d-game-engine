@@ -7,21 +7,21 @@ import (
 
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/item"
 )
 
 // GetNetTraitModifiers returns all of the net modifiers on skills produced by the given traits
-func GetNetTraitModifiers(traits []defs.TraitID, defMgr *definitions.DefinitionManager) (skillMods map[defs.SkillID]int, attrMods map[defs.AttributeID]int) {
-	if defMgr == nil {
-		panic("defMgr was nil")
+func GetNetTraitModifiers(traits []defs.TraitID, dataman *datamanager.DataManager) (skillMods map[defs.SkillID]int, attrMods map[defs.AttributeID]int) {
+	if dataman == nil {
+		panic("dataman was nil")
 	}
 	skillMods = make(map[defs.SkillID]int)
 	attrMods = make(map[defs.AttributeID]int)
 
 	for _, traitID := range traits {
-		trait := defMgr.GetTraitDef(traitID)
+		trait := dataman.GetTraitDef(traitID)
 		for id, change := range trait.GetSkillChanges() {
 			if _, exists := skillMods[id]; !exists {
 				skillMods[id] = 0
@@ -50,9 +50,9 @@ func RemoveItemFromInventory(cs *state.CharacterState, itemToRemove defs.Invento
 }
 
 // SpendMoney spends the given amount of money from the entity's coin purse and/or inventory
-func SpendMoney(inv *defs.StandardInventory, value int, defMgr *definitions.DefinitionManager) {
-	if defMgr == nil {
-		logz.Panicln("SpendMoney", "defMgr passed was nil")
+func SpendMoney(inv *defs.StandardInventory, value int, dataman *datamanager.DataManager) {
+	if dataman == nil {
+		logz.Panicln("SpendMoney", "dataman passed was nil")
 	}
 	// first, calculate our wallet
 	wallet := map[int]int{}
@@ -95,7 +95,7 @@ func SpendMoney(inv *defs.StandardInventory, value int, defMgr *definitions.Defi
 			continue
 		}
 		itemID := fmt.Sprintf("currency_value_%v", denom)
-		coinsToRemove := defMgr.NewInventoryItem(defs.ItemID(itemID), numCoins)
+		coinsToRemove := dataman.NewInventoryItem(defs.ItemID(itemID), numCoins)
 		success, remaining := item.RemoveItemFromStandardInventory(inv, coinsToRemove)
 		if !success || remaining.Quantity != 0 {
 			logz.Panicf("failed to pay all coins. remaining unpaid coins: %s", remaining.String())
@@ -110,7 +110,7 @@ func SpendMoney(inv *defs.StandardInventory, value int, defMgr *definitions.Defi
 				continue
 			}
 			itemID := fmt.Sprintf("currency_value_%v", denom)
-			success, _ := item.AddItemToStandardInventory(inv, defMgr.NewInventoryItem(defs.ItemID(itemID), numCoins))
+			success, _ := item.AddItemToStandardInventory(inv, dataman.NewInventoryItem(defs.ItemID(itemID), numCoins))
 			if !success {
 				fmt.Println("failed to add coin to inventory")
 			}
@@ -118,14 +118,14 @@ func SpendMoney(inv *defs.StandardInventory, value int, defMgr *definitions.Defi
 	}
 }
 
-func EarnMoney(inv *defs.StandardInventory, value int, defMgr *definitions.DefinitionManager) {
+func EarnMoney(inv *defs.StandardInventory, value int, dataman *datamanager.DataManager) {
 	coins := CalculateCoins(value)
 	for denom, numCoins := range coins {
 		if numCoins == 0 {
 			continue
 		}
 		itemID := fmt.Sprintf("currency_value_%v", denom)
-		success, _ := item.AddItemToStandardInventory(inv, defMgr.NewInventoryItem(defs.ItemID(itemID), numCoins))
+		success, _ := item.AddItemToStandardInventory(inv, dataman.NewInventoryItem(defs.ItemID(itemID), numCoins))
 		if !success {
 			fmt.Println("failed to add coin to inventory")
 		}

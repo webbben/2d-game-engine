@@ -6,7 +6,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
@@ -60,7 +60,7 @@ func RemoveItemFromStandardInventory(inv *defs.StandardInventory, itemToRemove d
 // The reason we need to do this is, if we are loading an inventory from a JSON file, the item defs won't be defined.
 // The reason for that is, itemdefs are interfaces, which don't really work for writing to JSON files.
 // So, whenever loading an inventory, ensure that all the defs are loaded in.
-func LoadStandardInventoryItemDefs(inv *defs.StandardInventory, defMgr *definitions.DefinitionManager) {
+func LoadStandardInventoryItemDefs(inv *defs.StandardInventory, dataman *datamanager.DataManager) {
 	reloadItemDef := func(invItem *defs.InventoryItem) {
 		if invItem == nil {
 			return
@@ -69,7 +69,7 @@ func LoadStandardInventoryItemDefs(inv *defs.StandardInventory, defMgr *definiti
 			if invItem.Instance.DefID == "" {
 				panic("tried to reload invItem def, but instance didn't have defID set")
 			}
-			invItem.Def = defMgr.GetItemDef(invItem.Instance.DefID)
+			invItem.Def = dataman.GetItemDef(invItem.Instance.DefID)
 		}
 		invItem.Validate()
 	}

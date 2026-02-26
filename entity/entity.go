@@ -4,7 +4,7 @@ package entity
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
@@ -97,15 +97,15 @@ type NewCharacterParams struct {
 
 // LoadCharacterStateIntoEntity loads a character state into an Entity, for rendering and interacting in a game map.
 // Grabs the character state from definition manager, outfits it in an entity, and prepares it for runtime use.
-func LoadCharacterStateIntoEntity(charStateID state.CharacterStateID, defMgr *definitions.DefinitionManager, audioMgr *audio.AudioManager) *Entity {
-	charState := defMgr.GetCharacterState(charStateID)
+func LoadCharacterStateIntoEntity(charStateID state.CharacterStateID, dataman *datamanager.DataManager, audioMgr *audio.AudioManager) *Entity {
+	charState := dataman.GetCharacterState(charStateID)
 
 	// load body def from charDef
-	charDef := defMgr.GetCharacterDef(charState.DefID)
-	skin := LoadBodySkin(charDef.BodyDef, defMgr)
+	charDef := dataman.GetCharacterDef(charState.DefID)
+	skin := LoadBodySkin(charDef.BodyDef, dataman)
 
 	// load footstep SFX
-	sfxDef := defMgr.GetFootstepSFXDef(charDef.FootstepSFXDefID)
+	sfxDef := dataman.GetFootstepSFXDef(charDef.FootstepSFXDefID)
 
 	ent := Entity{
 		Body: skin,
@@ -175,11 +175,11 @@ type NewCharacterStateParams struct {
 // - Or, perhaps a "generic" characterDef is being used to dynamically generate certain types of characters. In which case, this might go on later in the game.
 //
 // ... Basically, DON'T use this to "load an existing character back into the world". Each character only has this done to them once in their existence.
-func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterStateParams, defMgr *definitions.DefinitionManager) state.CharacterStateID {
-	charDef := defMgr.GetCharacterDef(charDefID)
+func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterStateParams, dataman *datamanager.DataManager) state.CharacterStateID {
+	charDef := dataman.GetCharacterDef(charDefID)
 
 	// find unique ID based on this characterDefID
-	id := defMgr.GetNewCharStateID(charDefID)
+	id := dataman.GetNewCharStateID(charDefID)
 	if charDef.Unique {
 		if string(id) != string(charDef.ID) {
 			logz.Panicln("CreateNewCharacterState", "new charStateID should match the defID since the charDef is unique, but it doesn't:", charDef.ID, id)
@@ -190,12 +190,12 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 	// Note: the player as a character doesn't have a dialog profile. so skip the player.
 	if !params.IsPlayer {
 		dialogProfileID := charDef.DialogProfileID
-		if !defMgr.DialogProfileStateExists(dialogProfileID) {
+		if !dataman.DialogProfileStateExists(dialogProfileID) {
 			dialogProfileState := state.DialogProfileState{
 				ProfileID: dialogProfileID,
 				Memory:    make(map[string]bool),
 			}
-			defMgr.LoadDialogProfileState(&dialogProfileState)
+			dataman.LoadDialogProfileState(&dialogProfileState)
 		}
 	}
 
@@ -213,19 +213,19 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		Traits:         charDef.InitialTraits,
 	}
 
-	item.LoadStandardInventoryItemDefs(&charState.StandardInventory, defMgr)
+	item.LoadStandardInventoryItemDefs(&charState.StandardInventory, dataman)
 
 	charState.Validate()
 
-	defMgr.LoadCharacterState(charState)
+	dataman.LoadCharacterState(charState)
 
 	return id
 }
 
 // LoadBodySkin loads up a bodyDef into an EntityBodySet. Does not handle loading any equipment.
-func LoadBodySkin(bodyDef defs.BodyDef, defMgr *definitions.DefinitionManager) body.EntityBodySet {
-	if defMgr == nil {
-		panic("defMgr was nil")
+func LoadBodySkin(bodyDef defs.BodyDef, dataman *datamanager.DataManager) body.EntityBodySet {
+	if dataman == nil {
+		panic("dataman was nil")
 	}
 
 	skin := body.NewHumanBodyFramework()
@@ -234,23 +234,23 @@ func LoadBodySkin(bodyDef defs.BodyDef, defMgr *definitions.DefinitionManager) b
 	if bodyDef.BodyID == "" {
 		logz.Panicln("LoadBodySkin", "failed to load body set; id is empty")
 	}
-	skin.BodySet.PartSrc = defMgr.GetBodyPartDef(bodyDef.BodyID)
+	skin.BodySet.PartSrc = dataman.GetBodyPartDef(bodyDef.BodyID)
 	if bodyDef.ArmsID == "" {
 		logz.Panicln("LoadBodySkin", "failed to load arms set; id is empty")
 	}
-	skin.ArmsSet.PartSrc = defMgr.GetBodyPartDef(bodyDef.ArmsID)
+	skin.ArmsSet.PartSrc = dataman.GetBodyPartDef(bodyDef.ArmsID)
 	if bodyDef.LegsID == "" {
 		logz.Panicln("LoadBodySkin", "failed to load legs set; id is empty")
 	}
-	skin.LegsSet.PartSrc = defMgr.GetBodyPartDef(bodyDef.LegsID)
+	skin.LegsSet.PartSrc = dataman.GetBodyPartDef(bodyDef.LegsID)
 	if bodyDef.EyesID == "" {
 		logz.Panicln("LoadBodySkin", "failed to load eyes set; id is empty")
 	}
-	skin.EyesSet.PartSrc = defMgr.GetBodyPartDef(bodyDef.EyesID)
+	skin.EyesSet.PartSrc = dataman.GetBodyPartDef(bodyDef.EyesID)
 	if bodyDef.HairID == "" {
 		logz.Panicln("LoadBodySkin", "failed to load hair set; id is empty")
 	}
-	skin.HairSet.PartSrc = defMgr.GetBodyPartDef(bodyDef.HairID)
+	skin.HairSet.PartSrc = dataman.GetBodyPartDef(bodyDef.HairID)
 
 	skin.BodyHSV = bodyDef.BodyHSV
 	skin.HairHSV = bodyDef.HairHSV

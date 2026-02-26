@@ -6,7 +6,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/definitions"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/internal/lights"
@@ -71,7 +71,7 @@ type Object struct {
 	PlayerHovering bool
 
 	AudioMgr *audio.AudioManager
-	defMgr   *definitions.DefinitionManager
+	dataman   *datamanager.DataManager
 }
 
 func (obj Object) IsCurrentlyActivating() bool {
@@ -175,9 +175,9 @@ type SpawnPoint struct {
 	SpawnIndex int
 }
 
-func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, defMgr *definitions.DefinitionManager, mapID defs.MapID, world WorldContext) *Object {
-	if defMgr == nil {
-		panic("defMgr was nil")
+func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dataman *datamanager.DataManager, mapID defs.MapID, world WorldContext) *Object {
+	if dataman == nil {
+		panic("dataman was nil")
 	}
 	if audioMgr == nil {
 		panic("audioMgr was nil")
@@ -187,7 +187,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, def
 	}
 	o := Object{
 		AudioMgr: audioMgr,
-		defMgr:   defMgr,
+		dataman:   dataman,
 		Name:     obj.Name,
 		ID:       obj.ID,
 		xPos:     obj.X,
@@ -247,7 +247,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, def
 			panic("lockID is empty")
 		}
 		// confirm that this lockID is in the map state
-		mapState := defMgr.GetMapState(mapID)
+		mapState := dataman.GetMapState(mapID)
 		if _, exists := mapState.MapLocks[lockID]; !exists {
 			logz.Panicln("LoadObject", "lock ID not found in map state:", lockID, "mapID:", mapID)
 		}
