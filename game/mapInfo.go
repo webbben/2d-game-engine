@@ -11,13 +11,13 @@ import (
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/internal/general_util"
+	"github.com/webbben/2d-game-engine/general_util"
 	"github.com/webbben/2d-game-engine/internal/lights"
-	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
-	"github.com/webbben/2d-game-engine/internal/tiled"
+	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/object"
 )
 

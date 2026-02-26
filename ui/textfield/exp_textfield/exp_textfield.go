@@ -18,8 +18,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/webbben/2d-game-engine/internal/logz"
-	"github.com/webbben/2d-game-engine/internal/mouse"
+	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/mouse"
 	internaltext "github.com/webbben/2d-game-engine/ui/text"
 	"golang.org/x/image/font"
 )

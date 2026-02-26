@@ -1,3 +1,4 @@
+// Package mouse
 package mouse
 
 import (

@@ -5,7 +5,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/logz"
 )
 
 type debug struct {

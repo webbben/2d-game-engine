@@ -2,7 +2,7 @@ package audio
 
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/logz"
 )
 
 type StepType string

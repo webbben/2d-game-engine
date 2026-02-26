@@ -3,7 +3,7 @@ package game
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
-	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/internal/pubsub"
 )
 

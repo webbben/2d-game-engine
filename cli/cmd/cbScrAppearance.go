@@ -11,7 +11,7 @@ import (
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/ui/text"
-	"github.com/webbben/2d-game-engine/internal/tiled"
+	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/ui/button"
 	"github.com/webbben/2d-game-engine/ui/dropdown"
 	"github.com/webbben/2d-game-engine/ui/popup"
