@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/webbben/2d-game-engine/internal/logz"
+	"github.com/webbben/2d-game-engine/logz"
 )
 
 // WriteToJSON writes the given data to a JSON file. The outputFilePath you give should include ".json" at the end (assuming you want an extension on the filename).

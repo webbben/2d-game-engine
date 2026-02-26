@@ -7,7 +7,7 @@ This document captures in-progress design ideas and decisions. Content here is p
 ## Table of Contents
 
 - [Locks System](#locks-system)
-- [[Next Feature Name]](#next-feature)
+<!-- - [[Next Feature Name]](#next-feature) -->
 
 ---
 
@@ -212,5 +212,5 @@ type KeyDef struct {
 
 ---
 
-## [[Next Feature Name]]
+<!-- ## [[Next Feature Name]] -->
 

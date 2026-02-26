@@ -1,3 +1,105 @@
+# 2026-02-26
+
+Wow, it's been 8 days already since the last post. I guess I've just been absorbed into my work here.
+
+Quick update on progress:
+
+- The first quest is nearly finished; it's just the "game opening sequence" where you appear in the world, design your character, and the setting of the world is introduced.
+- Continuously improving and adding upon the existing dialog and quest systems, as needed.
+
+So, all of that is going smoothly so far.
+
+But I wanted to talk through a new thing that has come up, which I need to figure out.
+
+## Game vs Game Engine: Where is the line?
+
+Up until this point, I've been designing this as a "game engine" which is built upon ebiten. I think it could be more accurately described as
+a "game framework for ebiten"? But, regardless, I had this idea that this is a reusable framework or engine that handles pretty much all of the game logic,
+and "consumers" of this module would be able to just do things like input all the character data, tilesets, and design some UI screens to show, etc.
+
+But, I've just started actually splitting off all the "game code" into a separate go project that will depend on this game engine project, and I've realized
+that the way I'm doing things so far kinda makes things a little messy.
+
+### Should Ebiten be Hidden, or Exposed?
+
+One thing I was originally sort of "planning on" is that Ebiten would be hidden from the game module. I guess I never had a strong sense of that, but it was 
+a vague assumption that made sense in my head. I think it would still make sense, but unfortunately I sort of lost sight of this over time.
+
+The main thing that is currently conflicting with this is how I design UI screens. Right now, a UI screen (player inventory screen, stats screen, etc)
+are all just following the usual pattern where you have a Draw function like this:
+
+```go 
+func (ui SomeUIScreen) Draw(screen *ebiten.Image) 
+```
+
+It takes the current state of the screen on that draw tick, and adds whatever it needs to on top.
+The problem here is that this function takes an `ebiten.Image` parameter, and so now, if the game needs to define a screen, it needs to be able to see ebiten.
+On top of this, a lot of the UI components currently work in a way where they give you an `ebiten.Image` to use in your screen. Box is a good example of this.
+So, now in the screens I've made so far, there are numerous places where we need to be able to use ebiten for handling these `ebiten.Image` values (just drawing them, really).
+But I also think there are other cases where we might want to be able to access ebiten.
+
+Another example is the `ebiten.Key`. If I want to define custom key bindings or anything like that in the game, I need to be able to access this.
+If I don't want to expose this to the game project, then I'd basically need to make a wrapper over ebiten's key consts so that they can be converted into ebiten keys
+on the game engine side. This feels inconvenient, and just adds needless tech debt. For example, if ebiten decided to fix or change something here, then I'd need to make sure 
+I update it in my own mappings too. Or, perhaps I'm lazy and don't want to implement all key mappings, and so therefore whatever is using this game engine simply has less power
+to customize inputs.
+
+### If I Hide Ebiten, How Would I do it?
+
+I think the simplest, quickest way would be to do the following:
+
+1) find all places where `ebiten.Image` is being directly used in screens, and move those back into their relevant UI components or otherwise.
+- Box can just keep the image data inside of it, rather than returning it. And I can add a Draw function to Box.
+- If I need a tile image, I can make a TileImage struct of some kind that just holds the image within it, and has its own Draw function.
+
+2) create a `Renderer` that manages rendering all images. This would be made in the game engine, but usable by the game.
+- It would only be used for UI screens, since in-game world rendering is handled exclusively by the game engine.
+- It would essentially just hide the `screen` image and do the actually drawing onto it within the game engine side of things.
+
+3) create an `InputManager` that tracks all key presses that occur in the ebiten hardware side of things, and then manages associating those keystrokes with
+user input/actions.
+- Basically we would create a new set of Key consts in the game engine which are then mapped to ebiten Keys.
+- Games can define their own keybindings, but the keybindings just associate a key to an action.
+- The game engine then polls ebiten for key presses, matches them up and decides if an action should be fired.
+- Note: this idea of binding key presses to 'actions' was by ChatGPT, and I think it points out an issue that currently exists in this engine:
+  we currently just hard-code bindings like the controls for walking in a map. In the future, this concept itself might be important to implement regardless of the ebiten situation.
+
+To be honest, I'm not really sure about making these changes just to hide ebiten. I think this for a few reasons:
+
+- I've already tested running the game in the game project with ebiten not being hidden, and it works fine. I believe the game project just added ebiten as a dependency for itself.
+- the above would cause at least another week-ish of big refactors, which seems tedious. I'm not sure it's worth it - at the end of the day, we're just trying to make a game here.
+- I really don't like the idea of creating my own Key consts that just map to ebiten keys. It feels unnecessary. If wrapping over ebiten entirely makes things more tedious and we 
+  lose some convenience or power in making the actual game, then maybe it should be avoided. I want this "game engine" to really just be an enhancement to working with ebiten,
+  not to make things more complicated or inconvenient.
+
+## So, what is this thing then?
+
+I think, with the direction I'm leaning, this thing is becoming less of an all-encompassing "game engine" and more of a "game framework".
+Here's the idea:
+
+- You use this "framework" as the basis for making your game with ebiten. It abstracts away a lot of the world-logic stuff that is complicated, and instead lets you just focus on
+things like defining characters, maps, quests, etc.
+- It includes a lot of useful, reusable UI components, utility functions, helper functions for things like rendering, etc.
+- BUT, it doesn't entirely remove ebiten from your "game" side of things. You can still use ebiten directly in your game, when useful.
+- The assumption here is that this framework will make things work much smoother and quicker, and will be reusable between games of a similar genre: 2D RPG style games.
+
+Maybe over time, as I get a clearer and clearer picture of what can be abstracted away from the game side into the "engine/framework" side, direct use of ebiten will get 
+gradually lesser and lesser. Maybe, in a future hypothetical version (if this engine/framework project goes far enough) it would fully hide ebiten and have a fully fleshed suite 
+of abstractions on top of it. But, for now, I think that's kind of overkill and just distracting from the real goal of making a cool game.
+
+So, moving forward, I think I might rebrand this whole thing as a "game framework", or maybe an "RPG framework for ebiten". I'll play with the wording a bit, but since ebiten 
+won't be completely hidden, I don't think it makes sense to treat this thing as a game engine alone, does it?
+
+## Next Steps 
+
+Ok, so besides all that "engine vs framework" stuff, here are the things I'm actually working on:
+
+- moving all "game code" out of this engine project and into its own repo, and making sure it works smoothly there.
+- continuing to develop the first quest, and more specifically, the character creation part. I need to make a screen where the player can directly create their class/major skills/etc,
+  but I also need to make the "questionaire" where you can answer questions to have your class and skills decided for you.
+- once the character creation part is finished, then we move onto quest 2, which is where the game starts to actually come more to life. My plans for that is the player is
+  transported to a legion camp where he will start to be exposed to different mechanics, like combat, buying things, etc.
+
 # 2026-02-18
 
 Excited to announce that the quest system is working! So far, I've just been testing with a simple type of quest that is activated by a dialog session.

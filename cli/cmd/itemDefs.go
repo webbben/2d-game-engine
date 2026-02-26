@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity/body"
-	"github.com/webbben/2d-game-engine/internal/tiled"
+	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/item"
 )
 
