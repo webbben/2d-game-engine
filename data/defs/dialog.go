@@ -61,6 +61,8 @@ type DialogResponse struct {
 	// ex: you want the first section of a speech to introduce some things, then you want the second section (the NextResponse) to actually
 	// trigger effects, quest updates, etc. Allows for enhanced pacing and dramatic effect.
 	NextResponse *DialogResponse
+	// similar to NextResponse, but allows for different options based on conditions. You can use either NextResponse or this, but not both at the same time.
+	NextResponseOptions []DialogResponse
 }
 
 func (dr DialogResponse) Validate() {
@@ -72,6 +74,13 @@ func (dr DialogResponse) Validate() {
 	}
 	if dr.NextResponse != nil {
 		dr.NextResponse.Validate()
+		if len(dr.NextResponseOptions) > 0 {
+			panic("has next response, but also has next response options")
+		}
+	} else {
+		for _, nr := range dr.NextResponseOptions {
+			nr.Validate()
+		}
 	}
 }
 
@@ -92,6 +101,7 @@ type DialogCondition interface {
 type ConditionContext interface {
 	HasSeenTopic(id TopicID) bool
 	IsTopicUnlocked(id TopicID) bool
+	GetCharacterDef(id CharacterDefID) CharacterDef
 }
 
 type MemoryCondition struct {
@@ -106,6 +116,7 @@ type DialogEffect interface {
 type EffectContext interface {
 	RecordTopicSeen(id TopicID)
 	RecordTopicUnlocked(id TopicID)
+	RecordMiscDialogMemory(key string)
 	BroadcastEvent(event Event)
 
 	AddGold(amount int)

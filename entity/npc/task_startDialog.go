@@ -5,7 +5,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/internal/pubsub"
+	"github.com/webbben/2d-game-engine/pubsub"
 )
 
 type StartDialogTask struct {

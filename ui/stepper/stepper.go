@@ -8,8 +8,8 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/ui/text"
 	"github.com/webbben/2d-game-engine/ui/button"
+	"github.com/webbben/2d-game-engine/ui/text"
 	"golang.org/x/image/font"
 )
 
@@ -21,6 +21,7 @@ type Stepper struct {
 	counterVal             int
 	counterFont            font.Face
 	counterFg, counterBg   color.Color
+	counterMaxWidth        int
 }
 
 type StepperParams struct {
@@ -39,6 +40,7 @@ func NewStepper(params StepperParams) Stepper {
 	if params.MinVal >= params.MaxVal {
 		logz.Panicln("NewStepper", "invalid min/max values:", "min:", params.MinVal, "max:", params.MaxVal)
 	}
+
 	s := Stepper{
 		decrementButton: button.NewImageButton("", config.DefaultFont, params.DecrementButtonImage),
 		incrementButton: button.NewImageButton("", config.DefaultFont, params.IncrementButtonImage),
@@ -49,6 +51,9 @@ func NewStepper(params StepperParams) Stepper {
 		counterFg:       params.FontFg,
 		counterBg:       params.FontBg,
 	}
+
+	maxWidth, _, _ := text.GetStringSize(fmt.Sprintf("%v", s.counterMax), s.counterFont)
+	s.counterMaxWidth = maxWidth
 
 	return s
 }
@@ -62,6 +67,13 @@ func (s *Stepper) Update() {
 	}
 }
 
+func (s Stepper) Dimensions() (dx, dy int) {
+	tilesize := int(config.GetScaledTilesize())
+	dx = s.decrementButton.Width + s.incrementButton.Width + (tilesize / 2) + s.counterMaxWidth
+	dy = max(s.decrementButton.Height, s.incrementButton.Height)
+	return dx, dy
+}
+
 func (s *Stepper) Draw(screen *ebiten.Image, x, y float64) {
 	tilesize := int(config.TileSize * config.UIScale)
 	drawX := int(x)
@@ -71,12 +83,11 @@ func (s *Stepper) Draw(screen *ebiten.Image, x, y float64) {
 	drawX += s.decrementButton.Width
 
 	// draw the counter
-	maxWidth, _, _ := text.GetStringSize(fmt.Sprintf("%v", s.counterMax), s.counterFont)
 	drawX += tilesize / 4
 	count := fmt.Sprintf("%v", s.counterVal)
-	sX, sY := text.CenterTextInRect(count, s.counterFont, model.Rect{X: float64(drawX), Y: float64(drawY), W: float64(maxWidth), H: float64(tilesize)})
+	sX, sY := text.CenterTextInRect(count, s.counterFont, model.Rect{X: float64(drawX), Y: float64(drawY), W: float64(s.counterMaxWidth), H: float64(tilesize)})
 	text.DrawShadowText(screen, count, s.counterFont, sX, sY, s.counterFg, s.counterBg, 0, 0)
-	drawX += (tilesize / 4) + maxWidth
+	drawX += (tilesize / 4) + s.counterMaxWidth
 
 	s.incrementButton.Draw(screen, drawX, drawY)
 }

@@ -5,7 +5,7 @@ import (
 )
 
 func ZzEffectInterfaceCheck() {
-	_ = append([]defs.DialogEffect{}, &EventEffect{}, &AddGoldEffect{})
+	_ = append([]defs.DialogEffect{}, &EventEffect{}, &AddGoldEffect{}, &SetDialogMemoryEffect{})
 }
 
 type EventEffect struct {
@@ -22,4 +22,11 @@ type AddGoldEffect struct {
 
 func (e AddGoldEffect) Apply(ctx defs.EffectContext) {
 	ctx.AddGold(e.Amount)
+}
+
+type SetDialogMemoryEffect struct {
+	MemoryKey string
+}
+
+func (e SetDialogMemoryEffect) Apply(ctx defs.EffectContext) {
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/logz"
 	"golang.org/x/image/font"
 )
 
@@ -97,20 +98,6 @@ func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color
 		writeImmediately: writeImmediately,
 	}
 
-	// prepare lines to write
-	lw.linesToWrite = ConvertStringToLines(lw.sourceText, lw.fontFace, lw.maxLineWidth)
-	lw.currentLineIndex = 0
-	lw.currentLineNumber = 0
-	lw.writtenLines = []string{""}
-
-	// determine line height
-	for _, line := range lw.linesToWrite {
-		_, lineHeight, _ := GetStringSize(line, lw.fontFace)
-		if lineHeight > lw.lineHeight {
-			lw.lineHeight = lineHeight
-		}
-	}
-
 	return lw
 }
 
@@ -128,9 +115,13 @@ func (lw *LineWriter) SetSourceText(textToWrite string) {
 
 	// prepare lines to write
 	lw.linesToWrite = ConvertStringToLines(lw.sourceText, lw.fontFace, lw.maxLineWidth)
+	if len(lw.linesToWrite) == 0 {
+		logz.Panicln("LineWriter", "no lines to write. source text:", lw.sourceText)
+	}
 	lw.currentLineIndex = 0
 	lw.currentLineNumber = 0
 	lw.writtenLines = []string{""}
+	lw.lineHeight = 0
 
 	// determine line height
 	for _, line := range lw.linesToWrite {
@@ -138,6 +129,10 @@ func (lw *LineWriter) SetSourceText(textToWrite string) {
 		if lineHeight > lw.lineHeight {
 			lw.lineHeight = lineHeight
 		}
+	}
+
+	if lw.lineHeight == 0 {
+		logz.Panicln("LineWriter", "lineheight was 0. linesToWrite:", lw.linesToWrite)
 	}
 
 	lw.pageLineCount = lw.maxHeight / lw.lineHeight

@@ -4,22 +4,27 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/internal/lights"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 )
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	if g.MapInfo == nil {
-		return
-	}
+	switch g.gameStage {
+	case MainMenu:
+		g.mainMenuViewer.Draw(screen)
+	case InGameWorld:
+		if g.MapInfo == nil {
+			logz.Panicln("DRAW", "game stage is InGameWorld, but no map info exists...")
+		}
+		g.drawWorld(screen, g.OverlayManager)
 
-	g.drawWorld(screen, g.OverlayManager)
+		// show game debug info, including this scale info
+		if config.ShowGameDebugInfo {
+			g.showGameDebugInfo(screen)
+		}
+	}
 
 	g.OverlayManager.Draw(screen)
-
-	// show game debug info, including this scale info
-	if config.ShowGameDebugInfo {
-		g.showGameDebugInfo(screen)
-	}
 }
 
 func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {

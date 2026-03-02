@@ -15,18 +15,32 @@ import (
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/camera"
 	"github.com/webbben/2d-game-engine/internal/lights"
-	"github.com/webbben/2d-game-engine/internal/pubsub"
 	"github.com/webbben/2d-game-engine/logz"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
+	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
+	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/trade"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+type GameStage string
+
+const (
+	MainMenu    GameStage = "MAIN_MENU"
+	InGameWorld GameStage = "IN_GAME_WORLD"
+)
+
 // Game - the root of the game state that is maintained when game is active
 type Game struct {
+	// the main menu screen that runs when you startup the game.
+	// when this screen reaches "done" state, the game will start running in-world logic.
+	MainMenu       screen.Screen
+	mainMenuViewer screen.ScreenViewer
+	gameStage      GameStage
+
 	MapInfo *MapInfo
 	Player  *player.Player // the player
 	Camera  camera.Camera  // the camera/viewport
@@ -41,7 +55,6 @@ type Game struct {
 	TestDataMap       map[string]any               // a general purpose map; used for testing in the update hook functions
 
 	activeGlobalKeyBindFn map[ebiten.Key]bool // maps which keybinding functions are actively executing, to prevent repeated calls from long key presses.
-	GamePaused            bool                // if true, the game is paused
 
 	Clock         clock.Clock
 	daylightFader lights.LightFader
@@ -58,11 +71,16 @@ type Game struct {
 
 	UpdateHooks
 
-	Dataman *datamanager.DataManager
-	AudioManager      *audio.AudioManager
-	QuestManager      *quest.QuestManager
+	Dataman       *datamanager.DataManager
+	AudioManager  *audio.AudioManager
+	QuestManager  *quest.QuestManager
+	ScreenManager *screen.ScreenManager
 
 	debugData debugData // just used for the debug drawing
+}
+
+func (g Game) GetGameStage() GameStage {
+	return g.gameStage
 }
 
 // StartDialogSession starts a dialog session with the given dialog profile ID
@@ -146,12 +164,15 @@ func NewGame(hour int) *Game {
 		daylightFader: lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20),
 		Clock:         clock.NewClock(config.HourSpeed, hour, 0, 0, 0, 762, 90),
 
+		gameStage: MainMenu,
+
 		// managers
 
-		EventBus:          pubsub.NewEventBus(),
-		OverlayManager:    &overlay.OverlayManager{},
-		Dataman: datamanager.NewDataManager(),
-		AudioManager:      audio.NewAudioManager(),
+		EventBus:       pubsub.NewEventBus(),
+		OverlayManager: &overlay.OverlayManager{},
+		Dataman:        datamanager.NewDataManager(),
+		AudioManager:   audio.NewAudioManager(),
+		ScreenManager:  screen.NewScreenManager(),
 	}
 
 	g.QuestManager = quest.NewQuestManager(g.EventBus, &g)
@@ -163,9 +184,17 @@ func NewGame(hour int) *Game {
 	return &g
 }
 
-func (g *Game) GetPlayerInfo() dialogv2.PlayerInfo {
-	return dialogv2.PlayerInfo{
-		PlayerName: g.Player.Entity.CharacterStateRef.DisplayName,
+func (g *Game) SetMainMenu(scrID screen.ScreenID) {
+	scr := g.ScreenManager.GetScreen(scrID)
+	g.MainMenu = scr
+	g.mainMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g)
+}
+
+func (g *Game) GetPlayerInfo() defs.PlayerInfo {
+	charDef := g.Dataman.GetCharacterDef(g.Player.Entity.CharacterStateRef.DefID)
+	return defs.PlayerInfo{
+		PlayerName:    g.Player.Entity.CharacterStateRef.DisplayName,
+		PlayerCulture: charDef.CultureID,
 	}
 }
 

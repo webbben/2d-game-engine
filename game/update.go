@@ -5,6 +5,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/object"
 )
 
@@ -13,8 +14,20 @@ func (g *Game) Update() error {
 		g.handleGlobalKeyBindings()
 	}
 
-	if !g.GamePaused {
+	switch g.gameStage {
+	case MainMenu:
+		if g.MainMenu == nil {
+			// No main menu, so just jump straight into the game world
+			g.gameStage = InGameWorld
+		}
+		g.mainMenuViewer.Update()
+		if g.mainMenuViewer.IsDone() {
+			g.gameStage = InGameWorld
+		}
+	case InGameWorld:
 		g.worldUpdates()
+	default:
+		logz.Panicln("UPDATE", "Game stage was invalid! Game stage value:", g.gameStage)
 	}
 
 	if config.TrackMemoryUsage {

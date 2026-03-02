@@ -4,6 +4,7 @@ type (
 	AttributeID string
 	SkillID     string
 	TraitID     string
+	CultureID   string
 )
 
 // LevelSystemParameters defines all the parameters that are used in calculating anything to do with our level system, such as:
@@ -114,4 +115,12 @@ type OpinionFactors struct {
 	CultureID  string
 	Skills     map[SkillID]int
 	Attributes map[AttributeID]int
+}
+
+type CultureDef struct {
+	ID          CultureID
+	DisplayName string
+	Description string
+	AttrMods    map[AttributeID]int
+	SkillMods   map[SkillID]int
 }

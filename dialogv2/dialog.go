@@ -5,18 +5,18 @@ import (
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/data/datamanager"
-	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/internal/pubsub"
-	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/ui/box"
 	"github.com/webbben/2d-game-engine/ui/button"
 	"github.com/webbben/2d-game-engine/ui/modal"
-	"github.com/webbben/2d-game-engine/screen"
+	"github.com/webbben/2d-game-engine/ui/text"
 	"golang.org/x/image/font"
 )
 
@@ -37,8 +37,13 @@ const (
 )
 
 const (
-	VarPlayerName string = "{player_name}"
+	VarPlayerName    string = "{player_name}"
+	VarPlayerCulture string = "{player_culture}"
 )
+
+var AllDialogVariables = []string{
+	VarPlayerName, VarPlayerCulture,
+}
 
 type GetUserInputActionParams struct {
 	ModalTitle        string
@@ -64,12 +69,11 @@ type DialogSession struct {
 	TextBoxImg            *ebiten.Image
 	TopicBoxImg           *ebiten.Image
 	topicBoxDefaultHeight int
-	BigReplyBoxImg        *ebiten.Image
 
 	LineWriter text.LineWriter
 
 	eventBus *pubsub.EventBus
-	dataman   *datamanager.DataManager
+	dataman  *datamanager.DataManager
 	scrMgr   *screen.ScreenManager
 
 	flashContinueIcon   bool
@@ -78,7 +82,8 @@ type DialogSession struct {
 
 	topicButtons []*button.Button
 	topicList    []defs.TopicID
-	replyButtons []*button.Button
+	replyButtons []*button.Button // reply buttons that can appear in the topic box (for small replies only)
+	replyBox     *replyBox        // a box to show bigger replies, when a reply needs more space for an entire sentence (or more).
 	replyList    []defs.DialogReply
 
 	f font.Face // font used for all text in dialog
@@ -113,7 +118,7 @@ type DialogSessionParams struct {
 	TextFont      font.Face
 }
 
-func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, dataman *datamanager.DataManager, gameState GameStateContext) DialogSession {
+func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, dataman *datamanager.DataManager, gameState defs.GameDialogContext) DialogSession {
 	if params.ProfileID == "" {
 		panic("profile ID was empty")
 	}
@@ -141,13 +146,13 @@ func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, dat
 	profileDef := dataman.GetDialogProfile(params.ProfileID)
 	profileState := dataman.GetDialogProfileState(params.ProfileID)
 
-	ctx := NewDialogContext(params.NPCID, profileState, gameState, eventBus)
+	ctx := NewDialogContext(params.NPCID, profileState, gameState, eventBus, dataman)
 	ds := DialogSession{
 		ProfileState: profileState,
 		ProfileDef:   profileDef,
 		Ctx:          ctx,
 		eventBus:     eventBus,
-		dataman:       dataman,
+		dataman:      dataman,
 		f:            params.TextFont,
 	}
 
@@ -303,26 +308,27 @@ func (ds *DialogSession) setupReplyOptions() {
 		}
 	}
 
-	totalHeight := max(len(replies)*h, int(tileSize)*4)
+	if len(replies) == 0 {
+		logz.Panicln("Dialog", "trying to setup replies, but no valid replies were found (none met their conditions). currentResponse:", ds.currentResponse.Text)
+	}
+
+	ds.replyList = replies
+
 	// now that we have all valid replies and the max width, create the buttons, and if needed, the larger replies box.
 	if maxReplyWidth > w {
-		maxReplyWidth -= maxReplyWidth % int(tileSize)
-		maxReplyWidth += int(tileSize)
-		totalHeight -= totalHeight % int(tileSize)
-		totalHeight += int(tileSize)
-		// create the big replies box
-		// we add the extra padding here since we want the reply box to be wider, but not the buttons themselves
-		ds.BigReplyBoxImg = ds.boxSrc.BuildBoxImage(maxReplyWidth+int(tileSize), totalHeight)
-	} else {
-		// using regular topic box; make sure it is the correct height
-		ds.BigReplyBoxImg = nil // if set to nil, we know not to use it at draw time
-		ds.calculateTopicBoxSize(totalHeight)
+		ds.setupReplyBox(maxReplyWidth, replies)
+		return
 	}
+
+	totalHeight := max(len(replies)*h, int(tileSize)*4)
+
+	// using regular topic box; make sure it is the correct height
+	ds.replyBox = nil // if set to nil, we know not to use it at draw time
+	ds.calculateTopicBoxSize(totalHeight)
 
 	// build all the buttons, now that we know the width to use
 	for _, reply := range replies {
 		ds.replyButtons = append(ds.replyButtons, button.NewButton(reply.Text, ds.f, maxReplyWidth, h))
-		ds.replyList = append(ds.replyList, reply)
 	}
 
 	if len(ds.replyButtons) == 0 {
@@ -418,7 +424,8 @@ func (ds *DialogSession) startAction() {
 		}
 		s := ds.scrMgr.GetScreen(params.ScreenID)
 		ds.midDialogScreen = s
-		ds.midDialogScreen.Load(ds.dataman)
+		// TODO: need to get om and popup manager to pass in here
+		ds.midDialogScreen.Load(ds.dataman, ds.eventBus, nil, nil, nil)
 	default:
 		logz.Panicln("startAction", "action type not recognized:", action.Type)
 	}
@@ -456,10 +463,18 @@ func (ds *DialogSession) setResponseText(s string) {
 
 	// detect if there are any variables to fill in
 	if strings.Contains(s, "{") {
-		allVars := []string{VarPlayerName}
+		playerInfo := ds.Ctx.GameState.GetPlayerInfo()
+		for _, v := range AllDialogVariables {
+			insertString := ""
+			switch v {
+			case VarPlayerName:
+				insertString = playerInfo.PlayerName
+			case VarPlayerCulture:
+				cultureDef := ds.dataman.GetCultureDef(playerInfo.PlayerCulture)
+				insertString = cultureDef.DisplayName
+			}
 
-		for _, v := range allVars {
-			s = strings.ReplaceAll(s, v, ds.Ctx.GameState.GetPlayerInfo().PlayerName)
+			s = strings.ReplaceAll(s, v, insertString)
 		}
 	}
 
@@ -477,6 +492,7 @@ func (ds *DialogSession) ApplyReply(dr defs.DialogReply) {
 	// the player has chosen a reply, so we no longer need the reply buttons.
 	ds.replyButtons = []*button.Button{}
 	ds.replyList = []defs.DialogReply{}
+	ds.replyBox = nil
 
 	for _, effect := range dr.Effects {
 		effect.Apply(&ds.Ctx)

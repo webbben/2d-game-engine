@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/internal/pubsub"
+	"github.com/webbben/2d-game-engine/pubsub"
 )
 
 const (
@@ -18,26 +19,16 @@ const (
 type DialogContext struct {
 	NPCID     string
 	Profile   *state.DialogProfileState
-	GameState GameStateContext
+	GameState defs.GameDialogContext
 	eventBus  *pubsub.EventBus
+	dataman   *datamanager.DataManager
 
 	seenTopics     map[defs.TopicID]bool
 	unlockedTopics map[defs.TopicID]bool
 	seenResponses  map[string]bool
 }
 
-type GameStateContext interface {
-	GetPlayerInfo() PlayerInfo
-	SetPlayerName(name string)
-	DialogCtxAddGold(amount int)
-}
-
-// PlayerInfo is information about the player that dialogs might use
-type PlayerInfo struct {
-	PlayerName string
-}
-
-func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState GameStateContext, eventBus *pubsub.EventBus) DialogContext {
+func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState defs.GameDialogContext, eventBus *pubsub.EventBus, dataman *datamanager.DataManager) DialogContext {
 	// just confirming dialog context implements the necessary interfaces
 	_ = append([]defs.ConditionContext{}, &DialogContext{})
 	if profile == nil {
@@ -49,11 +40,15 @@ func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState
 	if npcID == "" {
 		panic("npc ID was empty")
 	}
+	if dataman == nil {
+		panic("dataman was nil")
+	}
 	ds := DialogContext{
 		NPCID:     npcID,
 		Profile:   profile,
 		GameState: gameState,
 		eventBus:  eventBus,
+		dataman:   dataman,
 	}
 	ds.seenTopics = make(map[defs.TopicID]bool)
 	ds.unlockedTopics = make(map[defs.TopicID]bool)
@@ -152,4 +147,12 @@ func (ctx *DialogContext) BroadcastEvent(e defs.Event) {
 
 func (ctx *DialogContext) AddGold(amount int) {
 	ctx.GameState.DialogCtxAddGold(amount)
+}
+
+func (ctx DialogContext) GetCharacterDef(id defs.CharacterDefID) defs.CharacterDef {
+	return ctx.dataman.GetCharacterDef(id)
+}
+
+func (ctx DialogContext) RecordMiscDialogMemory(key string) {
+	ctx.Profile.Memory[key] = true
 }

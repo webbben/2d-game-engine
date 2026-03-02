@@ -2,13 +2,13 @@ package dialogv2
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/display"
-	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
-	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/ui/modal"
+	"github.com/webbben/2d-game-engine/ui/text"
 )
 
 // updateDialogResponse handles the logic for what to do next from the current node in the current topic's conversation
@@ -71,6 +71,19 @@ func (ds *DialogSession) updateDialogResponse() {
 			}
 			return
 		}
+		if len(ds.currentResponse.NextResponseOptions) > 0 {
+			// find the correct next response to move on to
+			if ds.flashUntilContinue() {
+				for _, nr := range ds.currentResponse.NextResponseOptions {
+					if ConditionsMet(nr.Conditions, ds.Ctx) {
+						ds.ApplyResponse(nr)
+						return
+					}
+				}
+				logz.Panicln(string(ds.Ctx.Profile.ProfileID), "tried to get a next response option, but none had their conditions met; current response text:", ds.currentResponse.Text)
+			}
+			return
+		}
 		if len(ds.currentResponse.Replies) > 0 {
 			// show user reply options and wait for them to choose
 			ds.responseStatus = dialogResponseUserReply
@@ -82,14 +95,22 @@ func (ds *DialogSession) updateDialogResponse() {
 		if len(ds.currentResponse.Replies) == 0 {
 			panic("no replies available")
 		}
-		if len(ds.replyButtons) == 0 {
+		if len(ds.replyButtons) == 0 && ds.replyBox == nil {
 			ds.setupReplyOptions()
+			if len(ds.replyButtons) == 0 && ds.replyBox == nil {
+				logz.Panicln("Dialog", "no reply buttons or replyBox has been created")
+			}
 		}
-		for i, b := range ds.replyButtons {
-			if b.Update().Clicked {
-				r := ds.replyList[i]
-				ds.ApplyReply(r)
-				return
+
+		if ds.replyBox != nil {
+			ds.updateReplyBox()
+		} else {
+			for i, b := range ds.replyButtons {
+				if b.Update().Clicked {
+					r := ds.replyList[i]
+					ds.ApplyReply(r)
+					return
+				}
 			}
 		}
 	case dialogResponseFinished:
@@ -232,6 +253,8 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 	optionBoxX := textBoxX + textBoxBounds.Dx()
 	optionBoxY := display.SCREEN_HEIGHT // subtract the height of the option buttons from this
 	buttonHeight := 0
+
+	// position the topic box
 	if len(ds.replyButtons) > 0 {
 		buttonHeight = ds.replyButtons[0].Height
 	} else if len(ds.topicButtons) > 0 {
@@ -244,20 +267,15 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 	}
 	rendering.DrawImage(screen, ds.TopicBoxImg, float64(optionBoxX), float64(optionBoxY), 0)
 
-	if len(ds.replyButtons) > 0 {
-		// replies are shown either in the topic box, or a larger "big reply box" if the replies are too long to fit.
+	// handle drawing replies or topics
+	if ds.replyBox != nil {
+		// replies are using the larger reply box, since they are too big
+		ds.replyBox.draw(screen, textBoxY)
+	} else if len(ds.replyButtons) > 0 {
+		// replies are drawn in the topic box, since they are all small enough to fit
 		replyX := optionBoxX + int(tileSize/2)
 		replyY := optionBoxY + int(tileSize/2)
-		if ds.BigReplyBoxImg != nil {
-			// show in big reply box
-			replyBoxDx, replyBoxDy := ds.BigReplyBoxImg.Bounds().Dx(), ds.BigReplyBoxImg.Bounds().Dy()
-			bigReplyBoxX := (display.SCREEN_WIDTH / 2) - (replyBoxDx / 2)
-			bigReplyBoxY := (textBoxY / 2) - (replyBoxDy / 2)
-			rendering.DrawImage(screen, ds.BigReplyBoxImg, float64(bigReplyBoxX), float64(bigReplyBoxY), 0)
-			replyX = int(bigReplyBoxX) + (int(tileSize) / 2)
-			replyY = int(bigReplyBoxY) + (int(tileSize) / 2)
-		}
-		// show reply buttons where topic buttons normally go
+
 		for i, b := range ds.replyButtons {
 			b.Draw(screen, replyX, replyY+(i*buttonHeight))
 		}
