@@ -32,6 +32,9 @@ func WriteToJSON(v any, outputFilePath string) error {
 }
 
 func GetListOfFiles(directoryPath string, getAbsPaths bool) []string {
+	if directoryPath == "" {
+		logz.Panicln("GetListOfFiles", "directoryPath was empty...")
+	}
 	files := []string{}
 	fileInfos, err := os.ReadDir(directoryPath)
 	if err != nil {

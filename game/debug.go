@@ -10,9 +10,9 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/internal/debug"
 )
 
 type debugData struct {
@@ -226,6 +226,10 @@ func (g Game) showEntityCoords() string {
 }
 
 func (g Game) showGameDebugInfo(screen *ebiten.Image) {
+	if g.gameStage != InGameWorld {
+		return
+	}
+
 	var s strings.Builder
 
 	if config.TrackMemoryUsage {

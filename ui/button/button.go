@@ -1,3 +1,4 @@
+// Package button
 package button
 
 import (
@@ -5,11 +6,11 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/mouse"
-	"github.com/webbben/2d-game-engine/imgutil/rendering"
-	"github.com/webbben/2d-game-engine/ui/text"
 	"github.com/webbben/2d-game-engine/ui/box"
+	"github.com/webbben/2d-game-engine/ui/text"
 	"golang.org/x/image/font"
 )
 
@@ -25,6 +26,8 @@ type Button struct {
 	buttonImg   *ebiten.Image
 	hoverBoxImg *ebiten.Image
 	textImg     *ebiten.Image
+
+	flashFactor float32 // gets set when we want to flash the button
 }
 
 func NewImageButton(buttonText string, fontFace font.Face, img *ebiten.Image) *Button {
@@ -90,6 +93,10 @@ func NewButton(buttonText string, fontFace font.Face, width, height int) *Button
 		height = dy
 	}
 
+	if width == 0 || height == 0 {
+		logz.Panicln("Button", "height or width was 0. height:", height, "width:", width)
+	}
+
 	b := Button{
 		init:       true,
 		ButtonText: buttonText,
@@ -101,9 +108,11 @@ func NewButton(buttonText string, fontFace font.Face, width, height int) *Button
 	// build images
 	b.hoverBoxImg = ebiten.NewImage(b.Width, b.Height)
 	b.hoverBoxImg.Fill(color.RGBA{30, 30, 30, 5})
-	b.textImg = ebiten.NewImage(dx, dy)
-	// b.textImg.Fill(color.RGBA{100, 0, 0, 50})
-	text.DrawShadowText(b.textImg, b.ButtonText, b.fontFace, baselineX, baselineY, nil, nil, 0, 0)
+	if b.ButtonText != "" {
+		b.textImg = ebiten.NewImage(dx, dy)
+		// b.textImg.Fill(color.RGBA{100, 0, 0, 50})
+		text.DrawShadowText(b.textImg, b.ButtonText, b.fontFace, baselineX, baselineY, nil, nil, 0, 0)
+	}
 
 	return &b
 }
@@ -131,7 +140,22 @@ func (b *Button) Update() ButtonUpdateResult {
 		result.Clicked = true
 	}
 
+	if b.flashFactor > 0 {
+		b.flashFactor *= 0.9
+		if b.flashFactor < 0.01 {
+			b.flashFactor = 0
+		}
+	}
+
 	return result
+}
+
+func (b *Button) Flash() {
+	b.flashFactor = 3
+}
+
+func (b Button) IsFlashing() bool {
+	return b.flashFactor > 0
 }
 
 func (b *Button) Draw(screen *ebiten.Image, x, y int) {
@@ -151,19 +175,36 @@ func (b *Button) Draw(screen *ebiten.Image, x, y int) {
 	var dx, dy int
 
 	if b.buttonImg != nil {
-		dx, dy = rendering.CenterImageOnImage(b.buttonImg, b.textImg)
+		if b.textImg != nil {
+			dx, dy = rendering.CenterImageOnImage(b.buttonImg, b.textImg)
+		}
 		// draw button image instead of highlight hover box
 		ops := ebiten.DrawImageOptions{}
 		if b.mouseBehavior.IsHovering {
 			ops.ColorScale.Scale(1.2, 1.2, 1.2, 1)
+		} else if b.flashFactor > 0 {
+			ops.ColorScale.Scale(1+b.flashFactor, 1+b.flashFactor, 1+b.flashFactor, 1)
 		}
 		rendering.DrawImageWithOps(screen, b.buttonImg, float64(x), float64(y), 0, &ops)
 	} else {
 		// for clear buttons with no button image; we just show a highlight box
-		dx, dy = rendering.CenterImageOnImage(b.hoverBoxImg, b.textImg)
+		if b.textImg != nil {
+			dx, dy = rendering.CenterImageOnImage(b.hoverBoxImg, b.textImg)
+		}
 		if b.mouseBehavior.IsHovering {
-			rendering.DrawImage(screen, b.hoverBoxImg, float64(x), float64(y), 0)
+			ops := ebiten.DrawImageOptions{}
+			ops.ColorScale.Scale(1, 1, 1, 0.1)
+			rendering.DrawImageWithOps(screen, b.hoverBoxImg, float64(x), float64(y), 0, &ops)
+
+			// rendering.DrawImage(screen, b.hoverBoxImg, float64(x), float64(y), 0)
+		} else if b.flashFactor > 0 {
+			ops := ebiten.DrawImageOptions{}
+			ops.ColorScale.Scale(b.flashFactor, b.flashFactor, b.flashFactor, b.flashFactor)
+			rendering.DrawImageWithOps(screen, b.hoverBoxImg, float64(x), float64(y), 0, &ops)
 		}
 	}
-	rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
+	// some buttons may not have text
+	if b.textImg != nil {
+		rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
+	}
 }

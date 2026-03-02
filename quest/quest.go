@@ -4,8 +4,8 @@ package quest
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/internal/pubsub"
 )
 
 const (
@@ -40,18 +40,12 @@ type QuestManager struct {
 	completed  map[defs.QuestID]*state.QuestState
 	failed     map[defs.QuestID]*state.QuestState
 
-	world WorldController
+	world defs.GameQuestContext
 
 	eventBus *pubsub.EventBus
 }
 
-type WorldController interface {
-	AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef)
-	QueueScenario(id defs.ScenarioID)
-	UnlockMapLock(mapID defs.MapID, lockID string)
-}
-
-func NewQuestManager(eventBus *pubsub.EventBus, worldRef WorldController) *QuestManager {
+func NewQuestManager(eventBus *pubsub.EventBus, worldRef defs.GameQuestContext) *QuestManager {
 	if eventBus == nil {
 		panic("event bus was nil")
 	}

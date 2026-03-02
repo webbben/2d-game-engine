@@ -35,6 +35,8 @@ type DataManager struct {
 	AttributeDefs map[defs.AttributeID]defs.AttributeDef
 	SkillDefs     map[defs.SkillID]defs.SkillDef
 	TraitDefs     map[defs.TraitID]defs.Trait
+	ClassDefs     map[defs.ClassDefID]defs.ClassDef
+	CultureDefs   map[defs.CultureID]defs.CultureDef
 }
 
 func NewDataManager() *DataManager {
@@ -56,8 +58,52 @@ func NewDataManager() *DataManager {
 		CharacterDefs:       make(map[defs.CharacterDefID]defs.CharacterDef),
 		CharacterStates:     make(map[state.CharacterStateID]*state.CharacterState),
 		NPCSchedules:        make(map[defs.ScheduleID]defs.ScheduleDef),
+		CultureDefs:         make(map[defs.CultureID]defs.CultureDef),
+		ClassDefs:           make(map[defs.ClassDefID]defs.ClassDef),
 	}
 	return &dataman
+}
+
+func (dataman *DataManager) LoadCultureDef(def defs.CultureDef) {
+	if def.ID == "" {
+		panic("id was empty")
+	}
+	if _, exists := dataman.CultureDefs[def.ID]; exists {
+		logz.Panicln("DataManager", "tried to load culture def, but id already exists:", def.ID)
+	}
+	dataman.CultureDefs[def.ID] = def
+}
+
+func (dataman *DataManager) GetCultureDef(id defs.CultureID) defs.CultureDef {
+	if id == "" {
+		panic("id was empty")
+	}
+	def, exists := dataman.CultureDefs[id]
+	if !exists {
+		logz.Panicln("DataManager", "tried to get culture def, but id doesn't exist:", id)
+	}
+	return def
+}
+
+func (dataman *DataManager) LoadClassDef(def defs.ClassDef) {
+	if def.ID == "" {
+		panic("id was empty")
+	}
+	if _, exists := dataman.ClassDefs[def.ID]; exists {
+		logz.Panicln("DataManager", "tried to load class def, but id already exists:", def.ID)
+	}
+	dataman.ClassDefs[def.ID] = def
+}
+
+func (dataman *DataManager) GetClassDef(id defs.ClassDefID) defs.ClassDef {
+	if id == "" {
+		panic("id was empty")
+	}
+	def, exists := dataman.ClassDefs[id]
+	if !exists {
+		logz.Panicln("DataManager", "tried to get class def, but id doesn't exist:", id)
+	}
+	return def
 }
 
 func (dataman *DataManager) LoadScenarioDef(def defs.ScenarioDef) {
@@ -327,6 +373,9 @@ func (dataman *DataManager) LoadSkillDef(sk defs.SkillDef) {
 }
 
 func (dataman DataManager) GetSkillDef(id defs.SkillID) defs.SkillDef {
+	if id == "" {
+		panic("id was empty")
+	}
 	skillDef, exists := dataman.SkillDefs[id]
 	if !exists {
 		logz.Panicln("DataManager", "tried to get skill by ID that doesn't exist:", id)

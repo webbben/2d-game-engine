@@ -18,6 +18,7 @@ type CharacterDef struct {
 	// This is set by the classDef, but the classDef remains as is; this just allows a character to have a customized name, but still use a specific base classDef.
 	ClassName        string
 	ClassDefID       ClassDefID // the actual class def
+	CultureID        CultureID
 	InitialInventory StandardInventory
 
 	DialogProfileID  DialogProfileID
