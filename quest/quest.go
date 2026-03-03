@@ -4,8 +4,8 @@ package quest
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/pubsub"
 )
 
 const (
@@ -43,6 +43,20 @@ type QuestManager struct {
 	world defs.GameQuestContext
 
 	eventBus *pubsub.EventBus
+}
+
+func (qm QuestManager) GetAllQuestStates() (active []state.QuestState, comp []state.QuestState, fail []state.QuestState) {
+	for _, st := range qm.active {
+		active = append(active, *st)
+	}
+	for _, st := range qm.completed {
+		comp = append(comp, *st)
+	}
+	for _, st := range qm.failed {
+		fail = append(fail, *st)
+	}
+
+	return active, comp, fail
 }
 
 func NewQuestManager(eventBus *pubsub.EventBus, worldRef defs.GameQuestContext) *QuestManager {
@@ -172,27 +186,12 @@ func (qm QuestManager) GetActiveQuestStage(questID defs.QuestID) defs.QuestStage
 	return questDef.Stages[currentStageID]
 }
 
-func (qm *QuestManager) loadQuestDef(d defs.QuestDef) {
+func (qm *QuestManager) LoadQuestDef(d defs.QuestDef) {
 	d.Validate()
 	qm.questDefs[d.ID] = d
 
 	// add it here, and then as quest states are loaded in later, we can delete them from this map.
 	qm.notStarted[d.ID] = true
-}
-
-// LoadAllQuestData loads all the quest data, ensuring the proper validations and index creation is done.
-func (qm *QuestManager) LoadAllQuestData(questDefs []defs.QuestDef, questStates []state.QuestState) {
-	for _, questDef := range questDefs {
-		qm.loadQuestDef(questDef)
-	}
-	for _, questState := range questStates {
-		qm.loadQuestState(questState)
-	}
-
-	logz.Println("QuestManager:LoadAllQuestData", "Loaded", len(questDefs), "quest defs and", len(questStates), "quest states")
-
-	// now that all quest defs and states are loaded in, create the indices
-	qm.CreateEventTypeIndices()
 }
 
 // CreateEventTypeIndices creates all the event indices that we use for knowing which quests are listening to which events.
@@ -241,7 +240,7 @@ func (qm *QuestManager) CreateEventTypeIndices() {
 	logz.Println("QuestManager", "stage reaction triggers index:", qm.stageReactionsByEvent)
 }
 
-func (qm *QuestManager) loadQuestState(questState state.QuestState) {
+func (qm *QuestManager) LoadQuestState(questState state.QuestState) {
 	// TODO: validate quest states
 	switch questState.Status {
 	case Active:

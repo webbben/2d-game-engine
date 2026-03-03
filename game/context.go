@@ -2,11 +2,12 @@ package game
 
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/entity/player"
-	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/pubsub"
 )
 
 func (g *Game) DialogCtxAddGold(amount int) {
@@ -71,7 +72,7 @@ func (g *Game) AddPlayerToMap(mapID defs.MapID, spawnIndex int) {
 	// TODO: should the "player" ID somehow be passed in here, or determined by a property on Game or something?
 	// Originally I was having it passed in to this function as a parameter, but I ran into an inconvenient problem where I couldn't put state.CharacterStateID
 	// into the context interface in defs, since it would cause a circular dependency. So, for now, just leaving it hard coded here..
-	playerEnt := entity.LoadCharacterStateIntoEntity("player", g.Dataman, g.AudioManager)
+	playerEnt := entity.LoadCharacterStateIntoEntity(state.CharacterStateID(defs.PlayerID), g.Dataman, g.AudioManager)
 
 	p := player.NewPlayer(g.Dataman, playerEnt)
 	_ = g.PlacePlayerAtSpawnPoint(&p, spawnIndex)

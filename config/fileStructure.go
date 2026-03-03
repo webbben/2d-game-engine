@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/utils/files"
 )
 
 /*
@@ -52,7 +54,7 @@ func InitFileStructure() error {
 	// remove all existing tiles on startup, to ensure that all tiles are up to date with source data
 	if FileExists(tilePath()) {
 		logz.Println("SYSTEM", "deleting all existing generated tiles from previous runs")
-		os.RemoveAll(tilePath())
+		_ = os.RemoveAll(tilePath())
 	}
 	err := os.MkdirAll(tilePath(), os.ModePerm)
 	if err != nil {
@@ -60,6 +62,35 @@ func InitFileStructure() error {
 	}
 
 	return nil
+}
+
+// SAVE GAME
+
+func saveFilesPath() string {
+	return filepath.Join(GameDataRootPath(), "saves")
+}
+
+func getPlayerSaveDir(uniquePlayerID defs.UniquePlayerID) string {
+	return filepath.Join(saveFilesPath(), string(uniquePlayerID))
+}
+
+func GetAllSaveDirs() []string {
+	return files.GetListOfFiles(saveFilesPath(), true)
+}
+
+func ResolveSaveFilePath(uniquePlayerID defs.UniquePlayerID, filename string) string {
+	saveDir := getPlayerSaveDir(uniquePlayerID)
+	return filepath.Join(saveDir, filename)
+}
+
+func EnsurePlayerSaveDirExists(uniquePlayerID defs.UniquePlayerID) {
+	saveDir := getPlayerSaveDir(uniquePlayerID)
+	if !FileExists(saveDir) {
+		err := os.MkdirAll(saveDir, os.ModePerm)
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 // GENERATED

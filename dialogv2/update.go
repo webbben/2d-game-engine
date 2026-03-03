@@ -40,15 +40,14 @@ func (ds *DialogSession) updateDialogResponse() {
 			}
 			return
 		case ActionTypeShowScreen:
-			if ds.midDialogScreen == nil {
-				panic("screen was nil during show screen action")
+			if ds.screenViewer == nil {
+				panic("screen viewer was nil during show screen action")
 			}
-			ds.midDialogScreen.Update()
-			if ds.midDialogScreen.IsDone() {
+			ds.screenViewer.Update()
+			if ds.screenViewer.IsDone() {
 				// we can disconnect the screen now
-				ds.midDialogScreen = nil
+				ds.screenViewer = nil
 				ds.continueApplyResponse()
-				return
 			}
 			return
 		default:
@@ -232,6 +231,11 @@ func (ds *DialogSession) awaitContinue() {
 }
 
 func (ds *DialogSession) Draw(screen *ebiten.Image) {
+	if ds.screenViewer != nil {
+		ds.screenViewer.Draw(screen)
+		return
+	}
+
 	tileSize := config.GetScaledTilesize()
 
 	textBoxBounds := ds.TextBoxImg.Bounds()

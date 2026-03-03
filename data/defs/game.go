@@ -9,6 +9,8 @@ functions.
 */
 
 type GameContext interface {
+	SaveGame() (saveFileName string)
+
 	GameDialogContext
 	GameQuestContext
 	GameScreenContext

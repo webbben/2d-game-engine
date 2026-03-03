@@ -95,7 +95,7 @@ func (g *Game) StartDialogSession(dialogProfileID defs.DialogProfileID, npcID st
 		BoxOriginID:   16,
 		TextFont:      config.DefaultFont,
 	}
-	ds := dialogv2.NewDialogSession(params, g.EventBus, g.Dataman, g)
+	ds := dialogv2.NewDialogSession(params, g.EventBus, g.Dataman, g.ScreenManager, g)
 
 	g.dialogSession = &ds
 }
@@ -158,11 +158,10 @@ func (g *Game) RunGame() error {
 	return ebiten.RunGame(g)
 }
 
-func NewGame(hour int) *Game {
+func NewGame(initTime clock.GameTime) *Game {
 	g := Game{
 		worldScene:    ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
 		daylightFader: lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20),
-		Clock:         clock.NewClock(config.HourSpeed, hour, 0, 0, 0, 762, 90),
 
 		gameStage: MainMenu,
 
@@ -175,13 +174,26 @@ func NewGame(hour int) *Game {
 		ScreenManager:  screen.NewScreenManager(),
 	}
 
+	g.SetGameTime(initTime)
+
 	g.QuestManager = quest.NewQuestManager(g.EventBus, &g)
 
-	// make sure lighting is initialized
-	// TODO: maybe this should be moved somewhere else. In fact, I wonder if we need this at all.
-	g.OnHourChange(hour, true, false)
-
 	return &g
+}
+
+func (g *Game) SetGameTime(gameTime clock.GameTime) {
+	g.Clock = clock.NewClock(
+		config.HourSpeed,
+		gameTime.Hour,
+		gameTime.Minute,
+		gameTime.Season,
+		gameTime.DayOfSeason,
+		gameTime.Year,
+		90, // TODO: move this to config variable?
+	)
+
+	// make sure lighting is initialized
+	g.OnHourChange(gameTime.Hour, true, false)
 }
 
 func (g *Game) SetMainMenu(scrID screen.ScreenID) {

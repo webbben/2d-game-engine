@@ -5,12 +5,18 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/data/datamanager"
-	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/item"
+	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/utils"
 )
+
+func GenerateUniquePlayerID(displayName string) defs.UniquePlayerID {
+	id := fmt.Sprintf("%s_%s", displayName, utils.GenerateUUID()[:8])
+	return defs.UniquePlayerID(id)
+}
 
 // GetNetTraitModifiers returns all of the net modifiers on skills produced by the given traits
 func GetNetTraitModifiers(traits []defs.TraitID, dataman *datamanager.DataManager) (skillMods map[defs.SkillID]int, attrMods map[defs.AttributeID]int) {

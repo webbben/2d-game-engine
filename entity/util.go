@@ -1,12 +1,12 @@
 package entity
 
 import (
-	"github.com/webbben/2d-game-engine/general_util"
+	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/model"
 )
 
 func (e Entity) DistFromEntity(otherEnt Entity) float64 {
-	return general_util.EuclideanDistCenter(e.CollisionRect(), otherEnt.CollisionRect())
+	return utils.EuclideanDistCenter(e.CollisionRect(), otherEnt.CollisionRect())
 }
 
 // GetPathToEntity gets a path to another entity. Warning: not a trivial calculation (uses path finding algorithm)

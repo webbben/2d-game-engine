@@ -1,4 +1,5 @@
-package general_util
+// Package files
+package files
 
 import (
 	"encoding/json"

@@ -10,7 +10,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/display"
-	"github.com/webbben/2d-game-engine/general_util"
+	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/ui/text"
@@ -216,7 +216,7 @@ func (ts *TradeScreen) Update() {
 		ts.handleItemTrade(transferResult)
 		// recalculate transaction price
 		transactionAmount := ts.calculateTransaction()
-		ts.transactionGoldCount.SetText(general_util.ConvertIntToCommaString(transactionAmount))
+		ts.transactionGoldCount.SetText(utils.ConvertIntToCommaString(transactionAmount))
 	}
 
 	acceptResult := ts.acceptButton.Update()
@@ -324,7 +324,7 @@ func (ts *TradeScreen) loadPlayerInventory() {
 	ts.playerInventory.SetItemSlots(ts.playerRef.Entity.CharacterStateRef.InventoryItems)
 
 	moneyCount := ts.playerRef.Entity.CharacterStateRef.CountMoney()
-	ts.playerGoldCount.SetText(general_util.ConvertIntToCommaString(moneyCount))
+	ts.playerGoldCount.SetText(utils.ConvertIntToCommaString(moneyCount))
 }
 
 func (ts *TradeScreen) acceptTransaction() {
