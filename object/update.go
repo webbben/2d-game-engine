@@ -7,7 +7,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/general_util"
+	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 )
@@ -138,7 +138,7 @@ func (obj *Object) activateLight() ObjectUpdateResult {
 func (obj *Object) updateLight() ObjectUpdateResult {
 	obj.PlayerHovering = false
 	if obj.MouseBehavior.IsHovering {
-		if general_util.EuclideanDistCenter(obj.World.GetPlayerRect(), obj.GetRect()) < config.TileSize*2 {
+		if utils.EuclideanDistCenter(obj.World.GetPlayerRect(), obj.GetRect()) < config.TileSize*2 {
 			obj.PlayerHovering = true
 		}
 	}
@@ -156,7 +156,7 @@ func (obj *Object) updateGate() ObjectUpdateResult {
 	}
 
 	if obj.MouseBehavior.IsHovering {
-		if general_util.EuclideanDistCenter(obj.World.GetPlayerRect(), obj.CollisionRect) < config.TileSize*2 {
+		if utils.EuclideanDistCenter(obj.World.GetPlayerRect(), obj.CollisionRect) < config.TileSize*2 {
 			obj.PlayerHovering = true
 		}
 	}

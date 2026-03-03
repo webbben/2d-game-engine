@@ -4,7 +4,7 @@ import (
 	"container/heap"
 	"fmt"
 
-	"github.com/webbben/2d-game-engine/general_util"
+	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/logz"
 	m "github.com/webbben/2d-game-engine/model"
 )
@@ -127,7 +127,7 @@ func aStar(start, goal m.Coords, costMap [][]int) ([]m.Coords, bool) {
 // use euclidean distance or manhattan distance?
 func heuristic(start, goal m.Coords) int {
 	// return int(math.Abs(float64(start.X)-float64(goal.X)) + math.Abs(float64(start.Y)-float64(goal.Y)))
-	return int(general_util.EuclideanDist(float64(start.X), float64(start.Y), float64(goal.X), float64(goal.Y)))
+	return int(utils.EuclideanDist(float64(start.X), float64(start.Y), float64(goal.X), float64(goal.Y)))
 }
 
 func reconstructPath(parent map[m.Coords]m.Coords, start, goal m.Coords) []m.Coords {

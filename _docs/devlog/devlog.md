@@ -1,3 +1,55 @@
+# 2026-03-03
+
+Figured it's time for more updates. I've now basically finished the whole first level and character creation, which included some things like
+designing the player's character body/appearance, and also designing the player's class (major/minor skills, etc). To do these things, I had to figure out how to make 
+specific screens appear mid-dialog, and in doing so I ended up designing a Screen interface and also implemented the concept of a main menu.
+This is exciting because it finally ties together pretty much all the different pieces of the game: before, I was just writing the code for running an in-game world,
+loading a specific map and running around in it, collisions, interacting with NPCs, etc. But now with this screens system, I have a way to show a start screen/main menu,
+and then choose to start a new game or load an existing game, etc. Additionally, screens as a concept introduce another way that custom code logic can be inserted into the
+game.
+
+## The "Screen" Concept 
+
+A "screen" in this game engine is a UI screen essentially. It's not part of the game world or a map, so when you're in a screen you're basically either already outside of the 
+game world, or briefly suspending it. For example, right now I have it so that in a certain dialog, we trigger a class creation screen to appear. when this happens, the screen 
+takes over and we are no longer in the dialog session. You do what you gotta do in the screen (design your character's class, in this case), and then when the Screen sees it's
+done, the screen goes away and dialog can proceed from there.
+
+But, it doesn't have to just be something like a UI screen that appears mid-game.  I realized that I can use this same concept for making things like the start menu, if I want.
+So, I've started doing just that, and in my main Game struct, I made it so that a Main Menu screen can be set, and now there are (so far) two "game stages":
+`MainMenu`, and `InGame`. Once the MainMenu screen is done, the game switches to the in-game stage. And, later on I'll probably make a screen or some kind of in-game control that
+can switch back to the main-menu stage once in-game play should end (e.g. you've saved and chosen to go back to the main menu).
+
+### Adding "Custom Logic" into the Game
+
+Until now, I've also been trying to figure out if and how the "game" project should be able to inject its own logic into the Update loop, so that it can have more control 
+over things. But I've now realized that Screens will help a little with that. If there is a point in the game where I'd want to have specific control over what happens
+(and would need to inject some custom logic or behavior somewhere), well, if it's something that should be done in a user interface, like a settings page for example,
+a Screen is the perfect solution.
+
+Probably though, there will be cases soon where I want custom logic to execute, but I don't want a UI screen involved. Maybe, for example, I want some magical item that 
+can do something specific like cause a monster to appear, or maybe a potion that once drank, transforms you into a dog. These are things that _could_ work with a screen
+(maybe a pop-up appears that explains what happened, and you click OK for the change to take effect?) but, maybe a screen involved would just make things clunkier.
+In such a case, I'm imagining making "custom event logic" which will listen for a specific event to occur, and then execute some bit of code.
+I guess I could call it an event script or something.
+
+## Next Steps 
+
+Anyway, I'm just excited that I've got this concept worked out, and it's helping me see the path forward a lot more clearly now too.
+Oh, also I've just made the logic for saving and loading games, so that is exciting too. Soon I'll experiment with saving after the first quest, and seeing if I can 
+load back in and continue the game where I left off. It's all starting to feel a lot more like a "game", which is cool.
+
+Next things I'm planning to tackle:
+
+1) Cinematic Transitions, and Cutscenes
+- I want some effects that can fire to fade the screen to black, for example. Would be used for moving between maps anyway, since right now it's just an instant transition.
+- Might want to do a cutscene at the end of the first quest, so maybe I should go ahead and get that logic figured out.
+  - I think it'll mainly just be setting some tasks on NPCs and freezing the controls of the player though, so may not end up being all that much work.
+
+2) Quest 2, and new maps, and cities 
+- Not going to spoil what the next quest is, but I'll need to make a new map that will be an actual, live city in the game.
+- These cities are going to be highly dynamic and complex places; lots of NPCs going about their scheduled tasks, and hopefully a feeling that the world is "alive".
+
 # 2026-02-26
 
 Wow, it's been 8 days already since the last post. I guess I've just been absorbed into my work here.

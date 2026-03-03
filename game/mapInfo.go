@@ -11,7 +11,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/general_util"
+	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
@@ -625,7 +625,7 @@ func (mi *MapInfo) GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC {
 	npcs := []*npc.NPC{}
 
 	for _, n := range mi.NPCs {
-		dist := general_util.EuclideanDist(
+		dist := utils.EuclideanDist(
 			n.Entity.X,
 			n.Entity.Y,
 			posX,
@@ -644,7 +644,7 @@ func (mi *MapInfo) GetPlayer() *player.Player {
 }
 
 func (mi MapInfo) GetDistToPlayer(x, y float64) float64 {
-	return general_util.EuclideanDist(x, y, mi.PlayerRef.Entity.X, mi.PlayerRef.Entity.Y)
+	return utils.EuclideanDist(x, y, mi.PlayerRef.Entity.X, mi.PlayerRef.Entity.Y)
 }
 
 func (mi *MapInfo) GetGroundMaterial(tileX, tileY int) string {
@@ -695,7 +695,7 @@ func (mi *MapInfo) ActivateArea(r model.Rect, originX, originY float64) bool {
 			continue
 		}
 		if r.Intersects(obj.GetRect()) {
-			dist := general_util.EuclideanDistCenter(r, obj.GetRect())
+			dist := utils.EuclideanDistCenter(r, obj.GetRect())
 			if closestObject == nil || dist < closestObjectDist {
 				closestObject = obj
 				closestObjectDist = dist
@@ -722,7 +722,7 @@ func (mi *MapInfo) ActivateArea(r model.Rect, originX, originY float64) bool {
 	closestNPCDist := float64(config.TileSize * 1000)
 	for _, n := range mi.NPCs {
 		if r.Intersects(n.Entity.CollisionRect()) {
-			dist := general_util.EuclideanDistCenter(r, n.Entity.CollisionRect())
+			dist := utils.EuclideanDistCenter(r, n.Entity.CollisionRect())
 			if closestNPC == nil || dist < closestNPCDist {
 				closestNPC = n
 				closestNPCDist = dist
@@ -747,7 +747,7 @@ func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
 			continue
 		}
 		if obj.GetDrawRect().Within(mouseX, mouseY) {
-			if general_util.EuclideanDistCenter(mi.GetPlayerRect(), obj.GetRect()) <= distThreshold {
+			if utils.EuclideanDistCenter(mi.GetPlayerRect(), obj.GetRect()) <= distThreshold {
 				fmt.Println("object clicked")
 				x, y := mi.PlayerRef.Entity.X, mi.PlayerRef.Entity.Y
 				result := obj.Activate(x, y)
@@ -764,7 +764,7 @@ func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
 	// check for NPC clicks
 	for _, n := range mi.NPCs {
 		if n.Entity.GetDrawRect().Within(mouseX, mouseY) {
-			if general_util.EuclideanDistCenter(mi.GetPlayerRect(), n.Entity.CollisionRect()) <= distThreshold {
+			if utils.EuclideanDistCenter(mi.GetPlayerRect(), n.Entity.CollisionRect()) <= distThreshold {
 				n.Activate()
 				return true
 			}

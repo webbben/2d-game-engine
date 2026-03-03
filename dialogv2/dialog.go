@@ -96,8 +96,9 @@ type DialogSession struct {
 
 	// possible action modals
 
-	userInputModal  *modal.TextInputModal
-	midDialogScreen screen.Screen
+	userInputModal *modal.TextInputModal
+	screenViewer   *screen.ScreenViewer
+	ctxForScreen   defs.GameContext
 }
 
 func ConditionsMet(conditions []defs.DialogCondition, ctx defs.ConditionContext) bool {
@@ -118,7 +119,13 @@ type DialogSessionParams struct {
 	TextFont      font.Face
 }
 
-func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, dataman *datamanager.DataManager, gameState defs.GameDialogContext) DialogSession {
+func NewDialogSession(
+	params DialogSessionParams,
+	eventBus *pubsub.EventBus,
+	dataman *datamanager.DataManager,
+	scrMgr *screen.ScreenManager,
+	gameCtx defs.GameContext,
+) DialogSession {
 	if params.ProfileID == "" {
 		panic("profile ID was empty")
 	}
@@ -137,8 +144,11 @@ func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, dat
 	if params.TextFont == nil {
 		panic("text font was nil")
 	}
-	if gameState == nil {
+	if gameCtx == nil {
 		panic("game state was nil")
+	}
+	if scrMgr == nil {
+		panic("scrmgr was nil")
 	}
 
 	// Note: we expect the profile state to already have been made. If we decide to have "ad hoc" dialog profiles, this should change.
@@ -146,8 +156,10 @@ func NewDialogSession(params DialogSessionParams, eventBus *pubsub.EventBus, dat
 	profileDef := dataman.GetDialogProfile(params.ProfileID)
 	profileState := dataman.GetDialogProfileState(params.ProfileID)
 
-	ctx := NewDialogContext(params.NPCID, profileState, gameState, eventBus, dataman)
+	ctx := NewDialogContext(params.NPCID, profileState, gameCtx, eventBus, dataman)
 	ds := DialogSession{
+		scrMgr:       scrMgr,
+		ctxForScreen: gameCtx,
 		ProfileState: profileState,
 		ProfileDef:   profileDef,
 		Ctx:          ctx,
@@ -423,9 +435,8 @@ func (ds *DialogSession) startAction() {
 			panic("unable to resolve params as ShowScreenActionParams... was the wrong params type chosen?")
 		}
 		s := ds.scrMgr.GetScreen(params.ScreenID)
-		ds.midDialogScreen = s
-		// TODO: need to get om and popup manager to pass in here
-		ds.midDialogScreen.Load(ds.dataman, ds.eventBus, nil, nil, nil)
+		sv := screen.NewScreenViewer(s, ds.dataman, ds.eventBus, ds.ctxForScreen)
+		ds.screenViewer = &sv
 	default:
 		logz.Panicln("startAction", "action type not recognized:", action.Type)
 	}

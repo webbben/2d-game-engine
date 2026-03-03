@@ -6,7 +6,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/general_util"
+	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
@@ -252,7 +252,7 @@ func (dataman DataManager) GetNewCharStateID(defID defs.CharacterDefID) state.Ch
 		// if unique, we just use the def ID
 		id = state.CharacterStateID(defID)
 	} else {
-		id = state.CharacterStateID(fmt.Sprintf("%s_%s", defID, general_util.GenerateUUID()[:8]))
+		id = state.CharacterStateID(fmt.Sprintf("%s_%s", defID, utils.GenerateUUID()[:8]))
 	}
 	if _, exists := dataman.CharacterStates[id]; exists {
 		if charDef.Unique {

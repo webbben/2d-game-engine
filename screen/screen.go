@@ -27,6 +27,13 @@ type Screen interface {
 	IsDone() bool
 }
 
+// LoadScreenParams is just for convenience to pass params through functions; includes the pointers you need for loading a screen.
+type LoadScreenParams struct {
+	OverlayManager *overlay.OverlayManager
+	PopupManager   *popup.Manager
+	GameCtx        defs.GameContext
+}
+
 type ScreenManager struct {
 	screens map[ScreenID]Screen
 }
