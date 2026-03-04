@@ -53,7 +53,10 @@ func (g *Game) UnlockMapLock(mapID defs.MapID, lockID string) {
 	g.EnsureMapStateExists(mapID)
 
 	mapState := g.Dataman.GetMapState(mapID)
-	lockState := mapState.MapLocks[lockID]
+	lockState, exists := mapState.MapLocks[lockID]
+	if !exists {
+		logz.Panicln("UnlockMapLock", "given lock ID was not found in map. mapID:", mapID, "lockID:", lockID)
+	}
 	lockState.Unlocked = true
 	mapState.MapLocks[lockID] = lockState
 }

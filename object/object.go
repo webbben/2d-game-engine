@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/datamanager"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
@@ -71,7 +71,7 @@ type Object struct {
 	PlayerHovering bool
 
 	AudioMgr *audio.AudioManager
-	dataman   *datamanager.DataManager
+	dataman  *datamanager.DataManager
 }
 
 func (obj Object) IsCurrentlyActivating() bool {
@@ -157,7 +157,7 @@ type WorldContext interface {
 type Door struct {
 	targetMapID      defs.MapID
 	targetSpawnIndex int
-	openSound        *audio.Sound
+	openSoundID      defs.SoundID
 	activateType     string // "click", "step"
 }
 
@@ -187,7 +187,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	}
 	o := Object{
 		AudioMgr: audioMgr,
-		dataman:   dataman,
+		dataman:  dataman,
 		Name:     obj.Name,
 		ID:       obj.ID,
 		xPos:     obj.X,
@@ -250,6 +250,12 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		mapState := dataman.GetMapState(mapID)
 		if _, exists := mapState.MapLocks[lockID]; !exists {
 			logz.Panicln("LoadObject", "lock ID not found in map state:", lockID, "mapID:", mapID)
+		}
+		switch o.Type {
+		case TypeContainer, TypeDoor, TypeGate:
+			o.lockID = lockID
+		default:
+			logz.Panicln("Object", "cannot put lock on object type:", o.Type)
 		}
 	}
 
@@ -396,7 +402,7 @@ func (obj Object) validateDoorObject() {
 		logz.Panicf("door [%s]: invalid activation type set: %s. check Tiled object definition.", obj.Name, obj.Door.activateType)
 	}
 
-	if obj.Door.openSound == nil {
+	if obj.Door.openSoundID == "" {
 		logz.Panicf("door [%s]: no openSound defined. check Tiled object definition.", obj.Name)
 	}
 }
@@ -439,11 +445,10 @@ func (obj *Object) loadDoorObject(props []tiled.Property) {
 			obj.Door.activateType = prop.GetStringValue()
 		case "SFX":
 			doorSound := prop.GetStringValue()
-			sound, err := audio.NewSound(doorSound, 0.5)
-			if err != nil {
-				panic("failed to load door sound:" + err.Error())
+			if doorSound == "" {
+				logz.Panicln("Door", "no door sound found (prop SFX). object:", obj.Name, obj.ID)
 			}
-			obj.Door.openSound = &sound
+			obj.Door.openSoundID = defs.SoundID(doorSound)
 		}
 	}
 }

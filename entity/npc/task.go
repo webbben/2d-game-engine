@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/webbben/2d-game-engine/data/defs"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/object"
 )
@@ -191,7 +192,10 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 			if obj.Type == object.TypeGate {
 				if !obj.IsCurrentlyActivating() {
 					x, y := t.Owner.Entity.X, t.Owner.Entity.Y
-					obj.Activate(x, y)
+					activateParams := object.ObjectActivationParams{
+						LockIDs: characterstate.GetLockIDs(*t.Owner.Entity.CharacterStateRef),
+					}
+					obj.Activate(x, y, activateParams)
 				}
 				// wait a little for the gate to open
 				t.Owner.Wait(time.Second)

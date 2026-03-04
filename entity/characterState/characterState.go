@@ -288,3 +288,30 @@ func EquipItem(cs *state.CharacterState, i defs.InventoryItem) (success bool) {
 	// cd.Validate()
 	return true
 }
+
+func GetLockIDs(charState state.CharacterState) []string {
+	// make a map, since there could be multiple keys that have the same lock IDs in them.
+	lockIDs := map[string]bool{}
+
+	for _, inv := range charState.InventoryItems {
+		if inv == nil {
+			continue
+		}
+		if inv.Def.GetItemType() == item.TypeKey {
+			asKeyDef, ok := inv.Def.(*item.KeyDef)
+			if !ok {
+				logz.Panicln("GetLockIDs", "failed to convert itemDef to KeyDef, even though itemType was Key")
+			}
+			for _, id := range asKeyDef.LockIDs {
+				lockIDs[id] = true
+			}
+		}
+	}
+
+	array := []string{}
+	for id := range lockIDs {
+		array = append(array, id)
+	}
+
+	return array
+}
