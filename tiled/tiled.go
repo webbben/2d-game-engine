@@ -129,6 +129,10 @@ type Layer struct {
 	// Common optional fields
 	TintColor string `json:"tintcolor,omitempty"`
 	Class     string `json:"class,omitempty"`
+
+	// Added during pre-processing (not from Tiled)
+
+	DrawOnTop bool // if true, this layer is saved for last when drawing
 }
 
 // Object represents an object in an object layer

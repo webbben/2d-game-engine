@@ -8,9 +8,9 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/imgutil/rendering"
 )
 
 func OpenMap(mapSource string) (Map, error) {
@@ -71,8 +71,14 @@ func (m *Map) Load(regenerateImages bool) error {
 		m.GroundMaterial[i] = make([]string, m.Width)
 	}
 
-	for _, l := range m.Layers {
+	for i, l := range m.Layers {
 		m.findTilePropertiesInLayer(l)
+
+		// set layer properties
+		drawOnTop, found := GetBoolProperty("TOP", l.Properties)
+		if found {
+			m.Layers[i].DrawOnTop = drawOnTop
+		}
 	}
 
 	m.CalculateCostMap()
@@ -184,11 +190,8 @@ func (m Map) DrawGroundLayers(screen *ebiten.Image, offsetX float64, offsetY flo
 		panic("tileImageMap is nil! ensure the tile images are loaded into memory before drawing layers")
 	}
 
-	// draw all tile layers except:
-	// - the BUILDING_ROOF layer: parts of buildings that the player can walk behind
-	// TODO: should I just make a property on an individual tile that makes the tile draw on top of all other layers/tiles?
 	for _, layer := range m.Layers {
-		if layer.Name == "BUILDING_ROOF" {
+		if layer.DrawOnTop {
 			continue
 		}
 
@@ -205,9 +208,8 @@ func (m Map) DrawRooftopLayer(screen *ebiten.Image, offsetX, offsetY float64) {
 	}
 
 	for _, layer := range m.Layers {
-		if layer.Name == "BUILDING_ROOF" {
+		if layer.DrawOnTop {
 			m.drawTileLayer(screen, offsetX, offsetY, layer)
-			break
 		}
 	}
 }

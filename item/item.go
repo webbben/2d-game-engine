@@ -22,6 +22,7 @@ const (
 	TypeConsumable defs.ItemType = "CONSUMABLE"
 	TypeMisc       defs.ItemType = "MISC"
 	TypeCurrency   defs.ItemType = "CURRENCY"
+	TypeKey        defs.ItemType = "KEY"
 )
 
 // ItemBase includes the basic functions required for an item to implement the ItemDef interface.
@@ -310,4 +311,9 @@ type PotionDef struct {
 	// TODO: add an Effect concept, which will encompass potion effects and enchantments on weapons or items
 	// for now, just going to make a "heal amount" value.
 	HealAmount int // how much health will be healed per second
+}
+
+type KeyDef struct {
+	ItemBase
+	LockIDs []string // the lockIDs that this key can unlock
 }

@@ -2,14 +2,15 @@ package object
 
 import (
 	"log"
+	"slices"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/utils"
-	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type ObjectUpdateResult struct {
@@ -50,10 +51,32 @@ func (obj *Object) Update() ObjectUpdateResult {
 	}
 }
 
-func (obj *Object) Activate(fromX, fromY float64) ObjectUpdateResult {
+// ObjectActivationParams provides contextual information needed for the logic that handles activating an object.
+type ObjectActivationParams struct {
+	LockIDs []string
+}
+
+func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams) ObjectUpdateResult {
 	if !obj.IsActivatable() {
 		logz.Panicln("Activate", "tried to activate object that is not activatable")
 	}
+
+	// check if object is locked, and if so, ensure the character has the keys
+	if obj.lockID != "" {
+		// check the lock state from the map state
+		mapState := obj.dataman.GetMapState(obj.mapID)
+		lockState := mapState.MapLocks[obj.lockID]
+		if !lockState.Unlocked {
+			// check if the NPC/player activating the door has the key
+			if !slices.Contains(params.LockIDs, obj.lockID) {
+				// door is locked; cannot enter
+				// TODO: play a locked door sound effect
+				return ObjectUpdateResult{}
+			}
+			// we have the key to the lock; so can proceed
+		}
+	}
+
 	switch obj.Type {
 	case TypeDoor:
 		return obj.activateDoor()
@@ -75,22 +98,13 @@ func (obj *Object) activateDoor() ObjectUpdateResult {
 	if obj.Door.targetSpawnIndex < 0 {
 		panic("activated door's target spawn index is negative! it should be a positive integer, including 0.")
 	}
-	if obj.Door.openSound == nil {
-		panic("activated door's open sound is nil!")
-	}
-	if obj.lockID != "" {
-		// check the lock state from the map state
-		mapState := obj.dataman.GetMapState(obj.mapID)
-		lockState := mapState.MapLocks[obj.lockID]
-		if !lockState.Unlocked {
-			// door is locked; cannot enter
-			// TODO: play a locked door sound effect
-			return ObjectUpdateResult{}
-		}
+	if obj.Door.openSoundID == "" {
+		panic("activated door's open sound is empty!")
 	}
 
 	log.Println("going to room:", obj.Door.targetMapID)
-	obj.Door.openSound.Play()
+	// TODO: should we define volume somewhere?
+	obj.AudioMgr.PlaySFX(obj.Door.openSoundID, 0.5)
 
 	return ObjectUpdateResult{
 		UpdateOccurred:      true,
@@ -119,7 +133,7 @@ func (obj *Object) activateGate(fromX, fromY float64) ObjectUpdateResult {
 	if obj.Gate.openSFXID == "" {
 		panic("gate has no open SFX set. make sure the 'SFX' property is set for this object in Tiled.")
 	}
-	obj.AudioMgr.PlaySFX(obj.Gate.openSFXID, 0.2)
+	obj.AudioMgr.PlaySFX(obj.Gate.openSFXID, 0.5)
 
 	return ObjectUpdateResult{
 		UpdateOccurred: true,

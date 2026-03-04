@@ -5,20 +5,21 @@ import (
 	"slices"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/entity/player"
-	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/internal/lights"
+	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/internal/path_finding"
+	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/tiled"
-	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 // MapInfo contains information about the current room the player is in
@@ -685,6 +686,8 @@ func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
 }
 
 // ActivateArea attempts to activate an object or npc in an area. if an activation occurs, true is returned.
+// NOTE: for now, this is only used by the player. if this becomes a general purpose "activate an area" function,
+// then we need to pass info in about who is activating - so that we know which locks can be opened, for example.
 func (mi *MapInfo) ActivateArea(r model.Rect, originX, originY float64) bool {
 	// check for activated objects
 	// try to get the object that is the "best match" (i.e. closest to the center of the activated area)
@@ -703,7 +706,10 @@ func (mi *MapInfo) ActivateArea(r model.Rect, originX, originY float64) bool {
 		}
 	}
 	if closestObject != nil {
-		result := closestObject.Activate(originX, originY)
+		activateParams := object.ObjectActivationParams{
+			LockIDs: characterstate.GetLockIDs(*mi.PlayerRef.Entity.CharacterStateRef),
+		}
+		result := closestObject.Activate(originX, originY, activateParams)
 		logz.Println("Activate Area", closestObject.Type, "Activating...")
 
 		if result.UpdateOccurred {
@@ -750,7 +756,10 @@ func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
 			if utils.EuclideanDistCenter(mi.GetPlayerRect(), obj.GetRect()) <= distThreshold {
 				fmt.Println("object clicked")
 				x, y := mi.PlayerRef.Entity.X, mi.PlayerRef.Entity.Y
-				result := obj.Activate(x, y)
+				activateParams := object.ObjectActivationParams{
+					LockIDs: characterstate.GetLockIDs(*mi.PlayerRef.Entity.CharacterStateRef),
+				}
+				result := obj.Activate(x, y, activateParams)
 				if result.UpdateOccurred {
 					if result.ChangeMapID != "" {
 						mi.gameRef.handleMapDoor(result)
