@@ -108,10 +108,10 @@ func (g *Game) SetPlayerName(name string) {
 	if g.Player.Entity == nil {
 		panic("player entity was nil")
 	}
-	if g.Player.Entity.CharacterStateRef == nil {
+	if g.Player.CharacterStateRef == nil {
 		panic("player character state was nil")
 	}
-	g.Player.Entity.CharacterStateRef.DisplayName = name
+	g.Player.CharacterStateRef.DisplayName = name
 }
 
 func (g *Game) SetHUD(hud HUD) {
@@ -203,9 +203,9 @@ func (g *Game) SetMainMenu(scrID screen.ScreenID) {
 }
 
 func (g *Game) GetPlayerInfo() defs.PlayerInfo {
-	charDef := g.Dataman.GetCharacterDef(g.Player.Entity.CharacterStateRef.DefID)
+	charDef := g.Dataman.GetCharacterDef(g.Player.CharacterStateRef.DefID)
 	return defs.PlayerInfo{
-		PlayerName:    g.Player.Entity.CharacterStateRef.DisplayName,
+		PlayerName:    g.Player.CharacterStateRef.DisplayName,
 		PlayerCulture: charDef.CultureID,
 	}
 }

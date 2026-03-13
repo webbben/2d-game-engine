@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 )
@@ -514,7 +514,7 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		return MoveError{Cancelled: true, Info: "next target was not an adjacent tile (dist > tilesize)"}
 	}
 
-	moveError := e.TryMovePx(dPos.X, dPos.Y, e.CharacterStateRef.WalkSpeed())
+	moveError := e.TryMovePx(dPos.X, dPos.Y, e.characterStateRef.WalkSpeed())
 
 	if !moveError.Success {
 		return moveError

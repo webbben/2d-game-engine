@@ -27,6 +27,10 @@ type MapState struct {
 	// all objects that have a lock in the map have their locks tracked here.
 	// a door or container object can have a lock, which prevents its opening unless the player has a key or can unlock it.
 	MapLocks map[string]LockState
+
+	// bed objects are tracked here, and are mapped by the integer object ID as found in the Tiled map.
+	// beds are linked to a single character, and the character will go to this bed when sleeping.
+	MapBeds map[int]BedState
 }
 
 type MapItemState struct {
@@ -40,4 +44,9 @@ type LockState struct {
 	LockID    string
 	LockLevel int
 	Unlocked  bool
+}
+
+type BedState struct {
+	MapObjID            int // ID (in Tiled) of the object that represents this bed
+	ResidentCharStateID CharacterStateID
 }

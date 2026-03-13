@@ -77,11 +77,11 @@ func (p *Player) handleMovement() bool {
 
 	animationTickInterval := p.Entity.Movement.WalkAnimationTickInterval
 	animation := body.AnimWalk
-	speed := p.Entity.CharacterStateRef.WalkSpeed()
+	speed := p.CharacterStateRef.WalkSpeed()
 	if running {
 		animationTickInterval = p.Entity.Movement.RunAnimationTickInterval
 		animation = body.AnimRun
-		speed = p.Entity.CharacterStateRef.RunSpeed()
+		speed = p.CharacterStateRef.RunSpeed()
 	}
 
 	travelDistance := speed * 2
@@ -135,7 +135,7 @@ func (p *Player) handleMovement() bool {
 // handleActions handles all user actions. returns true if an action occurred.
 func (p *Player) handleActions() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
-		p.Entity.CharacterStateRef.UnequipWeapon()
+		p.CharacterStateRef.UnequipWeapon()
 		return true
 	}
 

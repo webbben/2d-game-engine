@@ -10,12 +10,10 @@ import (
 
 type StartDialogTask struct {
 	TaskBase
+	NoBackgroundWork
 	dialogProfileID defs.DialogProfileID
 	dialogChain     *defs.DialogResponse
 	started         bool
-}
-
-func (t *StartDialogTask) BackgroundAssist() {
 }
 
 type StartDialogTaskParams struct {
@@ -34,13 +32,17 @@ func NewStartDialogTask(params StartDialogTaskParams, owner *NPC, p defs.TaskPri
 		logz.Panicln("TODO", "implement dialog ad-hoc sequences (currently, only profile-based dialog is supported)")
 	}
 
-	t := StartDialogTask{
-		TaskBase:        NewTaskBase(TaskStartDialog, "Start dialog", "Start dialog with the player", owner, p, nextTask),
+	t := defs.TaskDef{
+		TaskID:   TaskStartDialog,
+		Priority: p,
+		NextTask: nextTask,
+	}
+
+	return &StartDialogTask{
+		TaskBase:        NewTaskBase(t, "Start dialog", "Start dialog with the player", owner),
 		dialogProfileID: params.ProfileID,
 		dialogChain:     params.DialogChain,
 	}
-
-	return &t
 }
 
 func (t *StartDialogTask) Update() {
@@ -50,7 +52,7 @@ func (t *StartDialogTask) Update() {
 
 	if !t.started {
 		if t.dialogProfileID != "" {
-			t.Owner.World.StartDialog(t.dialogProfileID, t.Owner.ID)
+			t.Owner.World.StartDialog(t.dialogProfileID, t.Owner.ID())
 		} else {
 			// TODO: create way to run ad-hoc dialog sequences
 			logz.Panicln("TODO", "implement dialog ad-hoc sequences (currently, only profile-based dialog is supported)")
@@ -58,7 +60,7 @@ func (t *StartDialogTask) Update() {
 		t.started = true
 		t.Status = TaskInProg
 		// TODO: might need an unsubscribe function, or else we need to move event handling to happen outside the task level (duplicate subscribers could happen otherwise)
-		t.Owner.eventBus.Subscribe(fmt.Sprintf("%s_%s", t.Owner.ID, t.ID), pubsub.EventDialogEnded, t.OnDialogEnd)
+		t.Owner.eventBus.Subscribe(fmt.Sprintf("%s_%s", t.Owner.ID, t.Def.TaskID), pubsub.EventDialogEnded, t.OnDialogEnd)
 		return
 	}
 }
@@ -73,7 +75,7 @@ func (t *StartDialogTask) OnDialogEnd(e defs.Event) {
 			// dialog has ended, so task is done.
 			t.Status = TaskEnded
 		} else {
-			logz.Warnln(t.Owner.ID, "dialogStartTask is listening for a dialog ended event, and one came - but it was the wrong profile ID.",
+			logz.Warnln(t.Owner.ID(), "dialogStartTask is listening for a dialog ended event, and one came - but it was the wrong profile ID.",
 				"Unless there are multiple NPCs with this task type running, there might be a problem.")
 		}
 	}

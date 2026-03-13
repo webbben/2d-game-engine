@@ -3,8 +3,9 @@ package player
 import (
 	"time"
 
-	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/datamanager"
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/entity/npc"
@@ -12,7 +13,8 @@ import (
 )
 
 type Player struct {
-	Entity *entity.Entity
+	Entity            *entity.Entity
+	CharacterStateRef *state.CharacterState
 	MovementMechanics
 
 	dataman *datamanager.DataManager
@@ -38,18 +40,21 @@ func NewPlayer(dataman *datamanager.DataManager, ent *entity.Entity) Player {
 		panic("player must have entity")
 	}
 
+	charState := dataman.GetCharacterState(state.CharacterStateID(defs.PlayerID))
+
 	return Player{
-		dataman: dataman,
-		Entity: ent,
+		CharacterStateRef: charState,
+		dataman:           dataman,
+		Entity:            ent,
 	}
 }
 
 // TODO: delete? just use the entity one since there is no difference now
 func (p *Player) AddItemToInventory(invItem defs.InventoryItem) (bool, defs.InventoryItem) {
-	return characterstate.AddItemToInventory(p.Entity.CharacterStateRef, invItem)
+	return characterstate.AddItemToInventory(p.CharacterStateRef, invItem)
 }
 
 // TODO: delete?
 func (p *Player) RemoveItemFromInventory(itemToRemove defs.InventoryItem) (bool, defs.InventoryItem) {
-	return characterstate.RemoveItemFromInventory(p.Entity.CharacterStateRef, itemToRemove)
+	return characterstate.RemoveItemFromInventory(p.CharacterStateRef, itemToRemove)
 }

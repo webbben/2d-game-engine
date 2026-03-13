@@ -1,11 +1,11 @@
 package entity
 
 import (
-	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/entity/body"
+	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/item"
 )
 
 type attackManager struct {
@@ -150,8 +150,8 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	}
 	e.waitingToAttack = false
 
-	e.CharacterStateRef.Vitals.Health.CurrentVal -= attack.Damage
-	logz.Println(e.DisplayName(), "current health:", e.CharacterStateRef.Vitals.Health.CurrentVal)
+	e.characterStateRef.Vitals.Health.CurrentVal -= attack.Damage
+	logz.Println(e.DisplayName(), "current health:", e.characterStateRef.Vitals.Health.CurrentVal)
 
 	e.Body.SetDamageFlicker(15)
 
@@ -179,7 +179,7 @@ func (e Entity) IsStunned() bool {
 func (e Entity) IsWeaponEquiped() bool {
 	// ensure that weapon set matches equiped weapon
 	partIsNone := e.Body.WeaponSet.PartSrc.None
-	weaponIsNil := e.CharacterStateRef.Equipment.EquipedWeapon == nil
+	weaponIsNil := e.characterStateRef.Equipment.EquipedWeapon == nil
 	if weaponIsNil == partIsNone {
 		return !weaponIsNil
 	}
@@ -189,8 +189,8 @@ func (e Entity) IsWeaponEquiped() bool {
 }
 
 func (e Entity) IsShieldEquiped() bool {
-	if e.CharacterStateRef.Equipment.EquipedAuxiliary != nil {
-		if item.IsArmor(e.CharacterStateRef.Equipment.EquipedAuxiliary.Def) {
+	if e.characterStateRef.Equipment.EquipedAuxiliary != nil {
+		if item.IsArmor(e.characterStateRef.Equipment.EquipedAuxiliary.Def) {
 			return true
 		}
 	}

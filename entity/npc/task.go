@@ -7,6 +7,7 @@ import (
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/world"
 )
 
 type TaskStatus int
@@ -23,6 +24,7 @@ const (
 const (
 	TaskIdle        defs.TaskID = "IDLE"
 	TaskGoto        defs.TaskID = "GOTO"
+	TaskRoute       defs.TaskID = "ROUTE"
 	TaskFollow      defs.TaskID = "FOLLOW"
 	TaskFight       defs.TaskID = "FIGHT"
 	TaskStartDialog defs.TaskID = "START_DIALOG"
@@ -48,8 +50,13 @@ func (ts TaskStatus) String() string {
 	}
 }
 
+// Task defines an interface that can be used to implement a task. The functions defined in here are only used
+// by the "outside logic", so we only need to define functions that the general task management logic would need to access.
+// Anything that is task-specific and not needing exposure to the task management system should be left out of this interface.
 type Task interface {
 	GetID() defs.TaskID
+
+	GetStartLocation() *defs.TaskStartLocation
 
 	GetNextTaskDef() *defs.TaskDef
 
@@ -70,41 +77,46 @@ type Task interface {
 	// logic to execute on each update tick
 	Update()
 
-	// background task assistance
-	BackgroundAssist()
-	// lastBackgroundAssist time.Time // last time a the bg task loop assisted this task
+	// provides access to asynchronous work for this task; this is called in the background for tasks that an NPC runs in a map.
+	// E.g. calculating routes for an NPC that is chasing someone; it might be bad to hold up the update loop with that kind of work, so we can offload it
+	// to another goroutine.
+	BackgroundAssist(wg *world.WorldGraph)
+
+	// allows a task to update while an NPC is not in the current map. Not meant for most tasks, only ones that do things like move an NPC across their path
+	// to new maps.
+	SimulationUpdate(wg *world.WorldGraph)
 }
 
 type TaskBase struct {
+	Def         defs.TaskDef
 	Owner       *NPC
 	Description string
-	ID          defs.TaskID
-	Priority    defs.TaskPriority
 	Name        string
 	Status      TaskStatus
-	NextTaskDef *defs.TaskDef
 }
 
 // NewTaskBase defines a task base that covers all the bases of the Task interface.
 //
 // nextTask: OPT (only set if you want another task to start right after this one finishes)
-func NewTaskBase(id defs.TaskID, name, desc string, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) TaskBase {
+func NewTaskBase(def defs.TaskDef, name, desc string, owner *NPC) TaskBase {
 	if owner == nil {
 		panic("owner was nil")
 	}
 	return TaskBase{
-		ID:          id,
-		Priority:    p,
+		Def:         def,
 		Name:        name,
 		Description: desc,
 		Status:      TaskNotStarted,
 		Owner:       owner,
-		NextTaskDef: nextTask,
 	}
 }
 
+func (tb TaskBase) GetStartLocation() *defs.TaskStartLocation {
+	return tb.Def.StartLocation
+}
+
 func (tb TaskBase) GetNextTaskDef() *defs.TaskDef {
-	return tb.NextTaskDef
+	return tb.Def.NextTask
 }
 
 func (tb TaskBase) GetOwner() *NPC {
@@ -116,11 +128,11 @@ func (tb TaskBase) GetDescription() string {
 }
 
 func (tb TaskBase) GetID() defs.TaskID {
-	return tb.ID
+	return tb.Def.TaskID
 }
 
 func (tb TaskBase) GetPriority() defs.TaskPriority {
-	return tb.Priority
+	return tb.Def.Priority
 }
 
 func (tb TaskBase) GetName() string {
@@ -138,6 +150,14 @@ func (tb TaskBase) IsDone() bool {
 func (tb TaskBase) IsActive() bool {
 	return tb.Status > TaskNotStarted && tb.Status < TaskEnded
 }
+
+// NoBackgroundWork is just a struct that implements the extra, background work related functions (but has them do nothing).
+// For simplicity, you can just put this in another Task struct so that you don't have to fill out the empty functions for all of them.
+type NoBackgroundWork struct{}
+
+func (x NoBackgroundWork) BackgroundAssist(wg *world.WorldGraph) {}
+
+func (x NoBackgroundWork) SimulationUpdate(wg *world.WorldGraph) {}
 
 func (n *NPC) HandleTaskUpdate() {
 	if n.CurrentTask.GetOwner() == nil {
@@ -166,12 +186,12 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 	if !t.Owner.Entity.Movement.Interrupted {
 		return NPCCollisionResult{NoneDetected: true}
 	}
-	logz.Println(t.Owner.DisplayName, "NPC interrupted; handling collision")
+	logz.Println(t.Owner.DisplayName(), "NPC interrupted; handling collision")
 	// path entity was moving on has been interrupted.
 	// if interrupted by NPC, try to negotiate resolution to collision.
 	// TODO: this probably belongs as validation in the entity movement logic itself
 	if !t.Owner.Entity.TargetTilePos().Equals(t.Owner.Entity.TilePos()) {
-		logz.Println(t.Owner.ID, "Goto task: since NPC movement was interrupted, we expect its target position to be the same as its current position. target:", t.Owner.Entity.TargetTilePos(), t.Owner.Entity.TilePos())
+		logz.Println(t.Owner.ID(), "Goto task: since NPC movement was interrupted, we expect its target position to be the same as its current position. target:", t.Owner.Entity.TargetTilePos(), t.Owner.Entity.TilePos())
 		panic("Goto task: since NPC movement was interrupted, we expect its target position to be the same as its current position")
 	}
 	// TODO: same with this?
@@ -193,7 +213,7 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 				if !obj.IsCurrentlyActivating() {
 					x, y := t.Owner.Entity.X, t.Owner.Entity.Y
 					activateParams := object.ObjectActivationParams{
-						LockIDs: characterstate.GetLockIDs(*t.Owner.Entity.CharacterStateRef),
+						LockIDs: characterstate.GetLockIDs(*t.Owner.CharacterStateRef),
 					}
 					obj.Activate(x, y, activateParams)
 				}
@@ -214,13 +234,14 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 
 type IdleTask struct {
 	TaskBase
+	NoBackgroundWork
 }
 
 func (it IdleTask) ZzCompileCheck() {
 	_ = append([]Task{}, &it)
 }
 
-func (it IdleTask) BackgroundAssist() {
+func (it IdleTask) BackgroundAssist(wg *world.WorldGraph) {
 }
 func (it IdleTask) End() {}
 func (it IdleTask) IsComplete() bool {

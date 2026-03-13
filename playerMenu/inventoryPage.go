@@ -4,8 +4,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/entity/player"
-	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/inventory"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 )
 
 type InventoryPage struct {
@@ -34,7 +34,7 @@ func (ip *InventoryPage) Load(pageWidth, pageHeight int, playerRef *player.Playe
 	ip.height = pageHeight
 	ip.playerRef = playerRef
 
-	ip.inventoryComponent.Load(pageWidth, pageHeight, &playerRef.Entity.CharacterStateRef.StandardInventory, dataman, inventoryParams)
+	ip.inventoryComponent.Load(pageWidth, pageHeight, &playerRef.CharacterStateRef.StandardInventory, dataman, inventoryParams)
 
 	ip.init = true
 }

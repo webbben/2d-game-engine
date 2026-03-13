@@ -10,12 +10,10 @@ import (
 
 type GotoTask struct {
 	TaskBase
+	NoBackgroundWork
 
 	goalPos   model.Coords
 	isGoingTo bool
-}
-
-func (t *GotoTask) BackgroundAssist() {
 }
 
 type GotoTaskParams struct {
@@ -23,12 +21,15 @@ type GotoTaskParams struct {
 }
 
 func NewGotoTask(params GotoTaskParams, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) *GotoTask {
-	t := GotoTask{
-		TaskBase: NewTaskBase(TaskGoto, "Goto", "Goto a position", owner, p, nextTask),
+	t := defs.TaskDef{
+		TaskID:   TaskGoto,
+		Priority: p,
+		NextTask: nextTask,
+	}
+	return &GotoTask{
+		TaskBase: NewTaskBase(t, "Goto", "Goto a position", owner),
 		goalPos:  model.Coords{X: params.TileX, Y: params.TileY},
 	}
-
-	return &t
 }
 
 // Start hook for a GoTo task. Just sets the entity on course for the goal position.
@@ -39,7 +40,7 @@ func (t *GotoTask) start() {
 	}
 	actualGoal, me := t.Owner.Entity.GoToPos(t.goalPos, true)
 	if !me.Success {
-		logz.Println(t.Owner.DisplayName, "goto task: failed to call GoToPos:", me)
+		logz.Println(t.Owner.DisplayName(), "goto task: failed to call GoToPos:", me)
 		t.Owner.Wait(time.Second)
 		return
 	}
@@ -49,7 +50,7 @@ func (t *GotoTask) start() {
 	if len(t.Owner.Entity.Movement.TargetPath) == 0 {
 		panic("started goto, but target path is empty")
 	}
-	logz.Println(t.Owner.ID, "GotoTask started")
+	logz.Println(t.Owner.ID(), "GotoTask started")
 }
 
 func (t *GotoTask) Update() {
@@ -73,7 +74,7 @@ func (t *GotoTask) Update() {
 		if !t.Owner.Entity.Movement.IsMoving {
 			if len(t.Owner.Entity.Movement.TargetPath) == 0 {
 				// not moving and has no target; shouldn't we have reached our goal then?
-				logz.Panicln(t.Owner.ID, "supposed to be going towards a goal, but entity has no target path")
+				logz.Panicln(t.Owner.ID(), "supposed to be going towards a goal, but entity has no target path")
 			}
 			// entity is not moving, but also is not being blocked (and has a path to follow still).
 			// let's just jump start it's path again.

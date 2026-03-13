@@ -11,7 +11,7 @@ import (
 )
 
 func (g *Game) DialogCtxAddGold(amount int) {
-	characterstate.EarnMoney(&g.Player.Entity.CharacterStateRef.StandardInventory, amount, g.Dataman)
+	characterstate.EarnMoney(&g.Player.CharacterStateRef.StandardInventory, amount, g.Dataman)
 }
 
 func (g *Game) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef) {

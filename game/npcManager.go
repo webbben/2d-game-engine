@@ -8,16 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/model"
 )
 
-func (nm *NPCManager) getNPCByID(id string) *npc.NPC {
-	for _, n := range nm.NPCs {
-		if n.ID == id {
-			return n
-		}
-	}
-	return nil
-}
-
-// Finds an NPC at a given position, if one is to be found there. Second return value indicates if NPC successfully found.
+// FindNPCAtPosition finds an NPC at a given position, if one is to be found there. Second return value indicates if NPC successfully found.
 func (nm *NPCManager) FindNPCAtPosition(c model.Coords) (npc.NPC, bool) {
 	for _, n := range nm.NPCs {
 		if n.Entity.TilePos().Equals(c) {
@@ -74,9 +65,9 @@ func (nm *NPCManager) _asyncJobs() {
 
 			// check if NPC's current task can use background assistance
 			if n.CurrentTask != nil {
-				n.CurrentTask.BackgroundAssist()
+				n.CurrentTask.BackgroundAssist(nm.worldGraphRef)
 			} else {
-				logz.Println(n.DisplayName, "NPC Manager: NPC has no current task")
+				logz.Println(n.DisplayName(), "NPC Manager: NPC has no current task")
 			}
 		}
 
