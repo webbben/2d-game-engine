@@ -25,11 +25,17 @@ const (
 	TypeMisc       = "MISC"      // general purpose; just takes up space
 
 	TypeItem = "ITEM"
+	TypeBed  = "BED"
 
 	// Types that aren't actually supported here (specific cases)
 
 	TypeEntity = "ENTITY" // This shouldn't be used for actual objects - just for static entities in maps that are defined by objects.
 )
+
+// TODO: *Sigh* this probably could use some refactoring. I've been avoiding admitting it, but it would most likely work cleaner as an interface.
+// As it stands right now, we are basically mashing a bunch of different types of objects into this one object struct. This works, but it feels kind of messy.
+// I think it would be smarter to make an interface that has all the methods needed for common things, but then the inner logic can be more cleanly separated.
+// But, not gonna tackle this right now, because I don't want to get diverted on yet another big refactor lol.
 
 type Object struct {
 	Name string // TODO: I don't think most objects actually have Names; the name property in Tiled is usually left empty.
@@ -434,16 +440,23 @@ func (obj *Object) addDefaultCollision() {
 	obj.collidable = true
 }
 
+const (
+	PropDoorTo         string = "door_to"
+	PropDoorSpawnIndex string = "door_spawn_index"
+	PropDoorActivate   string = "door_activate"
+	PropDoorSFX        string = "SFX"
+)
+
 func (obj *Object) loadDoorObject(props []tiled.Property) {
 	for _, prop := range props {
 		switch prop.Name {
-		case "door_to":
+		case PropDoorTo:
 			obj.Door.targetMapID = defs.MapID(prop.GetStringValue())
-		case "door_spawn_index":
+		case PropDoorSpawnIndex:
 			obj.Door.targetSpawnIndex = prop.GetIntValue()
-		case "door_activate":
+		case PropDoorActivate:
 			obj.Door.activateType = prop.GetStringValue()
-		case "SFX":
+		case PropDoorSFX:
 			doorSound := prop.GetStringValue()
 			if doorSound == "" {
 				logz.Panicln("Door", "no door sound found (prop SFX). object:", obj.Name, obj.ID)

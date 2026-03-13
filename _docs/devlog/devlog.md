@@ -1,3 +1,256 @@
+# 2026-03-12
+
+Back to the drawing board: now, I need to nail down how NPC schedules and tasks are going to work.
+
+I've come up with the Character Generator concept last time, which looks like it'll work well. But now, I need to actually know when and where an NPC
+should be in the game universe.
+
+You might think: "well, obviously they should be in the specific map that you placed them, right?"
+This is wrong - at least for what I'm wanting to do. See, basically, no NPCs are placed directly into maps. At least, not right now they aren't and they probably
+never will unless I find a situation where I'd always want a specific NPC to always be at the exact same position, all the time.
+
+The reason I _don't_ want that, is, NPCs have schedules that they follow throughout the day. I think we've gone over the concept of schedules already below, so 
+I won't dive into the concept too deeply, but basically a schedule defines what "task" an NPC should be doing at any given time of day.
+For example, an NPC might have a schedule that says:
+
+- sleep from 10PM to 6AM
+- hang around the market from 7AM to 11AM
+- come home to have lunch from 12PM to 2PM
+- work in study from 3PM to 9PM
+
+... and, that cycle would just repeat.
+
+Now, there are a couple problems here that we need to figure out:
+
+1) How do we decide the map an NPC is in at any given time?
+
+2) How do we decide exactly where IN the map an NPC is, at any given time?
+
+There might be more, but let's just start with these two.
+
+## How do we know which map an NPC is in, at any given time?
+
+Well, if we look at the schedule above, I think it's not too hard for us to deduce the answer to this. It could be something like this:
+
+10PM - 6AM: at "home" map
+
+6AM - 7AM: in "country road" map, walking to market?
+
+7AM - 11AM: at "market" map 
+
+11AM - 12PM: back in "country road" map, walking back home?
+
+12PM ~ (until next day cycle): at "home map"
+
+The easiest thing to discern is that during sleeping time (and other contiguous tasks at home), the character is at the "home" map.
+
+The trickier part is figuring out which map they should be at during the transition from being at home to the market, since it seems possible they could be
+in a few different maps at any given time: if the clock strikes 6AM, maybe they are still in their house, getting ready to leave.
+Or, if it's 6:30AM, maybe they are still enroute, walking in the country road map. You get the picture.
+
+### Why does knowing this level of detail matter, anyway?
+
+You might ask yourself, why do we really need to know exactly where an NPC is while they are "commuting" to a new task? Does it matter that much?
+It would certainly be a lot easier if we could just teleport an NPC to their next map when it's time for them to do a new task. We don't have to
+consider difficult things, like where exactly along the path they should be. There are some problems with just simply doing the "teleport" method though:
+
+If we just teleport NPCs to their next task's map...
+
+1) NPCs would possibly be "teleporting" into the map suddenly if a player happens to be in the same map.
+- For example, you are hanging around the market, and then at 7AM, suddenly the NPC appears out of nowhere. That certainly would be weird.
+- Okay, but at the same time, to be fair, we could just have the NPC enter from a normal map entrance area and walk to his position. So it wouldn't be that bad if handled right.
+
+2) NPCs wouldn't "travel" to their next spot. This could break immersion, if you were planning to intercept a character on their way.
+- For example, maybe you know that this NPC goes to the market at 7AM, but you want to interact with him before he gets there. You might try to wait outside his house, or
+  maybe outside the town gate along the path that the NPC is expected to take. You never see him though, but you enter the town and voila, he's there already!
+- I think this is the worst part about it. It breaks some of the feeling that the world truly is "alive" or "moving around you" without your direct input.
+  It also limits some possibilities for the game which seem cool, like I mentioned in the example.
+
+So, I think point 2 alone does justify us making some kind of system or calculation method to determine the "exact" map that an NPC would be in, even during task transition times.
+
+### Back to the question then: how to determine which map an NPC is in, at any given time
+
+To do this, I think we will need to calculate a path TO the next task's map, and also an estimated distance.
+
+Let's consider our game universe looks nice and simple like this:
+
+Map 1: "NPC's home" <----> Map 2: "country road to town" <----> Map 3: "market place"
+
+The maps can be traversed in this linear, bidirectional fashion. To get between the home and the market, you have to go via the country road.
+
+So, the clock strikes 6AM: the NPC is heading to its next task. We need to calculate the route it will take.
+This is easy, in this scenario: it's going to "country road" -> "market place".
+
+So, on one hand, we could use just this knowledge alone to approximate locations. Say we assume the size of the maps are all equal, and so we divide the travel time up in equal
+percentages: 50% of it is spent in "country road", and the other 50% is spent in "market place".
+
+However... this would only work if the time between tasks is accurately set. What if during the hour gap, the NPC actually needs to travel to an entirely new city that would take
+much longer, say, 3 hours? It's not a catastrophic problem, but it isn't really good enough I don't think. I think if we already have the map path determined, it wouldn't be too much
+harder to also determine the total distance (roughly) traveled inside maps, and then have a more accurate estimate on how long it should take. This way, even if the schedule is
+somewhat poorly defined, the NPC still follows a realistic path to accomplishing the schedule. Even if the programmer does something silly like makes a character have breakfast
+in Rome and then go shopping in Alexandria, the NPC will still "take" the correct amount of time to accomplish that.
+
+> Actually, if such a schedule exists, we will probably have to have a mechanism that cancels an ongoing task once the next hourly task is triggered.
+> For example, it might take 2 days to travel that distance, so it would be impossible for a regular 24 schedule to not "reset" before that task is finished anyway.
+> If an NPC is going to travel between cities and live in different cities periodically, then we will just have to trigger a new schedule which is based out of
+> that new city, and the NPC would naturally start to "travel" there anyway to start it's next task.
+
+So, to calculate the total distance, I think we just need to calculate the actual, entire route, such that it includes the entire instructions:
+
+1) which maps to pass through
+2) for each map, the actual path (slice of map coordinates) that would be traveled.
+
+From there, total distance is easy to calculate: just sum up the lengths of all the map coordinate paths.
+
+And now, it's not so hard to decide, roughly, where an NPC should "be" at any given time. There's a little bit of math to do here, but I'll not worry about
+writing it out for now - I'll work it out in the code, when the time comes.
+
+## How do we decide exactly where IN a map an NPC is, at any given time?
+
+I think we can use the same method and data as above to do this part. With the exact route, estimated distance, and the time it takes, then at any given moment we
+could calculate roughly where the NPC should be. There are two cases to consider here though:
+
+1) Case where the NPC is "en route"
+2) Case where the NPC is already at the task, and should've begun the task
+
+In case 1, as described above, we place them at roughly the correct position in the map that they are expected to be at, on the route between last task and next task.
+In case 2, we would have to know that the task is already started, and once that is clear, probably just place them at the "start location" of a task.
+
+For case 2, I think this means we will want to define the state that the NPC should be in if the task is "in progress". Imagine the NPC has a task where they are sitting
+at a desk, ostensibly working on something. If the player enters the room (map) while that task is underway, we want to see the NPC is already seated at the table, not
+walking towards the desk to sit down.
+
+## Summary
+
+Ok, so I think we've come up with a decent plan for how all of this should work. Let's sum it all up.
+
+Traveling between maps:
+
+- we calculate the "actual distance/time" it takes to get to the next task.
+- the NPC should appear at intermediate locations along the path to the next task (if the path spans more than one map).
+
+Requirements for Tasks:
+
+- tasks need to define a "in progress state" of some kind, that gets the NPC into the exact position and activity that it is expected to be in while the task is underway.
+- this is mainly meant to be used if the player walks into a map where the NPC is currently present and their task should already be underway.
+
+Let's imagine a scenario where I load into a room at, say, 10:30 AM:
+
+- NPCs that are meant to be in this map are loaded and prepared to be placed
+- NPCs exact positions are placed either at their "traveling between" locations (if they are between tasks), or at their "in progress" positions if they are already doing a task.
+
+I think the first thing I should get cracking on is, some kind of "global character manager" that runs in the background and keeps track of where all characters should be at any
+given time.
+
+## Future questions to consider 
+
+I can already see myself stumbling into new questions about how tasks should work. But, rather than diving into those headfirst right now, I think I can let them simmer here
+a while, and pick back up on them next time. Here are some things to consider:
+
+- Do tasks need to define "exact" positions for tasks? Or, how should they determine where an NPC should be? For example, to define a "sit at the table" task, does the NPC need to
+have a specific, assigned seat? or should it just find an open seat? I think I prefer to flexible "find an open seat", and so, I think that means we need to work out how to identify 
+object types in tasks, and how to find the right one to interact with. This would be super helpful, since it would make task definitions much more reusable.
+
+# 2026-03-11
+
+Today I want to use this space for some more brainstorming: I'm trying to figure out how maps and characters should be related to each other.
+That's a very vague way to describe it; let's start by describing what my end goal is.
+
+Goal behavior:
+
+- maps can be the "home" of a character (or multiple characters).
+- characters have a bed in their "home map", which they can identify as theirs, and sleep in at night.
+
+Ok, I think that sums up the bulk of it. I'm trying to figure out how to identify characters that use a certain map as their home.
+This brings me to a couple questions:
+
+1) How does a character know where his bed is (which map, and which bed)?
+
+2) Where do we define this relationship? (e.g. in the Tiled map? In a code definition?)
+
+to answer #1, I think we have to acknowledge what kind of characters there may be. I'm anticipating that there will be a couple types:
+
+- Type A: a character that is personally defined by me, and part of a real storyline. E.g. a specific shopkeeper.
+- Type B: an auto-generated character that is not directly instantiated by me. E.g. a misc town guard.
+
+I'm currently envisioning that I will define "type A" characters myself, build their house maps, and set things up such that they live there and have their
+personal bed.
+For "type B" characters like a random town guard, I will still build the map where he lives (probably a town guard barracks of some kind), but I want a system such that,
+if that town guard dies, a new one can spawn and it will know where to go to find it's "home" and bed.
+
+I think this bed identification stuff could be part of the "defs" in our "defs/state dichotomy". What I mean is, there is an initial definition for everything, which as the game 
+goes on can possibly be changed due to events happening in game - in which those changes will be tracked in a "state". So, perhaps a "map def" will include information about 
+which bed is meant for which character, and in a "map state" we can handle identifying who the "current owner" is - if the town guard dies, the bed ownership is discarded,
+and once a new one is spawned, that empty bed ownership is assigned to him.
+
+Well, if we go with that, now the question because, more specifically, _how_ do we point beds to specific characters (or character types)?
+Let's consider both cases:
+
+1) The bed owned by a specific, unique character, like a specific shopkeeper.
+- For this case, I think it makes sense to directly set a character def ID onto the bed object.
+- This way, when loading a map definition, it can look through all bed objects in the map and find character def IDs; then, it can either identify 
+  existing characters and set their bed location, or instantiate it if the character hasn't been created for some reason (let's not get into that logic yet).
+
+2) The bed owned by a augo-generated NPC, like a town guard.
+- For this case, we'd need a "wider category" of character. I guess you could use a character def for a non-unique character def, and it would work.
+- BUT, one case I'm thinking of is, what if town guards should have multiple possible character defs? For example, maybe some town guards have different appearances.
+  It would look a little bland if ALL town guards had the same eyes, skin tone, hair, etc.
+
+## Character Generators?
+
+This 2nd point here is starting to make me wonder: do we need to create some kind of "character generator" concept? Perhaps, beds can be what ultimately places characters
+in the "real game world" (non-scenarios). And so, maybe beds will also basically be where we reference some kind of "NPC generator" concept which defines what kind of NPC
+to spawn:
+
+- which character defs it can use 
+- schedule defs?
+- ... anything else?
+
+So, how about this: in code defs, we can create a new concept called a CharacterGenerator which defines the data, defs, etc to use in generating an NPC.
+Then, a bed object in a map can have a property for one of two things: either a `characterDefID`, or a `characterGeneratorID`.
+When a `characterDefID` is encountered (at whatever stage we handle defining NPCs in a world), we define the unique character defined by that character def.
+When a `characterGeneratorID` is encountered, we use the generator to create a new, dynamically created NPC that will live there.
+If a unique character dies, its bed remains empty. If a dynamically created character dies, after an interval of time passes, a new instance of that character is spawned.
+
+In the future, as the game gets much more advanced, we can add further logic to these mechanisms; for example, maybe we have a fortress that has dynamically generated
+soldier NPCs. However, maybe there will be a way to "destroy" a fortress or conquer it - after which, these soldier NPCs should no longer spawn, since the fortress is abandoned.
+Perhaps there is a misc NPC that lives in a cottage, and the player decides he wants to live there, and does what any logical ex-Morrowind player would do: kills the innocent
+villager and sets up shop in their house. In this case, too, we wouldn't want the NPC to respawn, at least while the player is living there. So, we can add some other logic, or
+control that determines if the player now "owns" the house and therefore NPCs shouldn't spawn in there. But all of this logic comes much later, maybe as finishing touches to the game.
+
+## Implications for the Game 
+
+I think, since we are starting to get into the "meat" of how maps and characters are defined, that this will ultimately lead us to needing to define the process that
+"sets up" the game world before the player enters it. I already have very primitive and simple versions of this, but now we will need something that, on "new world creation"
+(i.e. player starts a new game) goes through all the maps in the game, and instantiates all the NPCs that should exist in the overall game universe. Obviously, these characters 
+won't all appear in the same map that the player loads into, but we will need to instantiate the characters and their states anyway, and set their "current map" locations.
+This is because, we don't want characters to only exist once you've entered their personal "home" map for the first time. That would cause a lot of problems, like for example,
+no town guards existing in the town until you happen to enter the "town guard barracks" map eventually. No bueno.
+
+This brings me to my larger designs for the game: I envision having a world where NPCs always have a calculated location where they currently exist, even if it's not in the currently 
+opened map. Let's say you're in one town, Rome, but there are other towns all over the game universe, like Athens or Alexandria. Even while you, the player, are in Rome,
+all the characters/NPCs (I've just noticed I use these terms interchangeably) in Athens and Alexandria will also be semi-active. They won't get much advanced computations, but they 
+will at least have their current map, current schedule task, etc calculated. If these things end up taking any notable amount of computation time, then it will all be relegated to 
+a background process/goroutine. But grander picture of all this is, at some point, it would be cool for there to be NPCs that actually have some autonomy in pursuing their own goals,
+and making changes in the world. I'm not sure what the scope of that would be yet, but maybe certain characters might fight each other and kill each other, or maybe certain ones 
+will be traveling around the wider game universe themselves, much like the player, and could be currently visiting a certain city for the next week or two. That would make the game 
+feel a whole lot more alive, because well, it sort of _would_ be.
+
+... But, all of this day dreaming will have to wait for a future day, because I have a lot of work before I get to that point. For now, I'm just glad I've come up with
+the concept of character generators and all that, which I think will be a flexible system that can be adapted over time and support what I need to do.
+
+## Current Progress / Next Steps 
+
+Just a quick update to keep myself accountable; it's been about a week since I last posted, but right now I'm building the first "real world" map, a legionary fortress.
+It will tie into a nearby town, too, and have some intermediary maps in a forest, so right away we are getting started with building out a certain "region" of the game universe,
+essentially. That's very exciting for me, but also likely to lead to a WHOLE lot of work. Even just making new maps takes days, but I'm sure I'll need to code new logic as I keep 
+developing new in-game concepts and mechanics.
+
+Next steps:
+
+- Define a first "home" map for some NPCs, including "generated" and unique characters.
+- Start building an overall "town" ecosystem, which will come with a whole lot more definitions and stuff.
+
 # 2026-03-03
 
 Figured it's time for more updates. I've now basically finished the whole first level and character creation, which included some things like

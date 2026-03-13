@@ -3,27 +3,27 @@ package trade
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/data/datamanager"
+	"github.com/webbben/2d-game-engine/display"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/entity/player"
-	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/display"
-	"github.com/webbben/2d-game-engine/utils"
-	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
-	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/inventory"
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/ui/box"
 	"github.com/webbben/2d-game-engine/ui/button"
+	"github.com/webbben/2d-game-engine/ui/overlay"
+	"github.com/webbben/2d-game-engine/ui/text"
 	"github.com/webbben/2d-game-engine/ui/textbox"
-	"github.com/webbben/2d-game-engine/inventory"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type TradeScreen struct {
 	Exit       bool // once set, trading will end
-	dataman     *datamanager.DataManager
+	dataman    *datamanager.DataManager
 	playerRef  *player.Player
 	shopkeeper *state.ShopkeeperState
 
@@ -81,7 +81,7 @@ func NewTradeScreen(params TradeScreenParams, dataman *datamanager.DataManager, 
 	tileSize := int(config.TileSize * config.UIScale)
 
 	ts := TradeScreen{
-		dataman:    dataman,
+		dataman:   dataman,
 		playerRef: playerRef,
 	}
 
@@ -321,9 +321,9 @@ func (ts TradeScreen) calculateTransaction() int {
 
 func (ts *TradeScreen) loadPlayerInventory() {
 	// set inventory items
-	ts.playerInventory.SetItemSlots(ts.playerRef.Entity.CharacterStateRef.InventoryItems)
+	ts.playerInventory.SetItemSlots(ts.playerRef.CharacterStateRef.InventoryItems)
 
-	moneyCount := ts.playerRef.Entity.CharacterStateRef.CountMoney()
+	moneyCount := ts.playerRef.CharacterStateRef.CountMoney()
 	ts.playerGoldCount.SetText(utils.ConvertIntToCommaString(moneyCount))
 }
 
@@ -332,14 +332,14 @@ func (ts *TradeScreen) acceptTransaction() {
 
 	if transactionAmount > 0 {
 		// player earns money; add to coin purse
-		characterstate.EarnMoney(&ts.playerRef.Entity.CharacterStateRef.StandardInventory, transactionAmount, ts.dataman)
+		characterstate.EarnMoney(&ts.playerRef.CharacterStateRef.StandardInventory, transactionAmount, ts.dataman)
 	} else if transactionAmount < 0 {
 		// player spends money; take it out of their coin purse
-		characterstate.SpendMoney(&ts.playerRef.Entity.CharacterStateRef.StandardInventory, -transactionAmount, ts.dataman)
+		characterstate.SpendMoney(&ts.playerRef.CharacterStateRef.StandardInventory, -transactionAmount, ts.dataman)
 	}
 
 	// update player and shopkeeper inventories to match inventories in this trade screen
-	ts.playerRef.Entity.CharacterStateRef.SetInventoryItems(ts.playerInventory.GetInventoryItems())
+	ts.playerRef.CharacterStateRef.SetInventoryItems(ts.playerInventory.GetInventoryItems())
 	ts.shopkeeper.SetShopInventory(ts.shopkeeperInventory.GetInventoryItems())
 
 	ts.Exit = true

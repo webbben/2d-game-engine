@@ -89,13 +89,13 @@ func LoadTileset(source string) (Tileset, error) {
 	err := t.LoadJSONData("")
 
 	if !TilesetExists(t.Name) {
-		err = t.GenerateTiles()
+		err = t.generateTiles()
 	}
 
 	return t, err
 }
 
-func (tileset *Tileset) GenerateTiles() error {
+func (tileset *Tileset) generateTiles() error {
 	if tileset.Image == "" {
 		return errors.New("tileset JSON data not loaded yet")
 	}

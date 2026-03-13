@@ -22,11 +22,11 @@ func (n *NPC) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 func (n *NPC) Update() {
 	if time.Since(n.debug.lastDebugPrint) > 10*time.Second {
 		n.debug.lastDebugPrint = time.Now()
-		logz.Println(n.ID, "== DEBUG PRINT ==")
-		logz.Println(n.ID, "IsActive:", n.IsActive())
+		logz.Println(n.ID(), "== DEBUG PRINT ==")
+		logz.Println(n.ID(), "IsActive:", n.IsActive())
 		if n.CurrentTask != nil {
-			logz.Println(n.ID, "Current Task:", n.CurrentTask.GetName())
-			logz.Println(n.ID, "Status:", n.CurrentTask.GetStatus())
+			logz.Println(n.ID(), "Current Task:", n.CurrentTask.GetName())
+			logz.Println(n.ID(), "Status:", n.CurrentTask.GetStatus())
 		}
 	}
 
@@ -72,9 +72,18 @@ func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 		panic("task ID was empty")
 	}
 
-	logz.Println(n.ID, "attempting to run task:", taskDef.TaskID)
+	logz.Println(n.ID(), "attempting to run task:", taskDef.TaskID)
 
 	var t Task
+
+	// first, detect if we need to route ourselves to a new map before starting the main task
+	if taskDef.StartLocation != nil {
+		if n.CharacterStateRef.CurrentMap != taskDef.StartLocation.MapID {
+			// we need to move to a new map. let's set a "route" task and assign the main task as the "next task".
+			// then, we will let a background process handle actually running the path finding algorithm, since it could take slight performance.
+			t = NewRouteTask(RouteTaskParams{DestinationMapID: taskDef.StartLocation.MapID}, n, taskDef.Priority, &taskDef)
+		}
+	}
 
 	switch taskDef.TaskID {
 	case TaskGoto:
@@ -107,7 +116,7 @@ func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 		}
 	}
 
-	logz.Println(n.ID, "setting task:", t.GetID())
+	logz.Println(n.ID(), "setting task:", t.GetID())
 	n.CurrentTask = t
 }
 

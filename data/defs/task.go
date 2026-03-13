@@ -17,12 +17,37 @@ type TaskPriority int
 // Note: these are not stored in a centralized place; TaskIDs are defined directly into the npc package, but these are just for getting the params directly with it.
 // So, if you want to have a quest or dialog trigger a task, you just create a new TaskDef instance that points to the existing taskID, and passes the necessary
 // params with it.
+//
+// So, here's the difference between a TaskDef and an implementation of the Task interface:
+//
+// TaskDef:
+//
+// - indicates what TYPE of task behavior should occur; does not directly define the underlying task logic.
+//
+// - defines the PARAMETERS for a task; where it should occur, its priority, and any other data that should be plugged into the underlying task logic.
+//
+// Task (interface implementation):
+//
+// - a specific TYPE of task behavior, implemented.
+//
+// - defines the runtime logic for how a task works.
+//
+// - can take extra parameters (provided by TaskDef) to influence what the task does (e.g. who it targets, where it goes, etc.)
 type TaskDef struct {
 	TaskID   TaskID
 	Priority TaskPriority
-	Params   any
+	Params   any // you should set this to a specific struct that is associated with the task type that was chosen (if the task has params)
+
+	// if set, the NPC will travel to this location before starting the task.
+	// meant for tasks that are part of daily schedules, or tasks that should take a character to a new map before beginning.
+	StartLocation *TaskStartLocation
 
 	NextTask *TaskDef // OPT: if set, this task will be run right when the parent one finishes
+}
+
+type TaskStartLocation struct {
+	MapID        MapID
+	TileX, TileY int // NOTE: we will disregard this if it is set to 0, 0, since that's the "zero value" but also, it's very unlikely to ever be used that way.
 }
 
 type ScheduleDef struct {

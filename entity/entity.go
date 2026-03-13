@@ -2,15 +2,15 @@
 package entity
 
 import (
-	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/data/datamanager"
-	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/datamanager"
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/entity/body"
+	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/item"
 )
 
 var (
@@ -46,7 +46,13 @@ type Entity struct {
 	// records the last known equiped item ID for each spot; if a change is noticed, we should immediately update the body to match
 	equipedBodywear, equipedHeadwear, equipedFootwear, equipedWeapon, equipedAuxiliary defs.ItemID
 
-	CharacterStateRef *state.CharacterState
+	// Character state is only used in an entity in the following ways:
+	//
+	// 1) To detect what items are currently equiped (so they can be shown, equiped during combat, etc)
+	//
+	// 2) To check and modify a character's vitals (health, stamina, etc). Combat is done between entities, not character states.
+	//    The Entity handles updating character state's vitals as needed.
+	characterStateRef *state.CharacterState
 
 	// Runtime logic below
 
@@ -68,31 +74,27 @@ type Entity struct {
 }
 
 func (e Entity) DisplayName() string {
-	if e.CharacterStateRef == nil {
+	if e.characterStateRef == nil {
 		panic("character state ref was nil")
 	}
 
-	return e.CharacterStateRef.DisplayName
+	return e.characterStateRef.DisplayName
 }
 
 func (e Entity) ID() state.CharacterStateID {
-	if e.CharacterStateRef == nil {
+	if e.characterStateRef == nil {
 		panic("character state ref was nil")
 	}
 
-	return e.CharacterStateRef.ID
+	return e.characterStateRef.ID
 }
 
 func (e Entity) IsPlayer() bool {
-	if e.CharacterStateRef == nil {
+	if e.characterStateRef == nil {
 		panic("character state ref was nil")
 	}
 
-	return e.CharacterStateRef.IsPlayer
-}
-
-type NewCharacterParams struct {
-	IsPlayer bool
+	return e.characterStateRef.IsPlayer
 }
 
 // LoadCharacterStateIntoEntity loads a character state into an Entity, for rendering and interacting in a game map.
@@ -113,7 +115,7 @@ func LoadCharacterStateIntoEntity(charStateID state.CharacterStateID, dataman *d
 			WalkAnimationTickInterval: defaultWalkAnimationTickInterval,
 			RunAnimationTickInterval:  defaultRunAnimationTickInterval,
 		},
-		CharacterStateRef: charState,
+		characterStateRef: charState,
 		footstepSFX: audio.NewFootstepSFX(audio.FootstepSFXParams{
 			Def:           sfxDef,
 			TickDelay:     20,  // TODO: this should actually be calculated by the movement speed / speed of movement animation
@@ -124,15 +126,15 @@ func LoadCharacterStateIntoEntity(charStateID state.CharacterStateID, dataman *d
 	// save char state to definition manager, since that's really where the character state will "live".
 	// we just put a pointer to it in the entity so it can reference it too.
 
-	if ent.CharacterStateRef.BaseAttributes == nil {
+	if ent.characterStateRef.BaseAttributes == nil {
 		panic("base attributes is nil. did character builder not save data?")
 	}
-	if ent.CharacterStateRef.BaseSkills == nil {
+	if ent.characterStateRef.BaseSkills == nil {
 		panic("base skills are nil. did character builder not save data?")
 	}
 
-	if len(ent.CharacterStateRef.InventoryItems) == 0 {
-		logz.Panicln(ent.CharacterStateRef.DisplayName, "inventory size is 0")
+	if len(ent.characterStateRef.InventoryItems) == 0 {
+		logz.Panicln(ent.characterStateRef.DisplayName, "inventory size is 0")
 	}
 
 	// prepare initial image frames
@@ -162,8 +164,11 @@ func LoadCharacterStateIntoEntity(charStateID state.CharacterStateID, dataman *d
 }
 
 type NewCharacterStateParams struct {
-	IsPlayer             bool
-	OverwriteDisplayName string // if set, the display name used in charDef will be ignored in favor of this one
+	Temp                    bool // if set, this character state will be marked "temp" and won't be saved in save files (just short-term use)
+	IsPlayer                bool
+	OverwriteDisplayName    string               // if set, the display name used in charDef will be ignored in favor of this one
+	OverrideDialogProfileID defs.DialogProfileID // if set, this will be used instead of the one set in the character def
+	OverrideScheduleID      defs.ScheduleID      // if set, this will be used instead of the one set in the character def
 }
 
 // CreateNewCharacterState instantiates a new Character State from a CharacterDef. This should only be done when:
@@ -186,10 +191,50 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		}
 	}
 
+	if params.IsPlayer {
+		// when we are creating the player state, we have a lot of expectations, so validate them all here
+		if params.Temp {
+			panic("player character state was set to temp?")
+		}
+		if params.OverwriteDisplayName != "" {
+			panic("why are we overwriting display name for player?")
+		}
+		if params.OverrideDialogProfileID != "" {
+			panic("why are we setting a dialog profile override for player?")
+		}
+		if params.OverrideScheduleID != "" {
+			panic("why are we setting a schedule override for player?")
+		}
+	}
+
+	displayName := charDef.DisplayName
+	if params.OverwriteDisplayName != "" {
+		displayName = params.OverwriteDisplayName
+	}
+
+	charState := &state.CharacterState{
+		Temp:        params.Temp,
+		ID:          id,
+		DefID:       charDefID,
+		DisplayName: displayName,
+		IsPlayer:    params.IsPlayer,
+
+		StandardInventory: charDef.InitialInventory,
+
+		Vitals:         charDef.BaseVitals,
+		BaseAttributes: charDef.BaseAttributes,
+		BaseSkills:     charDef.BaseSkills,
+		Traits:         charDef.InitialTraits,
+	}
+
 	// check if this characters' dialog profile has a state created yet. if not, create it now.
 	// Note: the player as a character doesn't have a dialog profile. so skip the player.
 	if !params.IsPlayer {
 		dialogProfileID := charDef.DialogProfileID
+		if params.OverrideDialogProfileID != "" {
+			dialogProfileID = params.OverrideDialogProfileID
+			charState.OverrideDialogProfileID = params.OverrideDialogProfileID
+		}
 		if !dataman.DialogProfileStateExists(dialogProfileID) {
 			dialogProfileState := state.DialogProfileState{
 				ProfileID: dialogProfileID,
@@ -199,18 +244,8 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		}
 	}
 
-	charState := &state.CharacterState{
-		ID:          id,
-		DefID:       charDefID,
-		DisplayName: charDef.DisplayName,
-		IsPlayer:    params.IsPlayer,
-
-		StandardInventory: charDef.InitialInventory,
-
-		Vitals:         charDef.BaseVitals,
-		BaseAttributes: charDef.BaseAttributes,
-		BaseSkills:     charDef.BaseSkills,
-		Traits:         charDef.InitialTraits,
+	if params.OverrideScheduleID != "" {
+		charState.OverrideScheduleID = params.OverrideScheduleID
 	}
 
 	item.LoadStandardInventoryItemDefs(&charState.StandardInventory, dataman)
@@ -261,14 +296,14 @@ func LoadBodySkin(bodyDef defs.BodyDef, dataman *datamanager.DataManager) body.E
 
 // SyncBodyToState detects changes to equiped items in character state, and applies those changes to the body
 func (e *Entity) SyncBodyToState() {
-	if e.CharacterStateRef == nil {
+	if e.characterStateRef == nil {
 		panic("character state ref was nil")
 	}
 
 	var actualBodywearID, actualHeadwearID, actualFootwearID, actualAuxID, actualWeaponID defs.ItemID
 	change := false
 
-	equipment := e.CharacterStateRef.Equipment
+	equipment := e.characterStateRef.Equipment
 	if equipment.EquipedBodywear != nil {
 		actualBodywearID = equipment.EquipedBodywear.Instance.DefID
 	}
@@ -362,7 +397,7 @@ func (e Entity) validateEquipment() {
 		}
 	}
 
-	equipment := e.CharacterStateRef.Equipment
+	equipment := e.characterStateRef.Equipment
 
 	validateEquipment(equipment.EquipedHeadwear, e.Body.EquipHeadSet)
 	validateEquipment(equipment.EquipedBodywear, e.Body.EquipBodySet)

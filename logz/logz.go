@@ -22,6 +22,10 @@ func Println(category string, args ...any) {
 	printLogLine(fmt.Sprintln(fullArgs...))
 }
 
+func TODO(category string, args ...any) {
+	Println(fmt.Sprintf("TODO: %s", category), args...)
+}
+
 func Printf(category string, format string, args ...any) {
 	if category == "" {
 		printLogLine(fmt.Sprintf(format, args...))

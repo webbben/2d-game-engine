@@ -6,8 +6,8 @@ import (
 
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type DataManager struct {
@@ -29,8 +29,9 @@ type DataManager struct {
 	BodyPartDefs    map[defs.BodyPartID]defs.SelectedPartDef // only for body "skin" parts (not for equipment, since those are part of item defs)
 	FootstepSFXDefs map[defs.FootstepSFXDefID]defs.FootstepSFXDef
 
-	CharacterDefs   map[defs.CharacterDefID]defs.CharacterDef
-	CharacterStates map[state.CharacterStateID]*state.CharacterState
+	CharacterDefs       map[defs.CharacterDefID]defs.CharacterDef
+	CharacterStates     map[state.CharacterStateID]*state.CharacterState
+	CharacterGenerators map[string]defs.CharacterGenerator
 
 	AttributeDefs map[defs.AttributeID]defs.AttributeDef
 	SkillDefs     map[defs.SkillID]defs.SkillDef
@@ -57,11 +58,33 @@ func NewDataManager() *DataManager {
 		DialogProfileStates: make(map[defs.DialogProfileID]*state.DialogProfileState),
 		CharacterDefs:       make(map[defs.CharacterDefID]defs.CharacterDef),
 		CharacterStates:     make(map[state.CharacterStateID]*state.CharacterState),
+		CharacterGenerators: make(map[string]defs.CharacterGenerator),
 		NPCSchedules:        make(map[defs.ScheduleID]defs.ScheduleDef),
 		CultureDefs:         make(map[defs.CultureID]defs.CultureDef),
 		ClassDefs:           make(map[defs.ClassDefID]defs.ClassDef),
 	}
 	return &dataman
+}
+
+func (dataman *DataManager) LoadCharacterGenerator(chargen defs.CharacterGenerator) {
+	if chargen.ID == "" {
+		panic("id was empty")
+	}
+	if _, exists := dataman.CharacterGenerators[chargen.ID]; exists {
+		logz.Panicln("DataManager", "tried to load character generator, but id already exists:", chargen.ID)
+	}
+	dataman.CharacterGenerators[chargen.ID] = chargen
+}
+
+func (dataman DataManager) GetCharacterGenerator(id string) defs.CharacterGenerator {
+	if id == "" {
+		panic("id was empty")
+	}
+	cg, exists := dataman.CharacterGenerators[id]
+	if !exists {
+		logz.Panicln("DataManager", "tried to get character generator, but id didn't exist:", id)
+	}
+	return cg
 }
 
 func (dataman *DataManager) LoadCultureDef(def defs.CultureDef) {

@@ -7,6 +7,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/world"
 )
 
 type FollowTask struct {
@@ -29,20 +30,21 @@ func NewFollowTask(target *entity.Entity, distance int, owner *NPC, p defs.TaskP
 	if target == nil {
 		panic("target is nil")
 	}
-	t := FollowTask{
+	t := defs.TaskDef{
+		TaskID:   TaskFollow,
+		Priority: p,
+		NextTask: nextTask,
+	}
+	return FollowTask{
 		TaskBase: NewTaskBase(
-			TaskFollow,
+			t,
 			"follow task",
 			"NPC follows a target entity",
 			owner,
-			p,
-			nextTask,
 		),
 		targetEntity: target,
 		distance:     distance,
 	}
-
-	return t
 }
 
 func (t *FollowTask) End() {
@@ -88,7 +90,7 @@ func (t *FollowTask) Start() {
 		// if GoToPos fails, that means we could not find any route at all to the goal (or even a partial route).
 		// since the NPC should not be currently moving, that also means this should be cause by a real problem in the path finding.
 		// wait a second and retry.
-		logz.Println(t.Owner.DisplayName, "failed to find path to follow entity:", me)
+		logz.Println(t.Owner.DisplayName(), "failed to find path to follow entity:", me)
 		t.Owner.Wait(time.Second)
 		t.restart = true
 		return
@@ -127,7 +129,7 @@ func (t *FollowTask) Update() {
 
 	// Check if we should recalculate a better path to the target entity
 	if t.recalculatePath {
-		logz.Println(t.Owner.DisplayName, "follow: NPC Manager told this NPC to recalculate path")
+		logz.Println(t.Owner.DisplayName(), "follow: NPC Manager told this NPC to recalculate path")
 		t.Owner.Entity.CancelCurrentPath()
 		t.Owner.Wait(time.Millisecond * 500)
 		t.restart = true
@@ -139,7 +141,7 @@ func (t *FollowTask) Update() {
 	if len(t.Owner.Entity.Movement.TargetPath) > 0 {
 		entTargetTile := t.Owner.Entity.Movement.TargetPath[len(t.Owner.Entity.Movement.TargetPath)-1]
 		if !t.targetPosition.Equals(entTargetTile) {
-			logz.Println(t.Owner.DisplayName, "follow: updated NPC target position since it didn't match the last position of target path")
+			logz.Println(t.Owner.DisplayName(), "follow: updated NPC target position since it didn't match the last position of target path")
 			t.targetPosition = entTargetTile.Copy()
 		}
 	}
@@ -154,7 +156,7 @@ func (t *FollowTask) Update() {
 
 	// if, for some reason, the entity loses its target path on accident (but isn't at goal yet), then recalculate new path
 	if len(t.Owner.Entity.Movement.TargetPath) == 0 {
-		logz.Println(t.Owner.DisplayName, "follow: NPC unexpected has empty path!")
+		logz.Println(t.Owner.DisplayName(), "follow: NPC unexpected has empty path!")
 		t.Start()
 		return
 	}
@@ -168,7 +170,7 @@ func (t *FollowTask) Update() {
 
 // must NOT directly modify crucial state of NPC or entity (e.g. setting its position, movement, etc directly).
 // can only suggest changes that will then be picked up in the normal game update loop and handled there.
-func (t *FollowTask) BackgroundAssist() {
+func (t *FollowTask) BackgroundAssist(wg *world.WorldGraph) {
 	if t.recalculatePath {
 		return // previous flag set hasn't been acted upon yet
 	}
@@ -189,3 +191,5 @@ func (t *FollowTask) BackgroundAssist() {
 
 	t.Owner.Entity.Movement.SuggestedTargetPath = newPath
 }
+
+func (t FollowTask) SimulationUpdate(wg *world.WorldGraph) {}

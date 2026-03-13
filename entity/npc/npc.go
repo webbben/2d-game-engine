@@ -4,41 +4,93 @@ package npc
 import (
 	"time"
 
+	"github.com/webbben/2d-game-engine/audio"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/entity"
-	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/pubsub"
 )
 
+/*
+
+NPC "State":
+- current task, and task schedule
+
+"Map NPC":
+- a pointer to an entity
+- carries out current task, with updates to entity body
+
+So, how about...
+
+CharacterState:
+- has an "NPCState" section that tracks current tasks, and current task schedule.
+- this NPC state is empty, of course, for the player
+
+Map NPC remains what NPC is; it handles carrying out tasks in a map.
+
+Now there's the problem of tasks:
+- tasks run different when in a map than they do when not in a map.
+- only certain specific tasks can run outside of a map, like traveling between maps around the world.
+
+So, for all NPCs, we need to run their tasks. the difference is this:
+
+- NPCs in a map are run directly in the update loop (for the most part)
+- NPCs outside the map run their tasks in the background, and these are expected to be light weight tasks that only process every few seconds or so.
+  Like, for example, updating an NPCs progress as he moves between different maps (where the player is not present).
+
+What this means is, I think the World needs to keep track of which NPCs are in the world, and which ones aren't.
+
+World:
+- master list of all NPCs, possibly organized by map location
+- list of NPCs currently in the game world, so they can be directly updated and use their entities.
+
+*/
+
 type NPC struct {
-	debug  debug
+	// === Map-specific things ===
+
+	debug debug
+	// The entity is basically the NPC's "controller" for an in-game map. It is used to move the character around, check its vitals, etc.
 	Entity *entity.Entity
 
-	dialogProfileID defs.DialogProfileID // retrieved from character state, but set here for convenience
+	// comes from either an override set in character state, or from the character def.
+	dialogProfileID defs.DialogProfileID
 
-	TaskMGMT
-	eventBus   *pubsub.EventBus
-	OnUpdateFn func(n *NPC)
-	World      WorldContext
-
-	ID          string // TODO: What is ID for? Should we just refer directly to CharacterStateID instead?
-	DisplayName string
+	World WorldContext
 
 	// priority assigned to this NPC by the map it is added to. used for prioritizing which NPC moves first in a collision.
 	Priority int
+
+	// === World related things ===
+
+	// The character state gives the NPC access to get data about the character's current state, as well as make changes to it.
+	CharacterStateRef *state.CharacterState
+
+	TaskMGMT
+
+	// === Both? ===
+
+	eventBus *pubsub.EventBus
+}
+
+func (n NPC) ID() string {
+	return string(n.Entity.ID())
+}
+
+func (n NPC) DisplayName() string {
+	return n.Entity.DisplayName()
 }
 
 func (n *NPC) Activate() {
 	if n.dialogProfileID != "" {
-		n.World.StartDialog(n.dialogProfileID, n.ID)
+		n.World.StartDialog(n.dialogProfileID, n.ID())
 		return
 	}
-	logz.Println(n.DisplayName, "nothing happened on activation")
+	logz.Println(n.DisplayName(), "nothing happened on activation")
 }
 
 // Y is used for renderables sorting
@@ -72,39 +124,50 @@ func NewNPC(params NPCParams, dataman *datamanager.DataManager, audioMgr *audio.
 
 	ent := entity.LoadCharacterStateIntoEntity(params.CharStateID, dataman, audioMgr)
 
-	// get dialog profile ID from character def
-	charDef := dataman.GetCharacterDef(ent.CharacterStateRef.DefID)
-	scheduleDef := dataman.GetScheduleDef(charDef.ScheduleID)
+	charState := dataman.GetCharacterState(params.CharStateID)
+	charDef := dataman.GetCharacterDef(charState.DefID)
+
+	// get dialog profile and schedule
+
+	scheduleID := charDef.ScheduleID
+	if charState.OverrideScheduleID != "" {
+		scheduleID = charState.OverrideScheduleID
+	}
+	scheduleDef := dataman.GetScheduleDef(scheduleID)
+
+	dialogProfileID := charDef.DialogProfileID
+	if charState.OverrideDialogProfileID != "" {
+		dialogProfileID = charState.OverrideDialogProfileID
+	}
 
 	n := NPC{
-		eventBus:        eventBus,
-		Entity:          ent,
-		ID:              string(ent.ID()),
-		DisplayName:     ent.DisplayName(),
-		dialogProfileID: charDef.DialogProfileID,
+		eventBus:          eventBus,
+		Entity:            ent,
+		CharacterStateRef: charState,
+		dialogProfileID:   dialogProfileID,
 		TaskMGMT: TaskMGMT{
 			Schedule: scheduleDef,
-			dataman:   dataman,
+			dataman:  dataman,
 		},
 	}
 
-	n.eventBus.SubscribeToNPCEvents(n.ID, n.ID, n.OnEvent)
+	n.eventBus.SubscribeToNPCEvents(n.ID(), n.ID(), n.OnEvent)
 
 	return &n
 }
 
 func (n *NPC) OnEvent(e defs.Event) {
-	logz.Println(n.ID, "received event:", e)
-	assignTask := pubsub.NpcAssignTaskType(n.ID)
+	logz.Println(n.ID(), "received event:", e)
+	assignTask := pubsub.NpcAssignTaskType(n.ID())
 	switch e.Type {
 	case assignTask:
 		taskDefData, exists := e.Data["taskDef"]
 		if !exists {
-			logz.Panicln(n.ID, "recieved assign task event, but data was missing expected key")
+			logz.Panicln(n.ID(), "recieved assign task event, but data was missing expected key")
 		}
 		taskDef, ok := taskDefData.(defs.TaskDef)
 		if !ok {
-			logz.Panicln(n.ID, "failed to type event data as taskDef")
+			logz.Panicln(n.ID(), "failed to type event data as taskDef")
 		}
 		n.RunTask(taskDef, n)
 	}

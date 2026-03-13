@@ -8,12 +8,33 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 )
 
-func OpenMap(mapSource string) (Map, error) {
+// LoadMap handles loading a Tiled Map. Handles everything from identifying the right .tmj file, unmarshalling the JSON data,
+// generating the tile images, etc.
+func LoadMap(mapID defs.MapID, regenImages bool) *Map {
+	mapSource := config.ResolveMapPath(mapID)
+	fmt.Println("map source:", mapSource)
+
+	// load and setup the map
+	m, err := openMap(mapSource)
+	if err != nil {
+		logz.Panicln("LoadMap", "error while opening Tiled map:", err)
+	}
+
+	err = m.load(regenImages)
+	if err != nil {
+		logz.Panicln("LoadMap", "error while loading map:", err)
+	}
+
+	return &m
+}
+
+func openMap(mapSource string) (Map, error) {
 	mapSource, err := filepath.Abs(mapSource)
 	if err != nil {
 		return Map{}, fmt.Errorf("failed to resolve absolute path for map source: %w", err)
@@ -32,7 +53,7 @@ func OpenMap(mapSource string) (Map, error) {
 }
 
 // Load a map and all its tilesets or other pre-processable data
-func (m *Map) Load(regenerateImages bool) error {
+func (m *Map) load(regenerateImages bool) error {
 	// load property data
 	daylightFactor, found := GetFloatProperty("DAYLIGHT", m.Properties)
 	if found {
@@ -49,7 +70,7 @@ func (m *Map) Load(regenerateImages bool) error {
 		}
 		// ensure tilesets are regenerated on game startup, just in case source image files were changed since last play
 		if regenerateImages || !TilesetExists(tileset.Name) {
-			err = tileset.GenerateTiles()
+			err = tileset.generateTiles()
 			if err != nil {
 				return err
 			}
@@ -57,7 +78,7 @@ func (m *Map) Load(regenerateImages bool) error {
 		m.Tilesets[i] = tileset
 	}
 
-	err := m.LoadTileImageMap()
+	err := m.loadTileImageMap()
 	if err != nil {
 		return err
 	}
@@ -79,6 +100,9 @@ func (m *Map) Load(regenerateImages bool) error {
 		if found {
 			m.Layers[i].DrawOnTop = drawOnTop
 		}
+
+		// validate layer, just to be sure nothing is corrupted or has weird data
+		l.Validate()
 	}
 
 	m.CalculateCostMap()
@@ -129,7 +153,7 @@ func (m *Map) findTilePropertiesInLayer(layer Layer) {
 	}
 }
 
-func (m *Map) LoadTileImageMap() error {
+func (m *Map) loadTileImageMap() error {
 	m.TileImageMap = make(map[int]TileData)
 
 	for _, tileset := range m.Tilesets {

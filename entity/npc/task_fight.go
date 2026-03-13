@@ -1,10 +1,10 @@
 package npc
 
 import (
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
-	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
@@ -31,6 +31,7 @@ func (fs fightStatus) String() string {
 
 type FightTask struct {
 	TaskBase
+	NoBackgroundWork
 
 	FollowTask FollowTask // task for running after the enemy
 
@@ -50,8 +51,13 @@ func NewFightTask(targetEnt *entity.Entity, owner *NPC, p defs.TaskPriority, nex
 	if owner == nil {
 		panic("owner was nil")
 	}
+	t := defs.TaskDef{
+		TaskID:   TaskFight,
+		Priority: p,
+		NextTask: nextTask,
+	}
 	return FightTask{
-		TaskBase:     NewTaskBase(TaskFight, "Fight", "Fight another entity", owner, p, nextTask),
+		TaskBase:     NewTaskBase(t, "Fight", "Fight another entity", owner),
 		status:       fight_status_idle,
 		targetEntity: targetEnt,
 	}
@@ -99,7 +105,7 @@ func (t *FightTask) startFollowing() {
 		// if the follow task appears to already be active, then that's also a problem
 		logz.Panicf("follow subtask appears to already be active (%v). It should've ended (or not started yet) before Start was called.", t.FollowTask.GetStatus())
 	}
-	logz.Println(t.Owner.DisplayName, "start follow")
+	logz.Println(t.Owner.DisplayName(), "start follow")
 
 	// TODO: probably need to set a next task? but I might need to redo this entire task tbh lol
 	t.FollowTask = NewFollowTask(t.targetEntity, 0, t.Owner, Emergency, nil)
@@ -119,7 +125,7 @@ func (t *FightTask) stopFollowing() {
 		// if the follow task appears to already be active, then that's also a problem
 		logz.Panicf("trying to stop following, but follow task appears to not be active (%v)", t.FollowTask.GetStatus())
 	}
-	logz.Println(t.Owner.DisplayName, "stop follow")
+	logz.Println(t.Owner.DisplayName(), "stop follow")
 	t.FollowTask.End()
 	t.status = fight_status_idle
 }
@@ -128,7 +134,7 @@ func (t *FightTask) startCombat() {
 	if t.status != fight_status_idle {
 		panic("fight status should be idle before trying to start combat")
 	}
-	logz.Println(t.Owner.DisplayName, "start combat")
+	logz.Println(t.Owner.DisplayName(), "start combat")
 	// nothing to really do here except flip the switch on combat status
 	t.status = fight_status_combat
 }
@@ -184,7 +190,7 @@ func (t *FightTask) handleCombat() {
 	if dist > config.TileSize*2 {
 		// creep forward
 		if !t.Owner.Entity.Movement.IsMoving {
-			speed := t.Owner.Entity.CharacterStateRef.WalkSpeed() / 2
+			speed := t.Owner.CharacterStateRef.WalkSpeed() / 2
 			tickInterval := t.Owner.Entity.Movement.WalkAnimationTickInterval * 2
 			moveError := t.Owner.Entity.TryMoveTowardsEntity(*t.targetEntity, config.TileSize, speed)
 			if moveError.Success {
@@ -193,7 +199,7 @@ func (t *FightTask) handleCombat() {
 					AnimationTickInterval: tickInterval,
 				})
 			} else {
-				logz.Println(t.Owner.DisplayName, "handleCombat: creep forward failed:", moveError)
+				logz.Println(t.Owner.DisplayName(), "handleCombat: creep forward failed:", moveError)
 			}
 		}
 		return
@@ -213,7 +219,4 @@ func (t FightTask) IsComplete() bool {
 
 func (t FightTask) IsFailure() bool {
 	return false
-}
-
-func (t *FightTask) BackgroundAssist() {
 }

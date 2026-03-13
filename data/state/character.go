@@ -18,6 +18,18 @@ type CharacterState struct {
 	ID          CharacterStateID    // the unique identifier of this entity (not usually seen by players - only by developers)
 	DefID       defs.CharacterDefID // the ID of the characterDef used for creating this character state originally. Use this to look things up like which dialogProfileID to use.
 	IsPlayer    bool                `json:"-"` // flag indicating if this entity is the player RUNTIME
+	Temp        bool                // if true, then this character state is not meant to be saved long term, and will not be persisted after a play session ends.
+
+	// Bed Location
+
+	HomeMapID    defs.MapID // ID of the map that represents this character's home
+	HomeMapBedID int        // object ID that represents the bed, in the home map
+
+	CurrentMap defs.MapID // the map that the character is currently in. Mainly used for NPCs since they may not be in the same map as the player.
+
+	// overrides: things that are customly set in this character state, rather than relying on the character def
+	OverrideDialogProfileID defs.DialogProfileID
+	OverrideScheduleID      defs.ScheduleID
 
 	// Inventory and items
 	// Each InventoryItem slot represents an actual individual item slot in the inventory.
@@ -27,14 +39,6 @@ type CharacterState struct {
 	// Could implement that later, but for now there are just specific slots for equipped items, and then an array of items for the rest of your inventory.
 
 	defs.StandardInventory
-
-	// InventoryItems []*defs.InventoryItem
-
-	// items in the entity's coin purse. note that coins can also be put in regular inventory slots.
-	// the coin purse is effectively disabled if its size is 0.
-	// CoinPurse []*defs.InventoryItem
-
-	// defs.EquipedItems
 
 	// Attributes, Skills
 

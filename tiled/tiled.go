@@ -135,6 +135,41 @@ type Layer struct {
 	DrawOnTop bool // if true, this layer is saved for last when drawing
 }
 
+func (l Layer) Validate() {
+	// validate what we expect based on layer type
+	switch l.Type {
+	case LayerTypeTile:
+		if len(l.Data) == 0 {
+			panic("tile layer has no tile data")
+		}
+	case LayerTypeObject:
+		if len(l.Objects) == 0 {
+			panic("object layer has no objects")
+		}
+	case LayerTypeGroup:
+		if len(l.Layers) == 0 {
+			panic("group layer has no sub-layers in it")
+		}
+	}
+}
+
+// GetAllObjectsFromLayer returns all objects found within this layer, or any nested layers within
+func GetAllObjectsFromLayer(layer Layer) []Object {
+	objs := []Object{}
+
+	switch layer.Type {
+	case LayerTypeObject:
+		objs = append(objs, layer.Objects...)
+	case LayerTypeGroup:
+		for _, l := range layer.Layers {
+			subLayerObjs := GetAllObjectsFromLayer(l)
+			objs = append(objs, subLayerObjs...)
+		}
+	}
+
+	return objs
+}
+
 // Object represents an object in an object layer
 type Object struct {
 	ID         int        `json:"id"`

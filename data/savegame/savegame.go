@@ -85,6 +85,10 @@ func SaveGame(
 	validateUniquePlayerID(uniqueID)
 
 	for _, st := range dataman.CharacterStates {
+		if st.Temp {
+			// skip temporary character states, since they shouldn't be saved. (e.g. character states from scenarios)
+			continue
+		}
 		sf.CharacterStates = append(sf.CharacterStates, *st)
 	}
 	for _, st := range dataman.DialogProfileStates {

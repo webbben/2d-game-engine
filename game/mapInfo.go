@@ -20,6 +20,7 @@ import (
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/utils"
+	"github.com/webbben/2d-game-engine/world"
 )
 
 // MapInfo contains information about the current room the player is in
@@ -91,15 +92,11 @@ func (g *Game) CreateNewMapState(mapID defs.MapID) {
 	mapState := state.MapState{
 		ID:       mapID,
 		MapLocks: make(map[string]state.LockState),
+		MapBeds:  make(map[int]state.BedState),
 	}
 
 	// look through Tiled map data to initialize state for things like pre-defined item placements, door locks, etc.
-	mapSource := config.ResolveMapPath(string(mapID))
-
-	m, err := tiled.OpenMap(mapSource)
-	if err != nil {
-		logz.Panicf("error while opening Tiled map: %s", err)
-	}
+	m := tiled.LoadMap(mapID, false)
 
 	objLayers := getAllObjectLayers(m.Layers)
 
@@ -153,6 +150,36 @@ func (g *Game) CreateNewMapState(mapID defs.MapID) {
 					X:            obj.X,
 					Y:            obj.Y,
 				})
+			case object.TypeBed:
+				if lockID != "" {
+					logz.Panicln("CreateNewMapState", "a lock was put on a bed, which doesn't make any sense.", obj.Name, obj.ID, "mapID:", mapID)
+				}
+				// instantiate the NPC that is associated with this bed
+				var charStateID state.CharacterStateID
+				charGenID, found := tiled.GetStringProperty("characterGeneratorID", objectInfo.AllProps)
+				if found {
+					charGen := g.Dataman.GetCharacterGenerator(charGenID)
+					charStateID = world.GenerateCharacter(charGen, g.Dataman)
+				} else {
+					charDefID, found := tiled.GetStringProperty("characterDefID", objectInfo.AllProps)
+					if found {
+						// this bed has a specific character def ID set
+						charStateID = entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), entity.NewCharacterStateParams{}, g.Dataman)
+					}
+				}
+
+				// if a character was created, register this bed in the character state
+				if charStateID != "" {
+					charState := g.Dataman.GetCharacterState(charStateID)
+					charState.HomeMapID = mapID
+					charState.HomeMapBedID = obj.ID
+				}
+
+				// add this bed to the MapBeds
+				mapState.MapBeds[obj.ID] = state.BedState{
+					MapObjID:            obj.ID,
+					ResidentCharStateID: charStateID,
+				}
 			}
 		}
 	}
@@ -184,6 +211,7 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 	}
 
 	if g.MapInfo != nil {
+		// TODO: should we do this somewhere else? seems like a better option to close the map before trying to setup a new one
 		g.MapInfo.CloseMap()
 	}
 
@@ -191,25 +219,14 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 
 	mapDef := g.Dataman.GetMapDef(mapID)
 
-	mapSource := config.ResolveMapPath(string(mapID))
-	fmt.Println("map source:", mapSource)
-
 	// load and setup the map
-	m, err := tiled.OpenMap(mapSource)
-	if err != nil {
-		return fmt.Errorf("error while opening Tiled map: %w", err)
-	}
-
-	err = m.Load(op.RegenerateImages)
-	if err != nil {
-		return fmt.Errorf("error while loading map: %w", err)
-	}
+	m := tiled.LoadMap(mapID, op.RegenerateImages)
 
 	g.MapInfo = &MapInfo{
 		MapID:       mapID,
 		DisplayName: mapDef.DisplayName,
 	}
-	g.MapInfo.Map = m
+	g.MapInfo.Map = *m
 	// NOTE: I guess this is for NPCManager? looks really dumb here though... lol
 	g.MapInfo.mapRef = g.MapInfo.Map
 	g.MapInfo.gameRef = g
@@ -238,7 +255,7 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 
 	// find all objects in the map
 	for _, layer := range m.Layers {
-		g.getObjectsFromLayer(layer, mapID)
+		g.addAllObjectsToMap(layer, mapID)
 	}
 
 	// start up background jobs loop
@@ -252,7 +269,7 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 
 	g.MapInfo.Loaded = true
 
-	// add NPCs after Loaded = true, since that is checked in AddNPCToMap
+	// NOTE: add NPCs after Loaded = true, since that is checked in AddNPCToMap
 
 	// check if a scenario should be loaded into the map
 	mapState := g.Dataman.GetMapState(mapID)
@@ -271,7 +288,7 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 
 			charStateID := entity.CreateNewCharacterState(
 				charDef.CharDefID,
-				entity.NewCharacterStateParams{},
+				entity.NewCharacterStateParams{Temp: true},
 				g.Dataman)
 			n := npc.NewNPC(npc.NPCParams{
 				CharStateID: charStateID,
@@ -295,16 +312,10 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 	return nil
 }
 
-func (g *Game) getObjectsFromLayer(layer tiled.Layer, mapID defs.MapID) {
-	switch layer.Type {
-	case tiled.LayerTypeObject:
-		for _, obj := range layer.Objects {
-			g.MapInfo.AddObjectToMap(obj, g.MapInfo.mapRef, mapID)
-		}
-	case tiled.LayerTypeGroup:
-		for _, l := range layer.Layers {
-			g.getObjectsFromLayer(l, mapID)
-		}
+func (g *Game) addAllObjectsToMap(layer tiled.Layer, mapID defs.MapID) {
+	allObjs := tiled.GetAllObjectsFromLayer(layer)
+	for _, obj := range allObjs {
+		g.MapInfo.AddObjectToMap(obj, g.MapInfo.mapRef, mapID)
 	}
 }
 
@@ -313,7 +324,8 @@ func (mi *MapInfo) CloseMap() {
 }
 
 type NPCManager struct {
-	NPCs []*npc.NPC // the NPC entities in the map
+	NPCs          []*npc.NPC // the NPC entities in the map
+	worldGraphRef *world.WorldGraph
 
 	mapRef       tiled.Map // map info so we can get map size, tile adjacency, etc
 	nextPriority int       // the next priority value to assign to an NPC
@@ -382,6 +394,7 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	mi.NPCs = append(mi.NPCs, n)
 }
 
+// TODO: seems a little odd that we pass map ID here. shouldn't it already be known in mapInfo?
 func (mi *MapInfo) AddObjectToMap(obj tiled.Object, m tiled.Map, mapID defs.MapID) {
 	o := object.LoadObject(obj, m, mi.gameRef.AudioManager, mi.gameRef.Dataman, mapID, mi)
 	mi.Objects = append(mi.Objects, o)
@@ -707,7 +720,7 @@ func (mi *MapInfo) ActivateArea(r model.Rect, originX, originY float64) bool {
 	}
 	if closestObject != nil {
 		activateParams := object.ObjectActivationParams{
-			LockIDs: characterstate.GetLockIDs(*mi.PlayerRef.Entity.CharacterStateRef),
+			LockIDs: characterstate.GetLockIDs(*mi.PlayerRef.CharacterStateRef),
 		}
 		result := closestObject.Activate(originX, originY, activateParams)
 		logz.Println("Activate Area", closestObject.Type, "Activating...")
@@ -757,7 +770,7 @@ func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
 				fmt.Println("object clicked")
 				x, y := mi.PlayerRef.Entity.X, mi.PlayerRef.Entity.Y
 				activateParams := object.ObjectActivationParams{
-					LockIDs: characterstate.GetLockIDs(*mi.PlayerRef.Entity.CharacterStateRef),
+					LockIDs: characterstate.GetLockIDs(*mi.PlayerRef.CharacterStateRef),
 				}
 				result := obj.Activate(x, y, activateParams)
 				if result.UpdateOccurred {
