@@ -4,7 +4,6 @@ package world
 import (
 	"math/rand"
 
-	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
@@ -13,9 +12,17 @@ import (
 // GenerateCharacter simply generates a new instance of a character, using the given Character Generator.
 // Assumes that the character SHOULD be generated, so make sure you do the necessary validation there before deciding to call this.
 // (e.g. is the bed associated with this character generator open? if not, you would be instantiating more than one character for a given bed.)
-func GenerateCharacter(chargen defs.CharacterGenerator, dataman *datamanager.DataManager) state.CharacterStateID {
+func (w *World) GenerateCharacter(chargen defs.CharacterGenerator, initialMap defs.MapID, homeMap defs.MapID, homeMapBedID int) state.CharacterStateID {
+	if initialMap == "" {
+		panic("initial map was empty")
+	}
 	chargen.Validate()
-	params := entity.NewCharacterStateParams{}
+
+	params := entity.NewCharacterStateParams{
+		InitialMapID: initialMap,
+		HomeMapID:    homeMap,
+		HomeMapBedID: homeMapBedID,
+	}
 
 	if chargen.NameGenFn != nil {
 		params.OverwriteDisplayName = chargen.NameGenFn()
@@ -35,5 +42,5 @@ func GenerateCharacter(chargen defs.CharacterGenerator, dataman *datamanager.Dat
 		params.OverrideScheduleID = chargen.ScheduleID
 	}
 
-	return entity.CreateNewCharacterState(charDefID, params, dataman)
+	return entity.CreateNewCharacterState(charDefID, params, w.Dataman)
 }

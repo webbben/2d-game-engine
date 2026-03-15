@@ -3,7 +3,6 @@ package game
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 )
@@ -13,7 +12,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	case MainMenu:
 		g.mainMenuViewer.Draw(screen)
 	case InGameWorld:
-		if g.MapInfo == nil {
+		if g.World == nil || g.World.ActiveMap == nil {
 			logz.Panicln("DRAW", "game stage is InGameWorld, but no map info exists...")
 		}
 		g.drawWorld(screen, g.OverlayManager)
@@ -23,68 +22,23 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			g.showGameDebugInfo(screen)
 		}
 	}
-
-	g.OverlayManager.Draw(screen)
 }
 
 func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {
-	g.worldScene.Clear()
-	g.drawWorldScene(g.worldScene)
+	g.World.ActiveMap.Draw(screen, om)
 
-	offsetX, offsetY := g.Camera.GetAbsPos()
-	objectLights := []*lights.Light{}
-	for _, lightObj := range g.MapInfo.LightObjects {
-		if lightObj.Light.On {
-			objectLights = append(objectLights, lightObj.Light.Light)
-		}
-	}
-	g.daylightFader.SetOverallFactor(float32(g.MapInfo.Map.DaylightFactor))
-	lights.DrawMapLighting(screen, g.worldScene, g.MapInfo.Lights, objectLights, g.daylightFader.GetCurrentColor(), g.daylightFader.GetDarknessFactor(), offsetX, offsetY)
+	g.OverlayManager.Draw(screen)
 
-	// draw dialog
+	// TODO: these should probably be turned into Screens, right?
 	if g.dialogSession != nil {
 		g.dialogSession.Draw(screen)
 	} else if g.ShowPlayerMenu {
 		g.PlayerMenu.Draw(screen, om)
 	} else if g.ShowTradeScreen {
 		g.TradeScreen.Draw(screen, om)
-	} else {
-		// if nothing else is showing (player menus, trade screens, etc) then draw HUD
-		// TODO: should this be done after the overlay manager?
-		if g.hud != nil {
-			g.hud.Draw(screen)
-		}
-	}
-}
-
-func (g *Game) drawWorldScene(screen *ebiten.Image) {
-	offsetX, offsetY := g.Camera.GetAbsPos()
-
-	// draw all layers that should be shown below entities
-	g.MapInfo.Map.DrawGroundLayers(screen, offsetX, offsetY)
-
-	if config.DrawGridLines {
-		g.drawGridLines(screen, offsetX, offsetY)
-	}
-	if config.ShowNPCPaths {
-		g.drawPaths(screen, offsetX, offsetY)
-	}
-	if config.ShowEntityPositions {
-		g.drawEntityPositions(screen, offsetX, offsetY)
 	}
 
-	if config.ShowCollisions {
-		g.drawCollisions(screen, offsetX, offsetY)
+	if g.hud != nil {
+		g.hud.Draw(screen)
 	}
-
-	// draw NPCs and the player in order of Y position (higher renders first)
-	for _, thing := range g.MapInfo.sortedRenderables {
-		if thing == nil {
-			continue
-		}
-		thing.Draw(screen, offsetX, offsetY)
-	}
-
-	// draw roof tops
-	g.MapInfo.Map.DrawRooftopLayer(screen, offsetX, offsetY)
 }

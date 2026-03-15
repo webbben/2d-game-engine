@@ -2,11 +2,7 @@ package game
 
 import (
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/savegame"
-	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/entity"
-	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
@@ -14,9 +10,9 @@ func (g Game) SaveGame() (saveFilePath string) {
 	return savegame.SaveGame(
 		g.Dataman,
 		g.QuestManager,
-		g.Clock.GetCurrentGameTime(),
-		g.MapInfo.MapID,
-		g.Player.Entity.TilePos(),
+		g.World.Clock.GetCurrentGameTime(),
+		g.World.ActiveMap.MapID,
+		g.World.Player.Entity.TilePos(),
 	)
 }
 
@@ -31,12 +27,9 @@ func (g *Game) LoadGame(saveFilePath string) {
 	// all states should've been loaded in LoadSave; handle the worldInfo and placing the player in the world.
 	g.gameStage = InGameWorld
 
-	g.SetGameTime(worldInfo.CurrentTime)
+	g.InitializeGameWorld(worldInfo.CurrentTime)
 
-	playerEnt := entity.LoadCharacterStateIntoEntity(state.CharacterStateID(defs.PlayerID), g.Dataman, g.AudioManager)
-	p := player.NewPlayer(g.Dataman, playerEnt)
 	x := worldInfo.CurrentMapCoords.X * config.TileSize
 	y := worldInfo.CurrentMapCoords.Y * config.TileSize
-	g.MapInfo.AddPlayerToMap(&p, float64(x), float64(y))
-	g.Camera.SetCameraPosition(float64(x), float64(y))
+	g.PlacePlayerInMap(worldInfo.CurrentMapID, float64(x), float64(y))
 }

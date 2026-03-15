@@ -3,7 +3,6 @@ package npc
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/world"
 )
 
 // RouteTask is a task that sends an NPC to a new map. For simply moving to a new position on the same map, use the Goto task.
@@ -33,7 +32,7 @@ func NewRouteTask(params RouteTaskParams, owner *NPC, p defs.TaskPriority, nextT
 	}
 }
 
-func (t *RouteTask) BackgroundAssist(wg *world.WorldGraph) {
+func (t *RouteTask) BackgroundAssist() {
 	if t.pathCalculated {
 		return
 	}
@@ -43,7 +42,7 @@ func (t *RouteTask) BackgroundAssist(wg *world.WorldGraph) {
 	t.pathCalculated = true
 }
 
-func (t *RouteTask) SimulationUpdate(wg *world.WorldGraph) {
+func (t *RouteTask) SimulationUpdate() {
 	// TODO: do this
 }
 

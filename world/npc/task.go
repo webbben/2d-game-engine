@@ -7,7 +7,6 @@ import (
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/object"
-	"github.com/webbben/2d-game-engine/world"
 )
 
 type TaskStatus int
@@ -80,11 +79,11 @@ type Task interface {
 	// provides access to asynchronous work for this task; this is called in the background for tasks that an NPC runs in a map.
 	// E.g. calculating routes for an NPC that is chasing someone; it might be bad to hold up the update loop with that kind of work, so we can offload it
 	// to another goroutine.
-	BackgroundAssist(wg *world.WorldGraph)
+	BackgroundAssist()
 
 	// allows a task to update while an NPC is not in the current map. Not meant for most tasks, only ones that do things like move an NPC across their path
 	// to new maps.
-	SimulationUpdate(wg *world.WorldGraph)
+	SimulationUpdate()
 }
 
 type TaskBase struct {
@@ -155,9 +154,9 @@ func (tb TaskBase) IsActive() bool {
 // For simplicity, you can just put this in another Task struct so that you don't have to fill out the empty functions for all of them.
 type NoBackgroundWork struct{}
 
-func (x NoBackgroundWork) BackgroundAssist(wg *world.WorldGraph) {}
+func (x NoBackgroundWork) BackgroundAssist() {}
 
-func (x NoBackgroundWork) SimulationUpdate(wg *world.WorldGraph) {}
+func (x NoBackgroundWork) SimulationUpdate() {}
 
 func (n *NPC) HandleTaskUpdate() {
 	if n.CurrentTask.GetOwner() == nil {
@@ -241,8 +240,6 @@ func (it IdleTask) ZzCompileCheck() {
 	_ = append([]Task{}, &it)
 }
 
-func (it IdleTask) BackgroundAssist(wg *world.WorldGraph) {
-}
 func (it IdleTask) End() {}
 func (it IdleTask) IsComplete() bool {
 	return false

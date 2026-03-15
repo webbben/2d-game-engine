@@ -9,11 +9,8 @@ import (
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
-	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/display"
-	"github.com/webbben/2d-game-engine/entity/player"
-	"github.com/webbben/2d-game-engine/internal/camera"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/logz"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
@@ -22,6 +19,7 @@ import (
 	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/trade"
 	"github.com/webbben/2d-game-engine/ui/overlay"
+	"github.com/webbben/2d-game-engine/world"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -41,9 +39,7 @@ type Game struct {
 	mainMenuViewer screen.ScreenViewer
 	gameStage      GameStage
 
-	MapInfo *MapInfo
-	Player  *player.Player // the player
-	Camera  camera.Camera  // the camera/viewport
+	World *world.World
 
 	dialogSession   *dialogv2.DialogSession
 	PlayerMenu      playermenu.PlayerMenu
@@ -52,16 +48,10 @@ type Game struct {
 	ShowTradeScreen bool
 
 	GlobalKeyBindings map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
-	TestDataMap       map[string]any               // a general purpose map; used for testing in the update hook functions
 
 	activeGlobalKeyBindFn map[ebiten.Key]bool // maps which keybinding functions are actively executing, to prevent repeated calls from long key presses.
 
-	Clock         clock.Clock
-	daylightFader lights.LightFader
-
 	outsideWidth, outsideHeight int
-
-	worldScene *ebiten.Image
 
 	EventBus *pubsub.EventBus
 
@@ -69,49 +59,14 @@ type Game struct {
 
 	hud HUD // if set, this will update and be drawn on top of the in-game world
 
-	UpdateHooks
-
 	Dataman       *datamanager.DataManager
 	AudioManager  *audio.AudioManager
 	QuestManager  *quest.QuestManager
 	ScreenManager *screen.ScreenManager
-
-	debugData debugData // just used for the debug drawing
 }
 
 func (g Game) GetGameStage() GameStage {
 	return g.gameStage
-}
-
-// StartDialogSession starts a dialog session with the given dialog profile ID
-func (g *Game) StartDialogSession(dialogProfileID defs.DialogProfileID, npcID string) {
-	if npcID == "" {
-		panic("npcID was empty")
-	}
-	params := dialogv2.DialogSessionParams{
-		NPCID:         npcID,
-		ProfileID:     dialogProfileID,
-		BoxTilesetSrc: "boxes/boxes.tsj",
-		BoxOriginID:   16,
-		TextFont:      config.DefaultFont,
-	}
-	ds := dialogv2.NewDialogSession(params, g.EventBus, g.Dataman, g.ScreenManager, g)
-
-	g.dialogSession = &ds
-}
-
-// SetPlayerName - made for dialog action
-func (g *Game) SetPlayerName(name string) {
-	if g.Player == nil {
-		panic("player was nil")
-	}
-	if g.Player.Entity == nil {
-		panic("player entity was nil")
-	}
-	if g.Player.CharacterStateRef == nil {
-		panic("player character state was nil")
-	}
-	g.Player.CharacterStateRef.DisplayName = name
 }
 
 func (g *Game) SetHUD(hud HUD) {
@@ -122,17 +77,6 @@ func (g *Game) SetHUD(hud HUD) {
 type HUD interface {
 	Draw(screen *ebiten.Image)
 	Update(g *Game)
-}
-
-func (g *Game) SetupTradeSession(shopkeeperID defs.ShopID) {
-	shopkeeperDef := g.Dataman.GetShopkeeperDef(shopkeeperID)
-	shopkeeperState := g.Dataman.GetShopkeeperState(shopkeeperID)
-	g.TradeScreen.SetupTradeSession(*shopkeeperDef, shopkeeperState)
-	g.ShowTradeScreen = true
-}
-
-type UpdateHooks struct {
-	UpdateMapHook func(*Game)
 }
 
 // InitialStartUp runs startup functions to prepare the game to play.
@@ -147,10 +91,6 @@ func InitialStartUp() error {
 		return err
 	}
 
-	// set logs to show microseconds in timestamps
-	// log.SetFlags(log.LstdFlags | log.Lmicroseconds)
-	// Since we now log the update tick, I don't think this is that useful anymore
-
 	return nil
 }
 
@@ -158,11 +98,17 @@ func (g *Game) RunGame() error {
 	return ebiten.RunGame(g)
 }
 
-func NewGame(initTime clock.GameTime) *Game {
+// NewGame gives you a newly created Game struct for use; Note that this does NOT start a new "game playthrough"
+// or something like that. This just gives you a blank slate of a Game that can then be used for other things, like
+// starting a new playthrough, or loading a previous save, etc.
+//
+// After getting a Game from here, you can:
+//
+// - Load all data definitions (character defs, item defs, quest defs, dialog defs, etc. all of the DEFS, not states.)
+//
+// - Once all defs have been loaded in, THEN you can load a save or start a new game/playthrough, etc. this is where states are created or loaded.
+func NewGame() *Game {
 	g := Game{
-		worldScene:    ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT),
-		daylightFader: lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20),
-
 		gameStage: MainMenu,
 
 		// managers
@@ -174,26 +120,42 @@ func NewGame(initTime clock.GameTime) *Game {
 		ScreenManager:  screen.NewScreenManager(),
 	}
 
-	g.SetGameTime(initTime)
-
 	g.QuestManager = quest.NewQuestManager(g.EventBus, &g)
 
 	return &g
 }
 
-func (g *Game) SetGameTime(gameTime clock.GameTime) {
-	g.Clock = clock.NewClock(
-		config.HourSpeed,
-		gameTime.Hour,
-		gameTime.Minute,
-		gameTime.Season,
-		gameTime.DayOfSeason,
-		gameTime.Year,
-		90, // TODO: move this to config variable?
-	)
+// InitializeGameWorld creates the World struct and builds all the NPCs and other world data that exists in the "game world".
+//
+// You should only call this AFTER doing the following:
+//
+// - Loading ALL data definitions (into Datamanager, Questmanager, etc)
+//
+// - Loading the player's character def and character STATE into Datamanager (using the unique ID at defs.PlayerID).
+//
+//	Yes, that's right: the player's character STATE should already exist. You need to create your own screen or process to instantiate this before creating the game world.
+//	Other character states should not be made before calling this, however.
+//
+// In other words, this should only be done once the game is ready to fully launch into the "game universe" and load all characters, maps, etc.
+func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
+	if len(g.Dataman.MapDefs) == 0 {
+		logz.Panicln("InitializeGameWorld", "no map defs found. are you sure you loaded all data definitions?")
+	}
+	if len(g.Dataman.CharacterDefs) == 0 {
+		logz.Panicln("InitializeGameWorld", "no character defs found. are you sure you loaded all data definitions?")
+	}
+	// process all maps and initialize their states; this is because a map serves to define what characters actually exist in the game world.
+	// If a character has a bed in a map somewhere, then they officially "exist" and will have their state initialized and will have an NPC operating somewhere in the game universe.
 
-	// make sure lighting is initialized
-	g.OnHourChange(gameTime.Hour, true, false)
+	for id := range g.Dataman.MapDefs {
+		g.EnsureMapStateExists(id)
+	}
+
+	// after the above, we should now have all NPC's entity states created.
+	// Note that this doesn't mean all character defs have had a corresponding state created; it means all character defs found in reference in a bed object were created.
+	// any character that doesn't have a bed object in some map will, therefore, not exist yet.
+
+	g.World = world.NewWorld(initTime, g.Dataman, g.AudioManager, g.EventBus, g)
 }
 
 func (g *Game) SetMainMenu(scrID screen.ScreenID) {
@@ -202,49 +164,11 @@ func (g *Game) SetMainMenu(scrID screen.ScreenID) {
 	g.mainMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g)
 }
 
-func (g *Game) GetPlayerInfo() defs.PlayerInfo {
-	charDef := g.Dataman.GetCharacterDef(g.Player.CharacterStateRef.DefID)
-	return defs.PlayerInfo{
-		PlayerName:    g.Player.CharacterStateRef.DisplayName,
-		PlayerCulture: charDef.CultureID,
-	}
-}
-
-// OnHourChange handles any hourly changes that should occur; such as lighting, event publishing, etc.
-// postEvent: this exists to suppress the event when we initialize the first time. the main reason being that the quest manager
-// won't have its data set yet, and will panic if it receives events beforehand.
-// TODO: should we just move the place where the first hour/lighting is initialized?
-func (g *Game) OnHourChange(hour int, skipFade bool, postEvent bool) {
-	if hour < 0 || hour > 23 {
-		panic("invalid hour")
-	}
-
-	newDaylight, darknessFactor := lights.CalculateDaylight(hour)
-	if skipFade {
-		g.daylightFader.SetCurrentColor(newDaylight)
-		g.daylightFader.TargetColor = newDaylight
-		g.daylightFader.SetCurrentDarknessFactor(darknessFactor)
-		g.daylightFader.TargetDarknessFactor = darknessFactor
-	} else {
-		g.daylightFader.TargetColor = newDaylight
-		g.daylightFader.TargetDarknessFactor = darknessFactor
-	}
-
-	if postEvent {
-		g.EventBus.Publish(defs.Event{
-			Type: pubsub.EventTimePass,
-			Data: map[string]any{
-				"hour": hour,
-			},
-		})
-	}
-}
-
 func (g Game) LastPlayerUpdate() time.Time {
-	if g.Player == nil {
+	if g.World.Player == nil {
 		logz.Panicln("LastPlayerUpdate", "player is nil")
 	}
-	return g.Player.LastUserInput
+	return g.World.Player.LastUserInput
 }
 
 // SetGlobalKeyBinding sets a key to a given function for global keybindings.

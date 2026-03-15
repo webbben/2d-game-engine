@@ -1,17 +1,21 @@
-package game
+// Package activemap represents the map that is currently active in the game
+package activemap
 
 import (
 	"fmt"
 	"slices"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
-	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/entity/player"
+	"github.com/webbben/2d-game-engine/internal/camera"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
@@ -20,219 +24,86 @@ import (
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/utils"
-	"github.com/webbben/2d-game-engine/world"
+	"github.com/webbben/2d-game-engine/world/npc"
 )
 
-// MapInfo contains information about the current room the player is in
-type MapInfo struct {
-	MapID   defs.MapID
-	gameRef *Game
+type GameContext interface {
+	StartDialogSession(dialogProfileID defs.DialogProfileID, npcID string)
+	StartTradeSession(shopkeeperID defs.ShopID)
+}
+
+type WorldContext interface {
+	// TODO: is this used here?
+	GenerateCharacter(chargen defs.CharacterGenerator, initialMap defs.MapID, homeMap defs.MapID, homeMapBedID int) state.CharacterStateID
+	HandleMapDoor(result object.ObjectUpdateResult)
+}
+
+// ActiveMap contains information about the current room the player is in
+type ActiveMap struct {
+	debugData debugData
+	MapID     defs.MapID
+
+	gameCtx  GameContext
+	worldCtx WorldContext
+
+	dataman  *datamanager.DataManager
+	audioman *audio.AudioManager
+	eventBus *pubsub.EventBus
 
 	DisplayName string // the name of the map shown to the player
 	Loaded      bool   // flag indicating if this map has been loaded
 	ReadyToPlay bool   // flag indicating if all loading steps are done, and this map is ready to show in the game
 	MapIsActive bool   // flag indicating if the map is actively being used (e.g. for rendering, updates, etc)
-	Map         tiled.Map
+	Map         *tiled.Map
 	ImageMap    map[string]*ebiten.Image // the map of images (tiles) used in rendering the current room
 	PlayerRef   *player.Player
 	Objects     []*object.Object
+
+	Camera     camera.Camera
+	worldScene *ebiten.Image
 
 	sortedRenderables []sortedRenderable
 
 	Lights       []*lights.Light  // permanent lights that are not controlled by an object
 	LightObjects []*object.Object // lights controlled by an object
 
+	daylightFader lights.LightFader
+
 	NPCManager
 }
 
-type sortedRenderable interface {
-	Y() float64
-	Draw(screen *ebiten.Image, offsetX, offsetY float64)
-}
-
-type OpenMapOptions struct {
-	// set to true if this map should run a NPC manager background process.
-	// this is not mandatory for using NPCs, just helps improve their behavior, especially when there are a lot of them in a map.
-	RunNPCManager    bool
-	RegenerateImages bool // set to true if tile images should be regenerated
-}
-
-// EnterMap sets up a map and puts the player in it at the given position. meant for use once player already exists in game state
-func (g *Game) EnterMap(mapID defs.MapID, op *OpenMapOptions, playerSpawnIndex int) error {
-	if g.MapInfo != nil {
-		g.MapInfo.CloseMap()
-	}
-
-	err := g.SetupMap(mapID, op)
-	if err != nil {
-		return err
-	}
-
-	return g.PlacePlayerAtSpawnPoint(g.Player, playerSpawnIndex)
-}
-
-// EnsureMapStateExists checks if a map state exists, and instantiates it if it doesn't.
-// So, anytime you're dealing with a map, just run this function to make sure its state exists and/or has been instantiated correctly.
-func (g *Game) EnsureMapStateExists(mapID defs.MapID) {
-	// make sure def exists for this mapID
-	_ = g.Dataman.GetMapDef(mapID)
-
-	if g.Dataman.MapStateExists(mapID) {
-		return
-	}
-
-	g.CreateNewMapState(mapID)
-}
-
-func (g *Game) CreateNewMapState(mapID defs.MapID) {
-	if g.Dataman.MapStateExists(mapID) {
-		logz.Panicln("CreateNewMapState", "tried to create a new map state, but one already exists:", mapID)
-	}
-
-	mapState := state.MapState{
-		ID:       mapID,
-		MapLocks: make(map[string]state.LockState),
-		MapBeds:  make(map[int]state.BedState),
-	}
-
-	// look through Tiled map data to initialize state for things like pre-defined item placements, door locks, etc.
-	m := tiled.LoadMap(mapID, false)
-
-	objLayers := getAllObjectLayers(m.Layers)
-
-	// Get initial items
-	for _, layer := range objLayers {
-		for _, obj := range layer.Objects {
-			objectInfo := m.GetObjectPropsAndTile(obj)
-			objType, found := tiled.GetStringProperty("TYPE", objectInfo.AllProps)
-			if !found {
-				logz.Panicln("CreateNewMapState", "object didn't have a TYPE property:", obj.Name, obj.ID, "mapID:", mapID)
-			}
-
-			// check if there is a lock on this object
-			var lockLevel int
-			var lockID string
-			lockLevel, found = tiled.GetIntProperty("lock_level", objectInfo.AllProps)
-			if found {
-				if lockLevel <= 0 {
-					logz.Panicln("CreateNewMapState", "found lock level property on object, but it had a level of <= 0.", obj.Name, obj.ID, "mapID:", mapID)
-				}
-				lockID, found = tiled.GetStringProperty("lock_id", objectInfo.AllProps)
-				if !found {
-					logz.Panicln("CreateNewMapState", "found lock level property on object, but no lock ID.", obj.Name, obj.ID, "mapID:", mapID)
-				}
-				if lockID == "" {
-					logz.Panicln("CreateNewMapState", "lock ID property was empty:", obj.Name, obj.ID, "mapID:", mapID)
-				}
-				// add it to the lock map
-				mapState.MapLocks[lockID] = state.LockState{
-					LockID:    lockID,
-					LockLevel: lockLevel,
-				}
-			}
-
-			switch objType {
-			case object.TypeItem:
-				if lockID != "" {
-					logz.Panicln("CreateNewMapState", "a lock was put on an item, which doesn't make any sense.", obj.Name, obj.ID, "mapID:", mapID)
-				}
-				// get item ID
-				itemID, found := tiled.GetStringProperty("item_id", objectInfo.AllProps)
-				if !found {
-					logz.Panicln("CreateNewMapState", "found item object, but no item_id property was found:", obj.Name, obj.ID, "mapID:", mapID)
-				}
-				// confirm item exists
-				defID := defs.ItemID(itemID)
-				_ = g.Dataman.GetItemDef(defID)
-				mapState.MapItems = append(mapState.MapItems, state.MapItemState{
-					ItemInstance: defs.ItemInstance{DefID: defID},
-					Quantity:     1,
-					X:            obj.X,
-					Y:            obj.Y,
-				})
-			case object.TypeBed:
-				if lockID != "" {
-					logz.Panicln("CreateNewMapState", "a lock was put on a bed, which doesn't make any sense.", obj.Name, obj.ID, "mapID:", mapID)
-				}
-				// instantiate the NPC that is associated with this bed
-				var charStateID state.CharacterStateID
-				charGenID, found := tiled.GetStringProperty("characterGeneratorID", objectInfo.AllProps)
-				if found {
-					charGen := g.Dataman.GetCharacterGenerator(charGenID)
-					charStateID = world.GenerateCharacter(charGen, g.Dataman)
-				} else {
-					charDefID, found := tiled.GetStringProperty("characterDefID", objectInfo.AllProps)
-					if found {
-						// this bed has a specific character def ID set
-						charStateID = entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), entity.NewCharacterStateParams{}, g.Dataman)
-					}
-				}
-
-				// if a character was created, register this bed in the character state
-				if charStateID != "" {
-					charState := g.Dataman.GetCharacterState(charStateID)
-					charState.HomeMapID = mapID
-					charState.HomeMapBedID = obj.ID
-				}
-
-				// add this bed to the MapBeds
-				mapState.MapBeds[obj.ID] = state.BedState{
-					MapObjID:            obj.ID,
-					ResidentCharStateID: charStateID,
-				}
-			}
-		}
-	}
-
-	g.Dataman.LoadMapState(mapState)
-}
-
-func getAllObjectLayers(layers []tiled.Layer) []tiled.Layer {
-	objLayers := []tiled.Layer{}
-	for _, layer := range layers {
-		if layer.Type == tiled.LayerTypeGroup {
-			objLayers = append(objLayers, getAllObjectLayers(layer.Layers)...)
-			continue
-		}
-		if layer.Type == tiled.LayerTypeObject {
-			objLayers = append(objLayers, layer)
-		}
-	}
-
-	return objLayers
-}
-
-// SetupMap prepares the MapInfo for in-game play
-func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
-	logz.Println("SetupMap", "Setting up map", mapID, "for in-game play")
-
-	if op == nil {
-		op = &OpenMapOptions{}
-	}
-
-	if g.MapInfo != nil {
-		// TODO: should we do this somewhere else? seems like a better option to close the map before trying to setup a new one
-		g.MapInfo.CloseMap()
-	}
-
-	g.EnsureMapStateExists(mapID)
-
-	mapDef := g.Dataman.GetMapDef(mapID)
-
+func NewActiveMap(
+	dataman *datamanager.DataManager,
+	audioman *audio.AudioManager,
+	eventbus *pubsub.EventBus,
+	gameCtx GameContext,
+	worldCtx WorldContext,
+	mapID defs.MapID,
+	regenImages bool,
+) *ActiveMap {
+	mapDef := dataman.GetMapDef(mapID)
 	// load and setup the map
-	m := tiled.LoadMap(mapID, op.RegenerateImages)
+	tiledMap := tiled.LoadMap(mapID, regenImages)
 
-	g.MapInfo = &MapInfo{
+	m := &ActiveMap{
 		MapID:       mapID,
 		DisplayName: mapDef.DisplayName,
+		dataman:     dataman,
+		audioman:    audioman,
+		eventBus:    eventbus,
+		gameCtx:     gameCtx,
+		worldCtx:    worldCtx,
+		Map:         tiledMap,
+		NPCManager: NPCManager{
+			mapRef: tiledMap,
+		},
 	}
-	g.MapInfo.Map = *m
-	// NOTE: I guess this is for NPCManager? looks really dumb here though... lol
-	g.MapInfo.mapRef = g.MapInfo.Map
-	g.MapInfo.gameRef = g
+
+	m.daylightFader = lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20)
+	m.worldScene = ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT)
 
 	// find all lights embedded in tiles
-	for _, tileset := range m.Tilesets {
+	for _, tileset := range m.Map.Tilesets {
 		for _, tile := range tileset.Tiles {
 			// determine if this is a light tile
 			tileType := tiled.GetTileType(tile)
@@ -240,13 +111,13 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 				lightProps := tiled.GetLightProps(tile.Properties)
 				gid := tile.ID + tileset.FirstGID
 
-				lightPositions := m.GetAllTilePositions(gid)
+				lightPositions := m.Map.GetAllTilePositions(gid)
 				for _, pos := range lightPositions {
 					// center on the tile so the light doesn't show in the tile's top-left corner
 					x := (pos.X * config.TileSize) + (config.TileSize / 2)
 					y := (pos.Y * config.TileSize) + (config.TileSize / 2)
 					l := lights.NewLight(x, y, lightProps, nil)
-					g.MapInfo.Lights = append(g.MapInfo.Lights, &l)
+					m.Lights = append(m.Lights, &l)
 					fmt.Printf("light found at x: %v y: %v\n", x, y)
 				}
 			}
@@ -254,83 +125,55 @@ func (g *Game) SetupMap(mapID defs.MapID, op *OpenMapOptions) error {
 	}
 
 	// find all objects in the map
-	for _, layer := range m.Layers {
-		g.addAllObjectsToMap(layer, mapID)
+	for _, layer := range m.Map.Layers {
+		m.addAllObjectsToMap(layer)
 	}
 
 	// start up background jobs loop
-	if g.MapInfo.backgroundJobsRunning {
+	if m.backgroundJobsRunning {
 		panic("backgroundJobsRunning flag is already true while initializing map")
 	}
-	if op.RunNPCManager {
-		g.MapInfo.RunBackgroundJobs = true
-		g.MapInfo.startBackgroundNPCManager()
-	}
+	m.RunBackgroundJobs = true
+	m.startBackgroundNPCManager()
 
-	g.MapInfo.Loaded = true
+	m.Loaded = true
 
-	// NOTE: add NPCs after Loaded = true, since that is checked in AddNPCToMap
-
-	// check if a scenario should be loaded into the map
-	mapState := g.Dataman.GetMapState(mapID)
-	if len(mapState.QueuedScenarios) > 0 {
-		scenarioID := mapState.QueuedScenarios[0]
-		mapState.QueuedScenarios = mapState.QueuedScenarios[1:]
-		logz.Println("Loading Scenario", "MapID:", mapID, "ScenarioID:", scenarioID)
-		scenarioDef := g.Dataman.GetScenarioDef(scenarioID)
-		if scenarioDef.MapID != mapID {
-			logz.Panicln("SetupMap", "found queued scenario for map, but mapID in scenario def doesn't match. mapID:", mapID, "found in scenario def:", scenarioDef.MapID)
-		}
-
-		for _, charDef := range scenarioDef.Characters {
-
-			// TODO: add support for the dialog profile and schedule overrides
-
-			charStateID := entity.CreateNewCharacterState(
-				charDef.CharDefID,
-				entity.NewCharacterStateParams{Temp: true},
-				g.Dataman)
-			n := npc.NewNPC(npc.NPCParams{
-				CharStateID: charStateID,
-			}, g.Dataman, g.AudioManager, g.EventBus)
-
-			startPos := model.Coords{X: charDef.SpawnCoordX, Y: charDef.SpawnCoordY}
-			g.MapInfo.AddNPCToMap(n, startPos)
-		}
-	} else {
-		// TODO: No scenario, so figure out if regular world NPCs should be in this map.
-	}
-
-	g.EventBus.Publish(defs.Event{
+	m.eventBus.Publish(defs.Event{
 		Type: pubsub.EventVisitMap,
 		Data: map[string]any{
 			"MapID":          mapID,
-			"MapDisplayName": g.MapInfo.DisplayName,
+			"MapDisplayName": m.DisplayName,
 		},
 	})
 
-	return nil
+	return m
 }
 
-func (g *Game) addAllObjectsToMap(layer tiled.Layer, mapID defs.MapID) {
-	allObjs := tiled.GetAllObjectsFromLayer(layer)
-	for _, obj := range allObjs {
-		g.MapInfo.AddObjectToMap(obj, g.MapInfo.mapRef, mapID)
+func (m *ActiveMap) OnHourChange(hour int, skipFade bool) {
+	newDaylight, darknessFactor := lights.CalculateDaylight(hour)
+	if skipFade {
+		m.daylightFader.SetCurrentColor(newDaylight)
+		m.daylightFader.TargetColor = newDaylight
+		m.daylightFader.SetCurrentDarknessFactor(darknessFactor)
+		m.daylightFader.TargetDarknessFactor = darknessFactor
+	} else {
+		m.daylightFader.TargetColor = newDaylight
+		m.daylightFader.TargetDarknessFactor = darknessFactor
 	}
 }
 
-func (mi *MapInfo) CloseMap() {
-	mi.RunBackgroundJobs = false
+func (m *ActiveMap) addAllObjectsToMap(layer tiled.Layer) {
+	allObjs := tiled.GetAllObjectsFromLayer(layer)
+	for _, obj := range allObjs {
+		m.AddObjectToMap(obj, *m.mapRef)
+	}
 }
 
 type NPCManager struct {
-	NPCs          []*npc.NPC // the NPC entities in the map
-	worldGraphRef *world.WorldGraph
+	NPCs []*npc.NPC // the NPC entities in the map
 
-	mapRef       tiled.Map // map info so we can get map size, tile adjacency, etc
-	nextPriority int       // the next priority value to assign to an NPC
-
-	StuckNPCs []string // IDs of NPCs who are currently stuck (while trying to execute a task)
+	mapRef       *tiled.Map // map info so we can get map size, tile adjacency, etc
+	nextPriority int        // the next priority value to assign to an NPC
 
 	// if true, the background jobs goroutine will run.
 	// if false, the background jobs goroutine will stop.
@@ -338,8 +181,13 @@ type NPCManager struct {
 	backgroundJobsRunning bool // flag that indicates if background jobs loop already running.
 }
 
+type sortedRenderable interface {
+	Y() float64
+	Draw(screen *ebiten.Image, offsetX, offsetY float64)
+}
+
 // AddPlayerToMap is the official way to add the player to a map
-func (mi *MapInfo) AddPlayerToMap(p *player.Player, x, y float64) {
+func (mi *ActiveMap) AddPlayerToMap(p *player.Player, x, y float64) {
 	if !mi.Loaded {
 		panic("map not loaded yet. use SetupMap before using this.")
 	}
@@ -365,7 +213,7 @@ func (mi *MapInfo) AddPlayerToMap(p *player.Player, x, y float64) {
 
 // AddNPCToMap is the official way to add an NPC to a map.
 // Note: uses Tile coordinates - not absolute coordinates!
-func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
+func (mi *ActiveMap) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	if !mi.Loaded {
 		panic("map not loaded yet. use SetupMap before using this.")
 	}
@@ -384,7 +232,7 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 		H: h,
 	}
 	if res := mi.Collides(r, ""); res.Collides() {
-		logz.Panicln("AddNPCToMap", "NPC added to map on colliding tile. r:", r, "mapID:", mi.MapID, "npcID:", n.ID)
+		logz.Panicln("AddNPCToMap", "NPC added to map on colliding tile. r:", r, "mapID:", mi.MapID, "npcID:", n.ID())
 		panic("npc added to map on colliding tile")
 	}
 	n.Entity.World = mi
@@ -394,9 +242,8 @@ func (mi *MapInfo) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	mi.NPCs = append(mi.NPCs, n)
 }
 
-// TODO: seems a little odd that we pass map ID here. shouldn't it already be known in mapInfo?
-func (mi *MapInfo) AddObjectToMap(obj tiled.Object, m tiled.Map, mapID defs.MapID) {
-	o := object.LoadObject(obj, m, mi.gameRef.AudioManager, mi.gameRef.Dataman, mapID, mi)
+func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
+	o := object.LoadObject(obj, m, mi.audioman, mi.dataman, mi.MapID, mi)
 	mi.Objects = append(mi.Objects, o)
 	if o.Light.On {
 		mi.LightObjects = append(mi.LightObjects, o)
@@ -407,7 +254,7 @@ func (mi *MapInfo) AddObjectToMap(obj tiled.Object, m tiled.Map, mapID defs.MapI
 // rectBased param determines if collisions check for collision rects (e.g. for buildings with nuanced collision rects)
 // or if it just uses tile-based collisions (if a tile contains a collision rect, the entire tile is marked as a collision).
 // generally, the player should use rect-based, and NPCs should use tile-based (since NPCs usually can't do partial tile/px based movement)
-func (mi MapInfo) Collides(r model.Rect, excludeEntID string) model.CollisionResult {
+func (mi ActiveMap) Collides(r model.Rect, excludeEntID string) model.CollisionResult {
 	tl := model.ConvertPxToTilePos(int(r.X), int(r.Y))
 	tr := model.ConvertPxToTilePos(int(r.X+r.W), int(r.Y))
 	bl := model.ConvertPxToTilePos(int(r.X), int(r.Y+r.H))
@@ -538,13 +385,13 @@ func checkCornerCollision(r, targetRect model.Rect) model.CollisionResult {
 
 // FindPath returns a path to the goal, or if it cannot be reached, a path to the closest reachable position.
 // The boolean indicates if the goal was successfully reached.
-func (mi MapInfo) FindPath(start, goal model.Coords) ([]model.Coords, bool) {
+func (mi ActiveMap) FindPath(start, goal model.Coords) ([]model.Coords, bool) {
 	return path_finding.FindPath(start, goal, mi.CostMap())
 }
 
 // MapDimensions gives the TILE dimensions of a map (columns = width, rows = height).
 // This is not a pixels/absolute dimensions function.
-func (mi MapInfo) MapDimensions() (width int, height int) {
+func (mi ActiveMap) MapDimensions() (width int, height int) {
 	return mi.Map.Width, mi.Map.Height
 }
 
@@ -559,9 +406,9 @@ func (mi MapInfo) MapDimensions() (width int, height int) {
 // Not included:
 //
 // - Object collisions; These are shown in the debug "showCollisions", but not actually in the cost map here.
-func (mi MapInfo) CostMap() [][]int {
+func (mi ActiveMap) CostMap() [][]int {
 	if mi.Map.CostMap == nil {
-		panic("tried to get MapInfo cost map before Map costmap was created")
+		panic("tried to get ActiveMap cost map before Map costmap was created")
 	}
 	// make deep copy so that original cost map isn't altered
 	costMap := make([][]int, len(mi.Map.CostMap))
@@ -591,11 +438,11 @@ func (mi MapInfo) CostMap() [][]int {
 	return costMap
 }
 
-func (mi *MapInfo) GetLights() []*lights.Light {
+func (mi *ActiveMap) GetLights() []*lights.Light {
 	return mi.Lights
 }
 
-func (mi *MapInfo) GetSpawnPosition(index int) (x, y float64, found bool) {
+func (mi *ActiveMap) GetSpawnPosition(index int) (x, y float64, found bool) {
 	for _, obj := range mi.Objects {
 		if obj.Type == object.TypeSpawnPoint {
 			if obj.SpawnPoint.SpawnIndex == index {
@@ -607,35 +454,22 @@ func (mi *MapInfo) GetSpawnPosition(index int) (x, y float64, found bool) {
 	return -1, -1, false
 }
 
-func (g *Game) PlacePlayerAtSpawnPoint(p *player.Player, spawnIndex int) error {
-	if g.MapInfo == nil {
-		panic("map info is nil")
-	}
-	x, y, found := g.MapInfo.GetSpawnPosition(spawnIndex)
-	if !found {
-		return fmt.Errorf("given spawn point index not found in map: %v", spawnIndex)
-	}
-	g.MapInfo.AddPlayerToMap(p, x, y)
-	g.Camera.SetCameraPosition(x, y)
-	return nil
-}
-
-func (mi MapInfo) GetPlayerRect() model.Rect {
+func (mi ActiveMap) GetPlayerRect() model.Rect {
 	if mi.PlayerRef == nil {
 		panic("player ref is nil")
 	}
 	return mi.PlayerRef.Entity.CollisionRect()
 }
 
-func (mi *MapInfo) StartTradeSession(shopkeeperID defs.ShopID) {
-	mi.gameRef.SetupTradeSession(shopkeeperID)
+func (mi *ActiveMap) StartTradeSession(shopkeeperID defs.ShopID) {
+	mi.gameCtx.StartTradeSession(shopkeeperID)
 }
 
-func (mi *MapInfo) StartDialog(dialogProfileID defs.DialogProfileID, npcID string) {
-	mi.gameRef.StartDialogSession(dialogProfileID, npcID)
+func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID string) {
+	mi.gameCtx.StartDialogSession(dialogProfileID, npcID)
 }
 
-func (mi *MapInfo) GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC {
+func (mi *ActiveMap) GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC {
 	npcs := []*npc.NPC{}
 
 	for _, n := range mi.NPCs {
@@ -653,15 +487,15 @@ func (mi *MapInfo) GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC {
 	return npcs
 }
 
-func (mi *MapInfo) GetPlayer() *player.Player {
+func (mi *ActiveMap) GetPlayer() *player.Player {
 	return mi.PlayerRef
 }
 
-func (mi MapInfo) GetDistToPlayer(x, y float64) float64 {
+func (mi ActiveMap) GetDistToPlayer(x, y float64) float64 {
 	return utils.EuclideanDist(x, y, mi.PlayerRef.Entity.X, mi.PlayerRef.Entity.Y)
 }
 
-func (mi *MapInfo) GetGroundMaterial(tileX, tileY int) string {
+func (mi *ActiveMap) GetGroundMaterial(tileX, tileY int) string {
 	if tileY < 0 || tileY >= len(mi.Map.GroundMaterial) {
 		panic("tileY outside of bounds of ground material matrix")
 	}
@@ -672,7 +506,7 @@ func (mi *MapInfo) GetGroundMaterial(tileX, tileY int) string {
 	return mi.Map.GroundMaterial[tileY][tileX]
 }
 
-func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
+func (mi *ActiveMap) AttackArea(attackInfo entity.AttackInfo) {
 	// find all entities in the area of the rect
 
 	logz.Println("Attack Area", "target rect:", attackInfo.TargetRect, "attack info:", attackInfo)
@@ -701,7 +535,7 @@ func (mi *MapInfo) AttackArea(attackInfo entity.AttackInfo) {
 // ActivateArea attempts to activate an object or npc in an area. if an activation occurs, true is returned.
 // NOTE: for now, this is only used by the player. if this becomes a general purpose "activate an area" function,
 // then we need to pass info in about who is activating - so that we know which locks can be opened, for example.
-func (mi *MapInfo) ActivateArea(r model.Rect, originX, originY float64) bool {
+func (mi *ActiveMap) ActivateArea(r model.Rect, originX, originY float64) bool {
 	// check for activated objects
 	// try to get the object that is the "best match" (i.e. closest to the center of the activated area)
 	var closestObject *object.Object = nil
@@ -728,7 +562,7 @@ func (mi *MapInfo) ActivateArea(r model.Rect, originX, originY float64) bool {
 		if result.UpdateOccurred {
 			logz.Println("Activate Area", closestObject.Type, "Activation occurred")
 			if result.ChangeMapID != "" {
-				mi.gameRef.handleMapDoor(result)
+				mi.worldCtx.HandleMapDoor(result)
 			}
 		}
 
@@ -758,7 +592,7 @@ func (mi *MapInfo) ActivateArea(r model.Rect, originX, originY float64) bool {
 
 // HandleMouseClick handles a player's click in the game world; for non-ui clicks, such as clicking objects or entities in a map.
 // if a click event occurs, true will be returned.
-func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
+func (mi *ActiveMap) HandleMouseClick(mouseX, mouseY int) bool {
 	distThreshold := float64(config.TileSize * 2)
 	// check for object clicks
 	for _, obj := range mi.Objects {
@@ -775,7 +609,7 @@ func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
 				result := obj.Activate(x, y, activateParams)
 				if result.UpdateOccurred {
 					if result.ChangeMapID != "" {
-						mi.gameRef.handleMapDoor(result)
+						mi.worldCtx.HandleMapDoor(result)
 					}
 				}
 				return true
@@ -798,7 +632,7 @@ func (mi *MapInfo) HandleMouseClick(mouseX, mouseY int) bool {
 
 // FindObjectsAtPosition finds all objects that intersect with a given tile position.
 // This includes collidable and non-collidable objects, as long as they have a draw rect.
-func (mi *MapInfo) FindObjectsAtPosition(c model.Coords) []*object.Object {
+func (mi *ActiveMap) FindObjectsAtPosition(c model.Coords) []*object.Object {
 	posRect := model.NewRect(float64(c.X)*config.TileSize, float64(c.Y)*config.TileSize, config.TileSize, config.TileSize)
 	objs := []*object.Object{}
 	for _, obj := range mi.Objects {
@@ -811,7 +645,7 @@ func (mi *MapInfo) FindObjectsAtPosition(c model.Coords) []*object.Object {
 
 // RectCollidesWithOthers is a general purpose function to see if a rect in a world map collides with anything.
 // Can pass exclusion IDs so that the caller can ignore itself.
-func (mi *MapInfo) RectCollidesWithOthers(r model.Rect, excludeEntID string, excludeObjID int) bool {
+func (mi *ActiveMap) RectCollidesWithOthers(r model.Rect, excludeEntID string, excludeObjID int) bool {
 	for _, n := range mi.NPCs {
 		if string(n.Entity.ID()) == excludeEntID {
 			continue
@@ -831,4 +665,17 @@ func (mi *MapInfo) RectCollidesWithOthers(r model.Rect, excludeEntID string, exc
 	}
 
 	return false
+}
+
+func (m *ActiveMap) PlacePlayerAtSpawnPoint(p *player.Player, spawnIndex int) {
+	x, y, found := m.GetSpawnPosition(spawnIndex)
+	if !found {
+		logz.Panicf("given spawn point index not found in map: %v", spawnIndex)
+	}
+	m.PlacePlayerAtPosition(p, x, y)
+}
+
+func (m *ActiveMap) PlacePlayerAtPosition(p *player.Player, x, y float64) {
+	m.AddPlayerToMap(p, x, y)
+	m.Camera.SetCameraPosition(x, y)
 }

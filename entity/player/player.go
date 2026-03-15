@@ -8,8 +8,8 @@ import (
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
-	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/world/npc"
 )
 
 type Player struct {

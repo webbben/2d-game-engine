@@ -1,5 +1,7 @@
 package defs
 
+import "github.com/webbben/2d-game-engine/clock"
+
 /*
 
 The purpose of GameContext is to group together all the different context interfaces that different parts of the
@@ -29,7 +31,11 @@ type GameQuestContext interface {
 }
 
 type GameScreenContext interface {
-	AddPlayerToMap(mapID MapID, spawnIndex int)
+	EnterMap(mapID MapID, spawnIndex int)
+
+	// NOTE: not great that we ref clock in here, but clock doesn't import anything so it works.
+	// we could consider moving types like GameTime into defs, but just gonna leave things as they are for now.
+	InitializeGameWorld(initTime clock.GameTime)
 }
 
 // PlayerInfo is information about the player that dialogs might use
