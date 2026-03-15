@@ -1,11 +1,11 @@
-package game
+package activemap
 
 import (
 	"time"
 
-	"github.com/webbben/2d-game-engine/entity/npc"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/world/npc"
 )
 
 // FindNPCAtPosition finds an NPC at a given position, if one is to be found there. Second return value indicates if NPC successfully found.
@@ -65,7 +65,7 @@ func (nm *NPCManager) _asyncJobs() {
 
 			// check if NPC's current task can use background assistance
 			if n.CurrentTask != nil {
-				n.CurrentTask.BackgroundAssist(nm.worldGraphRef)
+				n.CurrentTask.BackgroundAssist()
 			} else {
 				logz.Println(n.DisplayName(), "NPC Manager: NPC has no current task")
 			}

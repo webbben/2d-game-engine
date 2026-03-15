@@ -7,7 +7,6 @@ import (
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/world"
 )
 
 type FollowTask struct {
@@ -170,7 +169,7 @@ func (t *FollowTask) Update() {
 
 // must NOT directly modify crucial state of NPC or entity (e.g. setting its position, movement, etc directly).
 // can only suggest changes that will then be picked up in the normal game update loop and handled there.
-func (t *FollowTask) BackgroundAssist(wg *world.WorldGraph) {
+func (t *FollowTask) BackgroundAssist() {
 	if t.recalculatePath {
 		return // previous flag set hasn't been acted upon yet
 	}
@@ -192,4 +191,4 @@ func (t *FollowTask) BackgroundAssist(wg *world.WorldGraph) {
 	t.Owner.Entity.Movement.SuggestedTargetPath = newPath
 }
 
-func (t FollowTask) SimulationUpdate(wg *world.WorldGraph) {}
+func (t FollowTask) SimulationUpdate() {}

@@ -169,6 +169,10 @@ type NewCharacterStateParams struct {
 	OverwriteDisplayName    string               // if set, the display name used in charDef will be ignored in favor of this one
 	OverrideDialogProfileID defs.DialogProfileID // if set, this will be used instead of the one set in the character def
 	OverrideScheduleID      defs.ScheduleID      // if set, this will be used instead of the one set in the character def
+
+	InitialMapID defs.MapID
+	HomeMapID    defs.MapID
+	HomeMapBedID int
 }
 
 // CreateNewCharacterState instantiates a new Character State from a CharacterDef. This should only be done when:
@@ -205,6 +209,19 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		if params.OverrideScheduleID != "" {
 			panic("why are we setting a schedule override for player?")
 		}
+		if params.InitialMapID != "" {
+			logz.Panicln("CreateNewCharacterState", "an initial map ID was set for the player's state. this doesn't really make sense, since we have to manually place the player in a map anyway.")
+		}
+	} else {
+		// non temporary NPCs must have these things defined
+		if !params.Temp {
+			if params.InitialMapID == "" {
+				logz.Panicln("CreateNewCharacterState", "no initial map ID set; this means the character will not exist anywhere in the world! charDefID:", charDefID)
+			}
+			if params.HomeMapID == "" {
+				logz.Panicln("CreateNewCharacterState", "no home map ID set; this is needed so the character knows where to find its bed")
+			}
+		}
 	}
 
 	displayName := charDef.DisplayName
@@ -218,6 +235,10 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		DefID:       charDefID,
 		DisplayName: displayName,
 		IsPlayer:    params.IsPlayer,
+
+		CurrentMap:   params.InitialMapID,
+		HomeMapID:    params.HomeMapID,
+		HomeMapBedID: params.HomeMapBedID,
 
 		StandardInventory: charDef.InitialInventory,
 
