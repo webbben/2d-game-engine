@@ -42,6 +42,25 @@ func (g Game) showGameDebugInfo(screen *ebiten.Image) {
 
 		s.WriteString(fmt.Sprintf("TIME: %s\n", g.World.Clock))
 		g.World.ActiveMap.GetDaylightData(&s)
+
+		s.WriteString("\nMAP, CAMERA")
+		s.WriteString(fmt.Sprintf("\nMap ID: %s", g.World.ActiveMap.MapID))
+		mapTileWidth := g.World.ActiveMap.Map.Width
+		mapTileHeight := g.World.ActiveMap.Map.Height
+		mapWidth := mapTileWidth * config.TileSize
+		mapHeight := mapTileHeight * config.TileSize
+		s.WriteString(fmt.Sprintf("\nMap Size: %v x %v (%v x %v)", mapTileWidth, mapTileHeight, mapWidth, mapHeight))
+		s.WriteString(fmt.Sprintf("\nGameScale: %v | TileSize: %v (scaled: %v)", config.GameScale, config.TileSize, config.TileSize*config.GameScale))
+
+		cam := g.World.ActiveMap.Camera
+		camTileX := cam.X
+		camAbsX := camTileX * config.TileSize
+		camTileY := cam.Y
+		camAbsY := camTileY * config.TileSize
+		s.WriteString(fmt.Sprintf("\nCamera Position: [%.2f, %.2f] (%.2f, %.2f)", camTileX, camTileY, camAbsX, camAbsY))
+		camWidth := display.SCREEN_WIDTH / int(config.TileSize*config.GameScale)
+		camHeight := display.SCREEN_HEIGHT / int(config.TileSize*config.GameScale)
+		s.WriteString(fmt.Sprintf("\nCamera W: %v H: %v | X Range: [%.2f, %.2f] | Y Range: [%.2f, %.2f]", camWidth, camHeight, cam.MinX, cam.MaxX, cam.MinY, cam.MaxY))
 	}
 
 	ebitenutil.DebugPrint(screen, s.String())

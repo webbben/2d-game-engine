@@ -95,6 +95,8 @@ func NewActiveMap(
 		},
 	}
 
+	m.Camera.SetMapLimits(tiledMap.Width, tiledMap.Height)
+
 	m.daylightFader = lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20)
 	m.worldScene = ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT)
 
