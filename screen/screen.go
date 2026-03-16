@@ -11,10 +11,8 @@ import (
 	"github.com/webbben/2d-game-engine/ui/popup"
 )
 
-type ScreenID string
-
 type Screen interface {
-	GetID() ScreenID
+	GetID() defs.ScreenID
 	// Load is for preparing the screen for use.
 	// TODO: should we pass parameters or something? I'm wondering about how we use screens that are used with variable data.
 	// for example, a chest inventory screen; it will need to know a specific chest state (not yet implemented) to open and load data for.
@@ -35,12 +33,12 @@ type LoadScreenParams struct {
 }
 
 type ScreenManager struct {
-	screens map[ScreenID]Screen
+	screens map[defs.ScreenID]Screen
 }
 
 func NewScreenManager() *ScreenManager {
 	sm := ScreenManager{
-		screens: make(map[ScreenID]Screen),
+		screens: make(map[defs.ScreenID]Screen),
 	}
 
 	return &sm
@@ -59,7 +57,7 @@ func (sm *ScreenManager) LoadScreen(s Screen) {
 	sm.screens[id] = s
 }
 
-func (sm ScreenManager) GetScreen(id ScreenID) Screen {
+func (sm ScreenManager) GetScreen(id defs.ScreenID) Screen {
 	if id == "" {
 		panic("id was empty")
 	}

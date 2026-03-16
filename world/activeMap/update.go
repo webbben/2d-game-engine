@@ -2,7 +2,7 @@ package activemap
 
 import "sort"
 
-func (m *ActiveMap) Update() {
+func (m *ActiveMap) Update(blockPlayerChanges bool) {
 	m.daylightFader.Update()
 
 	m.Camera.MoveCamera(m.PlayerRef.Entity.X, m.PlayerRef.Entity.Y)
@@ -14,7 +14,9 @@ func (m *ActiveMap) Update() {
 
 	for i := range m.Objects {
 		result := m.Objects[i].Update()
-		if result.UpdateOccurred {
+		// only handle object update reactions if player is not blocked
+		// we do this to prevent accidentally handling map doors twice in a row, when walking on a map door.
+		if result.UpdateOccurred && !blockPlayerChanges {
 			if result.ChangeMapID != "" {
 				m.worldCtx.HandleMapDoor(result)
 				return

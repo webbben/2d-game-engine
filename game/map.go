@@ -19,6 +19,8 @@ func (g *Game) EnsureMapStateExists(mapID defs.MapID) {
 		return
 	}
 
+	logz.Println("EnsureMapStateExists", "Map state doesn't exist yet; creating...", mapID)
+
 	g.CreateNewMapState(mapID)
 }
 

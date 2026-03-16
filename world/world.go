@@ -25,7 +25,7 @@ type World struct {
 	Dataman  *datamanager.DataManager
 	Audioman *audio.AudioManager
 	EventBus *pubsub.EventBus
-	GameCtx  activemap.GameContext
+	GameCtx  defs.GameContext
 
 	// General world information
 
@@ -35,8 +35,9 @@ type World struct {
 
 	// Characters in the World
 
-	Player *player.Player
-	NPCs   map[state.CharacterStateID]*npc.NPC
+	Player             *player.Player
+	BlockPlayerChanges bool
+	NPCs               map[state.CharacterStateID]*npc.NPC
 
 	// Map Information
 
@@ -52,7 +53,7 @@ func NewWorld(
 	dataman *datamanager.DataManager,
 	audioman *audio.AudioManager,
 	eventBus *pubsub.EventBus,
-	gameCtx activemap.GameContext,
+	gameCtx defs.GameContext,
 ) *World {
 	w := &World{
 		Dataman:  dataman,
@@ -99,18 +100,35 @@ func (w *World) populateNPCMap() {
 	}
 }
 
-func (w *World) EnterMapAtPosition(mapID defs.MapID, x, y float64) {
-	w.setupNewMap(mapID)
-	w.ActiveMap.PlacePlayerAtPosition(w.Player, x, y)
+func (w *World) EnterMapAtPosition(mapID defs.MapID, x, y float64, doTransition bool) {
+	loadFunc := func(ctx defs.GameContext) {
+		w.setupNewMap(mapID)
+		w.ActiveMap.PlacePlayerAtPosition(w.Player, x, y)
+	}
+	if doTransition {
+		w.GameCtx.StartLoadScreen(loadFunc)
+	} else {
+		loadFunc(w.GameCtx)
+	}
 }
 
 // EnterMap sets up a map and puts the player in it at the given position. meant for use once player already exists in game state
-func (w *World) EnterMap(mapID defs.MapID, playerSpawnIndex int) {
-	w.setupNewMap(mapID)
-	w.ActiveMap.PlacePlayerAtSpawnPoint(w.Player, playerSpawnIndex)
+func (w *World) EnterMap(mapID defs.MapID, playerSpawnIndex int, doTransition bool) {
+	loadFunc := func(ctx defs.GameContext) {
+		w.setupNewMap(mapID)
+		w.ActiveMap.PlacePlayerAtSpawnPoint(w.Player, playerSpawnIndex)
+	}
+	if doTransition {
+		// block player changes so they can't accidentally enter the same map twice
+		w.BlockPlayerChanges = true
+		w.GameCtx.StartLoadScreen(loadFunc)
+	} else {
+		loadFunc(w.GameCtx)
+	}
 }
 
 func (w *World) setupNewMap(mapID defs.MapID) {
+	logz.Println("WORLD", "setting up map:", mapID)
 	if w.ActiveMap != nil {
 		w.CloseMap()
 	}
