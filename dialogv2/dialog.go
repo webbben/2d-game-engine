@@ -51,7 +51,7 @@ type GetUserInputActionParams struct {
 }
 
 type ShowScreenActionParams struct {
-	ScreenID screen.ScreenID
+	ScreenID defs.ScreenID
 }
 
 var quitTopic defs.DialogTopic = defs.DialogTopic{

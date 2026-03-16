@@ -13,6 +13,20 @@ func (g *Game) Update() error {
 		g.handleGlobalKeyBindings()
 	}
 
+	if g.TransitionManager.TransitionInProgress {
+		g.TransitionManager.Update(g)
+		if g.TransitionManager.ShowingLoadingScreen {
+			// if we are showing a loading screen, then no other content should get updates.
+			// we do allow updates during opening and closing transitions though, since we don't want things to look oddly "frozen"
+			// and snap into update only once the transition has fully finished. that makes it look weird.
+			return nil
+		}
+		if !g.TransitionManager.TransitionInProgress {
+			// transition just ended. resume letting player do things in game map
+			g.World.BlockPlayerChanges = false
+		}
+	}
+
 	switch g.gameStage {
 	case MainMenu:
 		if g.MainMenu == nil {
@@ -23,7 +37,13 @@ func (g *Game) Update() error {
 		}
 		g.mainMenuViewer.Update()
 		if g.mainMenuViewer.IsDone() {
-			g.gameStage = InGameWorld
+			if !g.TransitionManager.TransitionInProgress {
+				// TODO: When a screen ends, it might be launching a loading screen next. So, we can't switch directly to InGameWorld here.
+				// I've wondered if we should have a "Loading" game stage, but, usually when loading we want to keep the existing screen there long enough (at least)
+				// for the transitions to finish fading in/out. So, I don't think we want to switch directly into a new game stage.
+				// It seems to me like we should rely on the screens (or whoever is calling a transition) to handle switching the game stage, and not assume here.
+				// So, I wonder if we should add some validation in here to ensure that the loading process elsewhere is indeed changing the game stage - so we dont' get stuck.
+			}
 		}
 	case InGameWorld:
 		if g.World == nil {

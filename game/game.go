@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/internal/lights"
@@ -24,11 +25,9 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-type GameStage string
-
 const (
-	MainMenu    GameStage = "MAIN_MENU"
-	InGameWorld GameStage = "IN_GAME_WORLD"
+	MainMenu    defs.GameStage = "MAIN_MENU"
+	InGameWorld defs.GameStage = "IN_GAME_WORLD"
 )
 
 // Game - the root of the game state that is maintained when game is active
@@ -37,7 +36,9 @@ type Game struct {
 	// when this screen reaches "done" state, the game will start running in-world logic.
 	MainMenu       screen.Screen
 	mainMenuViewer screen.ScreenViewer
-	gameStage      GameStage
+	gameStage      defs.GameStage
+
+	TransitionManager TransitionManager
 
 	World *world.World
 
@@ -65,8 +66,12 @@ type Game struct {
 	ScreenManager *screen.ScreenManager
 }
 
-func (g Game) GetGameStage() GameStage {
+func (g Game) GetGameStage() defs.GameStage {
 	return g.gameStage
+}
+
+func (g *Game) SetGameStage(stage defs.GameStage) {
+	g.gameStage = stage
 }
 
 func (g *Game) SetHUD(hud HUD) {
@@ -138,6 +143,7 @@ func NewGame() *Game {
 //
 // In other words, this should only be done once the game is ready to fully launch into the "game universe" and load all characters, maps, etc.
 func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
+	logz.Println("GAME", "Initializing Game World...")
 	if len(g.Dataman.MapDefs) == 0 {
 		logz.Panicln("InitializeGameWorld", "no map defs found. are you sure you loaded all data definitions?")
 	}
@@ -158,7 +164,7 @@ func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
 	g.World = world.NewWorld(initTime, g.Dataman, g.AudioManager, g.EventBus, g)
 }
 
-func (g *Game) SetMainMenu(scrID screen.ScreenID) {
+func (g *Game) SetMainMenu(scrID defs.ScreenID) {
 	scr := g.ScreenManager.GetScreen(scrID)
 	g.MainMenu = scr
 	g.mainMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g)

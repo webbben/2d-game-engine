@@ -62,8 +62,8 @@ func (g *Game) UnlockMapLock(mapID defs.MapID, lockID string) {
 
 // EnterMap adds the player to a map. creates the active map too, in the process.
 // Used in the NewGame flow to actually put the player in a map once his character has been created.
-func (g *Game) EnterMap(mapID defs.MapID, spawnIndex int) {
-	g.World.EnterMap(mapID, spawnIndex)
+func (g *Game) EnterMap(mapID defs.MapID, spawnIndex int, doTransition bool) {
+	g.World.EnterMap(mapID, spawnIndex, doTransition)
 
 	// TODO: We need to convert these to Screens, so I'm gonna comment this out until that's been done.
 	// we can probably create some kind of "in-game screen" that these can be set into to cause them to appear.
@@ -76,8 +76,8 @@ func (g *Game) EnterMap(mapID defs.MapID, spawnIndex int) {
 
 // PlacePlayerInMap is the same as EnterMap, but for putting the player at a specific position (instead of just at a spawn point).
 // Used by the LoadGame flow, since you will be appearing not at a spawn point, but at the position you were in last when the game was saved.
-func (g *Game) PlacePlayerInMap(mapID defs.MapID, x, y float64) {
-	g.World.EnterMapAtPosition(mapID, x, y)
+func (g *Game) PlacePlayerInMap(mapID defs.MapID, x, y float64, doTransition bool) {
+	g.World.EnterMapAtPosition(mapID, x, y, doTransition)
 }
 
 func (g *Game) SetPlayerName(name string) {
@@ -114,4 +114,8 @@ func (g *Game) StartDialogSession(dialogProfileID defs.DialogProfileID, npcID st
 	ds := dialogv2.NewDialogSession(params, g.EventBus, g.Dataman, g.ScreenManager, g)
 
 	g.dialogSession = &ds
+}
+
+func (g *Game) PublishEvent(event defs.Event) {
+	g.EventBus.Publish(event)
 }

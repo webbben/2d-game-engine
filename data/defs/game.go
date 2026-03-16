@@ -1,6 +1,8 @@
 package defs
 
-import "github.com/webbben/2d-game-engine/clock"
+import (
+	"github.com/webbben/2d-game-engine/clock"
+)
 
 /*
 
@@ -10,12 +12,17 @@ functions.
 
 */
 
+type GameStage string
+
 type GameContext interface {
 	SaveGame() (saveFileName string)
+	PublishEvent(event Event)
 
 	GameDialogContext
 	GameQuestContext
 	GameScreenContext
+
+	ActiveMapContext
 }
 
 type GameDialogContext interface {
@@ -30,12 +37,26 @@ type GameQuestContext interface {
 	UnlockMapLock(mapID MapID, lockID string)
 }
 
+// GameScreenContext isn't actually directly used anywhere; we just have it here to keep these functions organized by intended use,
+// and to prevent the other contexts from using them. Screens just have direct access to GameContext.
 type GameScreenContext interface {
-	EnterMap(mapID MapID, spawnIndex int)
+	EnterMap(mapID MapID, spawnIndex int, doTransition bool)
 
 	// NOTE: not great that we ref clock in here, but clock doesn't import anything so it works.
 	// we could consider moving types like GameTime into defs, but just gonna leave things as they are for now.
 	InitializeGameWorld(initTime clock.GameTime)
+
+	StartLoadScreen(loadFunction func(GameContext))
+	StartCustomLoadScreen(scrID ScreenID, open, close Transition, loadFunction func(ctx GameContext))
+	StartBasicTransition(open, close Transition, lightWeightSetup func(ctx GameContext))
+	GetLoadingStatus() (complete bool, progress float64)
+	GetGameStage() GameStage
+	SetGameStage(stage GameStage)
+}
+
+type ActiveMapContext interface {
+	StartDialogSession(dialogProfileID DialogProfileID, npcID string)
+	StartTradeSession(shopkeeperID ShopID)
 }
 
 // PlayerInfo is information about the player that dialogs might use

@@ -4,6 +4,7 @@ package config
 import (
 	"time"
 
+	"github.com/webbben/2d-game-engine/data/defs"
 	"golang.org/x/image/font"
 )
 
@@ -55,6 +56,8 @@ var (
 	// custom paths for other data
 
 	CharacterDefsDirectory string = "" // this is required to be set in order to load entity data.
+
+	DefaultLoadingScreen defs.ScreenID = "" // this needs to be set if you want load screens to show while maps are loading.
 )
 
 const (

@@ -1,6 +1,9 @@
 package world
 
-import "github.com/webbben/2d-game-engine/object"
+import (
+	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/object"
+)
 
 func (w *World) Update() {
 	// update time
@@ -13,8 +16,8 @@ func (w *World) Update() {
 	if w.ActiveMap == nil {
 		// TODO: are we loading a map or something? why are we here, but no map exists?
 	} else {
-		w.ActiveMap.Update()
-		w.Player.Update()
+		w.ActiveMap.Update(w.BlockPlayerChanges)
+		w.Player.Update(w.BlockPlayerChanges)
 	}
 }
 
@@ -22,5 +25,6 @@ func (w *World) HandleMapDoor(result object.ObjectUpdateResult) {
 	if result.ChangeMapID == "" {
 		panic("tried to do map door change, but no map ID is set in object update result")
 	}
-	w.EnterMap(result.ChangeMapID, result.ChangeMapSpawnIndex)
+	logz.Println("WORLD", "Handling map door:", result.ChangeMapID, result.ChangeMapSpawnIndex)
+	w.EnterMap(result.ChangeMapID, result.ChangeMapSpawnIndex, true)
 }

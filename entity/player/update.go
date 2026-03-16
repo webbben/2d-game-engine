@@ -25,12 +25,12 @@ func (p Player) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 	p.Entity.Draw(screen, offsetX, offsetY)
 }
 
-func (p *Player) Update() {
-	if p.handleMovement() {
+func (p *Player) Update(blockPlayerChanges bool) {
+	if !blockPlayerChanges && p.handleMovement() {
 		p.LastUserInput = time.Now()
 	}
 
-	if p.handleActions() {
+	if !blockPlayerChanges && p.handleActions() {
 		p.LastUserInput = time.Now()
 	}
 

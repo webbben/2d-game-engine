@@ -47,6 +47,7 @@ type WorldGraph struct {
 }
 
 func BuildWorldGraph(dataman *datamanager.DataManager) WorldGraph {
+	logz.Println("WORLD", "Building World Graph...")
 	wg := WorldGraph{
 		Nodes: make(map[defs.MapID]*MapNode),
 	}

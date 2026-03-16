@@ -27,11 +27,6 @@ import (
 	"github.com/webbben/2d-game-engine/world/npc"
 )
 
-type GameContext interface {
-	StartDialogSession(dialogProfileID defs.DialogProfileID, npcID string)
-	StartTradeSession(shopkeeperID defs.ShopID)
-}
-
 type WorldContext interface {
 	// TODO: is this used here?
 	GenerateCharacter(chargen defs.CharacterGenerator, initialMap defs.MapID, homeMap defs.MapID, homeMapBedID int) state.CharacterStateID
@@ -43,7 +38,7 @@ type ActiveMap struct {
 	debugData debugData
 	MapID     defs.MapID
 
-	gameCtx  GameContext
+	gameCtx  defs.GameContext
 	worldCtx WorldContext
 
 	dataman  *datamanager.DataManager
@@ -76,11 +71,12 @@ func NewActiveMap(
 	dataman *datamanager.DataManager,
 	audioman *audio.AudioManager,
 	eventbus *pubsub.EventBus,
-	gameCtx GameContext,
+	gameCtx defs.GameContext,
 	worldCtx WorldContext,
 	mapID defs.MapID,
 	regenImages bool,
 ) *ActiveMap {
+	logz.Println("ActiveMap", "Creating new active map:", mapID)
 	mapDef := dataman.GetMapDef(mapID)
 	// load and setup the map
 	tiledMap := tiled.LoadMap(mapID, regenImages)
