@@ -68,6 +68,10 @@ func NewWorld(
 	p := player.NewPlayer(w.Dataman, playerEnt)
 	w.Player = &p
 
+	for id := range w.Dataman.MapDefs {
+		w.EnsureMapStateExists(id)
+	}
+
 	w.populateNPCMap()
 
 	return w

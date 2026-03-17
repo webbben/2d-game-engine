@@ -325,7 +325,7 @@ func (e *Entity) TryMovePx(dx, dy, speed float64) MoveError {
 	pos := model.Vec2{X: e.X, Y: e.Y}
 	newPos := pos.MoveTowards(target, speed)
 	nextStepRect := model.NewRect(newPos.X, newPos.Y, w, h)
-	res := e.World.Collides(nextStepRect, string(e.ID()))
+	res := e.Collides(nextStepRect)
 	if res.Collides() {
 		// a collision happened on the first step towards the target (but not the target itself)
 		// we need to tell exactly where this first step was, so that TryMoveMaxPx knows precisely where to adjust from.
@@ -338,7 +338,7 @@ func (e *Entity) TryMovePx(dx, dy, speed float64) MoveError {
 	}
 
 	// if first step is clear, then check that the actual target itself isn't a collision
-	res = e.World.Collides(targetRect, string(e.ID()))
+	res = e.Collides(targetRect)
 	if res.Collides() {
 		return MoveError{
 			CollisionPoint:  &target,
@@ -404,7 +404,7 @@ func (e *Entity) updateMovement() updateMovementResult {
 		e.Movement.SuggestedTargetPath = []model.Coords{}
 	}
 
-	res := e.World.Collides(e.CollisionRect(), string(e.ID()))
+	res := e.Collides(e.CollisionRect())
 	if res.Collides() {
 		logz.Panicf("[%s] updateMovement: current position is colliding!", e.DisplayName())
 	}
@@ -414,7 +414,7 @@ func (e *Entity) updateMovement() updateMovementResult {
 
 	newPos := pos.MoveTowards(target, e.Movement.Speed)
 	w, h := e.CollisionRect().W, e.CollisionRect().H
-	res = e.World.Collides(model.NewRect(newPos.X, newPos.Y, w, h), string(e.ID()))
+	res = e.Collides(model.NewRect(newPos.X, newPos.Y, w, h))
 	if res.Collides() {
 		logz.Println(e.DisplayName(), "updateMovement: next position is colliding! cancelling movement")
 		return updateMovementResult{UnexpectedCollision: true}

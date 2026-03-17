@@ -85,6 +85,12 @@ func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color
 	if maxHeightPx < minHeight {
 		panic(fmt.Sprintf("lineWriter maxHeightPx must be be able to fit a single line of text. minHeight determined by font: %v px", minHeight))
 	}
+	if fg == nil {
+		fg = color.Black
+	}
+	if bg == nil {
+		bg = color.RGBA{20, 20, 20, 75}
+	}
 
 	lw := LineWriter{
 		WritingStatus:    AwaitText,
@@ -177,9 +183,12 @@ func (lw *LineWriter) Clear() {
 func (lw LineWriter) Draw(screen *ebiten.Image, startX, startY int) int {
 	y := startY
 	for _, line := range lw.writtenLines {
-		gray := color.RGBA{20, 20, 20, 75}
 		y = y + lw.lineHeight
-		DrawShadowText(screen, line, lw.fontFace, startX, y, color.Black, gray, -2, -2)
+		if lw.shadow {
+			DrawShadowText(screen, line, lw.fontFace, startX, y, lw.fgColor, lw.bgColor, -2, -2)
+		} else {
+			DrawText(screen, line, lw.fontFace, startX, y, lw.fgColor)
+		}
 	}
 	return y
 }

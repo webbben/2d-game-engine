@@ -109,10 +109,7 @@ func (sv ScreenViewer) IsDone() bool {
 }
 
 func (sv *ScreenViewer) Update() {
-	if sv.scr.IsDone() {
-		return
-	}
-
+	// NOTE: I don't stop updates even if IsDone is true, since in some cases screens might stay active until something else decides to end it.
 	if sv.popupMgr.IsPopupActive() {
 		sv.popupMgr.Update()
 		return

@@ -150,16 +150,6 @@ func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
 	if len(g.Dataman.CharacterDefs) == 0 {
 		logz.Panicln("InitializeGameWorld", "no character defs found. are you sure you loaded all data definitions?")
 	}
-	// process all maps and initialize their states; this is because a map serves to define what characters actually exist in the game world.
-	// If a character has a bed in a map somewhere, then they officially "exist" and will have their state initialized and will have an NPC operating somewhere in the game universe.
-
-	for id := range g.Dataman.MapDefs {
-		g.EnsureMapStateExists(id)
-	}
-
-	// after the above, we should now have all NPC's entity states created.
-	// Note that this doesn't mean all character defs have had a corresponding state created; it means all character defs found in reference in a bed object were created.
-	// any character that doesn't have a bed object in some map will, therefore, not exist yet.
 
 	g.World = world.NewWorld(initTime, g.Dataman, g.AudioManager, g.EventBus, g)
 }

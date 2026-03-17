@@ -168,6 +168,10 @@ func (p *Player) handleActions() bool {
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		if p.Entity.IsSleeping {
+			p.Entity.LeaveBed()
+			return true
+		}
 		x, y := p.Entity.X, p.Entity.Y
 		if p.World.ActivateArea(p.Entity.GetFrontRect(), x, y) {
 			return true
@@ -176,6 +180,10 @@ func (p *Player) handleActions() bool {
 
 	if !p.Entity.IsWeaponEquiped() {
 		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+			if p.Entity.IsSleeping {
+				p.Entity.LeaveBed()
+				return true
+			}
 			mouseX, mouseY := ebiten.CursorPosition()
 			p.World.HandleMouseClick(mouseX, mouseY)
 			return true

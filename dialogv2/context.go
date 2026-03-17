@@ -17,6 +17,7 @@ const (
 )
 
 type DialogContext struct {
+	Exit      bool // if set, the DialogSession will see it and apply it up there too, causing the dialog to end.
 	NPCID     string
 	Profile   *state.DialogProfileState
 	GameState defs.GameDialogContext
@@ -155,4 +156,14 @@ func (ctx DialogContext) GetCharacterDef(id defs.CharacterDefID) defs.CharacterD
 
 func (ctx DialogContext) RecordMiscDialogMemory(key string) {
 	ctx.Profile.Memory[key] = true
+}
+
+func (ctx *DialogContext) StartCustomLoadScreen(scrID defs.ScreenID, open, close defs.Transition, loadFunction func(ctx defs.GameContext)) {
+	ctx.GameState.StartCustomLoadScreen(scrID, open, close, loadFunction)
+	ctx.Exit = true
+}
+
+func (ctx *DialogContext) StartLoadScreen(loadFunction func(ctx defs.GameContext)) {
+	ctx.GameState.StartLoadScreen(loadFunction)
+	ctx.Exit = true
 }

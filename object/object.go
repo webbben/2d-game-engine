@@ -32,6 +32,10 @@ const (
 	TypeEntity = "ENTITY" // This shouldn't be used for actual objects - just for static entities in maps that are defined by objects.
 )
 
+const (
+	PropOnObjID = "on_obj_id" // if set, this object should render on top of another object
+)
+
 // TODO: *Sigh* this probably could use some refactoring. I've been avoiding admitting it, but it would most likely work cleaner as an interface.
 // As it stands right now, we are basically mashing a bunch of different types of objects into this one object struct. This works, but it feels kind of messy.
 // I think it would be smarter to make an interface that has all the methods needed for common things, but then the inner logic can be more cleanly separated.
@@ -42,10 +46,16 @@ type Object struct {
 
 	mapID defs.MapID // used for knowing which map state to check
 
-	ID            int     // the ID property from Tiled; just a counter I believe.
-	Type          string  // NOT from Tiled; set by our code in Load
-	xPos, yPos    float64 // logical position in the map
-	zOffset       int     // for influencing render order
+	ID         int     // the ID property from Tiled; just a counter I believe.
+	Type       string  // NOT from Tiled; set by our code in Load
+	xPos, yPos float64 // logical position in the map
+	zOffset    int     // for influencing render order
+
+	// some confusing object render order stuff
+
+	CustomY      float64 // for setting a custom Y value (used when sorting renderables to determine what shows on top of what)
+	OnTopOfObjID int     // if set (not -1) then this object is on top of another object, like on a table for example.
+
 	DrawX, DrawY  float64 // the actual position on the screen where this was last drawn - for things like click detection
 	Width, Height int
 	Rect          model.Rect // rect used for step detection (covers entire object)
@@ -69,6 +79,8 @@ type Object struct {
 	Gate Gate
 
 	Light Light
+
+	Bed Bed
 
 	SpawnPoint SpawnPoint
 
@@ -126,6 +138,8 @@ func (obj Object) IsActivatable() bool {
 		return true
 	case TypeContainer:
 		return true
+	case TypeBed:
+		return true
 	default:
 		return false
 	}
@@ -139,7 +153,17 @@ func (obj Object) Collides(other model.Rect) model.IntersectionResult {
 }
 
 func (obj Object) Y() float64 {
-	return obj.yPos + float64(obj.zOffset)
+	if obj.OnTopOfObjID != -1 {
+		return obj.CustomY
+	}
+	// we want to get the y position of the bottom tile; this is because the bottom tile is
+	// logically where the object sits on the ground, and therefore should be used for ordering in drawing.
+	bottomY := obj.yPos + float64(obj.Height) - config.TileSize
+	return bottomY + float64(obj.zOffset)
+}
+
+func (obj Object) X() float64 {
+	return obj.xPos
 }
 
 func (obj Object) Pos() (x, y float64) {
@@ -206,9 +230,10 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 			W: obj.Width,
 			H: obj.Height,
 		},
-		imgFrames: make([]*ebiten.Image, 0),
-		World:     world,
-		mapID:     mapID,
+		imgFrames:    make([]*ebiten.Image, 0),
+		World:        world,
+		mapID:        mapID,
+		OnTopOfObjID: -1,
 	}
 
 	// We need to load all properties for an object. an Object can come in two forms:
@@ -265,6 +290,16 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		}
 	}
 
+	// check for render order stuff
+	onTopOfObj, found := tiled.GetIntProperty(PropOnObjID, allProps)
+	if found {
+		if onTopOfObj < 0 {
+			panic("onTopOfObj was negative!")
+		}
+		o.OnTopOfObjID = onTopOfObj
+		// once all objects have been loaded, we will come back and set the customY value to ensure this renders ontop of the other object
+	}
+
 	// other flags set in objects
 	noCollision, _ := tiled.GetBoolProperty("no_collision", allProps)
 
@@ -297,8 +332,9 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		}
 	case TypeItem:
 		// TODO: add item loading
+	case TypeBed:
 	default:
-		panic("object type invalid")
+		logz.Panicln("Object", "invalid object type:", o.Type, "did you forget to register it in a switch?")
 	}
 
 	o.loadGlobal(allProps)
@@ -491,6 +527,8 @@ func resolveObjectType(objType string) string {
 		return TypeMisc
 	case TypeItem:
 		return TypeItem
+	case TypeBed:
+		return TypeBed
 	default:
 		panic("object type doesn't exist: " + objType)
 	}

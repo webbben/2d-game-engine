@@ -35,6 +35,10 @@ func (p Player) Y() float64 {
 	return p.Entity.Y
 }
 
+func (p Player) X() float64 {
+	return p.Entity.X
+}
+
 func NewPlayer(dataman *datamanager.DataManager, ent *entity.Entity) Player {
 	if ent == nil {
 		panic("player must have entity")

@@ -56,7 +56,14 @@ type Entity struct {
 
 	// Runtime logic below
 
-	Body body.EntityBodySet
+	Body              body.EntityBodySet
+	DisableCollisions bool // if set, this entity will no longer collide with anything else in the map
+
+	// logic for sleeping in beds
+
+	IsSleeping             bool
+	bedPosition            model.Vec2
+	positionBeforeSleeping model.Vec2
 
 	Loaded   bool     `json:"-"` // if the entity has been loaded into memory fully yet
 	Movement Movement `json:"movement"`
@@ -71,6 +78,29 @@ type Entity struct {
 	World WorldContext `json:"-"`
 
 	stunTicks int
+}
+
+func (e *Entity) SleepInBed(bedPos model.Vec2) {
+	if e.IsSleeping {
+		panic("already sleeping in a bed")
+	}
+	e.IsSleeping = true
+	e.bedPosition = bedPos
+	e.DisableCollisions = true // disable collisions so we can enter the bed
+	e.positionBeforeSleeping = model.NewVec2(e.X, e.Y)
+
+	// move character into bed
+	e.SetPositionPx(bedPos.X, bedPos.Y-(config.TileSize*1))
+}
+
+func (e *Entity) LeaveBed() {
+	if !e.IsSleeping {
+		panic("tried to leave bed, but not currently sleeping")
+	}
+	e.SetPositionPx(e.positionBeforeSleeping.X, e.positionBeforeSleeping.Y)
+
+	e.DisableCollisions = false
+	e.IsSleeping = false
 }
 
 func (e Entity) DisplayName() string {
@@ -471,6 +501,13 @@ type WorldContext interface {
 	GetGroundMaterial(tileX, tileY int) string
 	GetDistToPlayer(x, y float64) float64
 	AttackArea(attackInfo AttackInfo)
+}
+
+func (e Entity) Collides(r model.Rect) model.CollisionResult {
+	if e.DisableCollisions {
+		return model.CollisionResult{}
+	}
+	return e.World.Collides(r, string(e.ID()))
 }
 
 type GeneralProps struct {

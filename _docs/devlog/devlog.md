@@ -1,3 +1,62 @@
+# 2026-03-17
+
+Today I want to talk more about NPC schedules and tasks. I've been trying to figure out some more details of how these things will work,
+and I think I've had an interesting idea, so I wanted to get it down while it's still fresh in my mind.
+
+## Problem: Making tasks reusable, and "how do they know where to go?"
+
+One central problem since I've started on the idea of schedules has been: "should I make them reusable? and if so, how can I?"
+
+Schedules consist of a list of tasks basically, and each task can contain a lot of complex logic.
+For example, what if I want one part of the daily schedule to be for the NPC to sit in a chair?
+This sounds simple, but in reality it includes a lot of steps to achieve this. Firstly, which chair should the NPC sit in?
+How should the NPC get to this chair? What if another NPC is already sitting in it?
+
+A naive way to approach this problem would be to just hardcode a specific chair to the task. If you know a specific NPC will be in a specific room,
+then you could just identify the specific chair he should sit in for the task. That solves all of those problems: it will be given a specific location to walk to,
+and other NPCs can be given the same type of instructions for their own "chair sitting" tasks.
+
+However, the major problem with that is, it's not reusable at all. If I wanted to just define a "sit in a chair and hang out" task, I couldn't rely on hardcoded 
+information, since of course different NPCs may be in different maps with different layouts, chairs, etc. Tasks need to be as flexible as possible, so that they 
+can react to new maps and different environment, and different variables too. What if the player is sitting in the chair that the NPC would've tried to sit in?
+This should be handled in a nice, graceful way.
+
+## Solution: make tasks generic and dynamic, and able to react to the specific environment.
+
+The solution I've come up with is, a task can look for specific types of objects in the map that the NPC is currently in.
+
+Let's continue with the "sit in chair" task example: When this task starts, the first thing the NPC's logic will do is try to find a suitable chair candidate.
+It can look through all the objects in the map, and for each one judge if it is a suitable target. It can consider things like:
+
+- is another NPC already sitting in this chair?
+- does this chair "belong" to a specific character def or role? (to prevent funny things, like a servant sitting in the king's chair)
+- is the chair reachable via pathfinding? (e.g. is it behind a locked door that this NPC cannot unlock?)
+
+This does add extra work to the logic involved for a given task, but the upside is, once you have smaller tasks built and working robustly, you can "stack" them 
+to make increasingly complex tasks. For example, once you have a very robust "go to target" task, then you can use that as one of the sub-tasks to "sit in a chair".
+Once "sit in a chair" is perfected, then you can add that to a wider scoped "lounge" task where among a few different possible options, the NPC will try to do something
+like find a chair and sit in it, or maybe just be idle and stand around, turning and pacing every once in a while.
+
+So, you start with making the smaller building block tasks, and then eventually you can have really complex tasks like "go to a library and lounge".
+The NPC doesn't need to be given "which library" as a parameter, it just needs to be able to find a nearby one that is a suitable target.
+
+## Recent Updates
+
+Quick updates on what I've done since last posting:
+
+- introduced transitions and loading screens to the game. feels much, much smoother now when going between maps, which is great.
+- did some refactoring (not too much this time, I swear) to organize the logic for the "game world" better. Now, it's decoupled from the Game struct,
+  and in it's own nice little package.
+- In this new "world" package, I added some logic for processing and loading in all NPCs in all maps. NPCs are "defined" by having a bed in some map, somewhere in the world.
+  Once the World Initialization process finds these beds, it identifies the owner NPC and initializes its character state.
+  This ensures all NPCs exist in the game world and can be processed at any given time; used for identifying which NPC should be where, depending on their schedules (TODO).
+
+Next up:
+
+- Make beds "sleepable"
+- Make chairs "sittable"
+- Actually place NPCs in the maps that they are supposed to be in, determined by their schedule and the current in-game time.
+
 # 2026-03-12
 
 Back to the drawing board: now, I need to nail down how NPC schedules and tasks are going to work.
