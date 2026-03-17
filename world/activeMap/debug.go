@@ -13,6 +13,7 @@ import (
 
 type debugData struct {
 	positionDot    *ebiten.Image
+	yDot           *ebiten.Image
 	rectImg        *ebiten.Image
 	activateRect   *ebiten.Image
 	costTile       *ebiten.Image
@@ -143,6 +144,11 @@ func (m *ActiveMap) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY f
 		m.debugData.positionDot = ebiten.NewImage(1, 1)
 		m.debugData.positionDot.Fill(yellow)
 	}
+	if m.debugData.yDot == nil {
+		red := color.RGBA{255, 0, 0, 50}
+		m.debugData.yDot = ebiten.NewImage(1, 1)
+		m.debugData.yDot.Fill(red)
+	}
 	if m.debugData.rectImg == nil {
 		rect := m.PlayerRef.Entity.CollisionRect()
 		m.debugData.rectImg = ebiten.NewImage(int(rect.W), int(rect.H))
@@ -170,6 +176,11 @@ func (m *ActiveMap) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY f
 	op.GeoM.Translate(drawX, drawY)
 	op.GeoM.Scale(config.GameScale, config.GameScale)
 	screen.DrawImage(m.debugData.rectImg, op)
+	op = &ebiten.DrawImageOptions{}
+	drawY = m.PlayerRef.Y() - offsetY
+	op.GeoM.Translate(drawX, drawY)
+	op.GeoM.Scale(config.GameScale, config.GameScale)
+	screen.DrawImage(m.debugData.yDot, op)
 
 	op = &ebiten.DrawImageOptions{}
 	rect = m.PlayerRef.Entity.GetFrontRect()
@@ -185,6 +196,19 @@ func (m *ActiveMap) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY f
 		op.GeoM.Translate(drawX, drawY)
 		op.GeoM.Scale(config.GameScale, config.GameScale)
 		screen.DrawImage(m.debugData.positionDot, op)
+		op = &ebiten.DrawImageOptions{}
+		drawX, drawY = n.Entity.X-offsetX, n.Y()-offsetY
+		op.GeoM.Translate(drawX, drawY)
+		op.GeoM.Scale(config.GameScale, config.GameScale)
+		screen.DrawImage(m.debugData.yDot, op)
+	}
+
+	for _, obj := range m.Objects {
+		op = &ebiten.DrawImageOptions{}
+		drawX, drawY = obj.X()-offsetX, obj.Y()-offsetY
+		op.GeoM.Translate(drawX, drawY)
+		op.GeoM.Scale(config.GameScale, config.GameScale)
+		screen.DrawImage(m.debugData.yDot, op)
 	}
 }
 

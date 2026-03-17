@@ -13,6 +13,9 @@ import (
 
 // updateDialogResponse handles the logic for what to do next from the current node in the current topic's conversation
 func (ds *DialogSession) updateDialogResponse() {
+	if ds.Ctx.Exit {
+		ds.Exit = true
+	}
 	if ds.Exit {
 		return
 	}

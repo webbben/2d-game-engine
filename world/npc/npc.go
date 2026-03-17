@@ -98,6 +98,10 @@ func (n NPC) Y() float64 {
 	return n.Entity.Y
 }
 
+func (n NPC) X() float64 {
+	return n.Entity.X
+}
+
 type WorldContext interface {
 	FindNPCAtPosition(c model.Coords) (NPC, bool)
 	FindObjectsAtPosition(c model.Coords) []*object.Object

@@ -165,6 +165,41 @@ func (m *ActiveMap) addAllObjectsToMap(layer tiled.Layer) {
 	for _, obj := range allObjs {
 		m.AddObjectToMap(obj, *m.mapRef)
 	}
+
+	// now, go back through all objects and adjust sortedRenderables customY values, in case some items need to be made on top of others
+	// this can happen if an item is on a tabletop. without an adjustment, the item might appear underneath since it's actually positioned with a lower Y value.
+	checkObjs := []*object.Object{}
+	checkObjs = append(checkObjs, m.Objects...)
+	for len(checkObjs) > 0 {
+		recheckObjs := []*object.Object{}
+		for _, obj := range checkObjs {
+			if obj.OnTopOfObjID != -1 {
+				// find the object it should be on top of
+				found := false
+				for _, objBelow := range m.Objects {
+					if objBelow.ID != obj.OnTopOfObjID {
+						continue
+					}
+					found = true
+					if objBelow.OnTopOfObjID == -1 || objBelow.CustomY != 0 {
+						// we can calculate this objects customY if the one below either isn't on top of another object, or if it's customY has already been calculated.
+						obj.CustomY = objBelow.Y() + 1
+						if obj.CustomY == 0 {
+							panic("I thought customY could never be 0?")
+						}
+					} else {
+						// object below is also on top of something, but hasn't gotten its customY yet. skip for now.
+						recheckObjs = append(recheckObjs, obj)
+					}
+					break
+				}
+				if !found {
+					logz.Panicln("addAllObjectsToMap", "trying to find object that is below another object, but couldn't find it. looking for object ID:", obj.OnTopOfObjID)
+				}
+			}
+		}
+		checkObjs = recheckObjs
+	}
 }
 
 type NPCManager struct {
@@ -181,6 +216,7 @@ type NPCManager struct {
 
 type sortedRenderable interface {
 	Y() float64
+	X() float64
 	Draw(screen *ebiten.Image, offsetX, offsetY float64)
 }
 
@@ -316,7 +352,7 @@ func (mi ActiveMap) Collides(r model.Rect, excludeEntID string) model.CollisionR
 	// if a corner point is inside a rect, then that corresponding corner gets the collision.
 	// if no corner point is inside the rect but there is still a collision (e.g. the two rects aren't the same size) then the collision is set to Other.
 	if mi.PlayerRef != nil {
-		if string(mi.PlayerRef.Entity.ID()) != excludeEntID {
+		if string(mi.PlayerRef.Entity.ID()) != excludeEntID && !mi.PlayerRef.Entity.DisableCollisions {
 			newCr := checkCornerCollision(r, mi.PlayerRef.Entity.CollisionRect())
 			if newCr.Collides() {
 				newCr.Assert()
@@ -326,6 +362,9 @@ func (mi ActiveMap) Collides(r model.Rect, excludeEntID string) model.CollisionR
 	}
 	for _, n := range mi.NPCs {
 		if string(n.Entity.ID()) == excludeEntID {
+			continue
+		}
+		if n.Entity.DisableCollisions {
 			continue
 		}
 		newCr := checkCornerCollision(r, n.Entity.CollisionRect())
@@ -552,16 +591,14 @@ func (mi *ActiveMap) ActivateArea(r model.Rect, originX, originY float64) bool {
 	}
 	if closestObject != nil {
 		activateParams := object.ObjectActivationParams{
-			LockIDs: characterstate.GetLockIDs(*mi.PlayerRef.CharacterStateRef),
+			ActivatorID: mi.PlayerRef.CharacterStateRef.ID,
+			LockIDs:     characterstate.GetLockIDs(*mi.PlayerRef.CharacterStateRef),
 		}
 		result := closestObject.Activate(originX, originY, activateParams)
 		logz.Println("Activate Area", closestObject.Type, "Activating...")
 
 		if result.UpdateOccurred {
-			logz.Println("Activate Area", closestObject.Type, "Activation occurred")
-			if result.ChangeMapID != "" {
-				mi.worldCtx.HandleMapDoor(result)
-			}
+			mi.HandleObjectUpdate(result, *closestObject)
 		}
 
 		return true
@@ -602,13 +639,12 @@ func (mi *ActiveMap) HandleMouseClick(mouseX, mouseY int) bool {
 				fmt.Println("object clicked")
 				x, y := mi.PlayerRef.Entity.X, mi.PlayerRef.Entity.Y
 				activateParams := object.ObjectActivationParams{
-					LockIDs: characterstate.GetLockIDs(*mi.PlayerRef.CharacterStateRef),
+					ActivatorID: mi.PlayerRef.CharacterStateRef.ID,
+					LockIDs:     characterstate.GetLockIDs(*mi.PlayerRef.CharacterStateRef),
 				}
 				result := obj.Activate(x, y, activateParams)
 				if result.UpdateOccurred {
-					if result.ChangeMapID != "" {
-						mi.worldCtx.HandleMapDoor(result)
-					}
+					mi.HandleObjectUpdate(result, *obj)
 				}
 				return true
 			}
@@ -626,6 +662,32 @@ func (mi *ActiveMap) HandleMouseClick(mouseX, mouseY int) bool {
 	}
 
 	return false
+}
+
+func (mi *ActiveMap) HandleObjectUpdate(result object.ObjectUpdateResult, obj object.Object) {
+	if !result.UpdateOccurred {
+		panic("no update occurred; no need to call this function")
+	}
+
+	logz.Println("Activate Area", obj.Type, "Activation occurred")
+
+	switch obj.Type {
+	case object.TypeDoor:
+		if result.ChangeMapID != "" {
+			mi.worldCtx.HandleMapDoor(result)
+		} else {
+			logz.Panicln("HandleObjectUpdate", "door object activation occurred, but no changeMapID was set")
+		}
+	case object.TypeBed:
+		if mi.PlayerRef.Entity.IsSleeping {
+			panic("trying to activate area while in a bed. this should be prevented in player input logic.")
+		} else {
+			// player is now sleeping in bed
+			// tell the entity so that it draws in the correct place
+			v := model.NewVec2(obj.Rect.X, obj.Rect.Y)
+			mi.PlayerRef.Entity.SleepInBed(v)
+		}
+	}
 }
 
 // FindObjectsAtPosition finds all objects that intersect with a given tile position.

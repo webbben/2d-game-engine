@@ -16,6 +16,9 @@ func (w *World) GenerateCharacter(chargen defs.CharacterGenerator, initialMap de
 	if initialMap == "" {
 		panic("initial map was empty")
 	}
+	if w.Dataman == nil {
+		panic("dataman was nil")
+	}
 	chargen.Validate()
 
 	params := entity.NewCharacterStateParams{

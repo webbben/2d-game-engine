@@ -17,12 +17,6 @@ func (m *ActiveMap) drawWorldScene(screen *ebiten.Image, offsetX, offsetY float6
 	if config.ShowNPCPaths {
 		m.drawPaths(screen, offsetX, offsetY)
 	}
-	if config.ShowEntityPositions {
-		m.drawEntityPositions(screen, offsetX, offsetY)
-	}
-	if config.ShowCollisions {
-		m.drawCollisions(screen, offsetX, offsetY)
-	}
 
 	// draw NPCs and the player in order of Y position (higher renders first)
 	for _, thing := range m.sortedRenderables {
@@ -30,6 +24,13 @@ func (m *ActiveMap) drawWorldScene(screen *ebiten.Image, offsetX, offsetY float6
 			continue
 		}
 		thing.Draw(screen, offsetX, offsetY)
+	}
+
+	if config.ShowEntityPositions {
+		m.drawEntityPositions(screen, offsetX, offsetY)
+	}
+	if config.ShowCollisions {
+		m.drawCollisions(screen, offsetX, offsetY)
 	}
 
 	// draw roof tops

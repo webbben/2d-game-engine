@@ -143,8 +143,8 @@ func (tm *TransitionManager) Update(gameCtx defs.GameContext) {
 		return
 	}
 
-	// show the loading screen while loading is still working
-	if !tm.LoadingComplete {
+	// show the loading screen while loading is still working or the screen isn't finished yet
+	if !tm.LoadingComplete || !tm.loadingScreenViewer.IsDone() {
 		tm.ShowingLoadingScreen = true
 		tm.loadingScreenViewer.Update()
 		return

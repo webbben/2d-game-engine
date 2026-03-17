@@ -29,6 +29,8 @@ type GameDialogContext interface {
 	GetPlayerInfo() PlayerInfo
 	SetPlayerName(name string)
 	DialogCtxAddGold(amount int)
+
+	TransitionContext
 }
 
 type GameQuestContext interface {
@@ -41,22 +43,28 @@ type GameQuestContext interface {
 // and to prevent the other contexts from using them. Screens just have direct access to GameContext.
 type GameScreenContext interface {
 	EnterMap(mapID MapID, spawnIndex int, doTransition bool)
+	PlacePlayerInMap(mapID MapID, x, y float64, doTransition bool)
 
 	// NOTE: not great that we ref clock in here, but clock doesn't import anything so it works.
 	// we could consider moving types like GameTime into defs, but just gonna leave things as they are for now.
 	InitializeGameWorld(initTime clock.GameTime)
 
-	StartLoadScreen(loadFunction func(GameContext))
-	StartCustomLoadScreen(scrID ScreenID, open, close Transition, loadFunction func(ctx GameContext))
-	StartBasicTransition(open, close Transition, lightWeightSetup func(ctx GameContext))
 	GetLoadingStatus() (complete bool, progress float64)
 	GetGameStage() GameStage
 	SetGameStage(stage GameStage)
+
+	TransitionContext
 }
 
 type ActiveMapContext interface {
 	StartDialogSession(dialogProfileID DialogProfileID, npcID string)
 	StartTradeSession(shopkeeperID ShopID)
+}
+
+type TransitionContext interface {
+	StartLoadScreen(loadFunction func(GameContext))
+	StartCustomLoadScreen(scrID ScreenID, open, close Transition, loadFunction func(ctx GameContext))
+	StartBasicTransition(open, close Transition, lightWeightSetup func(ctx GameContext))
 }
 
 // PlayerInfo is information about the player that dialogs might use

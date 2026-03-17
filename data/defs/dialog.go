@@ -120,6 +120,9 @@ type EffectContext interface {
 	BroadcastEvent(event Event)
 
 	AddGold(amount int)
+
+	StartCustomLoadScreen(scrID ScreenID, open, close Transition, loadFunction func(ctx GameContext))
+	StartLoadScreen(loadFunction func(ctx GameContext))
 }
 
 type SetMemoryEffect struct {

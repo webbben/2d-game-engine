@@ -8,6 +8,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/utils"
@@ -17,6 +18,10 @@ type ObjectUpdateResult struct {
 	ChangeMapID         defs.MapID // if set, change to this map
 	ChangeMapSpawnIndex int        // spawn point index to send player to
 	UpdateOccurred      bool       // if true, an update happened to the object
+
+	// For beds or other "usable" objects
+
+	AlreadyInUse bool // if set, the object is being used by someone else already
 }
 
 func (obj *Object) Update() ObjectUpdateResult {
@@ -45,6 +50,8 @@ func (obj *Object) Update() ObjectUpdateResult {
 		return ObjectUpdateResult{}
 	case TypeItem:
 		return ObjectUpdateResult{}
+	case TypeBed:
+		return ObjectUpdateResult{}
 	default:
 		// just putting this here so we always know objects in the map are of a recognized type; but not really necessary tbh.
 		panic("unrecognized object type: " + obj.Type)
@@ -53,7 +60,8 @@ func (obj *Object) Update() ObjectUpdateResult {
 
 // ObjectActivationParams provides contextual information needed for the logic that handles activating an object.
 type ObjectActivationParams struct {
-	LockIDs []string
+	ActivatorID state.CharacterStateID // the character that is trying to activate the object
+	LockIDs     []string               // locks the activator can unlock (has keys, etc)
 }
 
 func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams) ObjectUpdateResult {
@@ -84,6 +92,8 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 		return obj.activateGate(fromX, fromY)
 	case TypeLight:
 		return obj.activateLight()
+	case TypeBed:
+		return obj.activateBed(params)
 	}
 	return ObjectUpdateResult{}
 }

@@ -1,4 +1,4 @@
-package game
+package world
 
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -11,21 +11,21 @@ import (
 
 // EnsureMapStateExists checks if a map state exists, and instantiates it if it doesn't.
 // So, anytime you're dealing with a map, just run this function to make sure its state exists and/or has been instantiated correctly.
-func (g *Game) EnsureMapStateExists(mapID defs.MapID) {
+func (w *World) EnsureMapStateExists(mapID defs.MapID) {
 	// make sure def exists for this mapID
-	_ = g.Dataman.GetMapDef(mapID)
+	_ = w.Dataman.GetMapDef(mapID)
 
-	if g.Dataman.MapStateExists(mapID) {
+	if w.Dataman.MapStateExists(mapID) {
 		return
 	}
 
-	logz.Println("EnsureMapStateExists", "Map state doesn't exist yet; creating...", mapID)
+	logz.Println("WORLD", "Map state doesn't exist yet; creating...", mapID)
 
-	g.CreateNewMapState(mapID)
+	w.CreateNewMapState(mapID)
 }
 
-func (g *Game) CreateNewMapState(mapID defs.MapID) {
-	if g.Dataman.MapStateExists(mapID) {
+func (w *World) CreateNewMapState(mapID defs.MapID) {
+	if w.Dataman.MapStateExists(mapID) {
 		logz.Panicln("CreateNewMapState", "tried to create a new map state, but one already exists:", mapID)
 	}
 
@@ -83,7 +83,7 @@ func (g *Game) CreateNewMapState(mapID defs.MapID) {
 				}
 				// confirm item exists
 				defID := defs.ItemID(itemID)
-				_ = g.Dataman.GetItemDef(defID)
+				_ = w.Dataman.GetItemDef(defID)
 				mapState.MapItems = append(mapState.MapItems, state.MapItemState{
 					ItemInstance: defs.ItemInstance{DefID: defID},
 					Quantity:     1,
@@ -98,8 +98,8 @@ func (g *Game) CreateNewMapState(mapID defs.MapID) {
 				var charStateID state.CharacterStateID
 				charGenID, found := tiled.GetStringProperty("characterGeneratorID", objectInfo.AllProps)
 				if found {
-					charGen := g.Dataman.GetCharacterGenerator(charGenID)
-					charStateID = g.World.GenerateCharacter(charGen, mapID, mapID, obj.ID)
+					charGen := w.Dataman.GetCharacterGenerator(charGenID)
+					charStateID = w.GenerateCharacter(charGen, mapID, mapID, obj.ID)
 				} else {
 					charDefID, found := tiled.GetStringProperty("characterDefID", objectInfo.AllProps)
 					if found {
@@ -109,13 +109,13 @@ func (g *Game) CreateNewMapState(mapID defs.MapID) {
 							HomeMapID:    mapID,
 							HomeMapBedID: obj.ID,
 						}
-						charStateID = entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), params, g.Dataman)
+						charStateID = entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), params, w.Dataman)
 					}
 				}
 
 				// if a character was created, register this bed in the character state
 				if charStateID != "" {
-					charState := g.Dataman.GetCharacterState(charStateID)
+					charState := w.Dataman.GetCharacterState(charStateID)
 					charState.HomeMapID = mapID
 					charState.HomeMapBedID = obj.ID
 				}
@@ -129,7 +129,7 @@ func (g *Game) CreateNewMapState(mapID defs.MapID) {
 		}
 	}
 
-	g.Dataman.LoadMapState(mapState)
+	w.Dataman.LoadMapState(mapState)
 }
 
 func getAllObjectLayers(layers []tiled.Layer) []tiled.Layer {

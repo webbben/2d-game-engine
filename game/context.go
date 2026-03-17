@@ -25,6 +25,9 @@ func (g *Game) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef) {
 }
 
 func (g *Game) QueueScenario(id defs.ScenarioID) {
+	if g.World == nil {
+		panic("world was nil! you can't use this context function if the world doesn't exist yet...")
+	}
 	scenarioDef := g.Dataman.GetScenarioDef(id)
 
 	mapID := scenarioDef.MapID
@@ -32,7 +35,7 @@ func (g *Game) QueueScenario(id defs.ScenarioID) {
 		panic("mapID was empty")
 	}
 
-	g.EnsureMapStateExists(mapID)
+	g.World.EnsureMapStateExists(mapID)
 
 	mapState := g.Dataman.GetMapState(mapID)
 
@@ -49,7 +52,10 @@ func (g *Game) QueueScenario(id defs.ScenarioID) {
 }
 
 func (g *Game) UnlockMapLock(mapID defs.MapID, lockID string) {
-	g.EnsureMapStateExists(mapID)
+	if g.World == nil {
+		panic("world was nil! you can't use this context function if the world doesn't exist yet...")
+	}
+	g.World.EnsureMapStateExists(mapID)
 
 	mapState := g.Dataman.GetMapState(mapID)
 	lockState, exists := mapState.MapLocks[lockID]
@@ -63,6 +69,9 @@ func (g *Game) UnlockMapLock(mapID defs.MapID, lockID string) {
 // EnterMap adds the player to a map. creates the active map too, in the process.
 // Used in the NewGame flow to actually put the player in a map once his character has been created.
 func (g *Game) EnterMap(mapID defs.MapID, spawnIndex int, doTransition bool) {
+	if g.World == nil {
+		panic("world was nil! you can't use this context function if the world doesn't exist yet...")
+	}
 	g.World.EnterMap(mapID, spawnIndex, doTransition)
 
 	// TODO: We need to convert these to Screens, so I'm gonna comment this out until that's been done.
@@ -77,10 +86,16 @@ func (g *Game) EnterMap(mapID defs.MapID, spawnIndex int, doTransition bool) {
 // PlacePlayerInMap is the same as EnterMap, but for putting the player at a specific position (instead of just at a spawn point).
 // Used by the LoadGame flow, since you will be appearing not at a spawn point, but at the position you were in last when the game was saved.
 func (g *Game) PlacePlayerInMap(mapID defs.MapID, x, y float64, doTransition bool) {
+	if g.World == nil {
+		panic("world was nil! you can't use this context function if the world doesn't exist yet...")
+	}
 	g.World.EnterMapAtPosition(mapID, x, y, doTransition)
 }
 
 func (g *Game) SetPlayerName(name string) {
+	if g.World == nil {
+		panic("world was nil! you can't use this context function if the world doesn't exist yet...")
+	}
 	g.World.SetPlayerName(name)
 }
 
