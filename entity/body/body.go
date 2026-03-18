@@ -8,15 +8,25 @@ import (
 	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/item"
+	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/model"
 )
 
-var Default defs.HSV = defs.HSV{0.5, 0.5, 0.5}
+/*
+
+TODO:
+1) Make a way for legs to be set in "sitting mode" or "riding horse mode".
+- this means that, regardless of what the current animation instructions are for the legs, they simply use their sitting or riding frame.
+- it can probably just be a function that we use to set it or unset it.
+- this way, other animations can be done while, say, riding a horse (swinging a weapon, for example).
+
+*/
+
+var Default defs.HSV = defs.HSV{H: 0.5, S: 0.5, V: 0.5}
 
 type EntityBodySet struct {
 	Name string

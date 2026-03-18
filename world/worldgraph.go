@@ -74,7 +74,7 @@ func BuildWorldGraph(dataman *datamanager.DataManager) WorldGraph {
 		// look for "edges" (door objects)
 		for _, obj := range allObjs {
 			objectInfo := m.GetObjectPropsAndTile(obj)
-			objType, found := tiled.GetStringProperty("TYPE", objectInfo.AllProps)
+			objType, found := object.GetObjectType(objectInfo.AllProps)
 			if !found {
 				logz.Panicln("CreateNewMapState", "object didn't have a TYPE property:", obj.Name, obj.ID, "mapID:", mapID)
 			}

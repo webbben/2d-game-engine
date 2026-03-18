@@ -44,7 +44,7 @@ func (w *World) CreateNewMapState(mapID defs.MapID) {
 	for _, layer := range objLayers {
 		for _, obj := range layer.Objects {
 			objectInfo := m.GetObjectPropsAndTile(obj)
-			objType, found := tiled.GetStringProperty("TYPE", objectInfo.AllProps)
+			objType, found := object.GetObjectType(objectInfo.AllProps)
 			if !found {
 				logz.Panicln("CreateNewMapState", "object didn't have a TYPE property:", obj.Name, obj.ID, "mapID:", mapID)
 			}
@@ -122,8 +122,8 @@ func (w *World) CreateNewMapState(mapID defs.MapID) {
 
 				// add this bed to the MapBeds
 				mapState.MapBeds[obj.ID] = state.BedState{
-					MapObjID:            obj.ID,
-					ResidentCharStateID: charStateID,
+					MapObjID: obj.ID,
+					OwnerID:  charStateID,
 				}
 			}
 		}

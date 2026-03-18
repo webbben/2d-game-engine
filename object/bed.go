@@ -14,10 +14,18 @@ func (obj *Object) activateBed(params ObjectActivationParams) ObjectUpdateResult
 	}
 
 	if obj.Bed.InUse {
+		if obj.Bed.SleeperID == params.ActivatorID {
+			// the character sleeping in the bed is leaving it now
+			obj.Bed.SleeperID = ""
+			obj.Bed.InUse = false
+			return ObjectUpdateResult{UpdateOccurred: true}
+		}
+		// a different character is already sleeping in this bed
 		return ObjectUpdateResult{AlreadyInUse: true}
 	}
 
 	obj.Bed.SleeperID = params.ActivatorID
+	obj.Bed.InUse = true
 
 	return ObjectUpdateResult{UpdateOccurred: true}
 }

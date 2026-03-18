@@ -680,13 +680,19 @@ func (mi *ActiveMap) HandleObjectUpdate(result object.ObjectUpdateResult, obj ob
 		}
 	case object.TypeBed:
 		if mi.PlayerRef.Entity.IsSleeping {
-			panic("trying to activate area while in a bed. this should be prevented in player input logic.")
+			panic("trying to activate an object while in a bed. this should be prevented in player input logic.")
 		} else {
 			// player is now sleeping in bed
 			// tell the entity so that it draws in the correct place
 			v := model.NewVec2(obj.Rect.X, obj.Rect.Y)
 			mi.PlayerRef.Entity.SleepInBed(v)
 		}
+	case object.TypeChair:
+		if mi.PlayerRef.Entity.IsSitting {
+			panic("trying to activate an object while sitting. this should be prevented by player input logic.")
+		}
+		v := model.NewVec2(obj.Rect.X, obj.Rect.Y)
+		mi.PlayerRef.Entity.SitInChair(v, obj.Chair.Direction)
 	}
 }
 

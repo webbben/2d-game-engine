@@ -24,7 +24,8 @@ type ObjectUpdateResult struct {
 	AlreadyInUse bool // if set, the object is being used by someone else already
 }
 
-func (obj *Object) Update() ObjectUpdateResult {
+// Update : blockChanges is just to make sure that no actual changes occur; but, animation changes and stuff can continue.
+func (obj *Object) Update(blockChanges bool) ObjectUpdateResult {
 	drawRect := obj.GetDrawRect()
 	obj.MouseBehavior.Update(int(drawRect.X), int(drawRect.Y), int(drawRect.W), int(drawRect.H), false)
 
@@ -32,30 +33,26 @@ func (obj *Object) Update() ObjectUpdateResult {
 		obj.tileData.UpdateFrame()
 	}
 
+	// handle hovering
+	if obj.IsHoverable() {
+		obj.PlayerHovering = false
+		if obj.MouseBehavior.IsHovering {
+			if utils.EuclideanDistCenter(obj.World.GetPlayerRect(), obj.GetRect()) < config.TileSize*2 {
+				obj.PlayerHovering = true
+			}
+		}
+	}
+
 	switch obj.Type {
 	case TypeDoor:
-		return obj.updateDoor()
+		// if a door is a step activation type, it can cause repeated door opening actions unless blocked.
+		if !blockChanges {
+			return obj.updateDoor()
+		}
 	case TypeGate:
 		return obj.updateGate()
-	case TypeLight:
-		return obj.updateLight()
-	case TypeContainer:
-		// TODO
-		return ObjectUpdateResult{}
-	case TypeSpawnPoint:
-		// spawn points have no update logic
-		return ObjectUpdateResult{}
-	case TypeMisc:
-		// misc has no update logic
-		return ObjectUpdateResult{}
-	case TypeItem:
-		return ObjectUpdateResult{}
-	case TypeBed:
-		return ObjectUpdateResult{}
-	default:
-		// just putting this here so we always know objects in the map are of a recognized type; but not really necessary tbh.
-		panic("unrecognized object type: " + obj.Type)
 	}
+	return ObjectUpdateResult{}
 }
 
 // ObjectActivationParams provides contextual information needed for the logic that handles activating an object.
@@ -94,6 +91,8 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 		return obj.activateLight()
 	case TypeBed:
 		return obj.activateBed(params)
+	case TypeChair:
+		return obj.activateChair(params)
 	}
 	return ObjectUpdateResult{}
 }
@@ -159,30 +158,12 @@ func (obj *Object) activateLight() ObjectUpdateResult {
 	return ObjectUpdateResult{UpdateOccurred: true}
 }
 
-func (obj *Object) updateLight() ObjectUpdateResult {
-	obj.PlayerHovering = false
-	if obj.MouseBehavior.IsHovering {
-		if utils.EuclideanDistCenter(obj.World.GetPlayerRect(), obj.GetRect()) < config.TileSize*2 {
-			obj.PlayerHovering = true
-		}
-	}
-	return ObjectUpdateResult{}
-}
-
 func (obj *Object) updateGate() ObjectUpdateResult {
-	obj.PlayerHovering = false
-
 	if obj.Gate.changingState {
 		if obj.nextFrame(obj.Gate.open) {
 			obj.Gate.changingState = false
 		}
-		return ObjectUpdateResult{}
-	}
-
-	if obj.MouseBehavior.IsHovering {
-		if utils.EuclideanDistCenter(obj.World.GetPlayerRect(), obj.CollisionRect) < config.TileSize*2 {
-			obj.PlayerHovering = true
-		}
+		obj.PlayerHovering = false // don't show hover effect while gate is opening or closing
 	}
 
 	return ObjectUpdateResult{}

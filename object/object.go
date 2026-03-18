@@ -16,20 +16,23 @@ import (
 	"github.com/webbben/2d-game-engine/tiled"
 )
 
-const (
-	TypeDoor       = "DOOR" // a door/portal to another map
-	TypeGate       = "GATE" // a "gate" is a openable/closable barrier (e.g. a physical door, or gate) in a map
-	TypeSpawnPoint = "SPAWN_POINT"
-	TypeLight      = "LIGHT"     // lights can be embedded in objects too
-	TypeContainer  = "CONTAINER" // TODO
-	TypeMisc       = "MISC"      // general purpose; just takes up space
+type ObjectType string
 
-	TypeItem = "ITEM"
-	TypeBed  = "BED"
+const (
+	TypeDoor       ObjectType = "DOOR" // a door/portal to another map
+	TypeGate       ObjectType = "GATE" // a "gate" is a openable/closable barrier (e.g. a physical door, or gate) in a map
+	TypeSpawnPoint ObjectType = "SPAWN_POINT"
+	TypeLight      ObjectType = "LIGHT"     // lights can be embedded in objects too
+	TypeContainer  ObjectType = "CONTAINER" // TODO
+	TypeMisc       ObjectType = "MISC"      // general purpose; just takes up space
+
+	TypeItem  ObjectType = "ITEM"
+	TypeBed   ObjectType = "BED"
+	TypeChair ObjectType = "CHAIR"
 
 	// Types that aren't actually supported here (specific cases)
 
-	TypeEntity = "ENTITY" // This shouldn't be used for actual objects - just for static entities in maps that are defined by objects.
+	TypeEntity ObjectType = "ENTITY" // This shouldn't be used for actual objects - just for static entities in maps that are defined by objects.
 )
 
 const (
@@ -46,10 +49,10 @@ type Object struct {
 
 	mapID defs.MapID // used for knowing which map state to check
 
-	ID         int     // the ID property from Tiled; just a counter I believe.
-	Type       string  // NOT from Tiled; set by our code in Load
-	xPos, yPos float64 // logical position in the map
-	zOffset    int     // for influencing render order
+	ID         int        // the ID property from Tiled; just a counter I believe.
+	Type       ObjectType // NOT from Tiled; set by our code in Load
+	xPos, yPos float64    // logical position in the map
+	zOffset    int        // for influencing render order
 
 	// some confusing object render order stuff
 
@@ -80,7 +83,8 @@ type Object struct {
 
 	Light Light
 
-	Bed Bed
+	Bed   Bed
+	Chair Chair
 
 	SpawnPoint SpawnPoint
 
@@ -139,6 +143,17 @@ func (obj Object) IsActivatable() bool {
 	case TypeContainer:
 		return true
 	case TypeBed:
+		return true
+	case TypeChair:
+		return true
+	default:
+		return false
+	}
+}
+
+func (obj Object) IsHoverable() bool {
+	switch obj.Type {
+	case TypeGate, TypeLight, TypeContainer, TypeChair:
 		return true
 	default:
 		return false
@@ -262,14 +277,14 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	}
 
 	// get the type first - so we know what values to parse out
-	objType, found := tiled.GetStringProperty("TYPE", allProps)
+	objType, found := GetObjectType(allProps)
 	if !found {
 		// Note: I ran into this issue before when I had a tile object in a map and deleted its data for the tile in its tileset.
 		// the object pretty much disappeared and I could only see it in the JSON. If this happens, add some pixel data back to the tile where the object's tile was (in the tileset),
 		// then go back to the map and it should be there again; delete it from the map, then you can delete it from the tileset.
 		logz.Panicln("Object", "no object type property found. ID:", obj.ID, "obj coords:", obj.X, obj.Y)
 	}
-	o.Type = resolveObjectType(objType)
+	o.Type = objType
 
 	// check if there's a lock
 	lockID, found := tiled.GetStringProperty("lock_id", allProps)
@@ -330,11 +345,11 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		if !noCollision {
 			o.addDefaultCollision()
 		}
-	case TypeItem:
-		// TODO: add item loading
-	case TypeBed:
-	default:
-		logz.Panicln("Object", "invalid object type:", o.Type, "did you forget to register it in a switch?")
+	case TypeChair:
+		if !noCollision {
+			o.addDefaultCollision()
+		}
+		o.loadChairObject(allProps)
 	}
 
 	o.loadGlobal(allProps)
@@ -511,8 +526,17 @@ func (obj *Object) loadSpawnObject(props []tiled.Property) {
 	}
 }
 
-func resolveObjectType(objType string) string {
-	switch objType {
+func GetObjectType(allObjProperties []tiled.Property) (ObjectType, bool) {
+	objType, found := tiled.GetStringProperty("TYPE", allObjProperties)
+	if !found {
+		return "", false
+	}
+
+	return resolveObjectType(objType), true
+}
+
+func resolveObjectType(objType string) ObjectType {
+	switch ObjectType(objType) {
 	case TypeDoor:
 		return TypeDoor
 	case TypeSpawnPoint:
@@ -529,6 +553,8 @@ func resolveObjectType(objType string) string {
 		return TypeItem
 	case TypeBed:
 		return TypeBed
+	case TypeChair:
+		return TypeChair
 	default:
 		panic("object type doesn't exist: " + objType)
 	}

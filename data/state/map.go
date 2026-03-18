@@ -47,6 +47,6 @@ type LockState struct {
 }
 
 type BedState struct {
-	MapObjID            int // ID (in Tiled) of the object that represents this bed
-	ResidentCharStateID CharacterStateID
+	MapObjID int              // ID (in Tiled) of the object that represents this bed
+	OwnerID  CharacterStateID // ID of the character (state) that owns this bed
 }
