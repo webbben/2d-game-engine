@@ -1,3 +1,4 @@
+// Package debug provides internal debugging tools
 package debug
 
 import (
@@ -10,30 +11,42 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-var peakAlloc uint64 = 0
-var lastLogAlloc uint64 = 0
+var (
+	peakAlloc    uint64 = 0
+	lastLogAlloc uint64 = 0
+)
 
-var alloCount uint64 = 0
-var allocPerSec uint64 = 0
-var peakAllocPerSec uint64 = 0
-var lastLogAllocPerSec uint64 = 0
+var (
+	alloCount          uint64 = 0
+	allocPerSec        uint64 = 0
+	peakAllocPerSec    uint64 = 0
+	lastLogAllocPerSec uint64 = 0
+)
 
-var startTime time.Time = time.Now()
-var warmupDone bool = false // wait for the game to finish starting up before recording performance stats
-var lastLog time.Time = time.Now()
+var (
+	startTime  time.Time = time.Now()
+	warmupDone bool      = false // wait for the game to finish starting up before recording performance stats
+	lastLog    time.Time = time.Now()
+)
 
-var peakGoRout int = 0
-var lastLogGoRout int = 0
+var (
+	peakGoRout    int = 0
+	lastLogGoRout int = 0
+)
 
-var currentFPS float64 = 0
-var minFPS float64 = 9999
-var lastLogFPS float64 = 9999
-var currentTPS float64 = 0
-var minTPS float64 = 9999
-var lastLogTPS float64 = 9999
+var (
+	currentFPS float64 = 0
+	minFPS     float64 = 9999
+	lastLogFPS float64 = 9999
+	currentTPS float64 = 0
+	minTPS     float64 = 9999
+	lastLogTPS float64 = 9999
+)
 
-var currentLog string = "No data yet\n"
-var ticksSinceLastLog = 0
+var (
+	currentLog        string = "No data yet\n"
+	ticksSinceLastLog        = 0
+)
 
 func GetLog() string {
 	return currentLog

@@ -41,6 +41,9 @@ func (p *Player) handleMovement() bool {
 	if p.Entity.Body.IsAttacking() {
 		return false
 	}
+	if p.Entity.IsSleeping || p.Entity.IsSitting {
+		return false
+	}
 
 	curPos := model.Vec2{X: p.Entity.X, Y: p.Entity.Y}
 	targetPos := model.Vec2{X: p.Entity.TargetX, Y: p.Entity.TargetY}
@@ -172,6 +175,10 @@ func (p *Player) handleActions() bool {
 			p.Entity.LeaveBed()
 			return true
 		}
+		if p.Entity.IsSitting {
+			p.Entity.LeaveChair()
+			return true
+		}
 		x, y := p.Entity.X, p.Entity.Y
 		if p.World.ActivateArea(p.Entity.GetFrontRect(), x, y) {
 			return true
@@ -182,6 +189,10 @@ func (p *Player) handleActions() bool {
 		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 			if p.Entity.IsSleeping {
 				p.Entity.LeaveBed()
+				return true
+			}
+			if p.Entity.IsSitting {
+				p.Entity.LeaveChair()
 				return true
 			}
 			mouseX, mouseY := ebiten.CursorPosition()

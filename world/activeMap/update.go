@@ -13,7 +13,7 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 	m.updateSortedRenderables()
 
 	for i := range m.Objects {
-		result := m.Objects[i].Update()
+		result := m.Objects[i].Update(blockPlayerChanges)
 		// only handle object update reactions if player is not blocked
 		// we do this to prevent accidentally handling map doors twice in a row, when walking on a map door.
 		if result.UpdateOccurred && !blockPlayerChanges {

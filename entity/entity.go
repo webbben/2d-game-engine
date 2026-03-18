@@ -59,11 +59,15 @@ type Entity struct {
 	Body              body.EntityBodySet
 	DisableCollisions bool // if set, this entity will no longer collide with anything else in the map
 
-	// logic for sleeping in beds
+	// logic for sleeping in beds and sitting in chairs
 
 	IsSleeping             bool
 	bedPosition            model.Vec2
 	positionBeforeSleeping model.Vec2
+
+	IsSitting             bool
+	chairPosition         model.Vec2
+	positionBeforeSitting model.Vec2
 
 	Loaded   bool     `json:"-"` // if the entity has been loaded into memory fully yet
 	Movement Movement `json:"movement"`
@@ -80,9 +84,40 @@ type Entity struct {
 	stunTicks int
 }
 
+func (e *Entity) SitInChair(chairPos model.Vec2, chairDir byte) {
+	if e.IsSitting {
+		panic("already sitting in a chair")
+	}
+	if e.IsSleeping {
+		panic("how are we trying to sit, while we are apparently already sleeping in a bed?")
+	}
+	e.IsSitting = true
+	e.chairPosition = chairPos
+	e.DisableCollisions = true
+	e.positionBeforeSitting = model.NewVec2(e.X, e.Y)
+
+	e.SetPositionPx(chairPos.X, chairPos.Y-(config.TileSize*0.5))
+	e.SetDirection(chairDir)
+	// TODO: once sitting mode is implemented for body, need to call that here.
+	// TODO: probably need to set a customY to ensure that the entity draws on top of the chair
+}
+
+func (e *Entity) LeaveChair() {
+	if !e.IsSitting {
+		panic("entity isn't sitting in a chair!")
+	}
+	e.SetPositionPx(e.positionBeforeSitting.X, e.positionBeforeSitting.Y)
+
+	e.IsSitting = false
+	e.DisableCollisions = false
+}
+
 func (e *Entity) SleepInBed(bedPos model.Vec2) {
 	if e.IsSleeping {
 		panic("already sleeping in a bed")
+	}
+	if e.IsSitting {
+		panic("how are we trying to sleep, when we are apparently already sitting in a chair?")
 	}
 	e.IsSleeping = true
 	e.bedPosition = bedPos

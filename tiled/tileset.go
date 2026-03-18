@@ -12,6 +12,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	imagePkg "github.com/webbben/2d-game-engine/imgutil/image"
+	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 )
@@ -96,6 +97,7 @@ func LoadTileset(source string) (Tileset, error) {
 }
 
 func (tileset *Tileset) generateTiles() error {
+	debug.StartTimer("generateTiles")
 	if tileset.Image == "" {
 		return errors.New("tileset JSON data not loaded yet")
 	}
@@ -162,6 +164,7 @@ func (tileset *Tileset) generateTiles() error {
 	}
 
 	fmt.Printf("Created tile images for tileset %s (%v tiles created)\n", tileset.Name, tileIndex)
+	debug.StopTimer("generateTiles")
 	return nil
 }
 

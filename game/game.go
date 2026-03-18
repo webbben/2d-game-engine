@@ -12,6 +12,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/display"
+	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/logz"
 	playermenu "github.com/webbben/2d-game-engine/playerMenu"
@@ -100,7 +101,9 @@ func InitialStartUp() error {
 }
 
 func (g *Game) RunGame() error {
-	return ebiten.RunGame(g)
+	err := ebiten.RunGame(g)
+	debug.ShowAllReports()
+	return err
 }
 
 // NewGame gives you a newly created Game struct for use; Note that this does NOT start a new "game playthrough"
@@ -143,6 +146,7 @@ func NewGame() *Game {
 //
 // In other words, this should only be done once the game is ready to fully launch into the "game universe" and load all characters, maps, etc.
 func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
+	debug.StartTimer("InitializeGameWorld")
 	logz.Println("GAME", "Initializing Game World...")
 	if len(g.Dataman.MapDefs) == 0 {
 		logz.Panicln("InitializeGameWorld", "no map defs found. are you sure you loaded all data definitions?")
@@ -152,6 +156,8 @@ func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
 	}
 
 	g.World = world.NewWorld(initTime, g.Dataman, g.AudioManager, g.EventBus, g)
+	debug.StopTimer("InitializeGameWorld")
+	debug.ShowAllReports()
 }
 
 func (g *Game) SetMainMenu(scrID defs.ScreenID) {

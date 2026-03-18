@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/player"
+	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/pubsub"
@@ -132,6 +133,7 @@ func (w *World) EnterMap(mapID defs.MapID, playerSpawnIndex int, doTransition bo
 }
 
 func (w *World) setupNewMap(mapID defs.MapID) {
+	debug.StartTimer("setupNewMap")
 	logz.Println("WORLD", "setting up map:", mapID)
 	if w.ActiveMap != nil {
 		w.CloseMap()
@@ -158,6 +160,8 @@ func (w *World) setupNewMap(mapID defs.MapID) {
 	} else {
 		w.loadRegularMapNPCs()
 	}
+
+	debug.StopTimer("setupNewMap")
 }
 
 func (w *World) loadRegularMapNPCs() {

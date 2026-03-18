@@ -110,21 +110,28 @@ func (e *Entity) FaceTowards(dx, dy float64) {
 	// since we can't "face" diagonally, first find out which value (dx or dy) is of greater magnitude.
 	horizontal := math.Abs(dx) >= math.Abs(dy)
 
+	var newDir byte
+
 	if horizontal {
 		if dx < 0 {
-			e.Movement.Direction = model.Directions.Left
+			newDir = model.Directions.Left
 		} else {
-			e.Movement.Direction = model.Directions.Right
+			newDir = model.Directions.Right
 		}
 	} else {
 		if dy < 0 {
-			e.Movement.Direction = model.Directions.Up
+			newDir = model.Directions.Up
 		} else {
-			e.Movement.Direction = model.Directions.Down
+			newDir = model.Directions.Down
 		}
 	}
 
-	e.Body.SetDirection(e.Movement.Direction)
+	e.SetDirection(newDir)
+}
+
+func (e *Entity) SetDirection(dir byte) {
+	e.Body.SetDirection(dir)
+	e.Movement.Direction = dir
 }
 
 func (e *Entity) SetAnimation(animOps AnimationOptions) body.SetAnimationResult {
