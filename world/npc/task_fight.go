@@ -220,3 +220,7 @@ func (t FightTask) IsComplete() bool {
 func (t FightTask) IsFailure() bool {
 	return false
 }
+
+func (t *FightTask) SetupActiveState() {
+	panic("not yet implemented!")
+}

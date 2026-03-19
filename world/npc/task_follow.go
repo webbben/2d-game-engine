@@ -192,3 +192,7 @@ func (t *FollowTask) BackgroundAssist() {
 }
 
 func (t FollowTask) SimulationUpdate() {}
+
+func (t *FollowTask) SetupActiveState() {
+	panic("not yet implemented!")
+}

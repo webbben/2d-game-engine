@@ -10,6 +10,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 )
@@ -383,7 +384,7 @@ func (m *Map) CalculateCostMap() {
 	for y, row := range m.CollisionRects {
 		for x, r := range row {
 			if r.IsCollision {
-				m.CostMap[y][x] += 10
+				m.CostMap[y][x] += path_finding.BlockThreshold
 			}
 		}
 	}

@@ -2,11 +2,10 @@ package path_finding
 
 import (
 	"container/heap"
-	"fmt"
 
-	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/logz"
 	m "github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type Node struct {
@@ -54,12 +53,14 @@ func (pq PriorityQueue) contains(p m.Coords) bool {
 
 // performs A* search and returns a path to the goal, or to the closest reachable node to the goal.
 // returns true if successfully reached the goal, or false if not.
-func aStar(start, goal m.Coords, costMap [][]int) ([]m.Coords, bool) {
+func aStar(start, goal m.Coords, costMap [][]int) (foundPath []m.Coords, visited map[m.Coords]bool, completePathFound bool) {
 	if start.Equals(goal) {
 		logz.Warnln("aStar", "start and goal are the same position")
-		return []m.Coords{}, false
+		return []m.Coords{}, nil, false
 	}
+	// the positions we haven't explored yet
 	open := make(PriorityQueue, 0)
+	// the positions that we've explored already
 	closed := make(map[m.Coords]bool)
 
 	heap.Init(&open)
@@ -88,7 +89,7 @@ func aStar(start, goal m.Coords, costMap [][]int) ([]m.Coords, bool) {
 		}
 
 		if current == goal {
-			return reconstructPath(parent, start, goal), true
+			return reconstructPath(parent, start, goal), closed, true
 		}
 		closed[current] = true
 
@@ -118,10 +119,10 @@ func aStar(start, goal m.Coords, costMap [][]int) ([]m.Coords, bool) {
 
 	// if we didn't reach the goal, return the path to the closest found position
 	if !closest.Equals(start) {
-		return reconstructPath(parent, start, closest), false
+		return reconstructPath(parent, start, closest), closed, false
 	}
 
-	return nil, false
+	return nil, nil, false
 }
 
 // use euclidean distance or manhattan distance?
@@ -165,8 +166,7 @@ func getNeighbors(current m.Coords, costMap [][]int) []m.Coords {
 
 func isValidCoords(p m.Coords, costMap [][]int) bool {
 	if len(costMap) == 0 || len(costMap[0]) == 0 {
-		fmt.Println("isValidCoords: barrier map is empty!")
-		return false
+		logz.Panicln("PATH_FINDING", "costmap was empty!")
 	}
 	if p.X < 0 || p.X >= len(costMap[0]) {
 		return false
@@ -174,5 +174,47 @@ func isValidCoords(p m.Coords, costMap [][]int) bool {
 	if p.Y < 0 || p.Y >= len(costMap) {
 		return false
 	}
-	return costMap[p.Y][p.X] < 10
+	return costMap[p.Y][p.X] < BlockThreshold
+}
+
+// GetAllReachablePositions finds all tile positions that are reachable starting from the given position.
+// Note: this will not include start in the returned slice of reachable positions, because we don't consider that to be "reachable".
+func GetAllReachablePositions(start m.Coords, costMap [][]int) []m.Coords {
+	// the positions we haven't explored yet
+	open := []m.Coords{start}
+	// use this set to track what's in open, so we don't have to do an O(n) search each loop
+	openSet := map[m.Coords]bool{start: true}
+	// the positions that we've explored already
+	closed := make(map[m.Coords]bool)
+
+	for len(open) > 0 {
+		// get the current best option to explore
+		current := open[0]
+		open = open[1:]
+		delete(openSet, current)
+
+		closed[current] = true
+
+		// explore neighbors
+		neighbors := getNeighbors(current, costMap)
+		for _, neighbor := range neighbors {
+			if closed[neighbor] {
+				continue
+			}
+			if openSet[neighbor] {
+				continue
+			}
+			open = append(open, neighbor)
+			openSet[neighbor] = true
+		}
+	}
+
+	// delete start from closed, since the start position shouldn't be included as a "reachable position".
+	delete(closed, start)
+
+	visited := []m.Coords{}
+	for c := range closed {
+		visited = append(visited, c)
+	}
+	return visited
 }

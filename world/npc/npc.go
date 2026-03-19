@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/webbben/2d-game-engine/audio"
+	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
@@ -103,8 +104,14 @@ func (n NPC) X() float64 {
 }
 
 type WorldContext interface {
+	// general map functions
+
 	FindNPCAtPosition(c model.Coords) (NPC, bool)
 	FindObjectsAtPosition(c model.Coords) []*object.Object
+	GetValidMapPosition(n NPC) model.Coords
+
+	// start screens and UI
+
 	StartDialog(dialogProfileID defs.DialogProfileID, npcID string)
 }
 
@@ -112,6 +119,13 @@ type NPCParams struct {
 	CharStateID state.CharacterStateID
 }
 
+// NewNPC instantiates an NPC for use in a game world or scenario.
+//
+// Only do this ONCE for a non-temporary NPC, in a given game session/world instantiation.
+//
+// Once this has been instantiated (for non-temp characters) it should live in the World struct and be reused from there.
+// The reason you don't want to reinstantiate is that this function does things like subscribe to NPC events, so calling twice
+// for a single character state ID would cause duplicate subscriptions, resulting in a panic.
 func NewNPC(params NPCParams, dataman *datamanager.DataManager, audioMgr *audio.AudioManager, eventBus *pubsub.EventBus) *NPC {
 	if params.CharStateID == "" {
 		panic("CharStateID is empty")
@@ -210,4 +224,24 @@ func (n *NPC) WaitUntilNotMoving() {
 		n.waitUntil = time.Now()
 	}
 	n.waitUntilDoneMoving = true
+}
+
+// SetupStarterScheduleTask puts an NPC into its "active state" in a map.
+// It is expected that the NPC is first officially "added to the map" which means it is part of the NPC list,
+// and is placed at some position that is guaranteed to be open (like a spawn point).
+// Then, this will handle actually moving the NPC to its correct place; wherever in the map it should be while doing its task.
+func (n *NPC) SetupStarterScheduleTask(gameTime clock.GameTime) {
+	hour := gameTime.Hour
+	scheduleTask := n.Schedule.Hourly[hour]
+
+	// TODO: I don't think we're handling Routing tasks properly as of now. that's okay, since that's a bit more advanced,
+	// but I think we need to decide exactly how that should work. Currently, in RunTask, it checks if the next task is in a new map,
+	// and if so, it tells the NPC to do a routing task first. This brings us to a question:
+	// - Should Routing tasks be explicitly set in the schedule?
+	// - Or, should they just be something that is automatically applied, when the next task requires moving to a new map?
+	n.RunTask(scheduleTask, n)
+
+	// we also need to setup the "initial active state" of the task.
+	// we want the NPC to already be "actively in progress" on their task.
+	n.TaskMGMT.CurrentTask.SetupActiveState()
 }

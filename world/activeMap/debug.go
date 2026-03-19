@@ -9,6 +9,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/internal/path_finding"
 )
 
 type debugData struct {
@@ -91,7 +92,7 @@ func (m *ActiveMap) drawCollisions(screen *ebiten.Image, offsetX, offsetY float6
 
 	for y, row := range m.CostMap() {
 		for x, cost := range row {
-			if cost >= 10 {
+			if cost >= path_finding.BlockThreshold {
 				op := &ebiten.DrawImageOptions{}
 				drawX, drawY := rendering.GetImageDrawPos(m.debugData.costTile, float64(x)*config.TileSize, float64(y)*config.TileSize, offsetX, offsetY)
 				op.GeoM.Translate(drawX, drawY)
@@ -118,6 +119,8 @@ func (m *ActiveMap) drawCollisions(screen *ebiten.Image, offsetX, offsetY float6
 		}
 	}
 
+	// objects are included in the cost map, but good to have a separate view of the actual rect here too, since cost map just shows which tiles are blocked
+	// for pathfinding algorithms
 	for _, obj := range m.Objects {
 		if !obj.IsCollidable() {
 			continue

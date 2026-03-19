@@ -169,14 +169,22 @@ func (w *World) loadRegularMapNPCs() {
 		panic("map was nil")
 	}
 
-	for _, n := range w.MapOccupancy[w.ActiveMap.MapID] {
-		// TODO: decide the positions that these NPCs should be at.
-		// probably based on their current task? I think this is how it'll go:
-		// - Route tasks: calculate the progress, and then place the NPC along the path at an appropriate place.
-		// - Other tasks: put the NPC at the "in progress state". E.g. sitting at a table, if their task is to do so.
-		// For now, we will just put NPCs at the position where their "in progress state" would be. we will implement more complex things like
-		// NPCs sitting in chairs and whatnot later.
-		logz.TODO("World", "need to load NPCs for regular maps. NPC/character to load:", n)
+	currentHour := w.Clock.GetCurrentGameTime()
+	x0, y0, found := w.ActiveMap.GetSpawnPosition(0)
+	if !found {
+		logz.Panicln("loadRegularMapNPCs", "failed to find spawn point 0. all maps must have this spawn point index!")
+	}
+	spawnPoint0 := model.ConvertPxToTilePos(x0, y0)
+
+	for _, id := range w.MapOccupancy[w.ActiveMap.MapID] {
+		// add an NPC to the map for this character, and then call its initial task state setter.
+		// we can start by placing each NPC at the main spawn point (index=0).
+		// if the initial task starter is successful, it should necessarily be moved somewhere else.
+		// NOTE: I guess we need to keep the "find valid position" function from returning one of the spawn points... how should we handle that?
+		// make spawn points blocked?
+		n := w.NPCs[id]
+		w.ActiveMap.AddNPCToMap(n, spawnPoint0)
+		n.SetupStarterScheduleTask(currentHour)
 	}
 }
 
