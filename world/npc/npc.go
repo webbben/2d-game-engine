@@ -111,6 +111,7 @@ type WorldContext interface {
 	GetValidMapPosition(n NPC) model.Coords
 	IsTileCollision(c model.Coords) bool
 	IsTileEntityCollision(c model.Coords, excludeEntID string) bool
+	GetAllObjects() []*object.Object
 
 	// start screens and UI
 

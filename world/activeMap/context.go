@@ -72,7 +72,7 @@ func (m ActiveMap) GetValidMapPosition(n npc.NPC) model.Coords {
 
 // FindObjectsAtPosition finds all objects that intersect with a given tile position.
 // This includes collidable and non-collidable objects, as long as they have a draw rect.
-func (mi *ActiveMap) FindObjectsAtPosition(c model.Coords) []*object.Object {
+func (mi ActiveMap) FindObjectsAtPosition(c model.Coords) []*object.Object {
 	posRect := model.NewRect(float64(c.X)*config.TileSize, float64(c.Y)*config.TileSize, config.TileSize, config.TileSize)
 	objs := []*object.Object{}
 	for _, obj := range mi.Objects {
@@ -89,4 +89,8 @@ func (mi *ActiveMap) StartTradeSession(shopkeeperID defs.ShopID) {
 
 func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID string) {
 	mi.gameCtx.StartDialogSession(dialogProfileID, npcID)
+}
+
+func (m ActiveMap) GetAllObjects() []*object.Object {
+	return m.Objects
 }

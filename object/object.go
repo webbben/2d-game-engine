@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
@@ -46,6 +47,8 @@ const (
 
 type Object struct {
 	Name string // TODO: I don't think most objects actually have Names; the name property in Tiled is usually left empty.
+
+	targetedByNPC state.CharacterStateID // if set, this means an NPC is currently trying to come and activate this object.
 
 	mapID defs.MapID // used for knowing which map state to check
 
@@ -94,6 +97,21 @@ type Object struct {
 
 	AudioMgr *audio.AudioManager
 	dataman  *datamanager.DataManager
+}
+
+func (obj *Object) SetTargetingNPC(id state.CharacterStateID) {
+	if obj.targetedByNPC != "" {
+		logz.Panicln("Object", "tried to set targeting NPC, but there was already another ID set... make sure you clear it before trying to set a new one. existing id:", obj.targetedByNPC, "new id:", id)
+	}
+	obj.targetedByNPC = id
+}
+
+func (obj *Object) ClearTargetingNPC() {
+	obj.targetedByNPC = ""
+}
+
+func (obj Object) GetTargetingNPC() state.CharacterStateID {
+	return obj.targetedByNPC
 }
 
 func (obj Object) GetLockID() string {
