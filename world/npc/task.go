@@ -22,12 +22,13 @@ const (
 
 const (
 	TaskIdle        defs.TaskID = "IDLE"
+	TaskLounge      defs.TaskID = "LOUNGE"
 	TaskGoto        defs.TaskID = "GOTO"
 	TaskRoute       defs.TaskID = "ROUTE"
 	TaskFollow      defs.TaskID = "FOLLOW"
 	TaskFight       defs.TaskID = "FIGHT"
 	TaskStartDialog defs.TaskID = "START_DIALOG"
-	TaskFaceDir     defs.TaskID = "FACE_DIR"
+	TaskFaceDir     defs.TaskID = "FACE_DIR" // TODO
 )
 
 const (
@@ -159,6 +160,10 @@ type NoBackgroundWork struct{}
 func (x NoBackgroundWork) BackgroundAssist() {}
 
 func (x NoBackgroundWork) SimulationUpdate() {}
+
+type NoActiveState struct{}
+
+func (x NoActiveState) SetupActiveState() {}
 
 func (n *NPC) HandleTaskUpdate() {
 	if n.CurrentTask.GetOwner() == nil {

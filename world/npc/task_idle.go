@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 )
@@ -18,11 +19,13 @@ type IdleTask struct {
 	nextChangeWait time.Duration // how long to wait until doing another misc change
 }
 
-func NewIdleTask(n *NPC) *IdleTask {
+func NewIdleTask(n *NPC, p defs.TaskPriority) *IdleTask {
+	d := defs.TaskDef{
+		TaskID:   TaskIdle,
+		Priority: p,
+	}
 	return &IdleTask{
-		TaskBase: TaskBase{
-			Owner: n,
-		},
+		TaskBase: NewTaskBase(d, "Idle", "Just str8 chillin breh", n),
 	}
 }
 
@@ -43,16 +46,12 @@ func (it IdleTask) ZzCompileCheck() {
 	_ = append([]Task{}, &it)
 }
 
-func (it IdleTask) End() {}
-func (it IdleTask) IsComplete() bool {
-	return false
-}
-
-func (it IdleTask) IsFailure() bool {
-	return false
-}
-func (it *IdleTask) Start() {}
 func (it *IdleTask) Update() {
+	if it.IsDone() {
+		return
+	}
+
+	it.Status = TaskInProg
 	if time.Since(it.lastChange) >= it.nextChangeWait {
 		// time to do another random change
 		switch rand.Intn(2) {
