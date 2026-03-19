@@ -109,6 +109,8 @@ type WorldContext interface {
 	FindNPCAtPosition(c model.Coords) (NPC, bool)
 	FindObjectsAtPosition(c model.Coords) []*object.Object
 	GetValidMapPosition(n NPC) model.Coords
+	IsTileCollision(c model.Coords) bool
+	IsTileEntityCollision(c model.Coords, excludeEntID string) bool
 
 	// start screens and UI
 

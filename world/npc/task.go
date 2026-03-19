@@ -231,39 +231,3 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 	// no collidable objects found; should be good to continue?
 	return NPCCollisionResult{NoneDetected: true}
 }
-
-// Made an Idle task for NPCs that don't do anything
-
-type IdleTask struct {
-	TaskBase
-	NoBackgroundWork
-}
-
-func NewIdleTask(n *NPC) *IdleTask {
-	return &IdleTask{
-		TaskBase: TaskBase{
-			Owner: n,
-		},
-	}
-}
-
-func (it *IdleTask) SetupActiveState() {
-	// For the idle task, the active state should just to be placed somewhere in the map.
-	pos := it.Owner.World.GetValidMapPosition(*it.Owner)
-	it.Owner.Entity.SetPosition(pos)
-}
-
-func (it IdleTask) ZzCompileCheck() {
-	_ = append([]Task{}, &it)
-}
-
-func (it IdleTask) End() {}
-func (it IdleTask) IsComplete() bool {
-	return false
-}
-
-func (it IdleTask) IsFailure() bool {
-	return false
-}
-func (it *IdleTask) Start()  {}
-func (it *IdleTask) Update() {}
