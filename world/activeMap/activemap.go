@@ -234,7 +234,7 @@ func (mi *ActiveMap) AddPlayerToMap(p *player.Player, x, y float64) {
 		W: config.TileSize,
 		H: config.TileSize,
 	}
-	if res := mi.Collides(r, ""); res.Collides() {
+	if res := mi.Collides(r); res.Collides() {
 		// this also handles placement outside of map bounds
 		panic("player added to map on colliding tile")
 	}
@@ -258,7 +258,7 @@ func (mi *ActiveMap) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 		panic("given position appears to be off the map. are you using absolute coordinates on accident? this expects tile based coordinates.")
 	}
 
-	if mi.IsTileCollision(startPos, "") {
+	if mi.IsTileCollision(startPos) {
 		logz.Panicln("AddNPCToMap", "NPC added to map on colliding tile.", "mapID:", mi.MapID, "npcID:", n.ID(), "startPos:", startPos)
 	}
 	n.Entity.World = mi
@@ -268,18 +268,28 @@ func (mi *ActiveMap) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	mi.NPCs = append(mi.NPCs, n)
 }
 
-func (mi ActiveMap) IsTileCollision(coords model.Coords, excludeEntID string) bool {
+func (mi ActiveMap) IsTileCollision(coords model.Coords) bool {
 	r := model.Rect{
 		X: float64(coords.X * config.TileSize),
 		Y: float64(coords.Y * config.TileSize),
 		W: config.TileSize,
 		H: config.TileSize,
 	}
-	res := mi.Collides(r, excludeEntID)
+	res := mi.Collides(r)
 	if res.Collides() {
 		logz.Println("IsTileCollision", "collision:", res)
 	}
 	return res.Collides()
+}
+
+func (m ActiveMap) IsTileEntityCollision(c model.Coords, excludeEntID string) bool {
+	r := model.Rect{
+		X: float64(c.X * config.TileSize),
+		Y: float64(c.Y * config.TileSize),
+		W: config.TileSize,
+		H: config.TileSize,
+	}
+	return m.CollidesWithEntity(r, excludeEntID)
 }
 
 func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
@@ -290,9 +300,35 @@ func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
 	}
 }
 
+// CollidesWithEntity checks if the rect collides with an entity. This is meant for detecting if an entity
+// collides with another entity, and should therefore move slower or not. For "hard" collisions, use Collides instead.
+// TODO: at some point, when combat is more developed, we will want to make combatant entities not able to be walked through.
+func (m ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) bool {
+	if m.PlayerRef != nil {
+		if string(m.PlayerRef.Entity.ID()) != excludeEntID && !m.PlayerRef.Entity.DisableCollisions {
+			cr := checkCornerCollision(r, m.PlayerRef.Entity.CollisionRect())
+			if cr.Collides() {
+				return true
+			}
+		}
+	}
+	for _, n := range m.NPCs {
+		if string(n.Entity.ID()) == excludeEntID {
+			continue
+		}
+		if n.Entity.DisableCollisions {
+			continue
+		}
+		cr := checkCornerCollision(r, n.Entity.CollisionRect())
+		if cr.Collides() {
+			return true
+		}
+	}
+	return false
+}
+
 // Collides detects if the given rect collides in the map.
-// TODO: should this check the CostMap at all? I guess it just goes off of collision rects alone, but seems interesting that we don't use it here.
-func (mi ActiveMap) Collides(r model.Rect, excludeEntID string) model.CollisionResult {
+func (mi ActiveMap) Collides(r model.Rect) model.CollisionResult {
 	tl := model.ConvertPxToTilePos(r.X, r.Y)
 	tr := model.ConvertPxToTilePos((r.X + r.W), (r.Y))
 	bl := model.ConvertPxToTilePos((r.X), (r.Y + r.H))
@@ -359,34 +395,8 @@ func (mi ActiveMap) Collides(r model.Rect, excludeEntID string) model.CollisionR
 		return cr
 	}
 
-	// if no static collisions are found, find any entity or object collisions
-	// check the corner points of r and see if they are inside any of the entity/object rects.
-	// if a corner point is inside a rect, then that corresponding corner gets the collision.
-	// if no corner point is inside the rect but there is still a collision (e.g. the two rects aren't the same size) then the collision is set to Other.
-	if mi.PlayerRef != nil {
-		if string(mi.PlayerRef.Entity.ID()) != excludeEntID && !mi.PlayerRef.Entity.DisableCollisions {
-			newCr := checkCornerCollision(r, mi.PlayerRef.Entity.CollisionRect())
-			if newCr.Collides() {
-				newCr.Assert()
-				newCr.Note = "collided with player"
-			}
-			cr.MergeOtherCollisionResult(newCr)
-		}
-	}
-	for _, n := range mi.NPCs {
-		if string(n.Entity.ID()) == excludeEntID {
-			continue
-		}
-		if n.Entity.DisableCollisions {
-			continue
-		}
-		newCr := checkCornerCollision(r, n.Entity.CollisionRect())
-		if newCr.Collides() {
-			newCr.Note = fmt.Sprintf("collided with NPC %s", n.ID())
-			newCr.Assert()
-		}
-		cr.MergeOtherCollisionResult(newCr)
-	}
+	// if no static collisions are found, find any object collisions
+	// NOTE: NPC and player collisions are handled in CollidesWithEntity, since entity collisions will only slow you down, not stop you outright.
 
 	// check for collidable objects (gates, etc)
 	for _, obj := range mi.Objects {
@@ -473,11 +483,11 @@ func (mi ActiveMap) CostMap() [][]int {
 
 	for _, n := range mi.NPCs {
 		tilePos := n.Entity.TilePos()
-		costMap[tilePos.Y][tilePos.X] += path_finding.BlockThreshold
+		costMap[tilePos.Y][tilePos.X] += path_finding.EntityCollision
 		// if the entity is currently moving, mark its destination tile as a collision too
 		targetTile := n.Entity.TargetTilePos()
 		if !targetTile.Equals(tilePos) {
-			costMap[targetTile.Y][targetTile.X] += path_finding.BlockThreshold
+			costMap[targetTile.Y][targetTile.X] += path_finding.EntityCollision
 		}
 	}
 
@@ -486,7 +496,7 @@ func (mi ActiveMap) CostMap() [][]int {
 		playerX := playerRect.X + (playerRect.W / 2)
 		playerY := playerRect.Y + (playerRect.H / 2)
 		playerPos := model.ConvertPxToTilePos((playerX), (playerY))
-		costMap[playerPos.Y][playerPos.X] += path_finding.BlockThreshold
+		costMap[playerPos.Y][playerPos.X] += path_finding.EntityCollision
 	}
 
 	for _, obj := range mi.Objects {

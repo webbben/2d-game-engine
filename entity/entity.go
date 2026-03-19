@@ -530,7 +530,8 @@ func (e Entity) CollisionRect() model.Rect {
 }
 
 type WorldContext interface {
-	Collides(r model.Rect, excludeEntityID string) model.CollisionResult
+	Collides(r model.Rect) model.CollisionResult
+	CollidesWithEntity(r model.Rect, excludeEntID string) bool
 	FindPath(start, goal model.Coords) ([]model.Coords, bool)
 	MapDimensions() (width int, height int)
 	GetGroundMaterial(tileX, tileY int) string
@@ -542,7 +543,14 @@ func (e Entity) Collides(r model.Rect) model.CollisionResult {
 	if e.DisableCollisions {
 		return model.CollisionResult{}
 	}
-	return e.World.Collides(r, string(e.ID()))
+	return e.World.Collides(r)
+}
+
+func (e Entity) CollidesWithEntity(r model.Rect) bool {
+	if e.DisableCollisions {
+		return false
+	}
+	return e.World.CollidesWithEntity(r, string(e.ID()))
 }
 
 type GeneralProps struct {

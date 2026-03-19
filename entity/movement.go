@@ -411,15 +411,21 @@ func (e *Entity) updateMovement() updateMovementResult {
 		e.Movement.SuggestedTargetPath = []model.Coords{}
 	}
 
+	actualSpeed := e.Movement.Speed
+
 	res := e.Collides(e.CollisionRect())
 	if res.Collides() {
 		logz.Panicf("[%s] updateMovement: current position is colliding!", e.DisplayName())
+	}
+	if e.CollidesWithEntity(e.CollisionRect()) {
+		// currently colliding with entity; move slower
+		actualSpeed = e.Movement.Speed * 0.4
 	}
 
 	pos := model.Vec2{X: e.X, Y: e.Y}
 	target := model.Vec2{X: e.TargetX, Y: e.TargetY}
 
-	newPos := pos.MoveTowards(target, e.Movement.Speed)
+	newPos := pos.MoveTowards(target, actualSpeed)
 	w, h := e.CollisionRect().W, e.CollisionRect().H
 	res = e.Collides(model.NewRect(newPos.X, newPos.Y, w, h))
 	if res.Collides() {
