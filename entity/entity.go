@@ -558,12 +558,12 @@ type Position struct {
 
 // TilePos converts the current X/Y position to an absolute tile position
 func (e Entity) TilePos() model.Coords {
-	return model.ConvertPxToTilePos(int(e.X), int(e.Y))
+	return model.ConvertPxToTilePos((e.X), (e.Y))
 }
 
 // TargetTilePos converts the current target X/Y position to an absolute tile position
 func (e Entity) TargetTilePos() model.Coords {
-	return model.ConvertPxToTilePos(int(e.TargetX), int(e.TargetY))
+	return model.ConvertPxToTilePos((e.TargetX), (e.TargetY))
 }
 
 // Movement is Runtime logic for movement

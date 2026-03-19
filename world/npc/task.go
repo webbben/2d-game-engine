@@ -84,6 +84,8 @@ type Task interface {
 	// allows a task to update while an NPC is not in the current map. Not meant for most tasks, only ones that do things like move an NPC across their path
 	// to new maps.
 	SimulationUpdate()
+
+	SetupActiveState()
 }
 
 type TaskBase struct {
@@ -215,6 +217,7 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 						LockIDs: characterstate.GetLockIDs(*t.Owner.CharacterStateRef),
 					}
 					obj.Activate(x, y, activateParams)
+					// TODO: it looks like we don't check the result. if we don't have the lock for the gate, then we will need to handle that situation.
 				}
 				// wait a little for the gate to open
 				t.Owner.Wait(time.Second)
@@ -234,6 +237,20 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 type IdleTask struct {
 	TaskBase
 	NoBackgroundWork
+}
+
+func NewIdleTask(n *NPC) *IdleTask {
+	return &IdleTask{
+		TaskBase: TaskBase{
+			Owner: n,
+		},
+	}
+}
+
+func (it *IdleTask) SetupActiveState() {
+	// For the idle task, the active state should just to be placed somewhere in the map.
+	pos := it.Owner.World.GetValidMapPosition(*it.Owner)
+	it.Owner.Entity.SetPosition(pos)
 }
 
 func (it IdleTask) ZzCompileCheck() {

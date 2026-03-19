@@ -62,7 +62,9 @@ func GetRelativeDirection(a, b Coords) byte {
 	}
 }
 
-// Coords are tile-based coordinate position in a room
+// Coords are tile-based coordinate position in a map.
+// Note: Coords implements the "comparable" interface since al lof its fields are comparable (int).
+// So, it can be sorted, used as a key in a map, etc.
 type Coords struct {
 	X int `json:"x"`
 	Y int `json:"y"`
@@ -104,10 +106,10 @@ func (c Coords) IsAdjacent(otherPos Coords) bool {
 	return dx+dy == 1
 }
 
-func ConvertPxToTilePos(x, y int) Coords {
+func ConvertPxToTilePos(x, y float64) Coords {
 	return Coords{
-		X: x / config.TileSize,
-		Y: y / config.TileSize,
+		X: int(x) / config.TileSize,
+		Y: int(y) / config.TileSize,
 	}
 }
 
@@ -115,7 +117,7 @@ func ConvertPxToTilePos(x, y int) Coords {
 func GetTilePosOfRectCenter(r Rect) Coords {
 	x := r.X + (r.W / 2)
 	y := r.Y + (r.H / 2)
-	return ConvertPxToTilePos(int(x), int(y))
+	return ConvertPxToTilePos(x, y)
 }
 
 func (c Coords) WithinBounds(x1, x2, y1, y2 int) bool {
@@ -204,6 +206,29 @@ func (r Rect) VecWithin(v Vec2) bool {
 	return r.Within(int(v.X), int(v.Y))
 }
 
+// GetOverlappingTiles returns a slice of all tile positions that this rect overlaps with.
+func (r Rect) GetOverlappingTiles() []Coords {
+	// for each corner of the rect, convert it to a tile position. then de-duplicate.
+	coords := map[Coords]bool{}
+
+	minC := ConvertPxToTilePos(r.X, r.Y)
+	maxC := ConvertPxToTilePos(r.X+r.W, r.Y+r.H)
+
+	// add 1 to the max position, so that those end positions will actually be reached
+	for x := minC.X; x < maxC.X+1; x++ {
+		for y := minC.Y; y < maxC.Y+1; y++ {
+			coords[Coords{X: x, Y: y}] = true
+		}
+	}
+
+	result := []Coords{}
+	for c := range coords {
+		result = append(result, c)
+	}
+
+	return result
+}
+
 type IntersectionResult struct {
 	Intersects bool
 	Dx, Dy     float64
@@ -256,6 +281,7 @@ type CollisionResult struct {
 	BottomLeft  IntersectionResult
 	BottomRight IntersectionResult
 	Other       IntersectionResult // for general use when not specifically corner related
+	Note        string             // if you want to add a debug note
 }
 
 // MergeOtherCollisionResult merges the two collision results, basically by taking the "maximum" collision for each corner.
@@ -268,6 +294,10 @@ func (cr *CollisionResult) MergeOtherCollisionResult(other CollisionResult) {
 	cr.BottomLeft.MergeIntersectionResult(other.BottomLeft)
 	cr.BottomRight.MergeIntersectionResult(other.BottomRight)
 	cr.Other.MergeIntersectionResult(other.Other)
+	if cr.Note != "" {
+		cr.Note += "; "
+	}
+	cr.Note += other.Note
 }
 
 func (c CollisionResult) String() string {
@@ -290,7 +320,7 @@ func (c CollisionResult) String() string {
 	if c.Other.Intersects {
 		coll = append(coll, fmt.Sprintf("O (%s)", c.Other))
 	}
-	return fmt.Sprintf("%v", coll)
+	return fmt.Sprintf("%v %s", coll, c.Note)
 }
 
 func (c CollisionResult) Collides() bool {

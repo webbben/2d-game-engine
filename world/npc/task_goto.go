@@ -90,3 +90,7 @@ func (t *GotoTask) Update() {
 func (t GotoTask) isComplete() bool {
 	return t.Owner.Entity.TilePos().Equals(t.goalPos)
 }
+
+func (t *GotoTask) SetupActiveState() {
+	panic("not yet implemented!")
+}

@@ -94,7 +94,7 @@ func BuildWorldGraph(dataman *datamanager.DataManager) WorldGraph {
 			}
 			// TODO: these coordinates are probably a bit wrong; it'll point to the top left, but we would actually want to know the position right next to the door,
 			// where a character would actually be standing when using the door.
-			edgeCoords := model.ConvertPxToTilePos(int(obj.X), int(obj.Y))
+			edgeCoords := model.ConvertPxToTilePos((obj.X), (obj.Y))
 			node.Edges = append(node.Edges, MapEdge{
 				To:           defs.MapID(doorTo),
 				ToSpawn:      toSpawn,

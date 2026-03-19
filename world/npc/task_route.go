@@ -52,3 +52,7 @@ func (t *RouteTask) Update() {
 	}
 	logz.TODO("Route task", "need to implement actual logic for this still. for now, leaving it empty.")
 }
+
+func (t *RouteTask) SetupActiveState() {
+	panic("not yet implemented!")
+}

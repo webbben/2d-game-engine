@@ -251,29 +251,35 @@ func (mi *ActiveMap) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	if !mi.Loaded {
 		panic("map not loaded yet. use SetupMap before using this.")
 	}
+	logz.Println("AddNPCToMap", "adding NPC to map:", n.ID(), "pos:", startPos)
 
 	numCols, numRows := mi.MapDimensions()
 	if startPos.X > numCols || startPos.Y > numRows {
 		panic("given position appears to be off the map. are you using absolute coordinates on accident? this expects tile based coordinates.")
 	}
 
-	w := n.Entity.CollisionRect().W
-	h := n.Entity.CollisionRect().H
-	r := model.Rect{
-		X: float64(startPos.X * config.TileSize),
-		Y: float64(startPos.Y * config.TileSize),
-		W: w,
-		H: h,
-	}
-	if res := mi.Collides(r, ""); res.Collides() {
-		logz.Panicln("AddNPCToMap", "NPC added to map on colliding tile. r:", r, "mapID:", mi.MapID, "npcID:", n.ID())
-		panic("npc added to map on colliding tile")
+	if mi.IsTileCollision(startPos, "") {
+		logz.Panicln("AddNPCToMap", "NPC added to map on colliding tile.", "mapID:", mi.MapID, "npcID:", n.ID(), "startPos:", startPos)
 	}
 	n.Entity.World = mi
 	n.World = mi // NPC has its own world context it needs, that isn't relevant to entity
 	n.Entity.SetPosition(startPos)
 	n.Priority = mi.getNextNPCPriority()
 	mi.NPCs = append(mi.NPCs, n)
+}
+
+func (mi ActiveMap) IsTileCollision(coords model.Coords, excludeEntID string) bool {
+	r := model.Rect{
+		X: float64(coords.X * config.TileSize),
+		Y: float64(coords.Y * config.TileSize),
+		W: config.TileSize,
+		H: config.TileSize,
+	}
+	res := mi.Collides(r, excludeEntID)
+	if res.Collides() {
+		logz.Println("IsTileCollision", "collision:", res)
+	}
+	return res.Collides()
 }
 
 func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
@@ -285,14 +291,12 @@ func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
 }
 
 // Collides detects if the given rect collides in the map.
-// rectBased param determines if collisions check for collision rects (e.g. for buildings with nuanced collision rects)
-// or if it just uses tile-based collisions (if a tile contains a collision rect, the entire tile is marked as a collision).
-// generally, the player should use rect-based, and NPCs should use tile-based (since NPCs usually can't do partial tile/px based movement)
+// TODO: should this check the CostMap at all? I guess it just goes off of collision rects alone, but seems interesting that we don't use it here.
 func (mi ActiveMap) Collides(r model.Rect, excludeEntID string) model.CollisionResult {
-	tl := model.ConvertPxToTilePos(int(r.X), int(r.Y))
-	tr := model.ConvertPxToTilePos(int(r.X+r.W), int(r.Y))
-	bl := model.ConvertPxToTilePos(int(r.X), int(r.Y+r.H))
-	br := model.ConvertPxToTilePos(int(r.X+r.W), int(r.Y+r.H))
+	tl := model.ConvertPxToTilePos(r.X, r.Y)
+	tr := model.ConvertPxToTilePos((r.X + r.W), (r.Y))
+	bl := model.ConvertPxToTilePos((r.X), (r.Y + r.H))
+	br := model.ConvertPxToTilePos((r.X + r.W), (r.Y + r.H))
 	// check if any part of the target is outside the map
 	maxTileX := len(mi.Map.CostMap[0]) - 1
 	maxTileY := len(mi.Map.CostMap) - 1
@@ -302,15 +306,19 @@ func (mi ActiveMap) Collides(r model.Rect, excludeEntID string) model.CollisionR
 	// first, check for corners of the rect that are off the map
 	if !tl.WithinBounds(0, maxTileX, 0, maxTileY) {
 		cr.TopLeft.Intersects = true
+		cr.Note = "off map"
 	}
 	if !tr.WithinBounds(0, maxTileX, 0, maxTileY) {
 		cr.TopRight.Intersects = true
+		cr.Note = "off map"
 	}
 	if !bl.WithinBounds(0, maxTileX, 0, maxTileY) {
 		cr.BottomLeft.Intersects = true
+		cr.Note = "off map"
 	}
 	if !br.WithinBounds(0, maxTileX, 0, maxTileY) {
 		cr.BottomRight.Intersects = true
+		cr.Note = "off map"
 	}
 
 	// next, check for regular collisions on the map
@@ -320,24 +328,28 @@ func (mi ActiveMap) Collides(r model.Rect, excludeEntID string) model.CollisionR
 		r1 := mi.Map.CollisionRects[tl.Y][tl.X]
 		if r1.IsCollision {
 			cr.TopLeft = r1.OffsetRect(float64(tl.X*config.TileSize), float64(tl.Y*config.TileSize)).IntersectionArea(r)
+			cr.Note = "map collision rect"
 		}
 	}
 	if !cr.TopRight.Intersects {
 		r2 := mi.Map.CollisionRects[tr.Y][tr.X]
 		if r2.IsCollision {
 			cr.TopRight = r2.OffsetRect(float64(tr.X*config.TileSize), float64(tr.Y*config.TileSize)).IntersectionArea(r)
+			cr.Note = "map collision rect"
 		}
 	}
 	if !cr.BottomLeft.Intersects {
 		r3 := mi.Map.CollisionRects[bl.Y][bl.X]
 		if r3.IsCollision {
 			cr.BottomLeft = r3.OffsetRect(float64(bl.X*config.TileSize), float64(bl.Y*config.TileSize)).IntersectionArea(r)
+			cr.Note = "map collision rect"
 		}
 	}
 	if !cr.BottomRight.Intersects {
 		r4 := mi.Map.CollisionRects[br.Y][br.X]
 		if r4.IsCollision {
 			cr.BottomRight = r4.OffsetRect(float64(br.X*config.TileSize), float64(br.Y*config.TileSize)).IntersectionArea(r)
+			cr.Note = "map collision rect"
 		}
 	}
 
@@ -356,6 +368,7 @@ func (mi ActiveMap) Collides(r model.Rect, excludeEntID string) model.CollisionR
 			newCr := checkCornerCollision(r, mi.PlayerRef.Entity.CollisionRect())
 			if newCr.Collides() {
 				newCr.Assert()
+				newCr.Note = "collided with player"
 			}
 			cr.MergeOtherCollisionResult(newCr)
 		}
@@ -369,6 +382,7 @@ func (mi ActiveMap) Collides(r model.Rect, excludeEntID string) model.CollisionR
 		}
 		newCr := checkCornerCollision(r, n.Entity.CollisionRect())
 		if newCr.Collides() {
+			newCr.Note = fmt.Sprintf("collided with NPC %s", n.ID())
 			newCr.Assert()
 		}
 		cr.MergeOtherCollisionResult(newCr)
@@ -382,6 +396,7 @@ func (mi ActiveMap) Collides(r model.Rect, excludeEntID string) model.CollisionR
 		newCr := checkCornerCollision(r, obj.GetRect())
 		if newCr.Collides() {
 			newCr.Assert()
+			newCr.Note = fmt.Sprintf("collided with object %v", obj.ID)
 		}
 		cr.MergeOtherCollisionResult(newCr)
 	}
@@ -432,17 +447,20 @@ func (mi ActiveMap) MapDimensions() (width int, height int) {
 	return mi.Map.Width, mi.Map.Height
 }
 
-// CostMap gets a cost map for a map.
+// CostMap gets a cost map for a map. Includes all possible obstructions, from NPCs or objects too.
 //
 // Currently includes:
 //
-// - tiledMap costmap (mainly just collision rects embedded in tiles, I believe)
+// - tiledMap costmap (just collision rects embedded in tiles)
 //
 // - NPC positions
 //
-// Not included:
+// - Object rects
+//   - Does not include gates, since those may be opened by an NPC (even if locked). NPC logic handles unlocking gates if possible.
 //
-// - Object collisions; These are shown in the debug "showCollisions", but not actually in the cost map here.
+// TODO:
+// 1) at some point I plan to make NPCs not collide, but just slow each other down. we should factor in the cost
+// such that it discourages NPCs from overlapping, but won't actually make them collide.
 func (mi ActiveMap) CostMap() [][]int {
 	if mi.Map.CostMap == nil {
 		panic("tried to get ActiveMap cost map before Map costmap was created")
@@ -455,21 +473,39 @@ func (mi ActiveMap) CostMap() [][]int {
 
 	for _, n := range mi.NPCs {
 		tilePos := n.Entity.TilePos()
-		costMap[tilePos.Y][tilePos.X] += 10
+		costMap[tilePos.Y][tilePos.X] += path_finding.BlockThreshold
 		// if the entity is currently moving, mark its destination tile as a collision too
 		targetTile := n.Entity.TargetTilePos()
 		if !targetTile.Equals(tilePos) {
-			costMap[targetTile.Y][targetTile.X] += 10
+			costMap[targetTile.Y][targetTile.X] += path_finding.BlockThreshold
 		}
 	}
 
-	// TODO should I update the TilePos to be this position?
 	if mi.PlayerRef != nil {
 		playerRect := mi.PlayerRef.Entity.CollisionRect()
 		playerX := playerRect.X + (playerRect.W / 2)
 		playerY := playerRect.Y + (playerRect.H / 2)
-		playerPos := model.ConvertPxToTilePos(int(playerX), int(playerY))
-		costMap[playerPos.Y][playerPos.X] += 10
+		playerPos := model.ConvertPxToTilePos((playerX), (playerY))
+		costMap[playerPos.Y][playerPos.X] += path_finding.BlockThreshold
+	}
+
+	for _, obj := range mi.Objects {
+		if !obj.IsCollidable() {
+			continue
+		}
+		if obj.Type == object.TypeGate {
+			// gates may be opened by NPCs, so don't include them in cost map.
+			// if a gate is locked for a certain NPC, that can be applied to the costmap elsewhere.
+			continue
+		}
+		// get all tile positions that this object's collision rect overlaps with.
+		// ex: sometimes an object is larger than a single tile, or is not placed exactly in the center of a tile.
+		// so, we need to make sure any tile it overlaps with is marked as blocked.
+		r := obj.CollisionRect
+		overlapTiles := r.GetOverlappingTiles()
+		for _, c := range overlapTiles {
+			costMap[c.Y][c.X] += path_finding.BlockThreshold
+		}
 	}
 
 	return costMap
@@ -496,14 +532,6 @@ func (mi ActiveMap) GetPlayerRect() model.Rect {
 		panic("player ref is nil")
 	}
 	return mi.PlayerRef.Entity.CollisionRect()
-}
-
-func (mi *ActiveMap) StartTradeSession(shopkeeperID defs.ShopID) {
-	mi.gameCtx.StartTradeSession(shopkeeperID)
-}
-
-func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID string) {
-	mi.gameCtx.StartDialogSession(dialogProfileID, npcID)
 }
 
 func (mi *ActiveMap) GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC {
@@ -694,19 +722,6 @@ func (mi *ActiveMap) HandleObjectUpdate(result object.ObjectUpdateResult, obj ob
 		v := model.NewVec2(obj.Rect.X, obj.Rect.Y)
 		mi.PlayerRef.Entity.SitInChair(v, obj.Chair.Direction)
 	}
-}
-
-// FindObjectsAtPosition finds all objects that intersect with a given tile position.
-// This includes collidable and non-collidable objects, as long as they have a draw rect.
-func (mi *ActiveMap) FindObjectsAtPosition(c model.Coords) []*object.Object {
-	posRect := model.NewRect(float64(c.X)*config.TileSize, float64(c.Y)*config.TileSize, config.TileSize, config.TileSize)
-	objs := []*object.Object{}
-	for _, obj := range mi.Objects {
-		if obj.GetRect().Intersects(posRect) {
-			objs = append(objs, obj)
-		}
-	}
-	return objs
 }
 
 // RectCollidesWithOthers is a general purpose function to see if a rect in a world map collides with anything.

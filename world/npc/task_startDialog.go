@@ -80,3 +80,7 @@ func (t *StartDialogTask) OnDialogEnd(e defs.Event) {
 		}
 	}
 }
+
+func (t *StartDialogTask) SetupActiveState() {
+	panic("not yet implemented!")
+}

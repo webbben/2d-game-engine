@@ -96,6 +96,10 @@ type Object struct {
 	dataman  *datamanager.DataManager
 }
 
+func (obj Object) GetLockID() string {
+	return obj.lockID
+}
+
 func (obj Object) IsCurrentlyActivating() bool {
 	switch obj.Type {
 	case TypeGate:

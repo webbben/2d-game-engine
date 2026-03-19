@@ -86,6 +86,8 @@ func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 	}
 
 	switch taskDef.TaskID {
+	case TaskIdle:
+		t = NewIdleTask(n)
 	case TaskGoto:
 		gotoParams, ok := taskDef.Params.(GotoTaskParams)
 		if !ok {
