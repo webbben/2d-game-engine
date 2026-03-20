@@ -1,3 +1,74 @@
+# 2026-03-20
+
+I've made some good progress in the last few days on the NPC AI/task system. I've implemented a few new tasks, which altogether seem to be working well.
+
+Here are the tasks I've made:
+
+- Sit in Chair: NPC goes to a chair and sits in it
+- Sleep in Bed: NPC goes to a bed and sleeps in it 
+- Activate Object: this is used in both of these above tasks - when an NPC goes to a chair or bed, they use this to actually sit/sleep.
+- Idle: NPC just stands around somewhere in the map, occasionally turning or walking a step.
+- Lounge: NPC finds a nearby chair and sits; otherwise, if no chair is available, does the Idle task.
+
+I've also made it so that these tasks can work in concert with the Schedule system in the following way:
+
+- If the player enters a map, NPCs can initialize at an "active state" for a task. In other words, if the NPC should be sleeping, the NPC is already sleeping in their bed 
+  when the player enters the map.
+- If the player is already in the map and the hour changes, and it's now time for a new task, the NPC will work towards its next task. If the next task is to sleep, the NPC will go 
+  to his bed and sleep.
+
+So, very exciting to have these fundamental tasks working, and also working well in the schedule system. On top of this, the world is able to decide which NPCs should spawn
+into the map when the player enters. There is a global "map occupancy" map which maps a map to a list of NPCs (that's a whole lot of "map" right there).
+So, in the future, once NPCs can change maps, they will just have to update the occupancy map.
+
+## Screenshots 
+
+I noticed I haven't posted any screenshots in a while, so I took some to showcase new developments, new maps and buildings I've been working in, etc. Still avoiding showing
+anything that could be a "spoiler" though, so mostly just indoors shots showing some UI and tasks stuff in action.
+
+Character Creation:
+
+![Character Creation](./20260320.png)
+
+This (as of now) is the screen that shows up when you start a new game. Unlike the "Character Builder" (which I use internally for making new NPCs),
+this screen only lets you change your name, hair/eye/body colors, and culture (a new concept I should discuss soon). But, this is probably what the screen for
+creating your own player will look like, for the most part.
+
+Prison ship (starting map):
+
+![Prison ship](./20260320_1.png)
+
+Now NPCs can perform tasks! The guard NPC walks through the map, opens the gate, and walks in to start dialog with the player. I know that seems pretty basic, but I was 
+very psyched when that started working lol.
+
+"The Customs Office":
+
+![Customs Office](./20260320_2.png)
+
+This is one of the maps you enter in the beginning of the game as you're getting set up. Just wanted to show it here to give a feel for what some of the buildings 
+are looking like in the game so far.
+
+Dialog Replies:
+
+![Dialog reply](./20260320_3.png)
+
+This just shows an example of a dialog reply. The current system is such that, if all replies are short enough, they appear in the "topic box" (bottom right),
+but if there are longer replies that wouldn't fit there, we show a larger "replies box". This specific dialog is part of a "class creation" flow where you can
+answer questions to determine your skills and attributes.
+
+Legion Barracks:
+
+![Legion Barracks](./20260320_4.png)
+
+Just another map/building I've been making, a legion barracks. You'll see the legionaries are sleeping in their beds - this is the schedule and tasks system at work.
+At some point soon, I'll make it so that eyes are closed while sleeping, and they probably also won't be wearing all their armor while sleeping either.
+
+## Up Next 
+
+So, at this point it's fair to say that the basic framework of tasks and schedules is working well. I think next I'll continue developing new tasks as the need arises,
+and also continue building the main storyline. That's been my strategy for the most part recently: Make progress on the main storyline, and once I hit a wall or some kind of 
+functionality/technical barrier, I implement new features to support the new content I want to make. Code -> Build -> Repeat.
+
 # 2026-03-17
 
 Today I want to talk more about NPC schedules and tasks. I've been trying to figure out some more details of how these things will work,
