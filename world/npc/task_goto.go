@@ -38,6 +38,13 @@ func (t *GotoTask) start() {
 	if t.goalPos.Equals(t.Owner.Entity.TilePos()) {
 		panic("goto task: tried to go to the position the NPC is already at.")
 	}
+	// if sitting or sleeping, go back to standing
+	if t.Owner.Entity.IsSleeping {
+		t.Owner.Entity.LeaveBed()
+	}
+	if t.Owner.Entity.IsSitting {
+		t.Owner.Entity.LeaveChair()
+	}
 	actualGoal, me := t.Owner.Entity.GoToPos(t.goalPos, true)
 	if !me.Success {
 		logz.Println(t.Owner.DisplayName(), "goto task: failed to call GoToPos:", me)

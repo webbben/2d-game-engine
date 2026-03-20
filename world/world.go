@@ -149,6 +149,8 @@ func (w *World) setupNewMap(mapID defs.MapID) {
 		false,
 	)
 
+	w.ActiveMap.OnHourChange(w.Clock.Hour, true)
+
 	// figure out which NPCs should be added to the map
 	// check if a scenario should be loaded into the map
 	mapState := w.Dataman.GetMapState(mapID)
@@ -244,6 +246,13 @@ func (w *World) OnHourChange(hour int, skipFade bool, postEvent bool) {
 
 	if w.ActiveMap != nil {
 		w.ActiveMap.OnHourChange(hour, skipFade)
+		// check if NPCs in the map need to change their current task due to their schedule
+		for _, n := range w.ActiveMap.NPCs {
+			if n.Schedule.Hourly[hour].TaskID != n.CurrentTask.GetID() {
+				// looks like the task should change.
+				n.RunScheduleTask(hour, n)
+			}
+		}
 	}
 
 	if postEvent {

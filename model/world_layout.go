@@ -212,7 +212,8 @@ func (r Rect) GetOverlappingTiles() []Coords {
 	coords := map[Coords]bool{}
 
 	minC := ConvertPxToTilePos(r.X, r.Y)
-	maxC := ConvertPxToTilePos(r.X+r.W, r.Y+r.H)
+	// subtract width and height by 1, to ensure that we don't spill over into the next tile
+	maxC := ConvertPxToTilePos(r.X+r.W-1, r.Y+r.H-1)
 
 	// add 1 to the max position, so that those end positions will actually be reached
 	for x := minC.X; x < maxC.X+1; x++ {

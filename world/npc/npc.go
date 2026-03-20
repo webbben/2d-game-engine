@@ -2,6 +2,7 @@
 package npc
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/webbben/2d-game-engine/audio"
@@ -10,46 +11,29 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
+	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
 )
 
-/*
+type WorldContext interface {
+	// general map functions
 
-NPC "State":
-- current task, and task schedule
+	FindNPCAtPosition(c model.Coords) (NPC, bool)
+	FindObjectsAtPosition(c model.Coords) []*object.Object
+	GetValidMapPosition(n NPC) model.Coords
+	IsTileCollision(c model.Coords) bool
+	IsTileEntityCollision(c model.Coords, excludeEntID string) bool
+	GetAllObjects() []*object.Object
+	GetAllNPCs() []*NPC
+	GetCostMap() [][]int
 
-"Map NPC":
-- a pointer to an entity
-- carries out current task, with updates to entity body
+	// start screens and UI
 
-So, how about...
-
-CharacterState:
-- has an "NPCState" section that tracks current tasks, and current task schedule.
-- this NPC state is empty, of course, for the player
-
-Map NPC remains what NPC is; it handles carrying out tasks in a map.
-
-Now there's the problem of tasks:
-- tasks run different when in a map than they do when not in a map.
-- only certain specific tasks can run outside of a map, like traveling between maps around the world.
-
-So, for all NPCs, we need to run their tasks. the difference is this:
-
-- NPCs in a map are run directly in the update loop (for the most part)
-- NPCs outside the map run their tasks in the background, and these are expected to be light weight tasks that only process every few seconds or so.
-  Like, for example, updating an NPCs progress as he moves between different maps (where the player is not present).
-
-What this means is, I think the World needs to keep track of which NPCs are in the world, and which ones aren't.
-
-World:
-- master list of all NPCs, possibly organized by map location
-- list of NPCs currently in the game world, so they can be directly updated and use their entities.
-
-*/
+	StartDialog(dialogProfileID defs.DialogProfileID, npcID string)
+}
 
 type NPC struct {
 	// === Map-specific things ===
@@ -78,6 +62,10 @@ type NPC struct {
 	eventBus *pubsub.EventBus
 }
 
+func (n NPC) WhoAmI() string {
+	return fmt.Sprintf("%s [%s]", n.DisplayName(), n.ID())
+}
+
 func (n NPC) ID() string {
 	return string(n.Entity.ID())
 }
@@ -101,21 +89,6 @@ func (n NPC) Y() float64 {
 
 func (n NPC) X() float64 {
 	return n.Entity.X
-}
-
-type WorldContext interface {
-	// general map functions
-
-	FindNPCAtPosition(c model.Coords) (NPC, bool)
-	FindObjectsAtPosition(c model.Coords) []*object.Object
-	GetValidMapPosition(n NPC) model.Coords
-	IsTileCollision(c model.Coords) bool
-	IsTileEntityCollision(c model.Coords, excludeEntID string) bool
-	GetAllObjects() []*object.Object
-
-	// start screens and UI
-
-	StartDialog(dialogProfileID defs.DialogProfileID, npcID string)
 }
 
 type NPCParams struct {
@@ -246,5 +219,29 @@ func (n *NPC) SetupStarterScheduleTask(gameTime clock.GameTime) {
 
 	// we also need to setup the "initial active state" of the task.
 	// we want the NPC to already be "actively in progress" on their task.
-	n.TaskMGMT.CurrentTask.SetupActiveState()
+	n.CurrentTask.SetupActiveState()
+}
+
+// gets the nearest open, unobstructed tile to the given position.
+// useful for trying to place an NPC somewhere, but handles moving around objects, collisions, or other NPCs.
+// tileDistLimit must not be 0.
+func (n NPC) getNearestOpenTile(c model.Coords, tileDistLimit int, allowEntityCollision bool) (model.Coords, bool) {
+	if tileDistLimit <= 0 {
+		panic("tileDistLimit was <= 0")
+	}
+
+	if !n.World.IsTileCollision(c) {
+		if allowEntityCollision || !n.World.IsTileEntityCollision(c, string(n.Entity.ID())) {
+			return c, true // turns out the given position was open
+		}
+	}
+
+	costMap := n.World.GetCostMap()
+	if !allowEntityCollision {
+		for _, n := range n.World.GetAllNPCs() {
+			tilePos := n.Entity.TilePos()
+			costMap[tilePos.Y][tilePos.X] += path_finding.BlockThreshold
+		}
+	}
+	return path_finding.FindNearestOpenPosition(c, tileDistLimit, costMap)
 }

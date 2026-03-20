@@ -16,8 +16,8 @@ func (w *World) Update() {
 	if w.ActiveMap == nil {
 		// TODO: are we loading a map or something? why are we here, but no map exists?
 	} else {
-		w.ActiveMap.Update(w.BlockPlayerChanges)
 		w.Player.Update(w.BlockPlayerChanges)
+		w.ActiveMap.Update(w.BlockPlayerChanges)
 	}
 }
 

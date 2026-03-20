@@ -9,9 +9,6 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 
 	m.Map.Update()
 
-	// sort all sortable renderable things on the map
-	m.updateSortedRenderables()
-
 	for i := range m.Objects {
 		result := m.Objects[i].Update(blockPlayerChanges)
 		// only handle object update reactions if player is not blocked
@@ -27,6 +24,10 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 	for _, n := range m.NPCs {
 		n.Update()
 	}
+
+	// sort all sortable renderable things on the map
+	// do this after all entities have updated, so that in case they've moved, we've properly sorted them for drawing next
+	m.updateSortedRenderables()
 }
 
 func (m *ActiveMap) updateSortedRenderables() {

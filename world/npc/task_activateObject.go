@@ -3,13 +3,14 @@ package npc
 import (
 	"github.com/webbben/2d-game-engine/data/state"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/utils"
 )
 
-// TaskActivateObject is a smaller "sub-task" that simply directs an NPC to go to an object and activate it.
-type TaskActivateObject struct {
+// ActivateObjectTask is a smaller "sub-task" that simply directs an NPC to go to an object and activate it.
+type ActivateObjectTask struct {
 	TaskBase
 	NoActiveState
 	targetObj *object.Object
@@ -17,15 +18,25 @@ type TaskActivateObject struct {
 	gotoTask *GotoTask
 	skipGoto bool
 
-	Success bool // if true, we successfully activated the target object
+	Success    bool                     // if true, we successfully activated the target object
+	FailReason activateObjectFailReason // if failed, this should tell you what went wrong
 }
 
-func NewActivateObjectTask(n *NPC, obj *object.Object) *TaskActivateObject {
+type activateObjectFailReason struct {
+	failedToReachObject bool
+	activationFailed    bool
+}
+
+func NewActivateObjectTask(n *NPC, obj *object.Object) *ActivateObjectTask {
+	if obj == nil {
+		panic("obj was nil")
+	}
 	if obj.GetTargetingNPC() != "" {
 		panic("object is already being targeted by another NPC; you should ensure the object is not targeted before setting the activateObjectTask.")
 	}
 	obj.SetTargetingNPC(n.Entity.ID())
-	return &TaskActivateObject{
+	return &ActivateObjectTask{
+		targetObj: obj,
 		TaskBase: TaskBase{
 			Name:        "Activate Object",
 			Description: "NPC goes to an object and tries to activate it",
@@ -34,24 +45,33 @@ func NewActivateObjectTask(n *NPC, obj *object.Object) *TaskActivateObject {
 	}
 }
 
-func (t TaskActivateObject) ZzInterfaceCheck() {
+func (t ActivateObjectTask) ZzInterfaceCheck() {
 	_ = append([]Task{}, &t)
 }
 
-func (t *TaskActivateObject) Update() {
+func (t *ActivateObjectTask) Update() {
 	if t.IsDone() {
 		return
+	}
+
+	if t.targetObj == nil {
+		panic("target object was nil")
 	}
 
 	t.Status = TaskInProg
 
 	// 1. go to object (if we aren't already next to it)
 	if t.gotoTask == nil && !t.skipGoto {
-		x, y := t.targetObj.Pos()
-		objPos := model.ConvertPxToTilePos(x, y)
+		objPos := t.targetObj.TilePos()
+		if objPos.Equals(model.Coords{X: 0, Y: 0}) {
+			x, y := t.targetObj.Pos()
+			logz.Println("ActivateObjectTask", "objID:", t.targetObj.ID, "object pos:", x, y, "rect:", t.targetObj.GetRect())
+			logz.Panicln("ActivateObjectTask", "object position (tile position) came back as 0 0, which seems wrong.")
+		}
+
 		dist := utils.EuclideanDistCoords(t.Owner.Entity.TilePos(), objPos)
 		if dist > 2 {
-			t.gotoTask = NewGotoTask(GotoTaskParams{TileX: int(x), TileY: int(y)}, t.Owner, t.GetPriority(), nil)
+			t.gotoTask = NewGotoTask(GotoTaskParams{TileX: objPos.X, TileY: objPos.Y}, t.Owner, t.GetPriority(), nil)
 		} else {
 			// already close to the object, so no need to go to it
 			t.skipGoto = true
@@ -64,15 +84,16 @@ func (t *TaskActivateObject) Update() {
 
 	// 2. once next to the object, try to activate it
 	// confirm we are next to the target object now
-	x, y := t.targetObj.Pos()
-	objPos := model.ConvertPxToTilePos(x, y)
+	objPos := t.targetObj.TilePos()
 	dist := utils.EuclideanDistCoords(t.Owner.Entity.TilePos(), objPos)
 	if dist > 2 {
 		// it seems we didn't manage to get close enough to the object...
 		// TODO: maybe we should add a field to GotoTask that says if it successfully reached the target or not
+		logz.Println("ActivateObjectTask", "failed to reach object; didn't get close enough. distance to object:", dist, "objPos:", objPos, "objID:", t.targetObj.ID, "whoami:", t.Owner.WhoAmI())
 		t.Status = TaskEnded
 		t.targetObj.ClearTargetingNPC()
 		t.Success = false
+		t.FailReason.failedToReachObject = true
 		return
 	}
 
@@ -86,22 +107,29 @@ func (t *TaskActivateObject) Update() {
 	if res.UpdateOccurred {
 		t.Owner.handleObjectUpdate(t.targetObj, res)
 		t.Success = true
+	} else {
+		t.FailReason.activationFailed = true
 	}
 	t.Status = TaskEnded
 }
 
-func (t *TaskActivateObject) BackgroundAssist() {
-	t.gotoTask.BackgroundAssist()
+func (t *ActivateObjectTask) BackgroundAssist() {
+	if t.gotoTask != nil {
+		t.gotoTask.BackgroundAssist()
+	}
 }
 
-func (t *TaskActivateObject) SimulationUpdate() {}
+func (t *ActivateObjectTask) SimulationUpdate() {}
 
 func (n *NPC) handleObjectUpdate(obj *object.Object, res object.ObjectUpdateResult) {
 	switch obj.Type {
 	case object.TypeChair:
 		if res.UpdateOccurred {
-			v := model.NewVec2(obj.Rect.X, obj.Rect.Y)
-			n.Entity.SitInChair(v, obj.Chair.Direction)
+			n.Entity.SitInChair(obj)
+		}
+	case object.TypeBed:
+		if res.UpdateOccurred {
+			n.Entity.SleepInBed(obj)
 		}
 	}
 }

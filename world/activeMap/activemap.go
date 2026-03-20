@@ -147,6 +147,7 @@ func NewActiveMap(
 	return m
 }
 
+// OnHourChange just handles adjusting the lighting based on the current hour
 func (m *ActiveMap) OnHourChange(hour int, skipFade bool) {
 	newDaylight, darknessFactor := lights.CalculateDaylight(hour)
 	if skipFade {
@@ -511,7 +512,7 @@ func (mi ActiveMap) CostMap() [][]int {
 		// get all tile positions that this object's collision rect overlaps with.
 		// ex: sometimes an object is larger than a single tile, or is not placed exactly in the center of a tile.
 		// so, we need to make sure any tile it overlaps with is marked as blocked.
-		r := obj.CollisionRect
+		r := obj.GetRect()
 		overlapTiles := r.GetOverlappingTiles()
 		for _, c := range overlapTiles {
 			costMap[c.Y][c.X] += path_finding.BlockThreshold
@@ -636,7 +637,7 @@ func (mi *ActiveMap) ActivateArea(r model.Rect, originX, originY float64) bool {
 		logz.Println("Activate Area", closestObject.Type, "Activating...")
 
 		if result.UpdateOccurred {
-			mi.HandleObjectUpdate(result, *closestObject)
+			mi.HandleObjectUpdate(result, closestObject)
 		}
 
 		return true
@@ -682,7 +683,7 @@ func (mi *ActiveMap) HandleMouseClick(mouseX, mouseY int) bool {
 				}
 				result := obj.Activate(x, y, activateParams)
 				if result.UpdateOccurred {
-					mi.HandleObjectUpdate(result, *obj)
+					mi.HandleObjectUpdate(result, obj)
 				}
 				return true
 			}
@@ -702,7 +703,7 @@ func (mi *ActiveMap) HandleMouseClick(mouseX, mouseY int) bool {
 	return false
 }
 
-func (mi *ActiveMap) HandleObjectUpdate(result object.ObjectUpdateResult, obj object.Object) {
+func (mi *ActiveMap) HandleObjectUpdate(result object.ObjectUpdateResult, obj *object.Object) {
 	if !result.UpdateOccurred {
 		panic("no update occurred; no need to call this function")
 	}
@@ -722,15 +723,13 @@ func (mi *ActiveMap) HandleObjectUpdate(result object.ObjectUpdateResult, obj ob
 		} else {
 			// player is now sleeping in bed
 			// tell the entity so that it draws in the correct place
-			v := model.NewVec2(obj.Rect.X, obj.Rect.Y)
-			mi.PlayerRef.Entity.SleepInBed(v)
+			mi.PlayerRef.Entity.SleepInBed(obj)
 		}
 	case object.TypeChair:
 		if mi.PlayerRef.Entity.IsSitting {
 			panic("trying to activate an object while sitting. this should be prevented by player input logic.")
 		}
-		v := model.NewVec2(obj.Rect.X, obj.Rect.Y)
-		mi.PlayerRef.Entity.SitInChair(v, obj.Chair.Direction)
+		mi.PlayerRef.Entity.SitInChair(obj)
 	}
 }
 

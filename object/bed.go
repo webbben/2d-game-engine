@@ -1,11 +1,22 @@
 package object
 
-import "github.com/webbben/2d-game-engine/data/state"
+import (
+	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/logz"
+)
 
 type Bed struct {
 	InUse     bool
 	SleeperID state.CharacterStateID // ID of character sleeping in the bed right now
 	OwnerID   state.CharacterStateID // ID of character who owns this bed.
+}
+
+func (b *Bed) LeaveBed(sleeperID state.CharacterStateID) {
+	if sleeperID != b.SleeperID {
+		logz.Panicln("LeaveBed", "id passed in did not match sleeper ID. passed in:", sleeperID, "sleeperID:", b.SleeperID)
+	}
+	b.SleeperID = ""
+	b.InUse = false
 }
 
 func (obj *Object) activateBed(params ObjectActivationParams) ObjectUpdateResult {
@@ -16,8 +27,8 @@ func (obj *Object) activateBed(params ObjectActivationParams) ObjectUpdateResult
 	if obj.Bed.InUse {
 		if obj.Bed.SleeperID == params.ActivatorID {
 			// the character sleeping in the bed is leaving it now
-			obj.Bed.SleeperID = ""
-			obj.Bed.InUse = false
+			// TODO: right now, the player and NPCs don't activate a bed to leave it. only for sleeping in it.
+			obj.Bed.LeaveBed(params.ActivatorID)
 			return ObjectUpdateResult{UpdateOccurred: true}
 		}
 		// a different character is already sleeping in this bed
