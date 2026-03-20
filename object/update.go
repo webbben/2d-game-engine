@@ -130,7 +130,7 @@ func (obj *Object) activateGate(fromX, fromY float64) ObjectUpdateResult {
 		// can't open or close a gate if it's already changing state
 		return ObjectUpdateResult{}
 	}
-	if obj.World.GetPlayerRect().Intersects(obj.CollisionRect) || obj.collidesWithEntityOrObject() {
+	if obj.World.GetPlayerRect().Intersects(obj.collisionRect) || obj.collidesWithEntityOrObject() {
 		// don't allow gate to open if the player or any NPC is standing in its way
 		return ObjectUpdateResult{}
 	}
@@ -203,7 +203,7 @@ func (obj *Object) updateDoor() ObjectUpdateResult {
 	case "click":
 		// do nothing - object clicks are detected and handled within mapInfo handler function
 	case "step":
-		if obj.World.GetPlayerRect().Intersects(obj.Rect) {
+		if obj.World.GetPlayerRect().Intersects(obj.rect) {
 			return obj.activateDoor()
 		}
 	default:

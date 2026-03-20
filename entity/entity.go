@@ -11,6 +11,7 @@ import (
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/object"
 )
 
 var (
@@ -62,10 +63,12 @@ type Entity struct {
 	// logic for sleeping in beds and sitting in chairs
 
 	IsSleeping             bool
+	bedObj                 *object.Object
 	bedPosition            model.Vec2
 	positionBeforeSleeping model.Vec2
 
 	IsSitting             bool
+	chairObj              *object.Object
 	chairPosition         model.Vec2
 	positionBeforeSitting model.Vec2
 
@@ -84,20 +87,31 @@ type Entity struct {
 	stunTicks int
 }
 
-func (e *Entity) SitInChair(chairPos model.Vec2, chairDir byte) {
+func (e *Entity) SitInChair(chairObj *object.Object) {
 	if e.IsSitting {
 		panic("already sitting in a chair")
 	}
 	if e.IsSleeping {
 		panic("how are we trying to sit, while we are apparently already sleeping in a bed?")
 	}
+	if e.chairObj != nil {
+		panic("tried to sit in chair, but chairObj wasn't nil (are we already sitting in a chair?)")
+	}
+
+	r := chairObj.GetRect()
+	chairPos := model.NewVec2(r.X, r.Y)
+
 	e.IsSitting = true
 	e.chairPosition = chairPos
 	e.DisableCollisions = true
 	e.positionBeforeSitting = model.NewVec2(e.X, e.Y)
+	e.chairObj = chairObj
 
-	e.SetPositionPx(chairPos.X, chairPos.Y-(config.TileSize*0.5))
-	e.SetDirection(chairDir)
+	x := chairPos.X
+	y := chairPos.Y + (config.TileSize * 0.5)
+
+	e.SetPositionPx(x, y)
+	e.SetDirection(chairObj.Chair.Direction)
 	// TODO: once sitting mode is implemented for body, need to call that here.
 	// TODO: probably need to set a customY to ensure that the entity draws on top of the chair
 }
@@ -106,36 +120,69 @@ func (e *Entity) LeaveChair() {
 	if !e.IsSitting {
 		panic("entity isn't sitting in a chair!")
 	}
+	if e.chairObj == nil {
+		panic("chairObj was nil")
+	}
+	if e.chairObj.Chair.SitterID != e.characterStateRef.ID {
+		panic("chair sitterID doesn't match entity char state ID!")
+	}
+
 	e.SetPositionPx(e.positionBeforeSitting.X, e.positionBeforeSitting.Y)
 
 	e.IsSitting = false
 	e.DisableCollisions = false
+
+	e.chairObj.Chair.LeaveChair(e.characterStateRef.ID)
+	e.chairObj = nil
 }
 
-func (e *Entity) SleepInBed(bedPos model.Vec2) {
+func (e *Entity) SleepInBed(bedObj *object.Object) {
 	if e.IsSleeping {
 		panic("already sleeping in a bed")
 	}
 	if e.IsSitting {
 		panic("how are we trying to sleep, when we are apparently already sitting in a chair?")
 	}
+	if e.bedObj != nil {
+		panic("tried to sleep in bed, but bedObj wasn't nil (are we already sleeping in a bed?)")
+	}
+	if bedObj.Bed.SleeperID != e.characterStateRef.ID {
+		panic("bed should already have sleeperID set, since you need to activate it first before calling SleepInBed")
+	}
+
+	r := bedObj.GetRect()
+	bedPos := model.NewVec2(r.X, r.Y)
+
 	e.IsSleeping = true
 	e.bedPosition = bedPos
 	e.DisableCollisions = true // disable collisions so we can enter the bed
 	e.positionBeforeSleeping = model.NewVec2(e.X, e.Y)
+	e.bedObj = bedObj
 
 	// move character into bed
-	e.SetPositionPx(bedPos.X, bedPos.Y-(config.TileSize*1))
+	x := bedPos.X
+	y := bedPos.Y + (config.TileSize * 0.9)
+	e.SetPositionPx(x, y)
 }
 
 func (e *Entity) LeaveBed() {
 	if !e.IsSleeping {
 		panic("tried to leave bed, but not currently sleeping")
 	}
+	if e.bedObj == nil {
+		panic("bedObj was nil")
+	}
+	if e.bedObj.Bed.SleeperID != e.characterStateRef.ID {
+		panic("bed sleeperID didn't match entity ID!")
+	}
+
 	e.SetPositionPx(e.positionBeforeSleeping.X, e.positionBeforeSleeping.Y)
 
 	e.DisableCollisions = false
 	e.IsSleeping = false
+
+	e.bedObj.Bed.LeaveBed(e.characterStateRef.ID)
+	e.bedObj = nil
 }
 
 func (e Entity) DisplayName() string {

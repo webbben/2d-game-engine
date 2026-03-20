@@ -32,7 +32,7 @@ func (m ActiveMap) GetValidMapPosition(n npc.NPC) model.Coords {
 			lockID := obj.GetLockID()
 			if lockID != "" && !slices.Contains(lockIDs, lockID) {
 				// gate is locked and NPC doesn't have the right key for it. add a collision where this gate stands.
-				for _, c := range obj.CollisionRect.GetOverlappingTiles() {
+				for _, c := range obj.GetRect().GetOverlappingTiles() {
 					costmap[c.Y][c.X] += path_finding.BlockThreshold
 				}
 			}
@@ -93,4 +93,12 @@ func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID str
 
 func (m ActiveMap) GetAllObjects() []*object.Object {
 	return m.Objects
+}
+
+func (m ActiveMap) GetCostMap() [][]int {
+	return m.CostMap()
+}
+
+func (m ActiveMap) GetAllNPCs() []*npc.NPC {
+	return m.NPCs
 }

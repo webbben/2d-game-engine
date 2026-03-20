@@ -34,12 +34,19 @@ func (obj *Object) loadChairObject(allProps []tiled.Property) {
 	obj.Chair.Direction = dir
 }
 
+func (c *Chair) LeaveChair(sitterID state.CharacterStateID) {
+	if sitterID != c.SitterID {
+		logz.Panicln("given sitterID didn't match the sitter ID in chair. passed in:", sitterID, "actual sitter ID:", c.SitterID)
+	}
+	c.InUse = false
+	c.SitterID = ""
+}
+
 func (obj *Object) activateChair(params ObjectActivationParams) ObjectUpdateResult {
 	if obj.Chair.InUse {
 		if params.ActivatorID == obj.Chair.SitterID {
 			// character is leaving chair
-			obj.Chair.InUse = false
-			obj.Chair.SitterID = ""
+			obj.Chair.LeaveChair(params.ActivatorID)
 			return ObjectUpdateResult{UpdateOccurred: true}
 		}
 		// a different character is already sitting here

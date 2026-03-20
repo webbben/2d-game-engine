@@ -90,6 +90,8 @@ func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 		t = NewIdleTask(n, taskDef.Priority)
 	case TaskLounge:
 		t = NewLoungeTask(n, taskDef.Priority)
+	case TaskSleep:
+		t = NewSleepTask(n, taskDef.Priority)
 	case TaskGoto:
 		gotoParams, ok := taskDef.Params.(GotoTaskParams)
 		if !ok {

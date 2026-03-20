@@ -16,7 +16,7 @@ type LoungeTask struct {
 	TaskBase
 	NoBackgroundWork
 	isLounging         bool // if set, then NPC is considered to be actively lounging, and no updates are needed.
-	activateObjectTask *TaskActivateObject
+	activateObjectTask *ActivateObjectTask
 	idleTask           *IdleTask
 }
 
@@ -115,12 +115,21 @@ func (t *LoungeTask) SetupActiveState() {
 	t.Status = TaskInProg
 	closestChair := t.findChair()
 	if closestChair != nil {
-		// activate it right now, instead of walking to it first
-		x, y := closestChair.Pos()
+		// set the NPC in an open spot right next to the chair first, so that they have a valid "position before sitting" set in entity
+		// this is to ensure that when the NPC leaves the chair, they will appear next to it as one would expect.
+		c := closestChair.TilePos()
+		nearest, found := t.Owner.getNearestOpenTile(c, 2, true)
+		if !found {
+			logz.Panicln("LoungeTask", "failed to find open tile near chair. chairID:", closestChair.ID)
+		}
+		t.Owner.Entity.SetPosition(nearest)
+
+		// now, actually activate the chair and put the NPC in it.
 		params := object.ObjectActivationParams{
 			ActivatorID: t.Owner.Entity.ID(),
 			LockIDs:     characterstate.GetLockIDs(*t.Owner.CharacterStateRef),
 		}
+		x, y := closestChair.Pos()
 		res := closestChair.Activate(x, y, params)
 		if res.UpdateOccurred {
 			logz.Println("LoungeTask", "sitting in chair:", closestChair.ID, "npcID:", t.Owner.ID())

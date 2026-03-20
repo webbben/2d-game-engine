@@ -23,6 +23,7 @@ const (
 const (
 	TaskIdle        defs.TaskID = "IDLE"
 	TaskLounge      defs.TaskID = "LOUNGE"
+	TaskSleep       defs.TaskID = "SLEEP"
 	TaskGoto        defs.TaskID = "GOTO"
 	TaskRoute       defs.TaskID = "ROUTE"
 	TaskFollow      defs.TaskID = "FOLLOW"

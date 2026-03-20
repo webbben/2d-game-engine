@@ -64,8 +64,8 @@ type Object struct {
 
 	DrawX, DrawY  float64 // the actual position on the screen where this was last drawn - for things like click detection
 	Width, Height int
-	Rect          model.Rect // rect used for step detection (covers entire object)
-	CollisionRect model.Rect // rect used for collision (e.g. for gates, only covers bottom tiles)
+	rect          model.Rect // rect used for step detection (covers entire object)
+	collisionRect model.Rect // rect used for collision (e.g. for gates, only covers bottom tiles)
 	collidable    bool       // if set, game will check for collisions with this object
 
 	tileData tiled.TileData // data of a tile embedded in this object
@@ -130,7 +130,7 @@ func (obj Object) IsCurrentlyActivating() bool {
 // GetRect is general purpose function to get the rect that this object occupies in the map. does not scale the values.
 func (obj Object) GetRect() model.Rect {
 	if obj.IsCollidable() {
-		return obj.CollisionRect
+		return obj.collisionRect
 	}
 	return model.Rect{
 		X: obj.xPos,
@@ -186,7 +186,7 @@ func (obj Object) Collides(other model.Rect) model.IntersectionResult {
 	if !obj.IsCollidable() {
 		return model.IntersectionResult{}
 	}
-	return obj.CollisionRect.IntersectionArea(other)
+	return obj.collisionRect.IntersectionArea(other)
 }
 
 func (obj Object) Y() float64 {
@@ -203,8 +203,15 @@ func (obj Object) X() float64 {
 	return obj.xPos
 }
 
+// Pos returns the logical position on the map; i.e. the top left corner of the object.
 func (obj Object) Pos() (x, y float64) {
 	return obj.xPos, obj.yPos
+}
+
+// TilePos gets the coordinates of the actual tile this object primarily lies in.
+// Gets the tile position of the center of the collision rect; so this is a good representation of where the object "really is".
+func (obj Object) TilePos() model.Coords {
+	return model.GetTilePosOfRectCenter(obj.GetRect())
 }
 
 type Light struct {
@@ -261,7 +268,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		yPos:     obj.Y,
 		Width:    int(obj.Width),
 		Height:   int(obj.Height),
-		Rect: model.Rect{
+		rect: model.Rect{
 			X: obj.X,
 			Y: obj.Y,
 			W: obj.Width,
@@ -504,7 +511,7 @@ func (obj *Object) loadGateObject(props []tiled.Property) {
 }
 
 func (obj *Object) addDefaultCollision() {
-	obj.CollisionRect = model.Rect{
+	obj.collisionRect = model.Rect{
 		X: obj.xPos,
 		Y: obj.yPos + float64(obj.Height) - config.TileSize, // only TileSize height, from the bottom of the object
 		W: float64(obj.Width),
