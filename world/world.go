@@ -248,6 +248,9 @@ func (w *World) OnHourChange(hour int, skipFade bool, postEvent bool) {
 		w.ActiveMap.OnHourChange(hour, skipFade)
 		// check if NPCs in the map need to change their current task due to their schedule
 		for _, n := range w.ActiveMap.NPCs {
+			if n == nil {
+				panic("npc was nil?")
+			}
 			if n.Schedule.Hourly[hour].TaskID != n.CurrentTask.GetID() {
 				// looks like the task should change.
 				n.RunScheduleTask(hour, n)
