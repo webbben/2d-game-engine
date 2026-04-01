@@ -21,3 +21,10 @@ type MapDef struct {
 	ID          MapID
 	DisplayName string
 }
+
+// A MapLock is used for pairing a lock ID to the map that has the locked object in it.
+// Mostly used in places like quest actions.
+type MapLock struct {
+	MapID  MapID
+	LockID string
+}

@@ -1,3 +1,138 @@
+# 2026-04-01
+
+It's been a little bit, and I'm still in the middle of things, but I wanted to drop back in to add a quick update.
+
+Firstly, I should add a correction to the below post: although the idea of a cutscene is nice, and I still may implement it at some point,
+I decided not to implement it yet. The main reason for this is that I thought it started to get in the way of what the actual game is supposed to be.
+
+To elaborate a bit, one of the main influences for this game is Morrowind. Morrowind is largely a text based game (in terms of story telling of course) since
+the dialog is all text, and there really is no kind of "cutscene" in the game. Now, this isn't a reason to _exclude_ it from my own, but it does inform me that,
+at least while I'm getting the basics of my game worked out, it shouldn't be a priority. I also found myself designing all the quests around cutscenes.
+They were used to usher in any kind of action, or introduce any kind of dramatic moment. But I realized that a cutscene really isn't completely necessary for this.
+I think I will implement cutscenes at some point, but I shouldn't rely on it too much and have cutscenes happening all over the place. It can also confuse the
+"game world" since, in theory, characters will be following their daily schedules and won't necessarily appear in a certain place at any time that a cutscene would occur.
+This doesn't rule cutscenes out, but it does complicate them a bit.
+
+So, when considering everything, I decided to put it off for a while. I don't want all the quest design concepts to be tied too closely to cutscenes from the get-go.
+I think it would be better to come up with a nice quest design system that doesn't rely on them, and then find certain cases where it would be useful to insert them.
+
+## What's Next 
+
+I redesigned the main quest line, since I thought the existing concept I had was a little too restrictive, and required too lengthy of an intro/"tutorial" period
+before fully releasing the player into the world. Additionally, I think the new quest line is more flexible and might be more fun.
+
+Luckily, the redesign didn't really change much of what I had already done. I had spent a lot of time creating castle ("castrum"/fortress) tilesets,
+but I think that was still time well spent since I'll inevitably end up using that stuff.
+
+The main thing I'm working on is building my first official in-game city! This is gonna be a major task, though, so I don't think it's something I'll be able to finish up
+too quickly. There are a lot of reasons for this, so maybe I should just go through them and discuss what will be challenging about each:
+
+### Creating a City 
+
+Creating a city will involve a bunch of different things:
+
+1. Lots of new art
+
+This is true especially for the first few cities; Since this is the very first one, I need to create art for houses, shops, taverns, streets/walking areas (ground textures),
+I'm still pretty much in this phase for the city I'm currently making, but I go back and forth between making art, building out the map, and making sure the coding is working well.
+
+2. Building the map 
+
+This refers to making a map in Tiled, and then adding all the tiles to it to show the actual city in the game. You draw the ground, then draw buildings on top, and
+keep going until you have all the different elements of a city, including everything from walk ways to trees, to lighting and decorations.
+
+3. Designing building interiors
+
+This is one of the big time sinks: for each building you want to make in a town, you have to also make a separate map for its interior. Even if you are just making a tiny house
+for a single villager, that tiny house needs a map. I imagine as I go on building lots of houses, eventually I'll be able to just start copying house layouts and basically just
+reusing them. But, for each important building, I think it will be best to hand craft all of them. It also often requires going back to step 1 so that I can create new art to
+put into new buildings: new furniture, floor textures, wall textures, objects, rugs, etc.
+
+4. Creating new characters 
+
+This is probably even more time consuming than any of the other individual steps. It depends on what kind of character you're making, of course. If it's just a simple villager
+who won't play any important role, then it's a matter of designing the character's appearance and name, and making sure he's placed in the right house. But, for most characters
+of any significance in the game, it implies a lot more than that. Thinking through what the character's role will be, thoughtfully designing their appearance, name, and
+crafting some kind of personality for the character through their dialog, etc. I won't know all of the quests of a given character at first of course, so I don't need to
+design _too much_ stuff like dialog, but this is where the line between "creating a city" and "writing a storyline" starts to blur together. Because, of course, I can't forget 
+that the storyline of the game will be very, very important (if not the most important part? pretty damn close, at least).
+
+Another big part about creating characters is, they all will need schedules. The concept of schedules is still under development, but it's also a very complex one.
+So, as I create new characters, I will probably often find myself either implementing new task types, putting together new schedules, testing them and fixing them, etc.
+
+## Conclusion 
+
+So, all together, I vaguely estimate that making the basics of a functional city will take me probably around a month at least. And this would just be for making a city that
+has a well enough architected system of roads, buildings, etc so the city feels nice to move through, making sure the artwork is presentable and looks nice, and adding enough NPCs so that the city feels alive enough. On top of that, I hope to have maybe a quest or two figured out.
+
+One of the big things I'm hoping is, as I successfully build new cities, new quests, or what have you, it will get easier and easier to make the next one.
+This has been true enough for making building interiors and maps; I feel like I've started to get the hang of it, and the artwork has improved significantly in just the past few
+months. I've also managed to work out a lot of random bugs and kinks, so that's good too. But, hopefully once I have my first fully developed city, creating the next one will
+be a bit easier. By that point, I should have a healthy supply of existing art that I can draw upon and reuse, and have a good number of buildings and maps designed that I can
+use in similar ways. Maybe the quest making process will get easier too, as I get used to certain patterns of doing things.
+
+I think for now, my current goals are as follows, all of which I aim to get as close to finishing as possible by July of this year:
+
+1. Create a fully functional city of Aquileia. (Not necessarily "finished", but working and feeling alive.)
+
+2. Get as close as possible to finishing the "introduction" quests of the main quest line. This refers to the first few quests that basically introduce the player to the
+world, and open up doors to the player to making some decisions (like joining factions) that will have long term effects on the player.
+
+Don't want to spoil much here, so let's just leave it at that. I also just realized as I typed this out that point 2 will require me to design several other cities too...
+lol. So, I definitely have my hands full.
+
+# 2026-03-23
+
+I think it's high time we tackled the concept of a "cutscene". What is it, what is its purpose, and when are they used?
+
+## What is a Cutscene?
+
+A "cutscene" for this game will be a situation where the player cannot move or make actions, unless those actions are part of a dialog.
+Instead, a script plays out that causes the player to do things, NPCs to do things, and dialogs to play out.
+
+Imagine a cutscene from an old pokemon game, such as pokemon Emerald or something. An NPC might walk into the scene, start talking, and the player really just
+is there to witness something occurring. At most, the player might turn to look in a certain directly, or be led to walk with someone else, etc.
+Our cutscene will be very much similar to this, except there will potentially be dialogs where the player can give replies to things.
+
+## What is the purpose of a cutscene? When are they used?
+
+The main reason I want to introduce cutscenes is, I think it will add some change of pace, some action, and some controlled narration where the player is not actually directing things,
+but witnessing things instead. It can allow the game designer to add some cinematic moments, or some dramatic moments without the risk of the player unexpectedly intervening, etc.
+It's a moment where the player should just be watching and listening, not taking action.
+
+One example of a situation I'm planning to turn into a cutscene is, the player will wake up in a new bed at his new location, and a legion officer will be standing next to him, waking him up.
+In this situation, normally the player would not be able to be in dialog while laying in a bed. It also lets me control some things, like add some "emotes" (similar to pokemon, again),
+And control the player's movement and behavior briefly. Then, it allows the officer to exit the screen without the player being able to directly follow him and trace where he's going.
+
+So, a cutscene is really just a way to briefly interrupt the gameplay to clearly state something and add some cinematic flair to it.
+
+## Ok, so down to the technical aspects
+
+The reason I'm writing about all of this is, I want to make some decisions about how cutscenes should work, what their limitations should be, when can they occur, how they are intended to be queued up, etc.
+
+Under the hood, I intend to make cutscenes along the following lines:
+
+- Has a Scenario defined alongside it; this scenario defines the initial state of the cutscene: the map, who's in it, and where everyone is standing/what their initial task is.
+- A series of "cutscene steps" which will execute one at a time as the cutscene progresses, causing things like NPCs to carry out tasks, cinematic effects, etc.
+- The entry and exit of a cutscene involves a cinematic transition, like a fade in/fade out.
+
+So, the first thing I'm looking at is how to get the scenario setup. Right now, scenarios are usually "queued" for a map. A map can be assigned a new scenario, and when that map is opened up next time,
+the scenario in the queue will automatically be setup, instead of running the regular game world.
+
+A regular scenario is queued up by some other event, often by a quest. A quest reaches a certain stage and then it queues up a scenario for a specific map. Then, the next time you enter that map, the 
+scenario plays out. This brings the question: how will cutscenes be "queued"? Should they work in the same way as scenarios?
+
+Honestly, the more I think about it, I wonder if a cutscene should be directly tied to a scenario, rather than the other way around. Maybe, a scenario will have the option of defining a cutscene with it,
+and so then when a scenario is loaded, if a cutscene is defined for it, that cutscene will play out. If not, then the player simply spawns into the scenario as normal.
+
+I like this system, because it doesn't really change much about how we currently handle scenarios; it just adds on a new feature to it, basically allowing scenarios to have an "intro cinematic".
+
+Alright, I think that'll do for now. I'll come back here if I run into new issues that I need to work out.
+
+Conclusion:
+
+- Cutscenes are an optional part of a scenario. If defined, the cutscene will execute when its scenario is loaded up.
+
 # 2026-03-20
 
 I've made some good progress in the last few days on the NPC AI/task system. I've implemented a few new tasks, which altogether seem to be working well.

@@ -20,10 +20,9 @@ func (a QueueScenarioAction) Fire(ctx defs.QuestActionContext) {
 }
 
 type UnlockAction struct {
-	MapID  defs.MapID
-	LockID string
+	MapLock defs.MapLock
 }
 
 func (a UnlockAction) Fire(ctx defs.QuestActionContext) {
-	ctx.UnlockMapLock(a.MapID, a.LockID)
+	ctx.UnlockMapLock(a.MapLock.MapID, a.MapLock.LockID)
 }

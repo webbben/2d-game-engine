@@ -6,6 +6,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/dialogv2"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
@@ -88,7 +89,26 @@ func (mi *ActiveMap) StartTradeSession(shopkeeperID defs.ShopID) {
 }
 
 func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID string) {
-	mi.gameCtx.StartDialogSession(dialogProfileID, npcID)
+	params := dialogv2.DialogSessionParams{
+		NPCID:         npcID,
+		ProfileID:     dialogProfileID,
+		BoxTilesetSrc: "boxes/boxes.tsj",
+		BoxOriginID:   16,
+		TextFont:      config.DefaultFont,
+	}
+	ds := dialogv2.NewDialogSession(params, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx)
+	mi.dialogSession = &ds
+}
+
+func (mi *ActiveMap) StartAdHocDialog(dr defs.DialogResponse) {
+	params := dialogv2.DialogSessionParams{
+		NPCID:         "ad-hoc dialog",
+		BoxTilesetSrc: "boxes/boxes.tsj",
+		BoxOriginID:   16,
+		TextFont:      config.DefaultFont,
+	}
+	ds := dialogv2.NewAdhocDialogSession(params, dr, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx)
+	mi.dialogSession = &ds
 }
 
 func (m ActiveMap) GetAllObjects() []*object.Object {

@@ -13,6 +13,7 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/screen"
 	activemap "github.com/webbben/2d-game-engine/world/activeMap"
 	"github.com/webbben/2d-game-engine/world/npc"
 )
@@ -23,10 +24,11 @@ import (
 type World struct {
 	// Data managers and contexts
 
-	Dataman  *datamanager.DataManager
-	Audioman *audio.AudioManager
-	EventBus *pubsub.EventBus
-	GameCtx  defs.GameContext
+	Dataman   *datamanager.DataManager
+	Audioman  *audio.AudioManager
+	EventBus  *pubsub.EventBus
+	Screenman *screen.ScreenManager
+	GameCtx   defs.GameContext
 
 	// General world information
 
@@ -54,13 +56,15 @@ func NewWorld(
 	dataman *datamanager.DataManager,
 	audioman *audio.AudioManager,
 	eventBus *pubsub.EventBus,
+	screenman *screen.ScreenManager,
 	gameCtx defs.GameContext,
 ) *World {
 	w := &World{
-		Dataman:  dataman,
-		Audioman: audioman,
-		EventBus: eventBus,
-		GameCtx:  gameCtx,
+		Dataman:   dataman,
+		Audioman:  audioman,
+		EventBus:  eventBus,
+		Screenman: screenman,
+		GameCtx:   gameCtx,
 	}
 
 	w.SetGameTime(initTime)
@@ -143,6 +147,7 @@ func (w *World) setupNewMap(mapID defs.MapID) {
 		w.Dataman,
 		w.Audioman,
 		w.EventBus,
+		w.Screenman,
 		w.GameCtx,
 		w,
 		mapID,
@@ -186,34 +191,7 @@ func (w *World) loadRegularMapNPCs() {
 		// make spawn points blocked?
 		n := w.NPCs[id]
 		w.ActiveMap.AddNPCToMap(n, spawnPoint0)
-		n.SetupStarterScheduleTask(currentHour)
-	}
-}
-
-func (w *World) loadScenario(scenarioDef defs.ScenarioDef) {
-	if w.ActiveMap == nil {
-		panic("map was nil")
-	}
-
-	logz.Println("Loading Scenario", "MapID:", scenarioDef.MapID, "ScenarioID:", scenarioDef.ID)
-	if scenarioDef.MapID != w.ActiveMap.MapID {
-		logz.Panicln("SetupMap", "found queued scenario for map, but mapID in scenario def doesn't match. mapID:", w.ActiveMap.MapID, "found in scenario def:", scenarioDef.MapID)
-	}
-
-	for _, charDef := range scenarioDef.Characters {
-		params := entity.NewCharacterStateParams{
-			Temp: true,
-		}
-		charStateID := entity.CreateNewCharacterState(
-			charDef.CharDefID,
-			params,
-			w.Dataman)
-		n := npc.NewNPC(npc.NPCParams{
-			CharStateID: charStateID,
-		}, w.Dataman, w.Audioman, w.EventBus)
-
-		startPos := model.Coords{X: charDef.SpawnCoordX, Y: charDef.SpawnCoordY}
-		w.ActiveMap.AddNPCToMap(n, startPos)
+		n.SetupStarterScheduleTask(currentHour, nil)
 	}
 }
 
@@ -229,7 +207,7 @@ func (w *World) SetGameTime(gameTime clock.GameTime) {
 		gameTime.Season,
 		gameTime.DayOfSeason,
 		gameTime.Year,
-		90, // TODO: move this to config variable?
+		config.DaysInSeason,
 	)
 
 	// make sure lighting is initialized
@@ -251,7 +229,7 @@ func (w *World) OnHourChange(hour int, skipFade bool, postEvent bool) {
 			if n == nil {
 				panic("npc was nil?")
 			}
-			if n.Schedule.Hourly[hour].TaskID != n.CurrentTask.GetID() {
+			if n.CurrentTask == nil || n.Schedule.Hourly[hour].TaskID != n.CurrentTask.GetID() {
 				// looks like the task should change.
 				n.RunScheduleTask(hour, n)
 			}

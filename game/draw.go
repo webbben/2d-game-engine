@@ -38,9 +38,7 @@ func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {
 	g.OverlayManager.Draw(screen)
 
 	// TODO: these should probably be turned into Screens, right?
-	if g.dialogSession != nil {
-		g.dialogSession.Draw(screen)
-	} else if g.ShowPlayerMenu {
+	if g.ShowPlayerMenu {
 		g.PlayerMenu.Draw(screen, om)
 	} else if g.ShowTradeScreen {
 		g.TradeScreen.Draw(screen, om)

@@ -48,6 +48,8 @@ type GameScreenContext interface {
 	// NOTE: not great that we ref clock in here, but clock doesn't import anything so it works.
 	// we could consider moving types like GameTime into defs, but just gonna leave things as they are for now.
 	InitializeGameWorld(initTime clock.GameTime)
+	GetCurrentGameTime() clock.GameTime
+	SetGameTime(clock.GameTime)
 
 	GetLoadingStatus() (complete bool, progress float64)
 	GetGameStage() GameStage

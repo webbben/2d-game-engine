@@ -126,6 +126,42 @@ func NewDialogSession(
 	scrMgr *screen.ScreenManager,
 	gameCtx defs.GameContext,
 ) DialogSession {
+	validateParams(params, eventBus, dataman, gameCtx, scrMgr)
+
+	// Note: we expect the profile state to already have been made. If we decide to have "ad hoc" dialog profiles, this should change.
+
+	profileDef := dataman.GetDialogProfile(params.ProfileID)
+	profileState := dataman.GetDialogProfileState(params.ProfileID)
+
+	ctx := NewDialogContext(params.NPCID, profileState, gameCtx, eventBus, dataman)
+	ds := DialogSession{
+		scrMgr:       scrMgr,
+		ctxForScreen: gameCtx,
+		ProfileState: profileState,
+		ProfileDef:   profileDef,
+		Ctx:          ctx,
+		eventBus:     eventBus,
+		dataman:      dataman,
+		f:            params.TextFont,
+	}
+
+	ds.dialogSetup(params.BoxTilesetSrc, params.BoxOriginID, params.TextFont)
+
+	// when starting a new dialog session, we start with the first greeting from the NPC/DialogProfile
+	firstGreeting := GetGreeting(*ds.ProfileDef, ds.Ctx)
+	ds.ApplyResponse(firstGreeting)
+
+	ds.eventBus.Publish(defs.Event{
+		Type: pubsub.EventDialogStarted,
+		Data: map[string]any{
+			"profileID": ds.ProfileDef.ProfileID,
+		},
+	})
+
+	return ds
+}
+
+func validateParams(params DialogSessionParams, eventBus *pubsub.EventBus, dataman *datamanager.DataManager, gameCtx defs.GameContext, scrMgr *screen.ScreenManager) {
 	if params.ProfileID == "" {
 		panic("profile ID was empty")
 	}
@@ -150,24 +186,44 @@ func NewDialogSession(
 	if scrMgr == nil {
 		panic("scrmgr was nil")
 	}
+}
 
-	// Note: we expect the profile state to already have been made. If we decide to have "ad hoc" dialog profiles, this should change.
+// NewAdhocDialogSession is similar to the regular Dialog Session, but just starts the dialog with a provided, "ad-hoc" dialog response.
+// This is for manually injecting a starting dialog response, as opposed to using the logic built into a dialog profile.
+// Used in cutscene dialogs.
+func NewAdhocDialogSession(
+	params DialogSessionParams,
+	dr defs.DialogResponse,
+	eventBus *pubsub.EventBus,
+	dataman *datamanager.DataManager,
+	scrMgr *screen.ScreenManager,
+	gameCtx defs.GameContext,
+) DialogSession {
+	// set this, just so validation doesn't squack at us - adhoc doesn't use profiles
+	params.ProfileID = "CUTSCENE"
+	validateParams(params, eventBus, dataman, gameCtx, scrMgr)
 
-	profileDef := dataman.GetDialogProfile(params.ProfileID)
-	profileState := dataman.GetDialogProfileState(params.ProfileID)
+	// since adhoc doesn't need to save any state, we will just make an empty stand-in
+	profileState := state.DialogProfileState{}
 
-	ctx := NewDialogContext(params.NPCID, profileState, gameCtx, eventBus, dataman)
+	ctx := NewDialogContext(params.NPCID, &profileState, gameCtx, eventBus, dataman)
 	ds := DialogSession{
 		scrMgr:       scrMgr,
 		ctxForScreen: gameCtx,
-		ProfileState: profileState,
-		ProfileDef:   profileDef,
 		Ctx:          ctx,
 		eventBus:     eventBus,
 		dataman:      dataman,
 		f:            params.TextFont,
 	}
 
+	ds.dialogSetup(params.BoxTilesetSrc, params.BoxOriginID, params.TextFont)
+
+	ds.ApplyResponse(dr)
+
+	return ds
+}
+
+func (ds *DialogSession) dialogSetup(boxTilesetSrc string, boxOrigin int, f font.Face) {
 	tileSize := int(config.GetScaledTilesize())
 	topicBoxWidth := tileSize * 8
 	textBoxWidth := display.SCREEN_WIDTH - tileSize - topicBoxWidth
@@ -175,26 +231,13 @@ func NewDialogSession(
 	textBoxHeight := tileSize * 6
 	ds.topicBoxDefaultHeight = textBoxHeight
 
-	b := box.NewBox(params.BoxTilesetSrc, params.BoxOriginID)
+	b := box.NewBox(boxTilesetSrc, boxOrigin)
 	ds.boxSrc = b
 
 	ds.TextBoxImg = b.BuildBoxImage(textBoxWidth, textBoxHeight)
 	ds.buildTopicBox(textBoxHeight)
 
-	ds.LineWriter = text.NewLineWriter(textBoxWidth-tileSize, textBoxHeight-tileSize, params.TextFont, nil, nil, true, false)
-
-	// when starting a new dialog session, we start with the first greeting from the NPC/DialogProfile
-	firstGreeting := GetGreeting(*ds.ProfileDef, ds.Ctx)
-	ds.ApplyResponse(firstGreeting)
-
-	ds.eventBus.Publish(defs.Event{
-		Type: pubsub.EventDialogStarted,
-		Data: map[string]any{
-			"profileID": ds.ProfileDef.ProfileID,
-		},
-	})
-
-	return ds
+	ds.LineWriter = text.NewLineWriter(textBoxWidth-tileSize, textBoxHeight-tileSize, f, nil, nil, true, false)
 }
 
 // builds the topic box to fit the given height. has a minimum height it defaults to.

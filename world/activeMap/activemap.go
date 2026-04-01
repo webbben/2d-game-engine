@@ -11,6 +11,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
@@ -22,6 +23,7 @@ import (
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/world/npc"
@@ -38,12 +40,18 @@ type ActiveMap struct {
 	debugData debugData
 	MapID     defs.MapID
 
+	dialogSession *dialogv2.DialogSession
+
+	// TODO: this is not used yet
+	cutsceneSession *CutsceneSession // if set, a cutscene is currently playing out
+
 	gameCtx  defs.GameContext
 	worldCtx WorldContext
 
-	dataman  *datamanager.DataManager
-	audioman *audio.AudioManager
-	eventBus *pubsub.EventBus
+	dataman   *datamanager.DataManager
+	audioman  *audio.AudioManager
+	eventBus  *pubsub.EventBus
+	screenman *screen.ScreenManager
 
 	DisplayName string // the name of the map shown to the player
 	Loaded      bool   // flag indicating if this map has been loaded
@@ -67,10 +75,16 @@ type ActiveMap struct {
 	NPCManager
 }
 
+// IsDialogActive tells you if a dialog is currently active
+func (m ActiveMap) IsDialogActive() bool {
+	return m.dialogSession != nil
+}
+
 func NewActiveMap(
 	dataman *datamanager.DataManager,
 	audioman *audio.AudioManager,
 	eventbus *pubsub.EventBus,
+	screenman *screen.ScreenManager,
 	gameCtx defs.GameContext,
 	worldCtx WorldContext,
 	mapID defs.MapID,
@@ -87,6 +101,7 @@ func NewActiveMap(
 		dataman:     dataman,
 		audioman:    audioman,
 		eventBus:    eventbus,
+		screenman:   screenman,
 		gameCtx:     gameCtx,
 		worldCtx:    worldCtx,
 		Map:         tiledMap,

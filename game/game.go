@@ -10,7 +10,6 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/internal/lights"
@@ -43,7 +42,6 @@ type Game struct {
 
 	World *world.World
 
-	dialogSession   *dialogv2.DialogSession
 	PlayerMenu      playermenu.PlayerMenu
 	ShowPlayerMenu  bool
 	TradeScreen     trade.TradeScreen // screen for handling trades
@@ -155,7 +153,7 @@ func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
 		logz.Panicln("InitializeGameWorld", "no character defs found. are you sure you loaded all data definitions?")
 	}
 
-	g.World = world.NewWorld(initTime, g.Dataman, g.AudioManager, g.EventBus, g)
+	g.World = world.NewWorld(initTime, g.Dataman, g.AudioManager, g.EventBus, g.ScreenManager, g)
 	debug.StopTimer("InitializeGameWorld")
 	debug.ShowAllReports()
 }
