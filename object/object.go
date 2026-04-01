@@ -301,8 +301,13 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 			panic("object y is negative! is this related to the image object y position bug?")
 		}
 
+		var tileProps []tiled.Property
+		if objectInfo.Tile != nil {
+			tileProps = objectInfo.Tile.Properties
+		}
+
 		// also, since there is a tile embedded, load all tile-related info, including tile frames
-		o.loadTileData(obj.GID, objectInfo.Tile.Properties, *objectInfo.Tileset, m)
+		o.loadTileData(obj.GID, tileProps, *objectInfo.Tileset, m)
 	}
 
 	// get the type first - so we know what values to parse out

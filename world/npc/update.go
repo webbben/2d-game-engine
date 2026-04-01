@@ -60,16 +60,14 @@ func (mgmt *TaskMGMT) RunScheduleTask(hour int, n *NPC) {
 	mgmt.CurrentTask = nil
 
 	taskDef := mgmt.Schedule.Hourly[hour]
-	if taskDef.TaskID == "" {
-		panic("task ID was empty")
-	}
 
 	mgmt.RunTask(taskDef, n)
 }
 
 func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 	if taskDef.TaskID == "" {
-		panic("task ID was empty")
+		panic("taskID was empty. if this is a 'do nothing' task, use the task ID for that.")
+		return
 	}
 
 	logz.Println(n.ID(), "attempting to run task:", taskDef.TaskID)
@@ -86,6 +84,10 @@ func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 	}
 
 	switch taskDef.TaskID {
+	case TaskDoNothing:
+		// do nothing tasks are just a way for the schedule to tell an NPC to... do nothing. be frozen in one spot.
+		n.CurrentTask = nil
+		return
 	case TaskIdle:
 		t = NewIdleTask(n, taskDef.Priority)
 	case TaskLounge:

@@ -206,9 +206,12 @@ func (n *NPC) WaitUntilNotMoving() {
 // It is expected that the NPC is first officially "added to the map" which means it is part of the NPC list,
 // and is placed at some position that is guaranteed to be open (like a spawn point).
 // Then, this will handle actually moving the NPC to its correct place; wherever in the map it should be while doing its task.
-func (n *NPC) SetupStarterScheduleTask(gameTime clock.GameTime) {
+func (n *NPC) SetupStarterScheduleTask(gameTime clock.GameTime, customStartLocation *defs.TaskStartLocation) {
 	hour := gameTime.Hour
 	scheduleTask := n.Schedule.Hourly[hour]
+	if customStartLocation != nil {
+		scheduleTask.StartLocation = customStartLocation
+	}
 
 	// TODO: I don't think we're handling Routing tasks properly as of now. that's okay, since that's a bit more advanced,
 	// but I think we need to decide exactly how that should work. Currently, in RunTask, it checks if the next task is in a new map,
@@ -216,6 +219,14 @@ func (n *NPC) SetupStarterScheduleTask(gameTime clock.GameTime) {
 	// - Should Routing tasks be explicitly set in the schedule?
 	// - Or, should they just be something that is automatically applied, when the next task requires moving to a new map?
 	n.RunTask(scheduleTask, n)
+
+	if n.CurrentTask == nil {
+		if scheduleTask.TaskID == TaskDoNothing {
+			// as expected, no task was assigned.
+			return
+		}
+		panic("current task is nil")
+	}
 
 	// we also need to setup the "initial active state" of the task.
 	// we want the NPC to already be "actively in progress" on their task.

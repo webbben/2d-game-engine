@@ -1,9 +1,31 @@
 package activemap
 
-import "sort"
+import (
+	"sort"
+	"time"
+)
 
 func (m *ActiveMap) Update(blockPlayerChanges bool) {
 	m.daylightFader.Update()
+
+	// if m.cutsceneSession != nil {
+	// 	m.updateCutscene()
+	// 	blockPlayerChanges = true
+	// }
+
+	if m.dialogSession != nil {
+		m.dialogSession.Update()
+		if m.dialogSession.Exit {
+			m.dialogSession = nil
+		}
+		// set last player update to now, so that the time hud doesn't immediately display
+		m.PlayerRef.LastUserInput = time.Now()
+		blockPlayerChanges = true
+		if m.cutsceneSession == nil {
+			// not in a cutscene, so don't allow mid-dialog updates to world
+			return
+		}
+	}
 
 	m.Camera.MoveCamera(m.PlayerRef.Entity.X, m.PlayerRef.Entity.Y)
 

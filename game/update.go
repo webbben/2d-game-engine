@@ -49,14 +49,9 @@ func (g *Game) Update() error {
 		if g.World == nil {
 			logz.Panicln("UPDATE", "World has not been initialized yet! Ensure this happens before InGameWorld stage; The Main Menu should be sure to handle this before it is 'done'.")
 		}
-		if g.dialogSession != nil {
-			g.dialogSession.Update()
-			if g.dialogSession.Exit {
-				g.dialogSession = nil
-			}
-			// set last player update to now, so that the time hud doesn't immediately display
-			g.World.Player.LastUserInput = time.Now()
-		} else if g.ShowPlayerMenu {
+
+		// TODO: turn these menus and things into Screens
+		if g.ShowPlayerMenu {
 			g.PlayerMenu.Update()
 			// set last player update to now, so that the time hud doesn't immediately display
 			g.World.Player.LastUserInput = time.Now()

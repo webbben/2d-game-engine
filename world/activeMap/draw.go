@@ -62,4 +62,12 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 		offsetX,
 		offsetY,
 	)
+
+	if m.dialogSession != nil {
+		m.dialogSession.Draw(screen)
+	}
+
+	// if m.cutsceneSession != nil {
+	// 	m.drawCutscene(screen)
+	// }
 }

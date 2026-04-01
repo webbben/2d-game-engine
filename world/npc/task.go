@@ -21,6 +21,7 @@ const (
 )
 
 const (
+	TaskDoNothing   defs.TaskID = "DO_NOTHING"
 	TaskIdle        defs.TaskID = "IDLE"
 	TaskLounge      defs.TaskID = "LOUNGE"
 	TaskSleep       defs.TaskID = "SLEEP"

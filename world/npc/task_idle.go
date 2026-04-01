@@ -31,7 +31,19 @@ func NewIdleTask(n *NPC, p defs.TaskPriority) *IdleTask {
 
 func (it *IdleTask) SetupActiveState() {
 	// For the idle task, the active state should just to be placed somewhere in the map.
-	pos := it.Owner.World.GetValidMapPosition(*it.Owner)
+	var pos model.Coords
+	startLocation := it.GetStartLocation()
+	if startLocation != nil {
+		// a specific location is defined; start as close as possible to there.
+		c := model.Coords{X: startLocation.TileX, Y: startLocation.TileY}
+		var found bool
+		pos, found = it.Owner.getNearestOpenTile(c, 3, false)
+		if !found {
+			panic("didn't find start position for idle task")
+		}
+	} else {
+		pos = it.Owner.World.GetValidMapPosition(*it.Owner)
+	}
 	it.Owner.Entity.SetPosition(pos)
 	it.setChangeTimer()
 }

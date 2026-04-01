@@ -40,7 +40,8 @@ var (
 
 	// misc
 
-	HourSpeed time.Duration = time.Minute // how long it takes for an hour to pass in game
+	HourSpeed    time.Duration = time.Minute // how long it takes for an hour to pass in game
+	DaysInSeason int           = 90          // number of days in a season
 
 	DefaultFont      font.Face // default font for most body text (e.g. item info tooltips); must be set by game
 	DefaultTitleFont font.Face // default font for titles of text areas (e.g. item info tooltips); must be set by game

@@ -429,6 +429,9 @@ func (dataman *DataManager) LoadItemDefs(itemDefs []defs.ItemDef) {
 		itemDef.Validate()
 		id := itemDef.GetID()
 		itemDef.Load()
+		if _, exists := dataman.ItemDefs[id]; exists {
+			logz.Panicln("DataManager", "tried to load item def, but item with same idea already existed:", id)
+		}
 		dataman.ItemDefs[id] = itemDef
 	}
 }

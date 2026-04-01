@@ -66,6 +66,8 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 		logz.Panicln("Activate", "tried to activate object that is not activatable")
 	}
 
+	logz.Println("Activate Object", "attempting to activate object:", obj.ID, obj.Type, "activated by:", params.ActivatorID)
+
 	// check if object is locked, and if so, ensure the character has the keys
 	if obj.lockID != "" {
 		// check the lock state from the map state

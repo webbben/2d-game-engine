@@ -36,23 +36,24 @@ const (
 var (
 	DaysOfWeek = []DayOfWeek{Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday}
 	Seasons    = []Season{Spring, Summer, Fall, Winter}
+
+	DaysInSeason int           = 90 // number of days that a single season lasts
+	HourSpeed    time.Duration = time.Minute
 )
 
 type Clock struct {
-	GameTime         // the current time
-	daysInSeason int // number of days that a single season lasts
+	GameTime // the current time
 
 	dowBasisYear int // used to calculate day of week. day 0 season 0 of this year is defined as sunday/first day of week
 	dayOfWeek    int
 
-	hourSpeed      time.Duration
 	lastMinuteTick time.Time
 }
 
 func (c Clock) String() string {
 	season := Seasons[c.Season]
 	dow := DaysOfWeek[c.dayOfWeek]
-	return fmt.Sprintf("%02d:%02d Y %v S %v (%s) DoS %v/%v DoW %v (%s)", c.Hour, c.Minute, c.Year, c.Season, season, c.DayOfSeason, c.daysInSeason-1, c.dayOfWeek, dow)
+	return fmt.Sprintf("%02d:%02d Y %v S %v (%s) DoS %v/%v DoW %v (%s)", c.Hour, c.Minute, c.Year, c.Season, season, c.DayOfSeason, DaysInSeason-1, c.dayOfWeek, dow)
 }
 
 // GameTime represents a specific instant in in-game time
@@ -87,7 +88,7 @@ func (c Clock) GetTimeString(formatAmPm bool) string {
 }
 
 func (c Clock) minuteSpeed() time.Duration {
-	return c.hourSpeed / 60
+	return HourSpeed / 60
 }
 
 // TickTock increments minutes, hours, days, etc. basically handles all ticking time change.
@@ -112,7 +113,7 @@ func (c *Clock) TickTock() {
 
 			// DAY OF SEASON
 			c.DayOfSeason++
-			if c.DayOfSeason > c.daysInSeason-1 {
+			if c.DayOfSeason > DaysInSeason-1 {
 				c.DayOfSeason = 0
 
 				// SEASON
@@ -139,7 +140,7 @@ func (c Clock) IsTimePast(gt GameTime) bool {
 func (c Clock) GetFutureGameTime(hours int) GameTime {
 	gt := c.GameTime
 
-	gt.AddTime(hours, c.daysInSeason)
+	gt.AddTime(hours)
 	return gt
 }
 
@@ -176,17 +177,17 @@ func (gt GameTime) IsAfter(other GameTime) bool {
 }
 
 func (c *Clock) PassTime(hours int) {
-	c.AddTime(hours, c.daysInSeason)
+	c.AddTime(hours)
 }
 
-func (gt *GameTime) AddTime(hours int, daysInSeason int) {
+func (gt *GameTime) AddTime(hours int) {
 	days := hours / 23
 	if days == 0 {
 		gt.Hour += hours
 		return
 	}
 
-	seasons := days / daysInSeason
+	seasons := days / DaysInSeason
 	if seasons == 0 {
 		gt.DayOfSeason += days
 		return
@@ -240,6 +241,10 @@ func TimestampToGameTime(timestamp GameTimestamp) GameTime {
 	}
 }
 
+func (c *Clock) SetGameTime(gt GameTime) {
+	c.GameTime = gt
+}
+
 // SetDateAndTime sets the exact date and time of the clock.
 // For passing time in the game, you can use PassTime instead.
 func (c *Clock) SetDateAndTime(hour, minute, seasonDay, season, year int) {
@@ -252,7 +257,7 @@ func (c *Clock) SetDateAndTime(hour, minute, seasonDay, season, year int) {
 	if year < 0 || year > 10000 {
 		panic("year invalid")
 	}
-	if seasonDay < 0 || seasonDay > c.daysInSeason-1 {
+	if seasonDay < 0 || seasonDay > DaysInSeason-1 {
 		panic("season day invalid")
 	}
 	if season < 0 || season >= len(Seasons) {
@@ -273,9 +278,9 @@ func (c *Clock) SetDateAndTime(hour, minute, seasonDay, season, year int) {
 	if yearsPastBasis <= 0 {
 		logz.Panicln("SetDateAndTime", "sanity check: years past basis is <= 0:", yearsPastBasis)
 	}
-	daysInYear := (c.daysInSeason * len(Seasons))
+	daysInYear := (DaysInSeason * len(Seasons))
 	daysPastBasis += daysInYear * yearsPastBasis // factor in years
-	daysPastBasis += season * c.daysInSeason     // factor in seasons
+	daysPastBasis += season * DaysInSeason       // factor in seasons
 	daysPastBasis += seasonDay                   // factor in days
 
 	if daysPastBasis < 0 {
@@ -298,6 +303,13 @@ func (c *Clock) SetDateAndTime(hour, minute, seasonDay, season, year int) {
 }
 
 func NewClock(hourSpeed time.Duration, initHour, initMin, initSeason, initDayOfSeason, initYear, seasonDays int) Clock {
+	// if these are left as 0, use the defaults
+	if hourSpeed == 0 {
+		hourSpeed = HourSpeed
+	}
+	if seasonDays == 0 {
+		seasonDays = DaysInSeason
+	}
 	if seasonDays < 5 || seasonDays > 100 {
 		panic("invalid season days")
 	}
@@ -308,9 +320,10 @@ func NewClock(hourSpeed time.Duration, initHour, initMin, initSeason, initDayOfS
 		panic("invalid hour speed: too long (maximum 1 hour)")
 	}
 
+	DaysInSeason = seasonDays
+	HourSpeed = hourSpeed
+
 	c := Clock{
-		daysInSeason: seasonDays,
-		hourSpeed:    hourSpeed,
 		// initialize dowBasisYear to 1000 years before init year - we'll assume that's far enough in the past to be safe.
 		dowBasisYear: initYear - 1000,
 	}

@@ -4,6 +4,7 @@ package characterstate
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -15,7 +16,22 @@ import (
 
 func GenerateUniquePlayerID(displayName string) defs.UniquePlayerID {
 	id := fmt.Sprintf("%s_%s", displayName, utils.GenerateUUID()[:8])
-	return defs.UniquePlayerID(id)
+	playerID := defs.UniquePlayerID(id)
+	ValidateUniquePlayerID(playerID)
+	return playerID
+}
+
+func ValidateUniquePlayerID(uniquePlayerID defs.UniquePlayerID) {
+	s := string(uniquePlayerID)
+	if s == "" {
+		logz.Panicln("UniquePlayerID", "UniquePlayerID was empty! This should've been set at the start of a new game...")
+	}
+	if strings.Contains(s, " ") {
+		logz.Panicln("UniquePlayerID", "UniquePlayerID had spaces in it! it should use other characters like underscores or dashes instead.")
+	}
+	if strings.Contains(s, "/") {
+		logz.Panicln("UniquePlayerID", "UniquePlayerID had slashes in it! these must not be used, to avoid confusing the filepaths.")
+	}
 }
 
 // GetNetTraitModifiers returns all of the net modifiers on skills produced by the given traits

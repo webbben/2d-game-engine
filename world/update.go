@@ -16,8 +16,14 @@ func (w *World) Update() {
 	if w.ActiveMap == nil {
 		// TODO: are we loading a map or something? why are we here, but no map exists?
 	} else {
-		w.Player.Update(w.BlockPlayerChanges)
-		w.ActiveMap.Update(w.BlockPlayerChanges)
+		// Note: making this a separate variable since I don't want to control w.BlockPlayerChanges by dialog.
+		// other places handle setting that variable (transitions, for example) so shouldn't touch it here.
+		blockPlayerChanges := w.BlockPlayerChanges
+		if w.ActiveMap.IsDialogActive() {
+			blockPlayerChanges = true
+		}
+		w.Player.Update(blockPlayerChanges)
+		w.ActiveMap.Update(blockPlayerChanges)
 	}
 }
 

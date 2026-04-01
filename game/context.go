@@ -1,9 +1,8 @@
 package game
 
 import (
-	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/dialogv2"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
@@ -119,18 +118,24 @@ func (g *Game) StartDialogSession(dialogProfileID defs.DialogProfileID, npcID st
 	if npcID == "" {
 		panic("npcID was empty")
 	}
-	params := dialogv2.DialogSessionParams{
-		NPCID:         npcID,
-		ProfileID:     dialogProfileID,
-		BoxTilesetSrc: "boxes/boxes.tsj",
-		BoxOriginID:   16,
-		TextFont:      config.DefaultFont,
+	if g.World == nil {
+		panic("world was nil")
 	}
-	ds := dialogv2.NewDialogSession(params, g.EventBus, g.Dataman, g.ScreenManager, g)
+	if g.World.ActiveMap == nil {
+		panic("active map was nil. we need to be in an active map before starting a dialog")
+	}
 
-	g.dialogSession = &ds
+	g.World.ActiveMap.StartDialog(dialogProfileID, npcID)
 }
 
 func (g *Game) PublishEvent(event defs.Event) {
 	g.EventBus.Publish(event)
+}
+
+func (g Game) GetCurrentGameTime() clock.GameTime {
+	return g.World.Clock.GetCurrentGameTime()
+}
+
+func (g *Game) SetGameTime(gt clock.GameTime) {
+	g.World.Clock.SetGameTime(gt)
 }
