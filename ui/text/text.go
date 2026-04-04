@@ -8,7 +8,7 @@ import (
 	"golang.org/x/image/font"
 )
 
-// draw text with a shadow effect. leave colors nil to use defaults (black fg and gray bg).
+// DrawShadowText draws text with a shadow effect. leave colors nil to use defaults (black fg and gray bg).
 // bgOffsets, which adjust the position of the "shadow" text, default to -2 if left at 0.
 func DrawShadowText(screen *ebiten.Image, s string, f font.Face, x, y int, fg color.Color, bg color.Color, bgOffsetX, bgOffsetY int) {
 	if fg == nil {
@@ -27,7 +27,7 @@ func DrawShadowText(screen *ebiten.Image, s string, f font.Face, x, y int, fg co
 	DrawText(screen, s, f, x, y, fg)
 }
 
-// the main function to draw text
+// DrawText is the main function to draw text
 //
 // IMPORTANT: the "y" coordinate is actually the position **BELOW** where the text is drawn.
 // NOT the top left corner of the text image.

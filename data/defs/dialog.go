@@ -52,6 +52,7 @@ type DialogResponse struct {
 	Effects    []DialogEffect
 	NextTopics []TopicID // IDs to unlock/emphasize
 	Once       bool      // if set, this response will only be possible to show once. after that, it is no longer eligible.
+	Goodbye    bool      // if set, this response will only have a 'Goodbye' reply available, which ends the conversation.
 
 	Replies []DialogReply // if the response should pose possibly replies by the player, set them here.
 
@@ -70,7 +71,24 @@ func (dr DialogResponse) Validate() {
 		panic("responses marked as Once must have an ID")
 	}
 	if dr.Text == "" {
-		panic("text was empty")
+		// if text is empty, then this must be a grouper
+		if len(dr.Conditions) == 0 {
+			panic("is this supposed to be a grouper? no text is set, but no conditions are set either.")
+		}
+		if dr.NextResponse == nil && len(dr.NextResponseOptions) == 0 {
+			panic("is this supposed to be a grouper? no text is set, but no next responses are set either.")
+		}
+	}
+	if dr.Goodbye {
+		if dr.NextResponse != nil {
+			panic("goodbye response has next response linked")
+		}
+		if len(dr.NextResponseOptions) > 0 {
+			panic("goodbye response has next response options set")
+		}
+		if len(dr.Replies) > 0 {
+			panic("goodbye response has replies defined. goodbye responses will automatically define a single 'goodbye' reply, so don't create one yourself.")
+		}
 	}
 	if dr.NextResponse != nil {
 		dr.NextResponse.Validate()
@@ -89,6 +107,7 @@ type DialogReply struct {
 	Text       string // The text for the reply option (which represents how the player is responding)
 	Conditions []DialogCondition
 	Effects    []DialogEffect
+	Goodbye    bool // if set, this reply will cause dialog to end
 
 	NextResponse *DialogResponse // once this reply is chosen, this is how the NPC reacts. If nil, no response is given by the NPC.
 	NextTopicID  TopicID
@@ -102,6 +121,8 @@ type ConditionContext interface {
 	HasSeenTopic(id TopicID) bool
 	IsTopicUnlocked(id TopicID) bool
 	GetCharacterDef(id CharacterDefID) CharacterDef
+	GetPlayerGold() int
+	GetNPCDialogProfileID() DialogProfileID
 }
 
 type MemoryCondition struct {

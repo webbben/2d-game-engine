@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"golang.org/x/image/font"
 )
@@ -52,9 +53,13 @@ type LineWriter struct {
 	currentPage       int              // the current page the lineWriter is writing
 	currentLineNumber int              // the current line (of linesToWrite) that we are writing
 	currentLineIndex  int              // the index of the current line we are writing
-	writtenLines      []string         // the "output" that is actually drawn
+	writtenLines      []string         // the "output" that is actually drawn. Note that this isn't used to draw the actual text anymore; just keeping in case its useful for debugging.
 	WritingStatus     LineWriterStatus // the current status of the lineWriter, regarding the text it is writing
 	writeImmediately  bool
+
+	textImg          *ebiten.Image // image where the text is actually drawn.
+	cursorX, cursorY int           // where (on the text image) the cursor is that draws the next string or character
+	cursorOffsetX    int           // how much to offset the starting cursor pos
 }
 
 func (lw LineWriter) IsWriting() bool {
@@ -70,8 +75,7 @@ func (lw LineWriter) CurrentDimensions() (dx, dy int) {
 	if lw.maxLineWidth == 0 {
 		panic("tried to get dimensions, but maxLineWidth was 0")
 	}
-	dy = len(lw.writtenLines) * lw.lineHeight
-	return lw.maxLineWidth, dy
+	return lw.maxLineWidth, lw.cursorY
 }
 
 // NewLineWriter creates a new LineWriter.
@@ -104,9 +108,14 @@ func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color
 		writeImmediately: writeImmediately,
 	}
 
+	lw.textImg = ebiten.NewImage(lw.maxLineWidth, lw.maxHeight)
+	lw.cursorOffsetX = 2
+
 	return lw
 }
 
+// SetSourceText sets the text for the lineWriter to write. It's expected that you will call Clear first if there is already written text.
+// If you want to clear the lineWriter of all text, you should use that Clear function too - don't try passing an empty string in here.
 func (lw *LineWriter) SetSourceText(textToWrite string) {
 	if textToWrite == "" {
 		panic("tried to set empty text to lineWriter. to clear the lineWriter, use lw.Clear() instead.")
@@ -160,11 +169,18 @@ func (lw *LineWriter) SetSourceText(textToWrite string) {
 		lw.pages = append(lw.pages, page)
 	}
 
+	// we set this here since cursorY needs to be initialized to lineHeight, but this is the place that calculates that.
+	lw.resetCursor()
+
 	lw.WritingStatus = Writing
 }
 
 // Clear fully clears source text and all written text
 func (lw *LineWriter) Clear() {
+	if lw.WritingStatus == Writing {
+		panic("tried to clear linewriter while text is being written!")
+	}
+
 	// unset all the values that are calculated when setting source text
 	lw.linesToWrite = []string{}
 	lw.currentLineIndex = 0
@@ -175,22 +191,82 @@ func (lw *LineWriter) Clear() {
 	lw.pages = make([][]string, 0)
 	lw.pageLineCount = 0
 
+	// Note: we don't reset the cursor here, since that needs to know the line height of the text.
+	lw.textImg.Clear()
+
 	// set status flag to indicate waiting for new text
 	lw.WritingStatus = AwaitText
 }
 
+func (lw *LineWriter) resetCursor() {
+	if lw.lineHeight == 0 {
+		panic("lineHeight was 0")
+	}
+	lw.cursorX = lw.cursorOffsetX
+	lw.cursorY = lw.lineHeight
+}
+
 // Draw returns the last written Y position (for reference by other drawing functions)
 func (lw LineWriter) Draw(screen *ebiten.Image, startX, startY int) int {
-	y := startY
-	for _, line := range lw.writtenLines {
-		y = y + lw.lineHeight
-		if lw.shadow {
-			DrawShadowText(screen, line, lw.fontFace, startX, y, lw.fgColor, lw.bgColor, -2, -2)
-		} else {
-			DrawText(screen, line, lw.fontFace, startX, y, lw.fgColor)
-		}
+	if lw.textImg == nil {
+		panic("textImg was nil")
 	}
-	return y
+	rendering.DrawImage(screen, lw.textImg, float64(startX), float64(startY), 0)
+
+	return lw.cursorY
+}
+
+func (lw *LineWriter) drawText(s string) {
+	if lw.textImg == nil {
+		panic("text img is nil")
+	}
+	if s == "" {
+		panic("tried to draw an empty string")
+	}
+	if lw.sourceText == "" {
+		panic("source text hasn't been set yet")
+	}
+	if lw.lineHeight == 0 {
+		panic("lineHeight was 0")
+	}
+	if lw.WritingStatus != Writing {
+		logz.Panicln("LineWriter", "tried to draw text, but linewriter status isn't set to Writing. status:", lw.WritingStatus)
+	}
+
+	dx, dy, _ := GetStringSize(s, lw.fontFace)
+
+	// sanity check: make sure the cursor isn't drawing outside the bounds of textImage
+	if lw.cursorY-dy < 0 {
+		logz.Panicln("LineWriter", "it looks like the cursor is drawing text above the text box (clipping it at the top)", "cursorY:", lw.cursorY, "dy:", dy)
+	}
+	if lw.cursorY > lw.maxHeight {
+		logz.Panicln("LineWriter", "it looks like the cursor is drawing text below the text box (clipping it at the bottom)", "cursorY:", lw.cursorY, "maxHeight:", lw.maxHeight)
+	}
+	if lw.cursorX < 0 {
+		logz.Panicln("LineWriter", "it looks like the cursor is drawing text left of the text box (clipping it at the beginning)", "cursorX:", lw.cursorX)
+	}
+	if lw.cursorX+dx > lw.maxLineWidth+lw.cursorOffsetX {
+		logz.Panicln("LineWriter", "it looks like the cursor is drawing text right of the text box (clipping it at the end)", "cursorX:", lw.cursorX, "dx:", dx, "maxWidth:", lw.maxLineWidth, "s:", s)
+	}
+
+	// TODO: detect things like underscores, which should change the color of the text.
+	// Need to also handle underscores in fast forward too...
+
+	if lw.shadow {
+		DrawShadowText(lw.textImg, s, lw.fontFace, lw.cursorX, lw.cursorY, lw.fgColor, lw.bgColor, -2, -2)
+	} else {
+		DrawText(lw.textImg, s, lw.fontFace, lw.cursorX, lw.cursorY, lw.fgColor)
+	}
+
+	lw.cursorX += dx
+}
+
+func (lw *LineWriter) newLine() {
+	if lw.lineHeight == 0 {
+		panic("lineHeight was 0")
+	}
+	lw.cursorX = lw.cursorOffsetX
+	lw.cursorY += lw.lineHeight
 }
 
 func (lw *LineWriter) Update() {
@@ -225,6 +301,9 @@ func (lw *LineWriter) Update() {
 				if lw.textUpdateTimer >= ticksPerTextWrite+lw.addedUpdateTimer {
 					// continue to write the current line
 					nextChar := currentPage[lw.currentLineNumber][lw.currentLineIndex]
+
+					lw.drawText(string(nextChar))
+
 					lw.writtenLines[lw.currentLineNumber] += string(nextChar)
 					lw.currentLineIndex++
 					lw.textUpdateTimer = 0
@@ -240,6 +319,7 @@ func (lw *LineWriter) Update() {
 				// go to the next line
 				lw.currentLineNumber++
 				lw.currentLineIndex = 0
+				lw.newLine()
 				lw.writtenLines = append(lw.writtenLines, "") // start next output line
 			}
 		} else {
@@ -268,6 +348,9 @@ func (lw *LineWriter) NextPage() {
 	lw.currentLineNumber = 0
 	lw.writtenLines = []string{""}
 
+	lw.resetCursor()
+	lw.textImg.Clear()
+
 	lw.currentPage++
 	lw.WritingStatus = Writing
 }
@@ -277,6 +360,18 @@ func (lw *LineWriter) FastForward() {
 	currentPage := lw.pages[lw.currentPage]
 	lw.writtenLines = []string{}
 	lw.writtenLines = append(lw.writtenLines, currentPage...)
+
+	lw.resetCursor()
+	lw.textImg.Clear()
+	for _, line := range currentPage {
+		// Note: we draw character by character since, soon, I plan to add logic that checks an individual character and changes draw behavior
+		// e.g. drawing asides in a different color by using underscores
+		// even though this looks pretty inefficient, realistically I don't think it'll have any impact
+		for _, c := range line {
+			lw.drawText(string(c))
+		}
+		lw.newLine()
+	}
 
 	lw.currentLineNumber = len(currentPage)
 	lw.currentLineIndex = 0

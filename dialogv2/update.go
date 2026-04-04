@@ -86,21 +86,22 @@ func (ds *DialogSession) updateDialogResponse() {
 			}
 			return
 		}
-		if len(ds.currentResponse.Replies) > 0 {
+		if ds.currentResponse.Goodbye || len(ds.currentResponse.Replies) > 0 {
 			// show user reply options and wait for them to choose
+			// goodbye is also handled by a generated reply option
 			ds.responseStatus = dialogResponseUserReply
 			return
 		}
 		// there were no replies and no chained response; go back to topic selection.
 		ds.responseStatus = dialogResponseFinished
 	case dialogResponseUserReply:
-		if len(ds.currentResponse.Replies) == 0 {
+		if !ds.currentResponse.Goodbye && len(ds.currentResponse.Replies) == 0 {
 			panic("no replies available")
 		}
 		if len(ds.replyButtons) == 0 && ds.replyBox == nil {
 			ds.setupReplyOptions()
 			if len(ds.replyButtons) == 0 && ds.replyBox == nil {
-				logz.Panicln("Dialog", "no reply buttons or replyBox has been created")
+				ds.panicln("no reply buttons or replyBox has been created")
 			}
 		}
 
