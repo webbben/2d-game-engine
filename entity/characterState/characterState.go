@@ -15,6 +15,8 @@ import (
 )
 
 func GenerateUniquePlayerID(displayName string) defs.UniquePlayerID {
+	displayName = strings.TrimSpace(displayName)
+	displayName = strings.ReplaceAll(displayName, " ", "_")
 	id := fmt.Sprintf("%s_%s", displayName, utils.GenerateUUID()[:8])
 	playerID := defs.UniquePlayerID(id)
 	ValidateUniquePlayerID(playerID)

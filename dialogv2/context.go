@@ -154,6 +154,15 @@ func (ctx DialogContext) GetCharacterDef(id defs.CharacterDefID) defs.CharacterD
 	return ctx.dataman.GetCharacterDef(id)
 }
 
+func (ctx DialogContext) GetPlayerGold() int {
+	playerState := ctx.dataman.GetCharacterState(state.CharacterStateID(defs.PlayerID))
+	return playerState.CountMoney()
+}
+
+func (ctx DialogContext) GetNPCDialogProfileID() defs.DialogProfileID {
+	return ctx.Profile.ProfileID
+}
+
 func (ctx DialogContext) RecordMiscDialogMemory(key string) {
 	ctx.Profile.Memory[key] = true
 }

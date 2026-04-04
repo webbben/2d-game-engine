@@ -2,6 +2,7 @@
 package dialogv2
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -31,6 +32,10 @@ const (
 )
 
 const (
+	Goodbye string = "Goodbye"
+)
+
+const (
 	ActionTypeGetUserInput defs.DialogActionType        = "get_user_input"
 	ActionScopePlayerName  defs.DialogActionResultScope = "player_name"
 	ActionTypeShowScreen   defs.DialogActionType        = "show_screen"
@@ -56,7 +61,7 @@ type ShowScreenActionParams struct {
 
 var quitTopic defs.DialogTopic = defs.DialogTopic{
 	ID:     "QUIT",
-	Prompt: "Goodbye",
+	Prompt: Goodbye,
 }
 
 type DialogSession struct {
@@ -99,6 +104,16 @@ type DialogSession struct {
 	userInputModal *modal.TextInputModal
 	screenViewer   *screen.ScreenViewer
 	ctxForScreen   defs.GameContext
+}
+
+func (ds DialogSession) panicln(args ...any) {
+	if ds.currentTopic != nil {
+		args = append(args, fmt.Sprintf("CurrentTopic: %s", ds.currentTopic.ID))
+	}
+	if ds.currentResponse != nil {
+		args = append(args, fmt.Sprintf("CurrentResp: \"%s\"", ds.currentResponse.Text))
+	}
+	logz.Panicln("DialogSession", args...)
 }
 
 func ConditionsMet(conditions []defs.DialogCondition, ctx defs.ConditionContext) bool {
@@ -329,6 +344,25 @@ func (ds *DialogSession) setupReplyOptions() {
 	if ds.responseStatus != dialogResponseUserReply {
 		panic("tried to setup reply buttons, but dialog status is incorrect")
 	}
+
+	tileSize := config.GetScaledTilesize()
+
+	h, _ := text.GetRealisticFontMetrics(ds.f)
+	w := ds.TopicBoxImg.Bounds().Dx() - int(tileSize)
+	maxReplyWidth := w
+
+	if ds.currentResponse.Goodbye {
+		// setup the 'Goodbye' reply
+		ds.replyButtons = make([]*button.Button, 0)
+		ds.replyList = make([]defs.DialogReply, 0)
+		ds.replyList = append(ds.replyList, defs.DialogReply{
+			Text:    Goodbye,
+			Goodbye: true,
+		})
+		ds.replyButtons = append(ds.replyButtons, button.NewButton(Goodbye, ds.f, maxReplyWidth, h))
+		return
+	}
+
 	if len(ds.currentResponse.Replies) == 0 {
 		panic("tried to setup reply buttons, but there are no reply options")
 	}
@@ -345,12 +379,6 @@ func (ds *DialogSession) setupReplyOptions() {
 	ds.replyButtons = make([]*button.Button, 0)
 	ds.replyList = make([]defs.DialogReply, 0)
 
-	tileSize := config.GetScaledTilesize()
-
-	h, _ := text.GetRealisticFontMetrics(ds.f)
-	w := ds.TopicBoxImg.Bounds().Dx() - int(tileSize)
-	maxReplyWidth := w
-
 	// first, find out if all replies can fit in the topic box, and get the maximum reply width.
 	replies := []defs.DialogReply{}
 	for _, reply := range ds.currentResponse.Replies {
@@ -364,7 +392,7 @@ func (ds *DialogSession) setupReplyOptions() {
 	}
 
 	if len(replies) == 0 {
-		logz.Panicln("Dialog", "trying to setup replies, but no valid replies were found (none met their conditions). currentResponse:", ds.currentResponse.Text)
+		ds.panicln("trying to setup replies, but no valid replies were found (none met their conditions)")
 	}
 
 	ds.replyList = replies
@@ -425,7 +453,7 @@ func (ds *DialogSession) ApplyResponse(dr defs.DialogResponse) {
 		panic("tried to apply response, but linewriter is already writing")
 	}
 	if dr.ID != "" && dr.Once && ds.Ctx.HasSeenResponse(dr.ID) {
-		logz.Panicln("Dialog", "tried to apply response that is only supposed to be seen once")
+		ds.panicln("tried to apply response that is only supposed to be seen once", "response ID:", dr.ID)
 	}
 
 	// response has started, so we don't need topic buttons anymore
@@ -493,6 +521,15 @@ func (ds *DialogSession) continueApplyResponse() {
 		panic("continueApplyResponse: currentResponse is nil")
 	}
 
+	// there are two types of DialogResponse:
+	// 1. a regular one, that has text, and acts as a proper dialog node.
+	// 2. a "grouper" which only has conditions and linked next responses. a grouper does not have text, and instead jumps to the next valid response.
+
+	if ds.currentResponse.Text == "" {
+		ds.handleResponseGrouper()
+		return
+	}
+
 	ds.setResponseText(ds.currentResponse.Text)
 
 	for _, topicID := range ds.currentResponse.NextTopics {
@@ -506,6 +543,33 @@ func (ds *DialogSession) continueApplyResponse() {
 	// reply handling is done once text is finished
 
 	ds.responseStatus = dialogResponseStarted
+}
+
+func (ds *DialogSession) handleResponseGrouper() {
+	if len(ds.currentResponse.Conditions) == 0 {
+		ds.panicln("dialog response has no text or conditions. if this is a grouper, it must have conditions.")
+	}
+	if ds.currentResponse.NextResponse == nil && len(ds.currentResponse.NextResponseOptions) == 0 {
+		ds.panicln("dialog response has no text or next responses. if this is a grouper, it must have next responses set.")
+	}
+
+	if ds.currentResponse.Goodbye {
+		ds.panicln("response grouper was set to Goodbye")
+	}
+
+	// find the appropriate response option
+	if ds.currentResponse.NextResponse != nil {
+		ds.ApplyResponse(*ds.currentResponse.NextResponse)
+		return
+	}
+	for _, nr := range ds.currentResponse.NextResponseOptions {
+		if ConditionsMet(nr.Conditions, ds.Ctx) {
+			ds.ApplyResponse(nr)
+			return
+		}
+	}
+
+	ds.panicln("DialogSession", "No valid response found in dialog response grouper")
 }
 
 func (ds *DialogSession) setResponseText(s string) {
@@ -552,6 +616,12 @@ func (ds *DialogSession) ApplyReply(dr defs.DialogReply) {
 		effect.Apply(&ds.Ctx)
 	}
 
+	if dr.Goodbye {
+		// this is a "goodbye" reply, and so it should end the dialog
+		ds.End()
+		return
+	}
+
 	if dr.NextResponse == nil {
 		// no response to reply... so, time to go back to topic selection
 		ds.responseStatus = dialogResponseFinished
@@ -572,13 +642,7 @@ func (ds *DialogSession) SetTopic(topicID defs.TopicID) {
 	}
 	if topicID == "QUIT" {
 		// end dialog
-		ds.Exit = true
-		ds.eventBus.Publish(defs.Event{
-			Type: pubsub.EventDialogEnded,
-			Data: map[string]any{
-				"profileID": ds.ProfileDef.ProfileID,
-			},
-		})
+		ds.End()
 		return
 	}
 	topic := ds.dataman.GetDialogTopic(topicID)
@@ -593,6 +657,17 @@ func (ds *DialogSession) SetTopic(topicID defs.TopicID) {
 	if ds.responseStatus != dialogResponseStarted {
 		panic("why isn't status response started?")
 	}
+}
+
+// End causes the DialogSession to end.
+func (ds *DialogSession) End() {
+	ds.Exit = true
+	ds.eventBus.Publish(defs.Event{
+		Type: pubsub.EventDialogEnded,
+		Data: map[string]any{
+			"profileID": ds.ProfileDef.ProfileID,
+		},
+	})
 }
 
 func GetNPCResponse(dt defs.DialogTopic, ctx DialogContext) defs.DialogResponse {
