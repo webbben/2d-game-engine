@@ -21,7 +21,7 @@ type StartDialogTaskParams struct {
 	DialogChain *defs.DialogResponse // if defined (and profileID is empty), then instead of launching a profile you can do an ad-hoc dialog sequence.
 }
 
-func NewStartDialogTask(params StartDialogTaskParams, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) *StartDialogTask {
+func NewStartDialogTask(params StartDialogTaskParams, owner *NPC, def defs.TaskDef) *StartDialogTask {
 	if params.ProfileID != "" && params.DialogChain != nil {
 		logz.Panicln("NewStartDialogTask", "both profileID and dialogChain are defined; it should be only one or the other!")
 	}
@@ -31,15 +31,12 @@ func NewStartDialogTask(params StartDialogTaskParams, owner *NPC, p defs.TaskPri
 	if params.DialogChain != nil {
 		logz.Panicln("TODO", "implement dialog ad-hoc sequences (currently, only profile-based dialog is supported)")
 	}
-
-	t := defs.TaskDef{
-		TaskID:   TaskStartDialog,
-		Priority: p,
-		NextTask: nextTask,
+	if def.TaskID != TaskStartDialog {
+		panic("task def has wrong ID")
 	}
 
 	return &StartDialogTask{
-		TaskBase:        NewTaskBase(t, "Start dialog", "Start dialog with the player", owner),
+		TaskBase:        NewTaskBase(def, "Start dialog", "Start dialog with the player", owner),
 		dialogProfileID: params.ProfileID,
 		dialogChain:     params.DialogChain,
 	}
@@ -52,7 +49,7 @@ func (t *StartDialogTask) Update() {
 
 	if !t.started {
 		if t.dialogProfileID != "" {
-			t.Owner.World.StartDialog(t.dialogProfileID, t.Owner.ID())
+			t.Owner.ActiveMapCtx.StartDialog(t.dialogProfileID, t.Owner.ID())
 		} else {
 			// TODO: create way to run ad-hoc dialog sequences
 			logz.Panicln("TODO", "implement dialog ad-hoc sequences (currently, only profile-based dialog is supported)")
@@ -60,7 +57,7 @@ func (t *StartDialogTask) Update() {
 		t.started = true
 		t.Status = TaskInProg
 		// TODO: might need an unsubscribe function, or else we need to move event handling to happen outside the task level (duplicate subscribers could happen otherwise)
-		t.Owner.eventBus.Subscribe(fmt.Sprintf("%s_%s", t.Owner.ID, t.Def.TaskID), pubsub.EventDialogEnded, t.OnDialogEnd)
+		t.Owner.eventBus.Subscribe(fmt.Sprintf("%s_%s", t.Owner.ID(), t.Def.TaskID), pubsub.EventDialogEnded, t.OnDialogEnd)
 		return
 	}
 }

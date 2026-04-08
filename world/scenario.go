@@ -30,12 +30,17 @@ func (w *World) loadScenario(scenarioDef defs.ScenarioDef) {
 			w.Dataman)
 		n := npc.NewNPC(npc.NPCParams{
 			CharStateID: charStateID,
-		}, w.Dataman, w.Audioman, w.EventBus)
+		}, w.Dataman, w.Audioman, w.EventBus, w) // TODO: should scenario NPCs be able to use world context?
 
 		startPos := model.Coords{X: charDef.SpawnCoordX, Y: charDef.SpawnCoordY}
 		w.ActiveMap.AddNPCToMap(n, startPos)
 		// set the start position, to make sure a task doesn't put the NPC in a random place (such as what Idle will do, if no position is set)
-		startLocation := defs.TaskStartLocation{TileX: startPos.X, TileY: startPos.Y, MapID: scenarioDef.MapID}
-		n.SetupStarterScheduleTask(w.Clock.GetCurrentGameTime(), &startLocation)
+		startLocation := defs.TaskStartLocation{TileX: &startPos.X, TileY: &startPos.Y, MapID: scenarioDef.MapID}
+		n.SetupTaskState(w.Clock.GetCurrentGameTime(), &startLocation)
+		if n.CurrentTask == nil {
+			// NPC must have the "do nothing" task, so no task was assigned.
+			continue
+		}
+		n.CurrentTask.SetupActiveState()
 	}
 }

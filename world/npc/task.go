@@ -31,6 +31,7 @@ const (
 	TaskFight       defs.TaskID = "FIGHT"
 	TaskStartDialog defs.TaskID = "START_DIALOG"
 	TaskFaceDir     defs.TaskID = "FACE_DIR" // TODO
+	TaskBartender   defs.TaskID = "BARTENDER"
 )
 
 const (
@@ -97,6 +98,33 @@ type TaskBase struct {
 	Description string
 	Name        string
 	Status      TaskStatus
+
+	// routing task controlled by TaskBase; other tasks that embed TaskBase should NOT touch this.
+	_baseRouting    *RouteTask
+	_startTime      *time.Time // records the instant this task received its first update of any kind. used for detecting "unplugged" background assist.
+	_bgAssistCalled bool       // records if bg assist has ever been called. used for detecting "unplugged" bg assist.
+}
+
+func (tb *TaskBase) RecordBgAssist() {
+	tb._bgAssistCalled = true
+}
+
+// BgAssistUnplugged is used for detecting if background assist is "unplugged" (i.e. not being called for a specific task).
+// All you need to do is check this function in your task's Update function and make sure to call RecordBgAssist in your task's BackgroundAssist function.
+//
+// Note: Do NOT use this in SimulationUpdate, because of course, NPCs in the simulation loop should not be receiving Background Assist anyway.
+func (tb *TaskBase) BgAssistUnplugged() bool {
+	if tb._startTime == nil {
+		now := time.Now()
+		tb._startTime = &now
+	}
+
+	if tb._bgAssistCalled {
+		// if bg assist is ever called, then it should be "plugged in"
+		return false
+	}
+
+	return time.Since(*tb._startTime) > (time.Second * 10)
 }
 
 // NewTaskBase defines a task base that covers all the bases of the Task interface.
@@ -115,8 +143,105 @@ func NewTaskBase(def defs.TaskDef, name, desc string, owner *NPC) TaskBase {
 	}
 }
 
+// RouteToStartMap handles starting and updating a RouteTask to the starting map of this task (as defined in task def).
+// Returns true if NPC has reached the starting map. You can put this at the top of an Update function for a task and return if this returns false,
+// to ensure that the NPC makes its way to a the start map before starting the rest of the task logic.
+//
+// IMPORTANT: your task still needs to pass BackgroundAssist over to TaskBase! BackgroundAssist is the only way for routing to calculate its path
+// when in the active map (since it's somewhat expensive, in order to avoid lag)
+func (tb *TaskBase) RouteToStartMap(simulation bool) (reachedStartMap bool) {
+	if tb.InStartMap() {
+		if tb._baseRouting != nil {
+			// the routing task logic may require one extra update to notice its in the destination map, and so its possible for this condition to notice first.
+			// so, just remove it here rather than wasting another update tick to confirm with the routing task logic.
+			tb._baseRouting = nil
+		}
+		return true
+	}
+
+	// NPC is not in the start map yet. Setup the routing task!
+	if tb._baseRouting == nil {
+		startLoc := tb.GetStartLocation()
+		if startLoc == nil {
+			panic("start location was nil!")
+		}
+		if startLoc.MapID == "" {
+			panic("start map was empty!")
+		}
+		tb._baseRouting = NewRouteTask(RouteTaskParams{DestinationMapID: startLoc.MapID}, tb.Owner, tb.GetPriority())
+	}
+
+	if simulation {
+		tb._baseRouting.SimulationUpdate()
+	} else {
+		tb._baseRouting.Update()
+	}
+
+	if tb._baseRouting.IsDone() {
+		// double check that NPC is now in correct map
+		if tb.Owner.CharacterStateRef.CurrentMap != tb.GetStartLocation().MapID {
+			logz.Panicln("RouteToStartMap", "RouteTask seems to be done, but the NPC isn't in the starting map still...", tb.Owner.CharacterStateRef.CurrentMap, tb.GetStartLocation().MapID)
+		}
+		tb._baseRouting = nil
+	}
+
+	return false
+}
+
+// RouteToStartMapBgAssist is for forwarding a BackgroundAssist call to the RouteTask that underlies the RouteToStartMap base task.
+// This is required, or else if the NPC is in the active map they may never get their route calculated.
+// Returns true if the base routing task exists and its BgAssist was called.
+func (tb *TaskBase) RouteToStartMapBgAssist() (isRouting bool) {
+	if tb._baseRouting == nil {
+		return false
+	}
+	tb._baseRouting.BackgroundAssist()
+	return true
+}
+
+// InStartMap tells you if the NPC is in the start map or not
+func (tb TaskBase) InStartMap() bool {
+	startLoc := tb.GetStartLocation()
+	if startLoc == nil || startLoc.MapID == "" {
+		// nothing set, so we assume true
+		return true
+	}
+	return tb.Owner.CharacterStateRef.CurrentMap == startLoc.MapID
+}
+
+func (tb TaskBase) InActiveMap() bool {
+	return tb.Owner.WorldCtx.GetActiveMapID() == tb.Owner.CharacterStateRef.CurrentMap
+}
+
+// RouteToStartMapSetupActiveState handles the SetupActiveState for any base routing task. Returns true if base routing is setting up an active state,
+// to inform the calling task if it should setup its own active state or not.
+func (tb *TaskBase) RouteToStartMapSetupActiveState() (isRouting bool) {
+	if tb.InStartMap() {
+		return false
+	}
+	if tb._baseRouting == nil {
+		// we expect a routing task to have already started if it's getting called at SetupActiveState
+		logz.Panicln("RouteToStartMap", "SetupActiveState called, and NPC not in start map, but base routing wasn't started yet.", tb.Owner.WhoAmI())
+	}
+	tb._baseRouting.SetupActiveState()
+	return true
+}
+
 func (tb TaskBase) GetStartLocation() *defs.TaskStartLocation {
-	return tb.Def.StartLocation
+	startLoc := tb.Def.StartLocation
+	if startLoc == nil {
+		if tb.Def.TaskID == TaskSleep {
+			// sleep tasks have special handling; if no task start location is set, it's assumed to start in the character's home map
+			homeMap := tb.Owner.CharacterStateRef.HomeMapID
+			if homeMap == "" {
+				panic("home map was empty!")
+			}
+			return &defs.TaskStartLocation{
+				MapID: homeMap,
+			}
+		}
+	}
+	return startLoc
 }
 
 func (tb TaskBase) GetNextTaskDef() *defs.TaskDef {
@@ -210,7 +335,7 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 	// get NPCs that are at the next target tile - i.e. the next position in the target path
 	nextTarget := t.Owner.Entity.Movement.TargetPath[0]
 
-	collidingObjs := t.Owner.World.FindObjectsAtPosition(nextTarget)
+	collidingObjs := t.Owner.ActiveMapCtx.FindObjectsAtPosition(nextTarget)
 	if len(collidingObjs) > 0 {
 		// see if any of these objects are things like gates, that can be opened.
 		for _, obj := range collidingObjs {

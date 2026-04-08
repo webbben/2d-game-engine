@@ -87,6 +87,18 @@ type Entity struct {
 	stunTicks int
 }
 
+// ResetActiveMapRuntimeState resets any flags or fields that are set during runtime of an entity being in an active map.
+// The idea is to clear anything that might've been set, so that those details don't accidentally get carried over to other maps.
+// For example, we don't want an entity that was sitting in a map before to be automatically sitting when it appears in a new map. That would cause problems.
+func (e *Entity) ResetActiveMapRuntimeState() {
+	if e.IsSitting {
+		e.LeaveChair()
+	}
+	if e.IsSleeping {
+		e.LeaveBed()
+	}
+}
+
 func (e *Entity) SitInChair(chairObj *object.Object) {
 	if e.IsSitting {
 		panic("already sitting in a chair")

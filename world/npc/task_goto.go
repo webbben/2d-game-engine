@@ -20,14 +20,13 @@ type GotoTaskParams struct {
 	TileX, TileY int
 }
 
-func NewGotoTask(params GotoTaskParams, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) *GotoTask {
-	t := defs.TaskDef{
-		TaskID:   TaskGoto,
-		Priority: p,
-		NextTask: nextTask,
+func NewGotoTask(params GotoTaskParams, owner *NPC, def defs.TaskDef) *GotoTask {
+	if def.TaskID != TaskGoto {
+		panic("task def has wrong ID")
 	}
+
 	return &GotoTask{
-		TaskBase: NewTaskBase(t, "Goto", "Goto a position", owner),
+		TaskBase: NewTaskBase(def, "Goto", "Goto a position", owner),
 		goalPos:  model.Coords{X: params.TileX, Y: params.TileY},
 	}
 }
@@ -36,7 +35,7 @@ func NewGotoTask(params GotoTaskParams, owner *NPC, p defs.TaskPriority, nextTas
 func (t *GotoTask) start() {
 	t.Status = TaskNotStarted
 	if t.goalPos.Equals(t.Owner.Entity.TilePos()) {
-		panic("goto task: tried to go to the position the NPC is already at.")
+		logz.Panicln("GotoTask", "tried to go to the position the NPC is already at. goalPos:", t.goalPos, "npcPos:", t.Owner.Entity.TilePos(), t.Owner.WhoAmI())
 	}
 	// if sitting or sleeping, go back to standing
 	if t.Owner.Entity.IsSleeping {

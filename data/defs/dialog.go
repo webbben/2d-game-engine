@@ -118,6 +118,7 @@ type DialogCondition interface {
 }
 
 type ConditionContext interface {
+	GetMapID() MapID
 	HasSeenTopic(id TopicID) bool
 	IsTopicUnlocked(id TopicID) bool
 	GetCharacterDef(id CharacterDefID) CharacterDef

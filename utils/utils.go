@@ -1,3 +1,4 @@
+// Package utils contains useful utility functions for use anywhere
 package utils
 
 import (
@@ -6,20 +7,23 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"golang.org/x/text/message"
 )
 
 func EuclideanDist(x1, y1, x2, y2 float64) float64 {
+	// 2026-04-08 apparently I can "expand" this by just using regular multiplication (x*x instead of x^2)
+	// but, for now just leaving as is (despite the annoying warning) since I don't like having to type out x2-x1 twice or putting it in a variable lol.
 	return math.Sqrt(math.Pow(x2-x1, 2) + math.Pow(y2-y1, 2))
 }
 
-// euclidean distance function for coords structs, for ease of use
+// EuclideanDistCoords is a euclidean distance function for coords structs, for ease of use
 func EuclideanDistCoords(pointA, pointB model.Coords) float64 {
 	return EuclideanDist(float64(pointA.X), float64(pointA.Y), float64(pointB.X), float64(pointB.Y))
 }
 
-// calculates euclidean distance based on the center of the given rects.
+// EuclideanDistCenter calculates euclidean distance based on the center of the given rects.
 // gives a more "real" distance compared to getting distance of the top left corner of, say, two entities
 func EuclideanDistCenter(r1, r2 model.Rect) float64 {
 	r1.X += r1.W / 2
@@ -57,16 +61,22 @@ func GenerateUUID() string {
 	return id.String()
 }
 
-// Removes the element at index i of slice s, without preserving order.
+// RemoveIndexUnordered Removes the element at index i of slice s, without preserving order.
 // Apparently much faster, but only use this if you don't care about the ordering of the elements
 func RemoveIndexUnordered[T any](s []T, i int) []T {
+	if i >= len(s) {
+		logz.Panicf("index (%v) out of range (len=%v)", i, len(s))
+	}
 	s[i] = s[len(s)-1]
 	return s[:len(s)-1]
 }
 
-// Removes element at index i of slice s, preserving the original order.
+// RemoveIndex Removes element at index i of slice s, preserving the original order.
 // Apparently somewhat slow since it involves moving all the elements.
 func RemoveIndex[T any](s []T, i int) []T {
+	if i >= len(s) {
+		logz.Panicf("index (%v) out of range (len=%v)", i, len(s))
+	}
 	return append(s[:i], s[i+1:]...)
 }
 

@@ -16,10 +16,18 @@ import (
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/world/worldgraph"
 )
 
 type WorldContext interface {
-	// general map functions
+	GetActiveMapID() defs.MapID // this is here instead of activeMapContext so that NPCs can check it without being in the active world
+	FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldPath, foundPath bool)
+	ChangeMapOccupancy(charStateID state.CharacterStateID, from, to defs.MapID)
+	AddNPCToActiveMap(charStateID state.CharacterStateID, spawnIndex int)
+}
+
+type ActiveMapContext interface {
+	RemoveNPCFromActiveMap(charStateID state.CharacterStateID, toMap defs.MapID)
 
 	FindNPCAtPosition(c model.Coords) (NPC, bool)
 	FindObjectsAtPosition(c model.Coords) []*object.Object
@@ -29,8 +37,6 @@ type WorldContext interface {
 	GetAllObjects() []*object.Object
 	GetAllNPCs() []*NPC
 	GetCostMap() [][]int
-
-	// start screens and UI
 
 	StartDialog(dialogProfileID defs.DialogProfileID, npcID string)
 }
@@ -45,7 +51,9 @@ type NPC struct {
 	// comes from either an override set in character state, or from the character def.
 	dialogProfileID defs.DialogProfileID
 
-	World WorldContext
+	ActiveMapCtx ActiveMapContext
+
+	WorldCtx WorldContext
 
 	// priority assigned to this NPC by the map it is added to. used for prioritizing which NPC moves first in a collision.
 	Priority int
@@ -63,7 +71,7 @@ type NPC struct {
 }
 
 func (n NPC) WhoAmI() string {
-	return fmt.Sprintf("%s [%s]", n.DisplayName(), n.ID())
+	return fmt.Sprintf("%s [%s] (currentMap: %s)", n.DisplayName(), n.ID(), n.CharacterStateRef.CurrentMap)
 }
 
 func (n NPC) ID() string {
@@ -76,7 +84,7 @@ func (n NPC) DisplayName() string {
 
 func (n *NPC) Activate() {
 	if n.dialogProfileID != "" {
-		n.World.StartDialog(n.dialogProfileID, n.ID())
+		n.ActiveMapCtx.StartDialog(n.dialogProfileID, n.ID())
 		return
 	}
 	logz.Println(n.DisplayName(), "nothing happened on activation")
@@ -102,7 +110,7 @@ type NPCParams struct {
 // Once this has been instantiated (for non-temp characters) it should live in the World struct and be reused from there.
 // The reason you don't want to reinstantiate is that this function does things like subscribe to NPC events, so calling twice
 // for a single character state ID would cause duplicate subscriptions, resulting in a panic.
-func NewNPC(params NPCParams, dataman *datamanager.DataManager, audioMgr *audio.AudioManager, eventBus *pubsub.EventBus) *NPC {
+func NewNPC(params NPCParams, dataman *datamanager.DataManager, audioMgr *audio.AudioManager, eventBus *pubsub.EventBus, worldCtx WorldContext) *NPC {
 	if params.CharStateID == "" {
 		panic("CharStateID is empty")
 	}
@@ -135,6 +143,7 @@ func NewNPC(params NPCParams, dataman *datamanager.DataManager, audioMgr *audio.
 	}
 
 	n := NPC{
+		WorldCtx:          worldCtx,
 		eventBus:          eventBus,
 		Entity:            ent,
 		CharacterStateRef: charState,
@@ -202,35 +211,53 @@ func (n *NPC) WaitUntilNotMoving() {
 	n.waitUntilDoneMoving = true
 }
 
-// SetupStarterScheduleTask puts an NPC into its "active state" in a map.
+// GetScheduledMap returns the mapID where the NPC is supposed to be, according to their schedule
+func (n *NPC) GetScheduledMap(gameTime clock.GameTime) defs.MapID {
+	hour := gameTime.Hour
+	scheduleTask := n.Schedule.Hourly[hour]
+	if scheduleTask.StartLocation == nil {
+		if scheduleTask.TaskID == TaskSleep {
+			// sleep task with no set start location => home bed location
+			return n.CharacterStateRef.HomeMapID
+		}
+		return ""
+	}
+	return scheduleTask.StartLocation.MapID
+}
+
+// SetupTaskState puts an NPC into its "active state" in a map.
 // It is expected that the NPC is first officially "added to the map" which means it is part of the NPC list,
 // and is placed at some position that is guaranteed to be open (like a spawn point).
 // Then, this will handle actually moving the NPC to its correct place; wherever in the map it should be while doing its task.
-func (n *NPC) SetupStarterScheduleTask(gameTime clock.GameTime, customStartLocation *defs.TaskStartLocation) {
-	hour := gameTime.Hour
-	scheduleTask := n.Schedule.Hourly[hour]
-	if customStartLocation != nil {
-		scheduleTask.StartLocation = customStartLocation
-	}
-
-	// TODO: I don't think we're handling Routing tasks properly as of now. that's okay, since that's a bit more advanced,
-	// but I think we need to decide exactly how that should work. Currently, in RunTask, it checks if the next task is in a new map,
-	// and if so, it tells the NPC to do a routing task first. This brings us to a question:
-	// - Should Routing tasks be explicitly set in the schedule?
-	// - Or, should they just be something that is automatically applied, when the next task requires moving to a new map?
-	n.RunTask(scheduleTask, n)
-
+//
+// Behavior:
+//
+//   - some NPC tasks will be running even while the NPC is not in the active map (e.g. RouteTask).
+//     So, if the NPC already has a task, that same task will be continued, but setup in its "active state".
+//
+//   - for NPCs that don't have an active task, the task for the current hour of their schedule will be started, and put into its "active state".
+func (n *NPC) SetupTaskState(gameTime clock.GameTime, customStartLocation *defs.TaskStartLocation) {
+	// If a task is already set, then continue it.
+	// otherwise, setup a schedule task
 	if n.CurrentTask == nil {
-		if scheduleTask.TaskID == TaskDoNothing {
-			// as expected, no task was assigned.
-			return
+		hour := gameTime.Hour
+		scheduleTask := n.Schedule.Hourly[hour]
+		if customStartLocation != nil {
+			scheduleTask.StartLocation = customStartLocation
 		}
-		panic("current task is nil")
-	}
+		logz.Println("SetupTaskState", "setting up schedule task:", scheduleTask.TaskID, n.WhoAmI())
 
-	// we also need to setup the "initial active state" of the task.
-	// we want the NPC to already be "actively in progress" on their task.
-	n.CurrentTask.SetupActiveState()
+		// Note: Routing is handled in individual task logic (through TaskBase, unless a task decides to someday have special handling for some reason)
+		n.RunTask(scheduleTask, n)
+
+		if n.CurrentTask == nil {
+			if scheduleTask.TaskID == TaskDoNothing {
+				// as expected, no task was assigned.
+				return
+			}
+			panic("current task is nil")
+		}
+	}
 }
 
 // gets the nearest open, unobstructed tile to the given position.
@@ -241,15 +268,15 @@ func (n NPC) getNearestOpenTile(c model.Coords, tileDistLimit int, allowEntityCo
 		panic("tileDistLimit was <= 0")
 	}
 
-	if !n.World.IsTileCollision(c) {
-		if allowEntityCollision || !n.World.IsTileEntityCollision(c, string(n.Entity.ID())) {
+	if !n.ActiveMapCtx.IsTileCollision(c) {
+		if allowEntityCollision || !n.ActiveMapCtx.IsTileEntityCollision(c, string(n.Entity.ID())) {
 			return c, true // turns out the given position was open
 		}
 	}
 
-	costMap := n.World.GetCostMap()
+	costMap := n.ActiveMapCtx.GetCostMap()
 	if !allowEntityCollision {
-		for _, n := range n.World.GetAllNPCs() {
+		for _, n := range n.ActiveMapCtx.GetAllNPCs() {
 			tilePos := n.Entity.TilePos()
 			costMap[tilePos.Y][tilePos.X] += path_finding.BlockThreshold
 		}
