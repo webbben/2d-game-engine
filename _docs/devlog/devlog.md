@@ -1,3 +1,37 @@
+# 2026-04-08
+
+I'm happy to say that I've managed to make some pretty big changes to the NPC task management system and AI.
+
+I've created the "Routing" task, which sends an NPC on a path to get from its current map to a new map - whether the NPC is in the active map, or in a random
+map somewhere else in the game world. What this means is, if the NPC is in the same map as the player (i.e. the "active map") then the NPC will start walking to
+the correct map exit ("door") and active that exit to leave the map.  Then, it will continue to simulate its travel path in a separate goroutine (there is a goroutine
+that handles all of these background simulation tasks together, so we aren't spawning endless goroutines - just a single one). This simulation continues until
+the NPC ends up in the destination map, which is the map where its next task is. This task simulates travel time in each map based on the actual in-map travel path
+for each map it passes through, so if the player were to enter one of the maps along the path at the right time, it would see the NPC walking along its expected path
+and continuing on its merry way. (This particular last part hasn't been tested yet, so perhaps I will still end up needing to work out some bugs there... but it seems to
+work well enough with the other parts).
+
+That routing task was quite a heavy lift by itself. I reckon I spent at least an entire day working on that logic. Beyond that, I also had to make the logic for
+the background simulation loop. This simulation loop is spawned in its own goroutine so that it won't interrupt or add latency to the main update loop,
+but it handles simulating updates to each NPC that _isn't_ in the active map. So, when an NPC has a task that takes him to a different map than the one the player is in,
+the NPC walks to the exit of the map, and then once it's left the active map, its further task updates are processed with this "simulation loop" as I call it.
+For most tasks, no background simulation is required, but this routing task does use it, so that's why I had to go ahead and make it right now.
+
+It's nice to have this background simulation stuff started up though, because I always knew I'd want to have that as a feature in this game.
+In the future, I will probably be making more tasks that use it to varying degrees. But at the very least, it will be cool to make it possible for NPCs to travel 
+around the world to different maps, in realistic ways that take time and require it to traverse a "real world path".
+
+## Up Next
+
+This is all a big milestone for what I'm working on in the bigger picture, which is (still) trying to get an entire in-game city up and running.
+I'm working on a tavern, and so far just the tavern keeper who lives in the same tavern building, but in an upstairs room. The upstairs room is its own map, as well as the 
+main tavern room, which is then connected to the rest of the town via a town main square map. So, since it seems like the tavern keeper's schedule is working correctly
+(he can go from his bed upstairs to his working spot at the bar counter), next will probably be to add some villagers in the town who possibly live in a nearby house,
+or maybe rent a room in the tavern. And I'll add some kind of schedule so that they will go between different buildings, and I'll make sure all of that is working
+really well.
+
+Once making new NPCs is trivial, then I'll move on more with the main storyline quests.
+
 # 2026-04-06
 
 I'm back with another "design discussion" so to speak. Just talking into the void to figure out some technical things I want to work out.
