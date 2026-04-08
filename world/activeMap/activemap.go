@@ -27,12 +27,15 @@ import (
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/world/npc"
+	"github.com/webbben/2d-game-engine/world/worldgraph"
 )
 
 type WorldContext interface {
 	// TODO: is this used here?
 	GenerateCharacter(chargen defs.CharacterGenerator, initialMap defs.MapID, homeMap defs.MapID, homeMapBedID int) state.CharacterStateID
 	HandleMapDoor(result object.ObjectUpdateResult)
+	FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldPath, found bool)
+	ChangeMapOccupancy(charStateID state.CharacterStateID, fromMap, toMap defs.MapID)
 }
 
 // ActiveMap contains information about the current room the player is in
@@ -278,7 +281,7 @@ func (mi *ActiveMap) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 		logz.Panicln("AddNPCToMap", "NPC added to map on colliding tile.", "mapID:", mi.MapID, "npcID:", n.ID(), "startPos:", startPos)
 	}
 	n.Entity.World = mi
-	n.World = mi // NPC has its own world context it needs, that isn't relevant to entity
+	n.ActiveMapCtx = mi // NPC has its own world context it needs, that isn't relevant to entity
 	n.Entity.SetPosition(startPos)
 	n.Priority = mi.getNextNPCPriority()
 	mi.NPCs = append(mi.NPCs, n)

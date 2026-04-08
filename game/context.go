@@ -139,3 +139,13 @@ func (g Game) GetCurrentGameTime() clock.GameTime {
 func (g *Game) SetGameTime(gt clock.GameTime) {
 	g.World.Clock.SetGameTime(gt)
 }
+
+func (g Game) GetMapID() defs.MapID {
+	if g.World == nil {
+		return ""
+	}
+	if g.World.ActiveMap == nil {
+		return ""
+	}
+	return g.World.ActiveMap.MapID
+}

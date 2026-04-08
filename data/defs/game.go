@@ -26,6 +26,7 @@ type GameContext interface {
 }
 
 type GameDialogContext interface {
+	GetMapID() MapID
 	GetPlayerInfo() PlayerInfo
 	SetPlayerName(name string)
 	DialogCtxAddGold(amount int)

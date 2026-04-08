@@ -1,6 +1,9 @@
 package world
 
 import (
+	"fmt"
+	"slices"
+
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/config"
@@ -14,8 +17,10 @@ import (
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/screen"
+	"github.com/webbben/2d-game-engine/utils"
 	activemap "github.com/webbben/2d-game-engine/world/activeMap"
 	"github.com/webbben/2d-game-engine/world/npc"
+	"github.com/webbben/2d-game-engine/world/worldgraph"
 )
 
 // The World represents the overall game world (or "universe" as I sometimes call it).
@@ -34,13 +39,19 @@ type World struct {
 
 	Clock clock.Clock
 
-	WorldGraph *WorldGraph
+	WorldGraph *worldgraph.WorldGraph
 
 	// Characters in the World
 
 	Player             *player.Player
 	BlockPlayerChanges bool
 	NPCs               map[state.CharacterStateID]*npc.NPC
+
+	// simulation
+
+	cmdCh      chan SimCommand
+	simPaused  bool
+	simStopped bool
 
 	// Map Information
 
@@ -65,6 +76,8 @@ func NewWorld(
 		EventBus:  eventBus,
 		Screenman: screenman,
 		GameCtx:   gameCtx,
+
+		cmdCh: make(chan SimCommand, 1), // purposely making buffer size 1, since commands should be infrequent and not queuing up
 	}
 
 	w.SetGameTime(initTime)
@@ -77,7 +90,14 @@ func NewWorld(
 		w.EnsureMapStateExists(id)
 	}
 
+	w.WorldGraph = worldgraph.BuildWorldGraph(w.Dataman)
+	if w.WorldGraph == nil {
+		panic("world graph was nil")
+	}
+
 	w.populateNPCMap()
+
+	w.startNpcSimulation()
 
 	return w
 }
@@ -98,7 +118,7 @@ func (w *World) populateNPCMap() {
 			// don't use temp char states, since those are just for scenarios
 			continue
 		}
-		n := npc.NewNPC(npc.NPCParams{CharStateID: id}, w.Dataman, w.Audioman, w.EventBus)
+		n := npc.NewNPC(npc.NPCParams{CharStateID: id}, w.Dataman, w.Audioman, w.EventBus, w)
 		w.NPCs[id] = n
 
 		currentMap := charState.CurrentMap
@@ -176,6 +196,8 @@ func (w *World) loadRegularMapNPCs() {
 		panic("map was nil")
 	}
 
+	logz.Println("loadRegularMapNPCs", "loading regular NPCs for map:", w.ActiveMap.MapID)
+
 	currentHour := w.Clock.GetCurrentGameTime()
 	x0, y0, found := w.ActiveMap.GetSpawnPosition(0)
 	if !found {
@@ -187,15 +209,25 @@ func (w *World) loadRegularMapNPCs() {
 		// add an NPC to the map for this character, and then call its initial task state setter.
 		// we can start by placing each NPC at the main spawn point (index=0).
 		// if the initial task starter is successful, it should necessarily be moved somewhere else.
-		// NOTE: I guess we need to keep the "find valid position" function from returning one of the spawn points... how should we handle that?
-		// make spawn points blocked?
 		n := w.NPCs[id]
 		w.ActiveMap.AddNPCToMap(n, spawnPoint0)
-		n.SetupStarterScheduleTask(currentHour, nil)
+		n.SetupTaskState(currentHour, nil)
+		// We do this separately from SetupTaskState since SetupTaskState is also for initializing NPC tasks for background simulation
+		if n.CurrentTask != nil {
+			logz.Println("loadRegularMapNPCs", "NPC setting up task active state:", n.CurrentTask.GetID(), n.WhoAmI())
+			n.CurrentTask.SetupActiveState()
+		} else {
+			logz.Println("loadRegularMapNPCs", "NPC has no active task:", n.WhoAmI())
+		}
 	}
 }
 
+// CloseMap handles all work that should be done when an ActiveMap is left by the player.
+// All runtime data that could possibly persist between active maps should be reset, to prevent bugs or unexpected behavior.
 func (w *World) CloseMap() {
+	for _, n := range w.ActiveMap.NPCs {
+		n.Entity.ResetActiveMapRuntimeState()
+	}
 	w.ActiveMap = nil
 }
 
@@ -229,10 +261,7 @@ func (w *World) OnHourChange(hour int, skipFade bool, postEvent bool) {
 			if n == nil {
 				panic("npc was nil?")
 			}
-			if n.CurrentTask == nil || n.Schedule.Hourly[hour].TaskID != n.CurrentTask.GetID() {
-				// looks like the task should change.
-				n.RunScheduleTask(hour, n)
-			}
+			n.OnHourChange(hour)
 		}
 	}
 
@@ -257,4 +286,102 @@ func (w *World) SetPlayerName(name string) {
 		panic("player character state was nil")
 	}
 	w.Player.CharacterStateRef.DisplayName = name
+}
+
+func (w *World) FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldPath, found bool) {
+	if w.WorldGraph == nil {
+		logz.Panicln("WORLD", "tried to get world path, but world graph was nil!")
+	}
+	return w.WorldGraph.FindPath(from, to)
+}
+
+// ChangeMapOccupancy handles moving a character from one map to another, including:
+//
+// 1. update MapOccupancy map (determines which NPCs should load for which maps)
+//
+// 2. update character state 'currentMap' field
+//
+// Does NOT change anything in ActiveMap; ActiveMap should handle removing or inserting NPCs to its own NPC slice elsewhere.
+func (w *World) ChangeMapOccupancy(charStateID state.CharacterStateID, from, to defs.MapID) {
+	if from == "" {
+		panic("from was empty!")
+	}
+	if to == "" {
+		panic("to was empty!")
+	}
+	if from == to {
+		logz.Panicln("ChangeMapOccupancy", "from and to were the same! whoever called this should've noticed that and handled it. to/from:", to)
+	}
+	if _, exists := w.MapOccupancy[from]; !exists {
+		// all from maps should have a map occupancy because, of course, a character is apparently already in that map...
+		logz.Panicln("ChangeMapOccupancy", "MapOccupancy not defined for 'from' map:", from)
+	}
+	if _, exists := w.MapOccupancy[to]; !exists {
+		// it's not actually a problem if the 'to' doesn't exist yet. That could just mean that there are no
+		// character beds in this map, so on initialization nobody was ever placed in it initially as their "home" map.
+		w.MapOccupancy[to] = make([]state.CharacterStateID, 0)
+	}
+
+	logz.Printf("WORLD", "Change map occupancy (%s) %s -> %s", charStateID, from, to)
+
+	found := false
+	for i, id := range w.MapOccupancy[from] {
+		if id == charStateID {
+			fromOccupancy := w.MapOccupancy[from]
+			originalLen := len(fromOccupancy)
+			fromOccupancy = utils.RemoveIndexUnordered(fromOccupancy, i)
+			// do a quick gut check and confirm the length decreased by 1
+			if len(fromOccupancy) != originalLen-1 {
+				logz.Panicln("ChangeMapOccupancy", "map occupancy length didn't decrease by 1 after removing character. from:", from)
+			}
+			w.MapOccupancy[from] = fromOccupancy
+			found = true
+			break
+		}
+	}
+	if !found {
+		logz.Panicln("ChangeMapOccupancy", "didn't find character state ID in map occupancy: charStateID:", charStateID, "mapID:", from)
+	}
+
+	// ensure ID doesn't already exist in new map (before adding)
+	// TODO: if this function ever becomes sufficiently "hot" then we can remove this if it proves to slow things down at all.
+	// I don't think it'll be a problem, but maybe it could have some minor impact if maps start having really large numbers of occupants?
+	if slices.Contains(w.MapOccupancy[to], charStateID) {
+		fmt.Println("from:", w.MapOccupancy[from], "\nto:", w.MapOccupancy[to])
+		logz.Panicln("ChangeMapOccupancy", "charStateID already exists in new map occupancy:", charStateID, "to mapID:", to)
+	}
+
+	w.MapOccupancy[to] = append(w.MapOccupancy[to], charStateID)
+
+	// update character state
+	charState := w.Dataman.GetCharacterState(charStateID)
+	charState.CurrentMap = to
+}
+
+func (w World) GetActiveMapID() defs.MapID {
+	if w.ActiveMap == nil {
+		return ""
+	}
+	return w.ActiveMap.MapID
+}
+
+func (w World) getNPC(id state.CharacterStateID) *npc.NPC {
+	n, exists := w.NPCs[id]
+	if !exists {
+		logz.Panicln("WORLD", "NPC not found! charStateID:", id)
+	}
+	return n
+}
+
+// AddNPCToActiveMap adds an NPC to the current active map. All it does is place the NPC into the map; it doesn't do any task active state setup or anything.
+// This is because this function is used to allow NPCs to enter the map that the player is already in - so it's like they're walking into the map from the doorway.
+func (w *World) AddNPCToActiveMap(charStateID state.CharacterStateID, spawnIndex int) {
+	n := w.getNPC(charStateID)
+	x, y, found := w.ActiveMap.GetSpawnPosition(spawnIndex)
+	if !found {
+		logz.Panicln("AddNPCToActiveMap", "given spawn index doesn't exist in active map:", spawnIndex, "mapID:", w.ActiveMap.MapID)
+	}
+	spawnPos := model.ConvertPxToTilePos(x, y)
+
+	w.ActiveMap.AddNPCToMap(n, spawnPos)
 }

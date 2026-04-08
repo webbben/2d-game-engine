@@ -20,13 +20,13 @@ type LoungeTask struct {
 	idleTask           *IdleTask
 }
 
-func NewLoungeTask(n *NPC, p defs.TaskPriority) *LoungeTask {
+func NewLoungeTask(n *NPC, def defs.TaskDef) *LoungeTask {
+	if def.TaskID != TaskLounge {
+		panic("def had wrong task ID")
+	}
 	return &LoungeTask{
 		TaskBase: NewTaskBase(
-			defs.TaskDef{
-				TaskID:   TaskLounge,
-				Priority: p,
-			},
+			def,
 			"Lounge",
 			"NPC finds a place in the map to lounge, and just chill, dawg.",
 			n,
@@ -86,7 +86,7 @@ func (t *LoungeTask) Update() {
 func (t LoungeTask) findChair() *object.Object {
 	var closestChair *object.Object
 	var closestDist float64
-	for _, obj := range t.Owner.World.GetAllObjects() {
+	for _, obj := range t.Owner.ActiveMapCtx.GetAllObjects() {
 		if obj.Type == object.TypeChair && !obj.Chair.InUse && obj.GetTargetingNPC() == "" {
 			// TODO: need to also check if chair is suitable for the specific NPC (i.e. has character restrictions), but skipping for now
 			x, y := obj.Pos()
@@ -106,13 +106,19 @@ func (t LoungeTask) findChair() *object.Object {
 }
 
 func (t *LoungeTask) startIdleTask() {
-	t.idleTask = NewIdleTask(t.Owner, t.GetPriority())
+	t.idleTask = NewIdleTask(t.Owner, defs.TaskDef{
+		TaskID:   TaskIdle,
+		Priority: t.GetPriority(),
+	})
 }
 
 func (t *LoungeTask) SetupActiveState() {
 	// basically, we need to do what we do in the main update, but without the "gotos".
 	// 1. find a chair if one is free, and immediately activate/sit in it.
-	t.Status = TaskInProg
+	t.Status = TaskInProg // TODO: is taskinProg checked anywhere?
+	if t.Owner.Entity.IsSitting {
+		logz.Panicln("LoungeTask", "SetupActiveState was called, but for some reason the NPC was already sitting in a chair... did entity not get reset from a previous map?", t.Owner.WhoAmI())
+	}
 	closestChair := t.findChair()
 	if closestChair != nil {
 		// set the NPC in an open spot right next to the chair first, so that they have a valid "position before sitting" set in entity

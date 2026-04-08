@@ -15,17 +15,30 @@ type IdleTask struct {
 	TaskBase
 	NoBackgroundWork
 
+	timer idleTimer
+}
+
+type idleTimer struct {
 	lastChange     time.Time     // the time when this NPC last made a misc change
 	nextChangeWait time.Duration // how long to wait until doing another misc change
 }
 
-func NewIdleTask(n *NPC, p defs.TaskPriority) *IdleTask {
-	d := defs.TaskDef{
-		TaskID:   TaskIdle,
-		Priority: p,
+func (t *idleTimer) setChangeTimer() {
+	t.lastChange = time.Now()
+	r := rand.Intn(8) + 5
+	t.nextChangeWait = time.Second * time.Duration(r)
+}
+
+func (t idleTimer) timeExpired() bool {
+	return time.Since(t.lastChange) >= t.nextChangeWait
+}
+
+func NewIdleTask(n *NPC, def defs.TaskDef) *IdleTask {
+	if def.TaskID != TaskIdle {
+		panic("def had wrong task ID")
 	}
 	return &IdleTask{
-		TaskBase: NewTaskBase(d, "Idle", "Just str8 chillin breh", n),
+		TaskBase: NewTaskBase(def, "Idle", "Just str8 chillin breh", n),
 	}
 }
 
@@ -35,23 +48,20 @@ func (it *IdleTask) SetupActiveState() {
 	startLocation := it.GetStartLocation()
 	if startLocation != nil {
 		// a specific location is defined; start as close as possible to there.
-		c := model.Coords{X: startLocation.TileX, Y: startLocation.TileY}
+		if startLocation.TileX == nil || startLocation.TileY == nil {
+			panic("no start location set")
+		}
+		c := model.Coords{X: *startLocation.TileX, Y: *startLocation.TileY}
 		var found bool
 		pos, found = it.Owner.getNearestOpenTile(c, 3, false)
 		if !found {
 			panic("didn't find start position for idle task")
 		}
 	} else {
-		pos = it.Owner.World.GetValidMapPosition(*it.Owner)
+		pos = it.Owner.ActiveMapCtx.GetValidMapPosition(*it.Owner)
 	}
 	it.Owner.Entity.SetPosition(pos)
-	it.setChangeTimer()
-}
-
-func (it *IdleTask) setChangeTimer() {
-	it.lastChange = time.Now()
-	r := rand.Intn(8) + 5
-	it.nextChangeWait = time.Second * time.Duration(r)
+	it.timer.setChangeTimer()
 }
 
 func (it IdleTask) ZzCompileCheck() {
@@ -64,7 +74,7 @@ func (it *IdleTask) Update() {
 	}
 
 	it.Status = TaskInProg
-	if time.Since(it.lastChange) >= it.nextChangeWait {
+	if it.timer.timeExpired() {
 		// time to do another random change
 		switch rand.Intn(2) {
 		case 0:
@@ -74,7 +84,6 @@ func (it *IdleTask) Update() {
 				it.Owner.Entity.SetDirection('L')
 			case 1: // R
 				it.Owner.Entity.SetDirection('R')
-
 			case 2: // U
 				it.Owner.Entity.SetDirection('U')
 			case 3: // D
@@ -86,19 +95,19 @@ func (it *IdleTask) Update() {
 			currentPos := it.Owner.Entity.TilePos()
 			choices := []model.Coords{}
 			l := currentPos.GetAdj('L')
-			if !it.Owner.World.IsTileCollision(l) && !it.Owner.World.IsTileEntityCollision(l, it.Owner.ID()) {
+			if !it.Owner.ActiveMapCtx.IsTileCollision(l) && !it.Owner.ActiveMapCtx.IsTileEntityCollision(l, it.Owner.ID()) {
 				choices = append(choices, l)
 			}
 			r := currentPos.GetAdj('R')
-			if !it.Owner.World.IsTileCollision(r) && !it.Owner.World.IsTileEntityCollision(r, it.Owner.ID()) {
+			if !it.Owner.ActiveMapCtx.IsTileCollision(r) && !it.Owner.ActiveMapCtx.IsTileEntityCollision(r, it.Owner.ID()) {
 				choices = append(choices, r)
 			}
 			u := currentPos.GetAdj('U')
-			if !it.Owner.World.IsTileCollision(u) && !it.Owner.World.IsTileEntityCollision(u, it.Owner.ID()) {
+			if !it.Owner.ActiveMapCtx.IsTileCollision(u) && !it.Owner.ActiveMapCtx.IsTileEntityCollision(u, it.Owner.ID()) {
 				choices = append(choices, u)
 			}
 			d := currentPos.GetAdj('D')
-			if !it.Owner.World.IsTileCollision(d) && !it.Owner.World.IsTileEntityCollision(d, it.Owner.ID()) {
+			if !it.Owner.ActiveMapCtx.IsTileCollision(d) && !it.Owner.ActiveMapCtx.IsTileEntityCollision(d, it.Owner.ID()) {
 				choices = append(choices, d)
 			}
 			if len(choices) == 0 {
@@ -109,6 +118,6 @@ func (it *IdleTask) Update() {
 			}
 		}
 
-		it.setChangeTimer()
+		it.timer.setChangeTimer()
 	}
 }

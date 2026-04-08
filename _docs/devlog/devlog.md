@@ -1,3 +1,112 @@
+# 2026-04-06
+
+I'm back with another "design discussion" so to speak. Just talking into the void to figure out some technical things I want to work out.
+
+## Task Simulation
+
+As I start working on building out an entire city, I'm confronted with a big question which is, how should NPCs handle tasks when they are _not_
+in the active map? Originally (based on the code), I think I was at least initially thinking of doing things this way:
+
+- NPCs have schedules, which define the task for a given hour
+- When the player enters a map, the NPCs for that map are loaded, and the current hour's schedule task is initialized and run
+
+This was fine for getting started, but now I realize that this simple system won't work for the bigger plans I have in mind for NPCs and the game world.
+First of all, NPCs will need to be able to travel around the game world. This travel may occur even when the player is not present (i.e. the NPC isn't in the active map).
+The most basic reason for this need is, some schedule tasks will be set for different maps: the NPC sleeps in his house, and then goes to work at the docks.
+We don't want the NPC to "teleport" from his house to the docks right at the hour of his dock working task, so he will be routed there. This means a couple things:
+
+1. While the NPC is not in the active map, we will be simulating his travel progress.
+2. If the player enters a map that is logically "along the way" to the NPC's task, and the progress suggests that the NPC should be in that map, then the NPC will
+   be loaded into the map and continue walking on his way.
+
+There will likely be other tasks in the future that need to run in the "simulation" background loop (as I'm calling it), but for now we at least have one concrete
+use case in the "routing" task.
+
+However, in order to have that routing process start even while the player is not in the NPC's house map, we need something checking in on what task an NPC should be
+doing at any given time. Take this scenario for instance:
+
+The player is in the town square map of Ravenna, and Publius, an NPC, is in his house map sleeping. The clock strikes a new hour, and according to Publius' schedule,
+he should wake up and go work at the harbor (which the town square happens to be along the path to).
+We need a way for Publius to have his task change from sleeping to routing to the harbor. Then, when Publius is, according to the logical progress of his routing task, supposed to
+be in the town square map, he should spawn in at the correct spawn point and walk across the map to his next door/portal to the next map in his routing path.
+
+We've described this process in a previous post, so today I'll be focused on figuring out the technical aspects of making this work.
+
+### Should NPCs Always be Running Tasks?
+
+This is the first thing to decide. Originally I was assuming that this was unnecessary; Unless the player is entering the map that the NPC is in, then there is
+no need to spend any resources processing updates to their tasks. However, this idea has one major flaw: How will we know which map the NPC ought to be in?
+
+Unless we have a system to determine the NPCs current map based on schedule and current hour, then we would have no way of knowing which map the NPC should be in at any given moment.
+We already have an "occupancy map" that says which map an NPC is currently in, but this would only get updated as NPC tasks update and need to move NPCs to new maps.
+
+It would be possible to come up with a deterministic function that tells you what map an NPC is in based on the schedule and hour, and that is an interesting idea the more
+I think of it. I think it would go something like this:
+
+- for the given hour, get the scheduled task.
+- if the current hour's scheduled task is different from the previous hour, check if the maps are different too.
+- if they are in different maps, then calculate the theoretical travel path and total travel time per map.
+- using these theoretical travel times, calculate exactly which map the NPC is supposed to be in.
+
+While I do think this would work well enough, if we truly don't do any background "simulation" of tasks, then that would mean that nothing in the game world could
+be changed by NPCs unless they were actively in the active map.  Which, isn't necessarily a big problem... But still, something about it feels incorrect to me.
+
+Another reason it would be a problem though is, we wouldn't be able to keep track of the MapOccupancy (map that tracks which NPCs are in which map) very well.
+Currently, we rely on that map being correct because it's used to determine which NPCs are supposed to be in a map when the player enters a map.
+So, if we don't have a background simulation that runs and keeps track of tasks, then we wouldn't be able to have this map automatically maintained and there would need
+to be something that periodically goes over all NPCs and makes sure they are in the correct map, given their tasks. I guess that work could even just only
+be done whenever a player changes maps, but that would cause longer load times.
+
+Another issue I just thought of is, without tasks being simulated for NPCs that aren't in the active map, then we wouldn't be able to have NPCs enter a map
+while the player is already in it. What I mean by this is, let's say the player is hanging around in the town square map. How would the game know if and when to have a new
+NPC enter the map? I guess that would still require some form of background NPC task checks or simulation, no matter how you go about things.
+I guess from here, we get to the specific question of "deterministic vs simulated progress": should an NPC's position be calculated in with a deterministic algorithm,
+or should it be tracked and updated as a task progresses in real (in-game) time?
+
+Generally, I do like the idea of determinism with functions. It's nice to know that something should always behave in the exact same way given the same inputs. And, maybe both methods
+would ultimately end up behaving that way. But, I imagine that at some point we will want to have tasks that do cause game world updates to occur in the background, so I think 
+it might ultimately serve us better to just assume that sort of system.
+
+So, I think the conclusion to this question is: yes, all NPCs should be running their scheduled tasks in the background, even if they aren't in the active map.
+The active map handles updates for the NPCs that are in it, and then a simulation loop runs in a separate goroutine that handles updates to other NPCs in other maps.
+We already have a 'hook' for this in tasks: I think it's called "SimulationUpdate". The idea is, you put some logic into this function which is effectively the "Update" function
+for a task while it's running in the background for an NPC that isn't in the active map. If a task doesn't need background updates, then this function implementation for the task 
+is just left empty.
+
+What this means though is, now we need to make sure to "kick off" all NPC's tasks at the start of the game - not just when the player enters the map where the NPC is.
+
+## Task Simulation - Technical Details 
+
+So, I think the task simulation can be done by a goroutine that runs parallel to the main Update loop. This is of course to prevent any sort of lag
+in the regular active map updates. If the game world ends up someday having hundreds of NPCs, and possibly many of those NPCs are needing to do pathfinding
+A* searches, then this will definitely be necessary.
+
+One important thing to consider though is, as NPCs move between maps, it's certainly possible that NPCs may go from using this background simulation to entering the 
+active map and using the main Update loop instead. When this happens, we need to ensure that no two goroutines are writing to the same data at the same time.
+
+To handle this, I think we can put a `sync.Mutex` on each NPC, which effectively serves as its "lock". Whenever changes are being made to an NPC, we should make the goroutine
+that is enacting the change get the lock on an NPC. This will help ensure that, if an NPC is actively moving into the active map, it won't accidentally be both updated
+by the simulation goroutine and the active map's update function at the same time. One will have to wait for the other to finish before working, in the event that they simultaneously
+fired. 
+
+Also, we will need to make simulation update ticks only happen at a standardized frequency; each tick will imply some time has passed, so we need to decide how much time that should be.
+Should it be every second? Every in-game minute? This is actually somewhat of a tricky issue, because we need to also decide how passage of time should work.
+If the player sleeps and 8 hours of in-game time passes, how do we handle that?  I don't think we should simulate 8 hours of simulation ticks, so I guess it would just result in
+starting up the scheduled task of whatever hour it is when the player wakes up. 
+
+So, I think we could go with the following system for now:
+
+- for regular time passage (game time ticking while in-map), a simulation tick happens every in-game minute (which is equivalent to 1 second).
+- for time lapses (sleeping, waiting, traveling, etc) the NPC just starts the task that is registered at the hour that time lapses to.
+
+This does leave open the problem of when an NPC is doing a Route task to a sufficiently far destination; what if the NPC is routing to a map that is on the opposite
+end of the game world? Perhaps the real in-game travel time is multiple days, so we wouldn't want the NPC to teleport to that distant location if the player waited for 2 hours.
+
+I suppose if an NPC is traveling to the opposite end of the game world (ex: Rome to Alexandria) then we will have to make some special handling of some kind. Somehow,
+the NPC will need to have a plan of travel that includes going to certain cities along the way, staying the night in certain inns, taking specific transportation like boats,
+etc. Since this travel plan would be longer than a single day, it's possible that it would require a sequence of daily schedules that have been calculated for the specific
+journey. We'll figure that out when the time comes.
+
 # 2026-04-01
 
 It's been a little bit, and I'm still in the middle of things, but I wanted to drop back in to add a quick update.

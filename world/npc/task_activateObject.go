@@ -1,6 +1,7 @@
 package npc
 
 import (
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
@@ -71,7 +72,10 @@ func (t *ActivateObjectTask) Update() {
 
 		dist := utils.EuclideanDistCoords(t.Owner.Entity.TilePos(), objPos)
 		if dist > 2 {
-			t.gotoTask = NewGotoTask(GotoTaskParams{TileX: objPos.X, TileY: objPos.Y}, t.Owner, t.GetPriority(), nil)
+			t.gotoTask = NewGotoTask(GotoTaskParams{TileX: objPos.X, TileY: objPos.Y}, t.Owner, defs.TaskDef{
+				TaskID:   TaskGoto,
+				Priority: t.GetPriority(),
+			})
 		} else {
 			// already close to the object, so no need to go to it
 			t.skipGoto = true
@@ -122,14 +126,16 @@ func (t *ActivateObjectTask) BackgroundAssist() {
 func (t *ActivateObjectTask) SimulationUpdate() {}
 
 func (n *NPC) handleObjectUpdate(obj *object.Object, res object.ObjectUpdateResult) {
+	if !res.UpdateOccurred {
+		panic("update didn't occur, but handleObjectUpdate was called")
+	}
 	switch obj.Type {
 	case object.TypeChair:
-		if res.UpdateOccurred {
-			n.Entity.SitInChair(obj)
-		}
+		n.Entity.SitInChair(obj)
 	case object.TypeBed:
-		if res.UpdateOccurred {
-			n.Entity.SleepInBed(obj)
-		}
+		n.Entity.SleepInBed(obj)
+	case object.TypeDoor:
+		// remove NPC from active map, and put them into the new map's occupancy
+		n.ActiveMapCtx.RemoveNPCFromActiveMap(n.CharacterStateRef.ID, res.ChangeMapID)
 	}
 }

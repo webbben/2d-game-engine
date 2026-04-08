@@ -35,7 +35,7 @@ func (n *NPC) Update() {
 }
 
 func (mgmt *TaskMGMT) Update() {
-	// check if current task is active, and if we should assign a task based on schedule
+	// NOTE: as of now, this function doesn't really do anything besides check for next tasks and/or remove ended tasks.
 
 	if mgmt.CurrentTask != nil {
 		if mgmt.CurrentTask.IsDone() {
@@ -50,9 +50,13 @@ func (mgmt *TaskMGMT) Update() {
 			return
 		}
 	}
+}
 
-	if mgmt.CurrentTask == nil {
-		// no task assigned; default to schedule
+// OnHourChange handles NPC updates that should occur on hour change. mainly consideration about if scheduled tasks should run.
+func (n *NPC) OnHourChange(hour int) {
+	if n.CurrentTask == nil || n.Schedule.Hourly[hour].TaskID != n.CurrentTask.GetID() {
+		logz.Println("OnHourChange", "NPC is changing scheduled task.", n.WhoAmI())
+		n.RunScheduleTask(hour, n)
 	}
 }
 
@@ -64,48 +68,52 @@ func (mgmt *TaskMGMT) RunScheduleTask(hour int, n *NPC) {
 	mgmt.RunTask(taskDef, n)
 }
 
+// RunTask is where a task is run for an NPC. These are "top level" tasks that define a fully fleshed chain of logic.
+//
+// Still considering if we should allow "sub tasks" to be run here.
+// On one hand, it's good to only do tasks that are designed to be flexible and have fallback behavior.
+// On the other hand, some quests or scenarios might make use of assigning smaller tasks one at a time to get a sequence of behaviors.
+// Like how the prison ship scenario goes, where a guard is assigned the Goto task, startdialog task, and goto tasks as a series of chained tasks.
 func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 	if taskDef.TaskID == "" {
 		panic("taskID was empty. if this is a 'do nothing' task, use the task ID for that.")
-		return
 	}
 
 	logz.Println(n.ID(), "attempting to run task:", taskDef.TaskID)
 
 	var t Task
 
-	// first, detect if we need to route ourselves to a new map before starting the main task
-	if taskDef.StartLocation != nil {
-		if n.CharacterStateRef.CurrentMap != taskDef.StartLocation.MapID {
-			// we need to move to a new map. let's set a "route" task and assign the main task as the "next task".
-			// then, we will let a background process handle actually running the path finding algorithm, since it could take slight performance.
-			t = NewRouteTask(RouteTaskParams{DestinationMapID: taskDef.StartLocation.MapID}, n, taskDef.Priority, &taskDef)
-		}
-	}
-
 	switch taskDef.TaskID {
 	case TaskDoNothing:
 		// do nothing tasks are just a way for the schedule to tell an NPC to... do nothing. be frozen in one spot.
+		// TODO: should we still make a task for this? it can just be an empty task with no logic in its update functions, of course.
 		n.CurrentTask = nil
 		return
 	case TaskIdle:
-		t = NewIdleTask(n, taskDef.Priority)
+		t = NewIdleTask(n, taskDef)
 	case TaskLounge:
-		t = NewLoungeTask(n, taskDef.Priority)
+		t = NewLoungeTask(n, taskDef)
 	case TaskSleep:
+		// Note: not passing whole task def because sleep task doesn't have things (as of now) like start location and such. that's just assumed to be home map.
 		t = NewSleepTask(n, taskDef.Priority)
 	case TaskGoto:
 		gotoParams, ok := taskDef.Params.(GotoTaskParams)
 		if !ok {
 			logz.Panicln("RunTask", "tried to run a task, but the params could not be converted into the right type. make sure you are using the right struct.")
 		}
-		t = NewGotoTask(gotoParams, n, taskDef.Priority, taskDef.NextTask)
+		t = NewGotoTask(gotoParams, n, taskDef)
 	case TaskStartDialog:
 		params, ok := taskDef.Params.(StartDialogTaskParams)
 		if !ok {
 			logz.Panicln("RunTask", "tried to run a task, but the params could not be converted into the right type. make sure you are using the right struct.")
 		}
-		t = NewStartDialogTask(params, n, taskDef.Priority, taskDef.NextTask)
+		t = NewStartDialogTask(params, n, taskDef)
+	case TaskBartender:
+		t = NewBartenderTask(n, taskDef)
+	case TaskRoute:
+		// these are tasks that we don't plan to allow as "top level" tasks (they are considered "sub-tasks" that should be used inside other tasks' logic)
+		// TODO: if we decide for sure that a task (like routing) should never be "top level", maybe we should make it private (lowercase) so that schedules can't add it.
+		logz.Panicln("TaskMGMT", "This task is not intended to use as a top-level task:", taskDef.TaskID, "If this is a mistake, we can always change that of course.")
 	default:
 		logz.Panicln("TaskMGMT", "unknown task ID:", taskDef.TaskID)
 	}

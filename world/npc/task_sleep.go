@@ -32,38 +32,45 @@ func NewSleepTask(n *NPC, p defs.TaskPriority) *SleepTask {
 }
 
 func (t *SleepTask) Update() {
-	switch t.Status {
-	case TaskNotStarted:
-		// find bed and start going to it
-		homeMap := t.Owner.CharacterStateRef.HomeMapID
-		if homeMap != t.Owner.CharacterStateRef.CurrentMap {
-			// if we aren't in the home map right now, then this NPC should route to his home map.
-			// TODO: add routing task
-			t.Status = TaskEnded
-			return
-		}
-		t.Status = TaskInProg
+	if t.IsDone() {
+		// task ended for some reason
+		return
+	}
+
+	if !t.RouteToStartMap(false) {
+		// we are routing to a different map
+		return
+	}
+	// we are in the start map (already - it should be the active map, and the character must've entered the map now or was already in it.)
+	if !t.InStartMap() {
+		panic("not in start map?")
+	}
+
+	if t.bedObj == nil {
+		// find the bed we are to sleep in
 		t.findBed()
 		if t.bedObj == nil {
 			panic("bed object was nil")
 		}
+		// go to the bed and activate it
 		t.activateObjectTask = NewActivateObjectTask(t.Owner, t.bedObj)
-	case TaskInProg:
-		// either going to the bed, or already in the bed
-		if t.inBed {
-			// in bed; nothing to do
-			return
-		}
-		if t.activateObjectTask != nil {
-			t.handleActivateObj()
-			return
-		}
-		// not in bed, and not activating bed object... what's going on?
-		logz.Panicln("SleepTask", "somehow, we are neither in bed or trying to activate the bed... npcID:", t.Owner.ID(), "bedID:", t.bedObj.ID)
-	case TaskEnded:
-		// task ended for some reason
 		return
 	}
+
+	if t.activateObjectTask != nil {
+		if t.inBed {
+			panic("NPC is in bed, but activateObjectTask wasn't cleared")
+		}
+		t.handleActivateObj()
+		return
+	}
+
+	if t.inBed {
+		// in the bed; mission accomplished
+		return
+	}
+
+	logz.Panicln("SleepTask", "somehow, we are neither in bed or trying to activate the bed... npcID:", t.Owner.ID(), "bedID:", t.bedObj.ID)
 }
 
 func (t *SleepTask) handleActivateObj() {
@@ -86,6 +93,7 @@ func (t *SleepTask) handleActivateObj() {
 			}
 
 			t.inBed = true
+			t.activateObjectTask = nil
 			return
 		}
 		// failed to activate bed...
@@ -104,7 +112,7 @@ func (t *SleepTask) handleActivateObj() {
 func (t *SleepTask) findBed() {
 	bedID := t.Owner.CharacterStateRef.HomeMapBedID
 	homeMap := t.Owner.CharacterStateRef.HomeMapID
-	for _, obj := range t.Owner.World.GetAllObjects() {
+	for _, obj := range t.Owner.ActiveMapCtx.GetAllObjects() {
 		if obj.ID == bedID {
 			if obj.Bed.InUse {
 				if obj.Bed.SleeperID != state.CharacterStateID(defs.PlayerID) {
@@ -130,10 +138,9 @@ func (t *SleepTask) findBed() {
 }
 
 func (t *SleepTask) SetupActiveState() {
-	homeMap := t.Owner.CharacterStateRef.HomeMapID
-	if t.Owner.CharacterStateRef.CurrentMap != homeMap {
-		// TODO: route to new map?
-		t.Status = TaskEnded
+	if !t.InStartMap() {
+		// if we aren't in start map at this function call, then we should already be routing there; setupActiveState for underlying routing task.
+		t.RouteToStartMapSetupActiveState()
 		return
 	}
 
@@ -144,6 +151,10 @@ func (t *SleepTask) SetupActiveState() {
 	// directly activate the bed, so that the NPC is already in it
 	// set the NPC in an open spot right next to the bed first, so that they have a valid "position before sleeping" set in entity
 	// this is to ensure that when the NPC leaves the bed, they will appear next to it as one would expect.
+
+	if t.Owner.Entity.IsSleeping {
+		logz.Panicln("SleepTask", "SetupActiveState was called, but for some reason the NPC was already sleeping... did entity not get reset from a previous map?", t.Owner.WhoAmI())
+	}
 
 	c := t.bedObj.TilePos()
 	nearest, found := t.Owner.getNearestOpenTile(c, 2, true)
@@ -168,9 +179,27 @@ func (t *SleepTask) SetupActiveState() {
 }
 
 func (t *SleepTask) BackgroundAssist() {
+	if !t.InStartMap() {
+		// sleep needs to route to a new map, so send bg assist to route so it can calculate the path
+		// NOTE: it seems there's a slim chance of background assist calling after the task starts, but before the task has had its routing set up.
+		// this is probably a race condition technically, but I think it won't be an issue if I handle it with this condition.
+		// However, if more race-condition stuff keeps happening in the future, maybe it'll be work adding some synchronization to the different goroutines,
+		// like a Mutex or something.
+		t.RouteToStartMapBgAssist()
+		return
+	}
+	if !t.InActiveMap() {
+		// NOTE: considered doing a panic here, but figured there is a bg assist calling at least one tick even after the task exited the active map,
+		// due to the separate goroutines/race case possibility.
+		// if we switch to mutexes, then this should be made into a panic.
+		return
+	}
 	if t.activateObjectTask != nil && !t.activateObjectTask.IsDone() {
 		t.activateObjectTask.BackgroundAssist()
 	}
 }
 
-func (t *SleepTask) SimulationUpdate() {}
+func (t *SleepTask) SimulationUpdate() {
+	// the only thing simulation needs to handle is getting the NPC to the right map
+	t.RouteToStartMap(true)
+}

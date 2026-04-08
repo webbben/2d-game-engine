@@ -31,6 +31,8 @@ const (
 	TypeBed   ObjectType = "BED"
 	TypeChair ObjectType = "CHAIR"
 
+	TypeTaskArea ObjectType = "TASK_AREA"
+
 	// Types that aren't actually supported here (specific cases)
 
 	TypeEntity ObjectType = "ENTITY" // This shouldn't be used for actual objects - just for static entities in maps that are defined by objects.
@@ -79,6 +81,8 @@ type Object struct {
 	animLastUpdate time.Time
 
 	MouseBehavior mouse.MouseBehavior
+
+	TaskArea TaskArea
 
 	Door Door
 
@@ -229,8 +233,8 @@ type WorldContext interface {
 }
 
 type Door struct {
-	targetMapID      defs.MapID
-	targetSpawnIndex int
+	TargetMapID      defs.MapID
+	TargetSpawnIndex int
 	openSoundID      defs.SoundID
 	activateType     string // "click", "step"
 }
@@ -384,6 +388,8 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 			o.addDefaultCollision()
 		}
 		o.loadChairObject(allProps)
+	case TypeTaskArea:
+		o.loadTaskAreaObject(allProps)
 	}
 
 	o.loadGlobal(allProps)
@@ -480,7 +486,7 @@ func (obj Object) validateGateObject() {
 
 func (obj Object) validateDoorObject() {
 	// make sure required properties are defined
-	if obj.Door.targetMapID == "" {
+	if obj.Door.TargetMapID == "" {
 		panic("door: no target map ID set. check Tiled object definition.")
 	}
 	if obj.Door.activateType == "" {
@@ -536,9 +542,9 @@ func (obj *Object) loadDoorObject(props []tiled.Property) {
 	for _, prop := range props {
 		switch prop.Name {
 		case PropDoorTo:
-			obj.Door.targetMapID = defs.MapID(prop.GetStringValue())
+			obj.Door.TargetMapID = defs.MapID(prop.GetStringValue())
 		case PropDoorSpawnIndex:
-			obj.Door.targetSpawnIndex = prop.GetIntValue()
+			obj.Door.TargetSpawnIndex = prop.GetIntValue()
 		case PropDoorActivate:
 			obj.Door.activateType = prop.GetStringValue()
 		case PropDoorSFX:
@@ -551,10 +557,14 @@ func (obj *Object) loadDoorObject(props []tiled.Property) {
 	}
 }
 
+const (
+	PropSpawnIndex string = "spawn_index"
+)
+
 func (obj *Object) loadSpawnObject(props []tiled.Property) {
 	for _, prop := range props {
 		switch prop.Name {
-		case "spawn_index":
+		case PropSpawnIndex:
 			obj.SpawnPoint.SpawnIndex = prop.GetIntValue()
 		}
 	}
@@ -589,6 +599,8 @@ func resolveObjectType(objType string) ObjectType {
 		return TypeBed
 	case TypeChair:
 		return TypeChair
+	case TypeTaskArea:
+		return TypeTaskArea
 	default:
 		panic("object type doesn't exist: " + objType)
 	}

@@ -47,7 +47,7 @@ type TaskDef struct {
 
 type TaskStartLocation struct {
 	MapID        MapID
-	TileX, TileY int // NOTE: we will disregard this if it is set to 0, 0, since that's the "zero value" but also, it's very unlikely to ever be used that way.
+	TileX, TileY *int // if not set, then we will assume the task logic can decide for itself where the NPC should go
 }
 
 type ScheduleDef struct {
@@ -57,6 +57,16 @@ type ScheduleDef struct {
 
 // BuildSchedule is a convenience function for building out an entire schedule, if there are only a few tasks that occur throughout the day.
 func BuildSchedule(id ScheduleID, hourlyTasks map[int]TaskDef) ScheduleDef {
+	// some quick validation to make sure hourlyTasks is not malformed
+	if len(hourlyTasks) > 24 {
+		logz.Panicln("BuildSchedule", "hourlyTasks has more than 24 hours of tasks!", id)
+	}
+	for hour := range hourlyTasks {
+		if hour < 0 || hour > 23 {
+			logz.Panicln("BuildSchedule", "hourlyTasks has an invalid hour value:", hour)
+		}
+	}
+
 	sched := ScheduleDef{
 		ID:     id,
 		Hourly: make(map[int]TaskDef),
@@ -70,6 +80,9 @@ func BuildSchedule(id ScheduleID, hourlyTasks map[int]TaskDef) ScheduleDef {
 		if !exists {
 			taskDef = lastTaskDef
 		} else {
+			if taskDef.TaskID == "" {
+				logz.Panicln("BuildSchedule", "a task def was set, but it had no task ID! Note that even for do-nothing task, you set a task ID.", id, i)
+			}
 			lastTaskDef = taskDef
 		}
 
@@ -81,10 +94,11 @@ func BuildSchedule(id ScheduleID, hourlyTasks map[int]TaskDef) ScheduleDef {
 		sched.Hourly[i] = taskDef
 	}
 
+	if lastTaskDef.TaskID == "" {
+		logz.Panicln("BuildScheudle", "is the whole schedule empty?", id)
+	}
+
 	if fillInMorning {
-		if lastTaskDef.TaskID == "" {
-			panic("is the whole schedule empty?")
-		}
 		for i := 0; sched.Hourly[i].TaskID == ""; i++ {
 			sched.Hourly[i] = lastTaskDef
 		}

@@ -46,3 +46,25 @@ type ConditionRand struct {
 func (c ConditionRand) IsMet(ctx defs.ConditionContext) bool {
 	return rand.Float32() < c.Percent
 }
+
+type ConditionMapID struct {
+	MapID defs.MapID
+}
+
+func (c ConditionMapID) IsMet(ctx defs.ConditionContext) bool {
+	return c.MapID == ctx.GetMapID()
+}
+
+// ConditionOR lets you do OR logic over a list of conditions. If any of them are true, then the whole condition is true.
+type ConditionOR struct {
+	Args []defs.DialogCondition
+}
+
+func (c ConditionOR) IsMet(ctx defs.ConditionContext) bool {
+	for _, arg := range c.Args {
+		if arg.IsMet(ctx) {
+			return true
+		}
+	}
+	return false
+}

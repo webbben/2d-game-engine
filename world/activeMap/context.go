@@ -6,12 +6,14 @@ import (
 
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/dialogv2"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/world/npc"
 )
 
@@ -121,4 +123,18 @@ func (m ActiveMap) GetCostMap() [][]int {
 
 func (m ActiveMap) GetAllNPCs() []*npc.NPC {
 	return m.NPCs
+}
+
+func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID state.CharacterStateID, toMap defs.MapID) {
+	for i, n := range m.NPCs {
+		if n.CharacterStateRef.ID == charStateID {
+			n.Entity.ResetActiveMapRuntimeState()
+			// move to the new map's occupancy
+			m.worldCtx.ChangeMapOccupancy(charStateID, m.MapID, toMap)
+			// remove from active map
+			m.NPCs = utils.RemoveIndexUnordered(m.NPCs, i)
+			return
+		}
+	}
+	logz.Panicln("RemoveNPCFromActiveMap", "NPC not found in active map:", charStateID)
 }

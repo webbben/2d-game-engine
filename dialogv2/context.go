@@ -163,6 +163,10 @@ func (ctx DialogContext) GetNPCDialogProfileID() defs.DialogProfileID {
 	return ctx.Profile.ProfileID
 }
 
+func (ctx DialogContext) GetMapID() defs.MapID {
+	return ctx.GameState.GetMapID()
+}
+
 func (ctx DialogContext) RecordMiscDialogMemory(key string) {
 	ctx.Profile.Memory[key] = true
 }
