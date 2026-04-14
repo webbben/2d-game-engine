@@ -98,7 +98,7 @@ func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID str
 		BoxOriginID:   16,
 		TextFont:      config.DefaultFont,
 	}
-	ds := dialogv2.NewDialogSession(params, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx)
+	ds := dialogv2.NewDialogSession(params, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx, mi.questman)
 	mi.dialogSession = &ds
 }
 
@@ -109,7 +109,7 @@ func (mi *ActiveMap) StartAdHocDialog(dr defs.DialogResponse) {
 		BoxOriginID:   16,
 		TextFont:      config.DefaultFont,
 	}
-	ds := dialogv2.NewAdhocDialogSession(params, dr, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx)
+	ds := dialogv2.NewAdhocDialogSession(params, dr, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx, mi.questman)
 	mi.dialogSession = &ds
 }
 

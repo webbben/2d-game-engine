@@ -55,6 +55,7 @@ func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState
 		GameState: gameState,
 		eventBus:  eventBus,
 		dataman:   dataman,
+		questman:  questman,
 	}
 	ds.seenTopics = make(map[defs.TopicID]bool)
 	ds.unlockedTopics = make(map[defs.TopicID]bool)

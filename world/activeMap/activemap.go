@@ -23,6 +23,7 @@ import (
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/utils"
@@ -55,6 +56,7 @@ type ActiveMap struct {
 	audioman  *audio.AudioManager
 	eventBus  *pubsub.EventBus
 	screenman *screen.ScreenManager
+	questman  *quest.QuestManager
 
 	DisplayName string // the name of the map shown to the player
 	Loaded      bool   // flag indicating if this map has been loaded
@@ -88,6 +90,7 @@ func NewActiveMap(
 	audioman *audio.AudioManager,
 	eventbus *pubsub.EventBus,
 	screenman *screen.ScreenManager,
+	questman *quest.QuestManager,
 	gameCtx defs.GameContext,
 	worldCtx WorldContext,
 	mapID defs.MapID,
@@ -105,6 +108,7 @@ func NewActiveMap(
 		audioman:    audioman,
 		eventBus:    eventbus,
 		screenman:   screenman,
+		questman:    questman,
 		gameCtx:     gameCtx,
 		worldCtx:    worldCtx,
 		Map:         tiledMap,
