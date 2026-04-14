@@ -1,17 +1,16 @@
 package object
 
 import (
-	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
 type Bed struct {
 	InUse     bool
-	SleeperID state.CharacterStateID // ID of character sleeping in the bed right now
-	OwnerID   state.CharacterStateID // ID of character who owns this bed.
+	SleeperID id.CharacterStateID // ID of character sleeping in the bed right now
 }
 
-func (b *Bed) LeaveBed(sleeperID state.CharacterStateID) {
+func (b *Bed) LeaveBed(sleeperID id.CharacterStateID) {
 	if sleeperID != b.SleeperID {
 		logz.Panicln("LeaveBed", "id passed in did not match sleeper ID. passed in:", sleeperID, "sleeperID:", b.SleeperID)
 	}

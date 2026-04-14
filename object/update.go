@@ -7,7 +7,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/utils"
@@ -56,8 +56,8 @@ func (obj *Object) Update(blockChanges bool) ObjectUpdateResult {
 
 // ObjectActivationParams provides contextual information needed for the logic that handles activating an object.
 type ObjectActivationParams struct {
-	ActivatorID state.CharacterStateID // the character that is trying to activate the object
-	LockIDs     []string               // locks the activator can unlock (has keys, etc)
+	ActivatorID id.CharacterStateID // the character that is trying to activate the object
+	LockIDs     []string            // locks the activator can unlock (has keys, etc)
 }
 
 func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams) ObjectUpdateResult {
@@ -98,86 +98,6 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 	return ObjectUpdateResult{}
 }
 
-func (obj *Object) activateDoor(params ObjectActivationParams) ObjectUpdateResult {
-	if obj.Type != TypeDoor {
-		panic("tried to activate as door, but object is not a door")
-	}
-	if obj.Door.TargetMapID == "" {
-		panic("activated door does not have a target map ID!")
-	}
-	if obj.Door.TargetSpawnIndex < 0 {
-		panic("activated door's target spawn index is negative! it should be a positive integer, including 0.")
-	}
-	if obj.Door.openSoundID == "" {
-		panic("activated door's open sound is empty!")
-	}
-
-	// TODO: should we define volume somewhere?
-	obj.AudioMgr.PlaySFX(obj.Door.openSoundID, 0.5)
-
-	// check if this is the player, or an NPC
-	// It doesn't actually change the logic here, since the calling code will handle it, but good to know.
-	if params.ActivatorID == state.CharacterStateID(defs.PlayerID) {
-		// player has activated the door
-		logz.Println("activateDoor", "Player going to map:", obj.Door.TargetMapID)
-	} else {
-		logz.Println("activateDoor", "NPC going to map:", obj.Door.TargetMapID)
-	}
-
-	return ObjectUpdateResult{
-		UpdateOccurred:      true,
-		ChangeMapID:         obj.Door.TargetMapID,
-		ChangeMapSpawnIndex: obj.Door.TargetSpawnIndex,
-	}
-}
-
-func (obj *Object) activateGate(fromX, fromY float64) ObjectUpdateResult {
-	if obj.Type != TypeGate {
-		panic("tried to activate gate, but object is not a gate")
-	}
-	if obj.Gate.changingState {
-		// can't open or close a gate if it's already changing state
-		return ObjectUpdateResult{}
-	}
-	if obj.World.GetPlayerRect().Intersects(obj.collisionRect) || obj.collidesWithEntityOrObject() {
-		// don't allow gate to open if the player or any NPC is standing in its way
-		return ObjectUpdateResult{}
-	}
-
-	// ensure the activation origin point (NPC/player position) isn't too far away
-
-	obj.Gate.changingState = true
-	obj.Gate.open = !obj.Gate.open
-	if obj.Gate.openSFXID == "" {
-		panic("gate has no open SFX set. make sure the 'SFX' property is set for this object in Tiled.")
-	}
-	obj.AudioMgr.PlaySFX(obj.Gate.openSFXID, 0.5)
-
-	return ObjectUpdateResult{
-		UpdateOccurred: true,
-	}
-}
-
-func (obj *Object) activateLight() ObjectUpdateResult {
-	if obj.Type != TypeLight {
-		panic("tried to activate light, but object is not a light")
-	}
-	logz.Println("OBJECT", "light activated")
-	obj.Light.On = !obj.Light.On
-	return ObjectUpdateResult{UpdateOccurred: true}
-}
-
-func (obj *Object) updateGate() ObjectUpdateResult {
-	if obj.Gate.changingState {
-		if obj.nextFrame(obj.Gate.open) {
-			obj.Gate.changingState = false
-		}
-		obj.PlayerHovering = false // don't show hover effect while gate is opening or closing
-	}
-
-	return ObjectUpdateResult{}
-}
-
 func (obj Object) collidesWithEntityOrObject() bool {
 	return obj.World.RectCollidesWithOthers(obj.GetRect(), "", obj.ID)
 }
@@ -205,20 +125,6 @@ func (obj *Object) nextFrame(forwards bool) (done bool) {
 	}
 
 	return false
-}
-
-func (obj *Object) updateDoor() ObjectUpdateResult {
-	switch obj.Door.activateType {
-	case "click":
-		// do nothing - object clicks are detected and handled within mapInfo handler function
-	case "step":
-		if obj.World.GetPlayerRect().Intersects(obj.rect) {
-			return obj.activateDoor(ObjectActivationParams{ActivatorID: state.CharacterStateID(defs.PlayerID)})
-		}
-	default:
-		panic("invalid activation type for door")
-	}
-	return ObjectUpdateResult{}
 }
 
 func (obj *Object) Draw(screen *ebiten.Image, offsetX, offsetY float64) {

@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 )
 
 type MapState struct {
@@ -47,6 +48,6 @@ type LockState struct {
 }
 
 type BedState struct {
-	MapObjID int              // ID (in Tiled) of the object that represents this bed
-	OwnerID  CharacterStateID // ID of the character (state) that owns this bed
+	MapObjID int                 // ID (in Tiled) of the object that represents this bed
+	OwnerID  id.CharacterStateID // ID of the character (state) that owns this bed
 }

@@ -12,6 +12,10 @@ func (g *Game) DialogCtxAddGold(amount int) {
 	characterstate.EarnMoney(&g.World.Player.CharacterStateRef.StandardInventory, amount, g.Dataman)
 }
 
+func (g *Game) RemoveGold(amount int) {
+	characterstate.SpendMoney(&g.World.Player.CharacterStateRef.StandardInventory, amount, g.Dataman)
+}
+
 func (g *Game) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef) {
 	// confirm this is the ID of a unique characterDef
 	charDef := g.Dataman.GetCharacterDef(id)

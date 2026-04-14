@@ -1,6 +1,11 @@
 // Package defs definitively defines definite definitions
 package defs
 
+import (
+	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/data/id"
+)
+
 type (
 	TopicID                 string
 	DialogProfileID         string
@@ -118,10 +123,15 @@ type DialogCondition interface {
 }
 
 type ConditionContext interface {
+	GetQuestStage(qid QuestID) (started, comp, fail bool, sid QuestStageID)
+	GetNPCCharStateID() id.CharacterStateID
 	GetMapID() MapID
 	HasSeenTopic(id TopicID) bool
 	IsTopicUnlocked(id TopicID) bool
+	HasMemory(key string) bool
 	GetCharacterDef(id CharacterDefID) CharacterDef
+	GetCharacterSocialRank(id id.CharacterStateID) SocialRank
+	CharacterHasRole(id id.CharacterStateID, roleID RoleID) bool
 	GetPlayerGold() int
 	GetNPCDialogProfileID() DialogProfileID
 }
@@ -136,12 +146,14 @@ type DialogEffect interface {
 }
 
 type EffectContext interface {
+	GetCurrentGameTime() clock.GameTime
 	RecordTopicSeen(id TopicID)
 	RecordTopicUnlocked(id TopicID)
 	RecordMiscDialogMemory(key string)
 	BroadcastEvent(event Event)
 
 	AddGold(amount int)
+	RemoveGold(amount int)
 
 	StartCustomLoadScreen(scrID ScreenID, open, close Transition, loadFunction func(ctx GameContext))
 	StartLoadScreen(loadFunction func(ctx GameContext))

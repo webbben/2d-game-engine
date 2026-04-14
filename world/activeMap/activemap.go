@@ -10,7 +10,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/entity"
@@ -32,10 +32,10 @@ import (
 
 type WorldContext interface {
 	// TODO: is this used here?
-	GenerateCharacter(chargen defs.CharacterGenerator, initialMap defs.MapID, homeMap defs.MapID, homeMapBedID int) state.CharacterStateID
+	GenerateCharacter(chargen defs.CharacterGenerator, initialMap defs.MapID, homeMap defs.MapID, homeMapBedID int) id.CharacterStateID
 	HandleMapDoor(result object.ObjectUpdateResult)
 	FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldPath, found bool)
-	ChangeMapOccupancy(charStateID state.CharacterStateID, fromMap, toMap defs.MapID)
+	ChangeMapOccupancy(charStateID id.CharacterStateID, fromMap, toMap defs.MapID)
 }
 
 // ActiveMap contains information about the current room the player is in

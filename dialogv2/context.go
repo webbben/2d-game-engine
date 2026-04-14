@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/quest"
 )
 
 const (
@@ -23,13 +27,14 @@ type DialogContext struct {
 	GameState defs.GameDialogContext
 	eventBus  *pubsub.EventBus
 	dataman   *datamanager.DataManager
+	questman  *quest.QuestManager
 
 	seenTopics     map[defs.TopicID]bool
 	unlockedTopics map[defs.TopicID]bool
 	seenResponses  map[string]bool
 }
 
-func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState defs.GameDialogContext, eventBus *pubsub.EventBus, dataman *datamanager.DataManager) DialogContext {
+func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState defs.GameDialogContext, eventBus *pubsub.EventBus, dataman *datamanager.DataManager, questman *quest.QuestManager) DialogContext {
 	// just confirming dialog context implements the necessary interfaces
 	_ = append([]defs.ConditionContext{}, &DialogContext{})
 	if profile == nil {
@@ -150,12 +155,16 @@ func (ctx *DialogContext) AddGold(amount int) {
 	ctx.GameState.DialogCtxAddGold(amount)
 }
 
+func (ctx *DialogContext) RemoveGold(amount int) {
+	ctx.GameState.RemoveGold(amount)
+}
+
 func (ctx DialogContext) GetCharacterDef(id defs.CharacterDefID) defs.CharacterDef {
 	return ctx.dataman.GetCharacterDef(id)
 }
 
 func (ctx DialogContext) GetPlayerGold() int {
-	playerState := ctx.dataman.GetCharacterState(state.CharacterStateID(defs.PlayerID))
+	playerState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
 	return playerState.CountMoney()
 }
 
@@ -179,4 +188,44 @@ func (ctx *DialogContext) StartCustomLoadScreen(scrID defs.ScreenID, open, close
 func (ctx *DialogContext) StartLoadScreen(loadFunction func(ctx defs.GameContext)) {
 	ctx.GameState.StartLoadScreen(loadFunction)
 	ctx.Exit = true
+}
+
+func (ctx DialogContext) HasMemory(key string) bool {
+	return ctx.Profile.Memory[key]
+}
+
+func (ctx DialogContext) GetCharacterSocialRank(id id.CharacterStateID) defs.SocialRank {
+	charState := ctx.dataman.GetCharacterState(id)
+	return charState.SocialRank
+}
+
+func (ctx DialogContext) GetNPCCharStateID() id.CharacterStateID {
+	return id.CharacterStateID(ctx.NPCID)
+}
+
+func (ctx DialogContext) CharacterHasRole(id id.CharacterStateID, roleID defs.RoleID) bool {
+	charState := ctx.dataman.GetCharacterState(id)
+	return charState.Roles[roleID]
+}
+
+func (ctx DialogContext) GetCurrentGameTime() clock.GameTime {
+	return ctx.GameState.GetCurrentGameTime()
+}
+
+func (ctx DialogContext) GetQuestStage(qid defs.QuestID) (started, comp, fail bool, sid defs.QuestStageID) {
+	status := ctx.questman.GetQuestStatus(qid)
+	switch status {
+	case quest.NotStarted:
+		return false, false, false, ""
+	case quest.Active:
+		stg := ctx.questman.GetActiveQuestStage(qid)
+		return true, false, false, stg.ID
+	case quest.Completed:
+		return true, true, false, ""
+	case quest.Failed:
+		return true, false, true, ""
+	default:
+		logz.Panicln("GetQuestStage", "unknown status?", status, qid)
+		return false, false, false, ""
+	}
 }

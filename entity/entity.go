@@ -6,6 +6,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/item"
@@ -205,7 +206,7 @@ func (e Entity) DisplayName() string {
 	return e.characterStateRef.DisplayName
 }
 
-func (e Entity) ID() state.CharacterStateID {
+func (e Entity) ID() id.CharacterStateID {
 	if e.characterStateRef == nil {
 		panic("character state ref was nil")
 	}
@@ -223,7 +224,7 @@ func (e Entity) IsPlayer() bool {
 
 // LoadCharacterStateIntoEntity loads a character state into an Entity, for rendering and interacting in a game map.
 // Grabs the character state from definition manager, outfits it in an entity, and prepares it for runtime use.
-func LoadCharacterStateIntoEntity(charStateID state.CharacterStateID, dataman *datamanager.DataManager, audioMgr *audio.AudioManager) *Entity {
+func LoadCharacterStateIntoEntity(charStateID id.CharacterStateID, dataman *datamanager.DataManager, audioMgr *audio.AudioManager) *Entity {
 	charState := dataman.GetCharacterState(charStateID)
 
 	// load body def from charDef
@@ -308,7 +309,7 @@ type NewCharacterStateParams struct {
 // - Or, perhaps a "generic" characterDef is being used to dynamically generate certain types of characters. In which case, this might go on later in the game.
 //
 // ... Basically, DON'T use this to "load an existing character back into the world". Each character only has this done to them once in their existence.
-func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterStateParams, dataman *datamanager.DataManager) state.CharacterStateID {
+func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterStateParams, dataman *datamanager.DataManager) id.CharacterStateID {
 	charDef := dataman.GetCharacterDef(charDefID)
 
 	// find unique ID based on this characterDefID
@@ -359,6 +360,8 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		DefID:       charDefID,
 		DisplayName: displayName,
 		IsPlayer:    params.IsPlayer,
+		Roles:       make(map[defs.RoleID]bool),
+		SocialRank:  charDef.SocialRank,
 
 		CurrentMap:   params.InitialMapID,
 		HomeMapID:    params.HomeMapID,
@@ -370,6 +373,11 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		BaseAttributes: charDef.BaseAttributes,
 		BaseSkills:     charDef.BaseSkills,
 		Traits:         charDef.InitialTraits,
+	}
+
+	// add roles
+	for _, roleID := range charDef.InitialRoles {
+		charState.Roles[roleID] = true
 	}
 
 	// check if this characters' dialog profile has a state created yet. if not, create it now.

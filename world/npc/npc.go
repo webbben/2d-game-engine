@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
@@ -22,12 +23,12 @@ import (
 type WorldContext interface {
 	GetActiveMapID() defs.MapID // this is here instead of activeMapContext so that NPCs can check it without being in the active world
 	FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldPath, foundPath bool)
-	ChangeMapOccupancy(charStateID state.CharacterStateID, from, to defs.MapID)
-	AddNPCToActiveMap(charStateID state.CharacterStateID, spawnIndex int)
+	ChangeMapOccupancy(charStateID id.CharacterStateID, from, to defs.MapID)
+	AddNPCToActiveMap(charStateID id.CharacterStateID, spawnIndex int)
 }
 
 type ActiveMapContext interface {
-	RemoveNPCFromActiveMap(charStateID state.CharacterStateID, toMap defs.MapID)
+	RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMap defs.MapID)
 
 	FindNPCAtPosition(c model.Coords) (NPC, bool)
 	FindObjectsAtPosition(c model.Coords) []*object.Object
@@ -100,7 +101,7 @@ func (n NPC) X() float64 {
 }
 
 type NPCParams struct {
-	CharStateID state.CharacterStateID
+	CharStateID id.CharacterStateID
 }
 
 // NewNPC instantiates an NPC for use in a game world or scenario.

@@ -6,7 +6,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/dialogv2"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
@@ -125,7 +125,7 @@ func (m ActiveMap) GetAllNPCs() []*npc.NPC {
 	return m.NPCs
 }
 
-func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID state.CharacterStateID, toMap defs.MapID) {
+func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMap defs.MapID) {
 	for i, n := range m.NPCs {
 		if n.CharacterStateRef.ID == charStateID {
 			n.Entity.ResetActiveMapRuntimeState()

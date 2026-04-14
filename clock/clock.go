@@ -176,6 +176,14 @@ func (gt GameTime) IsAfter(other GameTime) bool {
 	return false
 }
 
+func (gt GameTime) IsEqual(other GameTime) bool {
+	return gt.Minute == other.Minute &&
+		gt.Hour == other.Hour &&
+		gt.DayOfSeason == other.DayOfSeason &&
+		gt.Season == other.Season &&
+		gt.Year == other.Year
+}
+
 func (c *Clock) PassTime(hours int) {
 	c.AddTime(hours)
 }

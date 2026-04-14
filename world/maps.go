@@ -2,6 +2,7 @@ package world
 
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/logz"
@@ -95,7 +96,7 @@ func (w *World) CreateNewMapState(mapID defs.MapID) {
 					logz.Panicln("CreateNewMapState", "a lock was put on a bed, which doesn't make any sense.", obj.Name, obj.ID, "mapID:", mapID)
 				}
 				// instantiate the NPC that is associated with this bed
-				var charStateID state.CharacterStateID
+				var charStateID id.CharacterStateID
 				charGenID, found := tiled.GetStringProperty("characterGeneratorID", objectInfo.AllProps)
 				if found {
 					charGen := w.Dataman.GetCharacterGenerator(charGenID)

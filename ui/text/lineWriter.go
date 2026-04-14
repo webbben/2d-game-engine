@@ -246,7 +246,7 @@ func (lw *LineWriter) drawText(s string) {
 		logz.Panicln("LineWriter", "it looks like the cursor is drawing text left of the text box (clipping it at the beginning)", "cursorX:", lw.cursorX)
 	}
 	if lw.cursorX+dx > lw.maxLineWidth+lw.cursorOffsetX {
-		logz.Panicln("LineWriter", "it looks like the cursor is drawing text right of the text box (clipping it at the end)", "cursorX:", lw.cursorX, "dx:", dx, "maxWidth:", lw.maxLineWidth, "s:", s)
+		logz.Panicln("LineWriter", "it looks like the cursor is drawing text right of the text box (clipping it at the end)", "cursorX:", lw.cursorX, "dx:", dx, "maxWidth:", lw.maxLineWidth, fmt.Sprintf("s: \"%s\"", s))
 	}
 
 	// TODO: detect things like underscores, which should change the color of the text.
@@ -364,6 +364,9 @@ func (lw *LineWriter) FastForward() {
 	lw.resetCursor()
 	lw.textImg.Clear()
 	for _, line := range currentPage {
+		// had a situation where one extra space was at the end of a sentence, which caused it to overflow and clip the right side.
+		// TODO: should we just trim this when creating the pages in the first place?
+		line = strings.TrimSpace(line)
 		// Note: we draw character by character since, soon, I plan to add logic that checks an individual character and changes draw behavior
 		// e.g. drawing asides in a different color by using underscores
 		// even though this looks pretty inefficient, realistically I don't think it'll have any impact

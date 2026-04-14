@@ -9,8 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/data/state"
-	"github.com/webbben/2d-game-engine/internal/lights"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/mouse"
@@ -39,7 +38,9 @@ const (
 )
 
 const (
-	PropOnObjID = "on_obj_id" // if set, this object should render on top of another object
+	PropOnObjID     = "on_obj_id" // if set, this object should render on top of another object
+	PropOwnerCharID = "owner_id"  // if set, a unique character of the given ID owns this object. note that this doesn't work for non-unique characters.
+	PropRoleID      = "role_id"   // if set, characters with this role can use this object or effective assume "ownership" (in the absense of a specific owner character.)
 )
 
 // TODO: *Sigh* this probably could use some refactoring. I've been avoiding admitting it, but it would most likely work cleaner as an interface.
@@ -50,7 +51,7 @@ const (
 type Object struct {
 	Name string // TODO: I don't think most objects actually have Names; the name property in Tiled is usually left empty.
 
-	targetedByNPC state.CharacterStateID // if set, this means an NPC is currently trying to come and activate this object.
+	targetedByNPC id.CharacterStateID // if set, this means an NPC is currently trying to come and activate this object.
 
 	mapID defs.MapID // used for knowing which map state to check
 
@@ -58,6 +59,11 @@ type Object struct {
 	Type       ObjectType // NOT from Tiled; set by our code in Load
 	xPos, yPos float64    // logical position in the map
 	zOffset    int        // for influencing render order
+
+	// Ownership and roles - determines who can use objects such as beds and chairs.
+
+	OwnerID id.CharacterStateID // ID of character who owns this object
+	RoleID  defs.RoleID         // ID of role that owns or is assigned to this object
 
 	// some confusing object render order stuff
 
@@ -82,17 +88,14 @@ type Object struct {
 
 	MouseBehavior mouse.MouseBehavior
 
-	TaskArea TaskArea
+	// object-specific data
 
-	Door Door
-
-	Gate Gate
-
-	Light Light
-
-	Bed   Bed
-	Chair Chair
-
+	TaskArea   TaskArea
+	Door       Door
+	Gate       Gate
+	Light      Light
+	Bed        Bed
+	Chair      Chair
 	SpawnPoint SpawnPoint
 
 	World WorldContext
@@ -103,7 +106,7 @@ type Object struct {
 	dataman  *datamanager.DataManager
 }
 
-func (obj *Object) SetTargetingNPC(id state.CharacterStateID) {
+func (obj *Object) SetTargetingNPC(id id.CharacterStateID) {
 	if obj.targetedByNPC != "" {
 		logz.Panicln("Object", "tried to set targeting NPC, but there was already another ID set... make sure you clear it before trying to set a new one. existing id:", obj.targetedByNPC, "new id:", id)
 	}
@@ -114,7 +117,7 @@ func (obj *Object) ClearTargetingNPC() {
 	obj.targetedByNPC = ""
 }
 
-func (obj Object) GetTargetingNPC() state.CharacterStateID {
+func (obj Object) GetTargetingNPC() id.CharacterStateID {
 	return obj.targetedByNPC
 }
 
@@ -218,11 +221,6 @@ func (obj Object) TilePos() model.Coords {
 	return model.GetTilePosOfRectCenter(obj.GetRect())
 }
 
-type Light struct {
-	Light *lights.Light
-	On    bool
-}
-
 type WorldContext interface {
 	// Used for checking how far an object is from the player, when the player tries to activate it (among other things).
 	// TODO: should we have this? also, it seems possible that NPCs will need to be able to activate objects (like doors, to open them)
@@ -230,23 +228,6 @@ type WorldContext interface {
 
 	// Used for checking if an object like a gate has other entities colliding with it
 	RectCollidesWithOthers(r model.Rect, excludeEntID string, excludeObjID int) bool
-}
-
-type Door struct {
-	TargetMapID      defs.MapID
-	TargetSpawnIndex int
-	openSoundID      defs.SoundID
-	activateType     string // "click", "step"
-}
-
-type Gate struct {
-	open          bool
-	changingState bool
-	openSFXID     defs.SoundID
-}
-
-func (g Gate) IsOpen() bool {
-	return g.open && !g.changingState
 }
 
 type SpawnPoint struct {
@@ -356,6 +337,19 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	// other flags set in objects
 	noCollision, _ := tiled.GetBoolProperty("no_collision", allProps)
 
+	// check ownership and roles
+	ownerID, found := tiled.GetStringProperty(PropOwnerCharID, allProps)
+	if found {
+		o.OwnerID = id.CharacterStateID(ownerID)
+	}
+	roleID, found := tiled.GetStringProperty(PropRoleID, allProps)
+	if found {
+		o.RoleID = defs.RoleID(roleID)
+	}
+	if o.OwnerID != "" && o.RoleID != "" {
+		logz.Panicln("LoadObject", "object has both an owner and role ID; this can cause problems with NPCs correctly identifying who should use this object. only set one of these.")
+	}
+
 	// load data for specific object type
 	switch o.Type {
 	case TypeDoor:
@@ -408,17 +402,6 @@ func (obj *Object) loadGlobal(props []tiled.Property) {
 	zOffset, found := tiled.GetIntProperty("z_offset", props)
 	if found {
 		obj.zOffset = zOffset
-	}
-}
-
-func (obj *Object) loadLightObject(props []tiled.Property) {
-	lightProps := tiled.GetLightProps(props)
-
-	l := lights.NewLight(int(obj.xPos+float64(obj.Width/2)), int(obj.yPos+float64(obj.Height/2)), lightProps, nil)
-
-	obj.Light = Light{
-		Light: &l,
-		On:    true,
 	}
 }
 
@@ -484,43 +467,6 @@ func (obj Object) validateGateObject() {
 	}
 }
 
-func (obj Object) validateDoorObject() {
-	// make sure required properties are defined
-	if obj.Door.TargetMapID == "" {
-		panic("door: no target map ID set. check Tiled object definition.")
-	}
-	if obj.Door.activateType == "" {
-		panic("door: no activate type set. check Tiled object definition.")
-	}
-	switch obj.Door.activateType {
-	case "click":
-	case "step":
-	default:
-		logz.Panicf("door [%s]: invalid activation type set: %s. check Tiled object definition.", obj.Name, obj.Door.activateType)
-	}
-
-	if obj.Door.openSoundID == "" {
-		logz.Panicf("door [%s]: no openSound defined. check Tiled object definition.", obj.Name)
-	}
-}
-
-func (obj *Object) loadGateObject(props []tiled.Property) {
-	for _, prop := range props {
-		switch prop.Name {
-		case "SFX":
-			gateSoundID := defs.SoundID(prop.GetStringValue())
-			if gateSoundID == "" {
-				panic("no gate sound ID found. TODO: should we make a default one?")
-			}
-			obj.Gate.openSFXID = gateSoundID
-		}
-	}
-
-	if obj.Gate.openSFXID == "" {
-		panic("no open SFX ID set for gate. make sure to set the 'SFX' property for this object in Tiled.")
-	}
-}
-
 func (obj *Object) addDefaultCollision() {
 	obj.collisionRect = model.Rect{
 		X: obj.xPos,
@@ -529,32 +475,6 @@ func (obj *Object) addDefaultCollision() {
 		H: config.TileSize,
 	}
 	obj.collidable = true
-}
-
-const (
-	PropDoorTo         string = "door_to"
-	PropDoorSpawnIndex string = "door_spawn_index"
-	PropDoorActivate   string = "door_activate"
-	PropDoorSFX        string = "SFX"
-)
-
-func (obj *Object) loadDoorObject(props []tiled.Property) {
-	for _, prop := range props {
-		switch prop.Name {
-		case PropDoorTo:
-			obj.Door.TargetMapID = defs.MapID(prop.GetStringValue())
-		case PropDoorSpawnIndex:
-			obj.Door.TargetSpawnIndex = prop.GetIntValue()
-		case PropDoorActivate:
-			obj.Door.activateType = prop.GetStringValue()
-		case PropDoorSFX:
-			doorSound := prop.GetStringValue()
-			if doorSound == "" {
-				logz.Panicln("Door", "no door sound found (prop SFX). object:", obj.Name, obj.ID)
-			}
-			obj.Door.openSoundID = defs.SoundID(doorSound)
-		}
-	}
 }
 
 const (
