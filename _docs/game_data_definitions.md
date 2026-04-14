@@ -48,6 +48,7 @@ type CharacterDef struct {
     BaseAttributes map[AttributeID]int     // starting stats
     BaseSkills     map[SkillID]int         // starting skill levels
     InitialTraits  []TraitID               // personality traits
+    InitialRoles   []RoleID                // roles (faction, rank, access)
     BaseVitals     Vitals                 // starting health/stamina
 }
 ```
@@ -58,6 +59,44 @@ type CharacterDef struct {
 - **ClassName vs ClassDefID**: `ClassName` is for display purposes (what the player sees), while `ClassDefID` references the actual class definition with skill categories and favored attributes.
 - **InitialInventory**: Starting equipment and items. Includes both backpack items and equipped slots.
 - **BaseAttributes/Skills**: Starting values before modifiers from traits, equipment, or other sources.
+- **InitialRoles**: Roles the character starts with (see below).
+
+---
+
+## Roles
+
+Roles are flexible identifiers for character status. They are **not** for character class (barbarian, warlock, etc.)—use `ClassDef` for that. Roles are for:
+
+**1. Faction membership**
+```go
+InitialRoles: []RoleID{"thieves_guild_member", "royal_servant"}
+```
+
+**2. Faction rank/hierarchy**
+```go
+InitialRoles: []RoleID{"fighters_guild_rank_journeyman"}
+```
+
+**3. Temporary access/permissions**
+```go
+InitialRoles: []RoleID{"lions_den_inn_guest"}  // Can sleep at inn
+```
+
+**4. Special status**
+```go
+InitialRoles: []RoleID{"wanted_criminal", "blessed_by_priest"}
+```
+
+**Roles vs Class:**
+| Use Case | Use |
+|----------|-----|
+| Character class (barbarian, warlock, rogue) | `ClassDef` (separate system) |
+| Faction membership | Roles |
+| Faction rank/title | Roles |
+| Temporary access permissions | Roles |
+| Quest/story status | Roles |
+
+Roles can be granted and revoked dynamically during gameplay. Check roles in dialog using `ConditionHasRole`.
 
 ---
 

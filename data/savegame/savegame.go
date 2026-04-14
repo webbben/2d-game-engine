@@ -13,6 +13,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
@@ -74,7 +75,7 @@ func SaveGame(
 
 	// sanity checks; make sure things exist
 	_ = dataman.GetMapDef(mapID)
-	_ = dataman.GetCharacterState(state.CharacterStateID(defs.PlayerID))
+	_ = dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
 
 	// get player def
 	playerDef := dataman.GetCharacterDef(defs.PlayerID)

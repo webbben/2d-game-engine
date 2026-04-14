@@ -5,14 +5,14 @@ import (
 	"math/rand"
 
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/entity"
 )
 
 // GenerateCharacter simply generates a new instance of a character, using the given Character Generator.
 // Assumes that the character SHOULD be generated, so make sure you do the necessary validation there before deciding to call this.
 // (e.g. is the bed associated with this character generator open? if not, you would be instantiating more than one character for a given bed.)
-func (w *World) GenerateCharacter(chargen defs.CharacterGenerator, initialMap defs.MapID, homeMap defs.MapID, homeMapBedID int) state.CharacterStateID {
+func (w *World) GenerateCharacter(chargen defs.CharacterGenerator, initialMap defs.MapID, homeMap defs.MapID, homeMapBedID int) id.CharacterStateID {
 	if initialMap == "" {
 		panic("initial map was empty")
 	}

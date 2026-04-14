@@ -13,6 +13,7 @@ import (
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/ui/box"
 	"github.com/webbben/2d-game-engine/ui/button"
@@ -140,6 +141,7 @@ func NewDialogSession(
 	dataman *datamanager.DataManager,
 	scrMgr *screen.ScreenManager,
 	gameCtx defs.GameContext,
+	questman *quest.QuestManager,
 ) DialogSession {
 	validateParams(params, eventBus, dataman, gameCtx, scrMgr)
 
@@ -148,7 +150,7 @@ func NewDialogSession(
 	profileDef := dataman.GetDialogProfile(params.ProfileID)
 	profileState := dataman.GetDialogProfileState(params.ProfileID)
 
-	ctx := NewDialogContext(params.NPCID, profileState, gameCtx, eventBus, dataman)
+	ctx := NewDialogContext(params.NPCID, profileState, gameCtx, eventBus, dataman, questman)
 	ds := DialogSession{
 		scrMgr:       scrMgr,
 		ctxForScreen: gameCtx,
@@ -206,6 +208,8 @@ func validateParams(params DialogSessionParams, eventBus *pubsub.EventBus, datam
 // NewAdhocDialogSession is similar to the regular Dialog Session, but just starts the dialog with a provided, "ad-hoc" dialog response.
 // This is for manually injecting a starting dialog response, as opposed to using the logic built into a dialog profile.
 // Used in cutscene dialogs.
+//
+// NOTE: this isn't really used... I think we were planning for this in cutscenes, but cutscenes aren't actually used/implemented fully yet.
 func NewAdhocDialogSession(
 	params DialogSessionParams,
 	dr defs.DialogResponse,
@@ -213,6 +217,7 @@ func NewAdhocDialogSession(
 	dataman *datamanager.DataManager,
 	scrMgr *screen.ScreenManager,
 	gameCtx defs.GameContext,
+	questman *quest.QuestManager,
 ) DialogSession {
 	// set this, just so validation doesn't squack at us - adhoc doesn't use profiles
 	params.ProfileID = "CUTSCENE"
@@ -221,7 +226,7 @@ func NewAdhocDialogSession(
 	// since adhoc doesn't need to save any state, we will just make an empty stand-in
 	profileState := state.DialogProfileState{}
 
-	ctx := NewDialogContext(params.NPCID, &profileState, gameCtx, eventBus, dataman)
+	ctx := NewDialogContext(params.NPCID, &profileState, gameCtx, eventBus, dataman, questman)
 	ds := DialogSession{
 		scrMgr:       scrMgr,
 		ctxForScreen: gameCtx,

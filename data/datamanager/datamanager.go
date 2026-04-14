@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/utils"
@@ -30,7 +31,7 @@ type DataManager struct {
 	FootstepSFXDefs map[defs.FootstepSFXDefID]defs.FootstepSFXDef
 
 	CharacterDefs       map[defs.CharacterDefID]defs.CharacterDef
-	CharacterStates     map[state.CharacterStateID]*state.CharacterState
+	CharacterStates     map[id.CharacterStateID]*state.CharacterState
 	CharacterGenerators map[string]defs.CharacterGenerator
 
 	AttributeDefs map[defs.AttributeID]defs.AttributeDef
@@ -57,7 +58,7 @@ func NewDataManager() *DataManager {
 		DialogTopics:        make(map[defs.TopicID]*defs.DialogTopic),
 		DialogProfileStates: make(map[defs.DialogProfileID]*state.DialogProfileState),
 		CharacterDefs:       make(map[defs.CharacterDefID]defs.CharacterDef),
-		CharacterStates:     make(map[state.CharacterStateID]*state.CharacterState),
+		CharacterStates:     make(map[id.CharacterStateID]*state.CharacterState),
 		CharacterGenerators: make(map[string]defs.CharacterGenerator),
 		NPCSchedules:        make(map[defs.ScheduleID]defs.ScheduleDef),
 		CultureDefs:         make(map[defs.CultureID]defs.CultureDef),
@@ -255,7 +256,7 @@ func (dataman *DataManager) LoadCharacterState(charState *state.CharacterState) 
 	dataman.CharacterStates[charState.ID] = charState
 }
 
-func (dataman *DataManager) GetCharacterState(id state.CharacterStateID) *state.CharacterState {
+func (dataman *DataManager) GetCharacterState(id id.CharacterStateID) *state.CharacterState {
 	if id == "" {
 		panic("id was empty")
 	}
@@ -268,22 +269,22 @@ func (dataman *DataManager) GetCharacterState(id state.CharacterStateID) *state.
 
 // GetNewCharStateID generates a new and unique CharacterStateID that is guaranteed to not be defined in definitionMgr yet.
 // Also uses the charDefID as its base, for convenience and search-ability
-func (dataman DataManager) GetNewCharStateID(defID defs.CharacterDefID) state.CharacterStateID {
+func (dataman DataManager) GetNewCharStateID(defID defs.CharacterDefID) id.CharacterStateID {
 	charDef := dataman.GetCharacterDef(defID)
-	var id state.CharacterStateID
+	var charID id.CharacterStateID
 	if charDef.Unique {
 		// if unique, we just use the def ID
-		id = state.CharacterStateID(defID)
+		charID = id.CharacterStateID(defID)
 	} else {
-		id = state.CharacterStateID(fmt.Sprintf("%s_%s", defID, utils.GenerateUUID()[:8]))
+		charID = id.CharacterStateID(fmt.Sprintf("%s_%s", defID, utils.GenerateUUID()[:8]))
 	}
-	if _, exists := dataman.CharacterStates[id]; exists {
+	if _, exists := dataman.CharacterStates[charID]; exists {
 		if charDef.Unique {
 			logz.Panicln("DataManager", "Tried to get charStateID for a unique character def, but the base characterDefID was already taken. ensure this characterDef is not instantiated more than once:", defID)
 		}
 		logz.Panicln("DataManager", "Generated Unique ID for Character State was already registered... is this possible?")
 	}
-	return id
+	return charID
 }
 
 func (dataman *DataManager) LoadDialogTopic(topic *defs.DialogTopic) {

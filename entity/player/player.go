@@ -5,6 +5,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
@@ -44,7 +45,7 @@ func NewPlayer(dataman *datamanager.DataManager, ent *entity.Entity) Player {
 		panic("player must have entity")
 	}
 
-	charState := dataman.GetCharacterState(state.CharacterStateID(defs.PlayerID))
+	charState := dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
 
 	return Player{
 		CharacterStateRef: charState,

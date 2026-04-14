@@ -1,3 +1,57 @@
+# 2026-04-12
+
+I just wanted to add a screenshot of the first city I'm making, Aquileia. This is how it looks in Tiled, when viewed as a collection of maps in the game world.
+Not very developed yet, but I've put together a rough outline of what the city may end up looking like. It mainly consists of a central map that is the forum, and
+3 maps around it that represent each "gate" area. I made this city while actually trying to study what Aquileia would've been like (roughly speaking) in antiquity,
+but of course I'm only working with maps I've found on wikipedia, and some basic information about Roman cities, such as the road layouts, what kind of buildings you'd 
+find in a forum, and things like that. Aquileia's overall size and other characteristics may come to represent what a "medium sized" city in the game is like.
+Perhaps villages or smaller towns will only consist of one or two maps, while larger cities may have many more. For example, I'm considering designing Rome where each of its 
+districts (as defined in ancient city) are their own maps - which could mean I end up making something like 10 or 12 maps if I remember correctly. So Rome could up being
+quite huge, but we will see if I end up having enough time for that.
+
+I'll include more screenshots in the future as things continue to develop.
+
+![Aquileia](./20260412.png)
+
+# 2026-04-09
+
+Today I want to explore a new concept which I've been considering recently: the concept of "roles" for characters/NPCs.
+
+## Roles
+
+So firstly, let me explain why I'm considering this. Up until this point, objects in maps have needed a way to identify with certain characters.
+For example, certain beds should be "owned" by certain characters, since characters usually shouldn't let random people sleep in their beds.
+
+The same logic could be applied to chairs: if a chair has a specific purpose, like being the chair at a certain character's desk, it would be weird for a random
+character to sit in that chair. It would be even weirder if, say, a random person in the imperial palace were to sit in the emperor's throne.
+
+So, my first idea has been to assign objects "owner" characters. If a bed or chair has an owner, then only that character should be allowed to use it.
+
+That works well enough, but what about the case where the specific character's ID isn't certain? This could happen in a few different situations, like
+if if the character is an auto-generated NPC whose ID is not known until runtime. Or it could happen if a character were temporarily staying in a new
+place, like an inn for example; a bed in an inn will not be able to have a specific character ID assigned to it.
+
+So what's the solution here? I think each character can be assigned a list of "roles" which will give it access to different things.
+In the example of chairs and beds, a chair and bed in a private room in an inn could have the role "aquileia_tavern01_room01" or something like that.
+This tells the game that only a character with this specific role can use these (at least for NPCs). And, so, if an NPC were to stay at a tavern, they would
+be given the specific role for that room. The same applies to the player, so that the player can safely use the bed in his room at the inn without possibly
+breaking the law or upsetting other characters.
+
+The more I think about it, I realize that roles could be used for other things as well. They could be used for accessing locked places;
+ordinarily the tavern room doors would be locked, but when the player has the role assigned to him, he now can open those doors (even though he doesn't have a key item for it).
+Roles could also include more generalized definitions, such as ones that simply denote their rank in a faction or general trade/purpose (you might say "role" even) in the game.
+A shopkeeper might have "shopkeeper" role which lets the NPC get behind the counter in a shop. In a legion barracks, the regular bunks might be for characters who have 
+the rank of "legionary_recruit" while the main bedroom/office has beds and chairs for the role of "legion_centurion". This way, even if a different legion were
+temporarily staying in a new barracks, all the soldiers would be able to figure out their correct places.
+
+## Conclusion 
+
+So, anyway, I'm now thoroughly convinced on this "role" business and I'll get to work on implementing it. Shouldn't take too long to set up the basic infrastructure,
+just a map for each character state to know what roles he or she has, and then some new property types in Tiled objects.
+
+Same as yesterday, I'm still working on creating a city, so this will play into that in terms of making some new characters that know correctly which beds to sleep in 
+and chairs to sleep in. The innkeeper should hopefully soon know that he should sleep in his own bed, not the guest beds!
+
 # 2026-04-08
 
 I'm happy to say that I've managed to make some pretty big changes to the NPC task management system and AI.

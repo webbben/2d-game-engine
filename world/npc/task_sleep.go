@@ -2,7 +2,7 @@ package npc
 
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/data/id"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/object"
@@ -114,8 +114,12 @@ func (t *SleepTask) findBed() {
 	homeMap := t.Owner.CharacterStateRef.HomeMapID
 	for _, obj := range t.Owner.ActiveMapCtx.GetAllObjects() {
 		if obj.ID == bedID {
+			if !t.Owner.SatisfiesObjectOwnership(*obj) {
+				// don't sleep in someone else's bed
+				continue
+			}
 			if obj.Bed.InUse {
-				if obj.Bed.SleeperID != state.CharacterStateID(defs.PlayerID) {
+				if obj.Bed.SleeperID != id.CharacterStateID(defs.PlayerID) {
 					logz.Panicln("SleepTask", "Another (non-player) character appears to be sleeping in NPC's bed! npcID:", t.Owner.ID(), "bedID:", bedID, "sleeperID:", obj.Bed.SleeperID)
 				}
 				// the player is using this NPC's bed... we should probably cause something to happen, but let's just cancel the task for now.
@@ -124,7 +128,7 @@ func (t *SleepTask) findBed() {
 			}
 			targetingNPC := obj.GetTargetingNPC()
 			if targetingNPC != "" {
-				if targetingNPC == state.CharacterStateID(defs.PlayerID) {
+				if targetingNPC == id.CharacterStateID(defs.PlayerID) {
 					// player is... targeting the bed?  doesn't seem possible, since player doesn't use tasks right?
 					logz.Panicln("SleepTask", "player is apparently targeting the bed... this shouldnt be happening, right?")
 				}

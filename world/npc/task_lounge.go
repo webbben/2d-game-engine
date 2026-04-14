@@ -88,7 +88,10 @@ func (t LoungeTask) findChair() *object.Object {
 	var closestDist float64
 	for _, obj := range t.Owner.ActiveMapCtx.GetAllObjects() {
 		if obj.Type == object.TypeChair && !obj.Chair.InUse && obj.GetTargetingNPC() == "" {
-			// TODO: need to also check if chair is suitable for the specific NPC (i.e. has character restrictions), but skipping for now
+			if !t.Owner.SatisfiesObjectOwnership(*obj) {
+				// NPC doesn't have right roles or is not the owner of this object
+				continue
+			}
 			x, y := obj.Pos()
 			objPos := model.ConvertPxToTilePos(x, y)
 			dist := utils.EuclideanDistCoords(t.Owner.Entity.TilePos(), objPos)

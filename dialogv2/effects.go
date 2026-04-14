@@ -1,12 +1,11 @@
 package dialogv2
 
 import (
+	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/pubsub"
 )
-
-func ZzEffectInterfaceCheck() {
-	_ = append([]defs.DialogEffect{}, &EventEffect{}, &AddGoldEffect{}, &SetDialogMemoryEffect{})
-}
 
 type EventEffect struct {
 	Event defs.Event
@@ -22,6 +21,14 @@ type AddGoldEffect struct {
 
 func (e AddGoldEffect) Apply(ctx defs.EffectContext) {
 	ctx.AddGold(e.Amount)
+}
+
+type RemoveGoldEffect struct {
+	Amount int
+}
+
+func (e RemoveGoldEffect) Apply(ctx defs.EffectContext) {
+	ctx.RemoveGold(e.Amount)
 }
 
 type SetDialogMemoryEffect struct {
@@ -49,4 +56,50 @@ type StartLoadScreenEffect struct {
 
 func (e StartLoadScreenEffect) Apply(ctx defs.EffectContext) {
 	ctx.StartLoadScreen(e.LoadFunction)
+}
+
+type ScheduleFutureEventEffect struct {
+	Event               defs.Event
+	SpecificDate        *clock.GameTime // you can optionally define a specific, hard-coded time. otherwise, this event uses relative times.
+	WaitDays, WaitHours int             // for waiting relative times; can wait either a specific number of days, or a specific number of hours (but not both)
+	// for use either by itself, or with 'WaitDays' only; If used with WaitDays, it will schedule the event for the number of days in the future, at this specific hour.
+	// useful for scheduling events that are a relative number of days, but should fire at a certain time of day, like "tomorrow at 9AM"
+	UntilHour *int
+}
+
+func (e ScheduleFutureEventEffect) Apply(ctx defs.EffectContext) {
+	gt := e.SpecificDate
+	if gt == nil {
+		if e.WaitDays != 0 && e.WaitHours != 0 {
+			panic("cannot use relative wait times of days and hours at the same time")
+		}
+
+		currentTime := ctx.GetCurrentGameTime()
+		gt = &currentTime
+		if e.WaitDays != 0 {
+			gt.AddTime(24 * e.WaitDays)
+			if e.UntilHour != nil {
+				gt.Hour = *e.UntilHour
+			}
+		} else if e.WaitHours != 0 {
+			gt.AddTime(e.WaitHours)
+		} else if e.UntilHour != nil {
+			if gt.Hour < *e.UntilHour {
+				gt.Hour = *e.UntilHour
+			} else {
+				gt.AddTime(24)
+				gt.Hour = *e.UntilHour
+			}
+		} else {
+			logz.Panicln("ScheduleFutureEventEffect", "time parameters for future event were invalid.", e)
+		}
+	}
+
+	ctx.BroadcastEvent(defs.Event{
+		Type: pubsub.EventScheduleFutureEvent,
+		Data: map[string]any{
+			"event": e.Event,
+			"time":  gt,
+		},
+	})
 }

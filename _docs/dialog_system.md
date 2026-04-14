@@ -1,389 +1,687 @@
-# Dialog System Architecture
+# Dialog System
 
-This document describes the structure and behavior of the dialog system, including how dialog definitions, conditions, effects, and actions work together.
-
-The dialog system is:
-
-- Definition-driven (written in Go code)
-- Context-aware (uses conditions)
-- Side-effect capable (via effects)
-- Event-compatible (effects can emit events for quests or other systems)
-- UI-extensible (via dialog actions)
+The dialog system manages conversations between the player and NPCs. It supports branching dialogs, conditions, effects, topic unlocking, and memory tracking.
 
 ---
 
-# High-Level Overview
+## Architecture Overview
 
-The dialog system is composed of:
+```
+DialogSession
+├── DialogContext      // Tracks session state (memory, topics)
+├── DialogProfileDef    // NPC's greeting and topics
+├── DialogTopic         // Player-selectable conversation subjects
+└── DialogResponse      // NPC's replies with conditions/effects
+```
 
-- **Dialog Profiles** (assigned to NPCs)
-- **Dialog Topics** (semantic prompts the player can select)
-- **Dialog Responses** (NPC replies)
-- **Dialog Replies** (player responses to NPC lines)
-- **Conditions** (control availability)
-- **Effects** (apply state changes)
-- **Dialog Actions** (UI interruptions such as input modals)
-
-The system is intentionally modular and avoids tight coupling with quests or other systems. Instead, dialog may trigger changes indirectly via `Effect` implementations.
+**Key Flow:**
+1. Dialog starts → Select greeting (via conditions)
+2. Show greeting → Await topic selection
+3. Topic selected → Play response chain
+4. Response may: show replies, unlock topics, trigger effects
+5. Player chooses reply → Next response or back to topics
 
 ---
 
-# Core Concepts
+## Core Types
 
-## 1. DialogProfileDef
+### Condition Evaluation Order
+
+**Critical authoring rule:** When a list of `DialogResponse` (or any dialog concept with multiple options) is evaluated, the engine checks each item **in order**. The **first one that evaluates true is used**, and evaluation stops there.
+
+A response with **no conditions is always true**. This means:
+
+1. Responses with conditions should come **first**, ordered by priority/specificity
+2. The **last response should always be a "default"** with no conditions
+3. This ensures there's always a valid response to give
+
+**Example - Correct ordering:**
+```go
+Greeting: []DialogResponse{
+    // First: specific condition (higher priority)
+    {
+        Conditions: []DialogCondition{
+            dialogv2.ConditionDialogMemory{Key: "is_friend"},
+        },
+        Text: "Good to see you again, old friend!",
+    },
+    // Second: another specific condition
+    {
+        Conditions: []DialogCondition{
+            dialogv2.ConditionCulture{IsCulture: "roman"},
+        },
+        Text: "Salve, traveler!",
+    },
+    // Last: default fallback (no conditions = always true)
+    {
+        Text: "Hello there, traveler.",
+    },
+},
+```
+
+**Example - Incorrect (will cause issues):**
+```go
+Greeting: []DialogResponse{
+    // Default first - will always match!
+    {
+        Text: "Hello there, traveler.",
+    },
+    // This will NEVER be reached
+    {
+        Conditions: []DialogCondition{
+            dialogv2.ConditionDialogMemory{Key: "is_friend"},
+        },
+        Text: "Good to see you again, old friend!",
+    },
+},
+```
+
+### DialogProfileDef
+
+Assigned to NPCs, defines greeting and available topics.
 
 ```go
 type DialogProfileDef struct {
     ProfileID DialogProfileID
-    Greeting  []DialogResponse
-    TopicsIDs []TopicID
+    Greeting  []DialogResponse  // Greetings (checked in order, first true wins)
+    TopicsIDs []TopicID         // Topics available in this profile
 }
 ```
 
-A dialog profile represents the full conversational identity of an NPC.
+#### Dialog Profiles: Unique vs Shared
 
-It defines:
+Dialog profiles define **who** the NPC is in conversation. A profile can be:
 
-- **Greeting responses** — lines spoken when conversation begins.
-- **Topic IDs** — which dialog topics are available to this NPC.
+**1. Unique (specific NPC)**
+```go
+ProfileID: "elder_ulric",  // Only one village elder Ulric
+```
+- Use for named characters with unique dialog
+- Memory is tracked per-profile, so only this NPC remembers conversations
+- Good for important story characters, or unique characters with their own personality
 
-Profiles may be:
-- Shared across multiple NPCs
-- Unique to a specific NPC
+**2. Shared (generic NPCs)**
+```go
+ProfileID: "town_guard",  // Shared by all generic guards
+```
+- Use for generic NPCs that don't have individualized personalities 
+- Memory is shared among ALL NPCs using this profile
+- Good for background characters or generic styles of characters
 
----
+**When to use each:**
+| Scenario | Profile Type |
+|----------|-------------|
+| Named quest-giver, story character | Unique profile |
+| Generic shopkeeper | Shared profile |
+| Background NPCs (guards, villagers) | Shared profile |
+| NPCs that should remember YOU specifically | Unique profile |
 
-## 2. DialogTopic
+### DialogTopic
+
+A semantic prompt the player can raise.
 
 ```go
 type DialogTopic struct {
     ID         TopicID
-    Prompt     string
-    Conditions []Condition
-    Responses  []DialogResponse
-    Metadata   map[string]string
+    Prompt     string              // Text shown to player
+    Conditions []DialogCondition   // Whether topic appears (AND logic)
+    Responses  []DialogResponse    // NPC's possible replies
 }
 ```
 
-A dialog topic represents a semantic subject the player can raise (e.g., `"Rumors"`, `"Background"`).
+### DialogResponse
 
-It defines:
-
-- The prompt shown to the player
-- Conditions for visibility
-- All possible NPC responses to that topic
-- Optional metadata (for UI hints or tagging)
-
-### Topic Visibility
-
-A topic appears only if:
-
-- All `Conditions` return `true`
-- The topic is unlocked (via `EffectContext.UnlockTopic`)
-- The topic is not hidden by other game state
-
-Conditions use AND logic.
-
----
-
-## 3. DialogResponse
+A specific NPC response.
 
 ```go
 type DialogResponse struct {
-    Text       string
-    Conditions []Condition
-    Effects    []Effect
-    NextTopics []TopicID
-    Once       bool
-
-    Replies     []DialogReply
-    Action      *DialogAction
-    NextResponse *DialogResponse
+    ID            string
+    Text          string              // What NPC says
+    Conditions    []DialogCondition   // When this response appears (AND logic)
+    Effects       []DialogEffect      // What happens when shown
+    NextTopics    []TopicID           // Topics to unlock/emphasize
+    Once          bool                // Show only once
+    Goodbye       bool                // Ends conversation after
+    Replies       []DialogReply       // Player reply options
+    Action        *DialogAction        // Special actions (input modal, show screen)
+    NextResponse  *DialogResponse      // Chain to another response
+    NextResponseOptions []DialogResponse // Conditional chains
 }
 ```
 
-A dialog response is a single possible NPC reply to a topic.
+### DialogReply
 
-Responses are **contextual** and intentionally not centralized in a global definitions manager.
-
-### Response Selection
-
-When a topic is selected:
-
-1. All responses are evaluated.
-2. Only responses whose `Conditions` return `true` are eligible.
-3. One response is chosen (selection strategy is implementation-dependent).
-
-### Once Flag
-
-If `Once == true`:
-- The response becomes ineligible after it has been shown once.
-
----
-
-### Response Flow Order
-
-When a response is triggered:
-
-1. If `Action` is set → execute it first.
-2. Display `Text`.
-3. Apply `Effects`.
-4. Unlock any `NextTopics`.
-5. If `Replies` exist → show reply options.
-6. If `NextResponse` exists → automatically continue.
-
----
-
-## 4. DialogReply
+A reply the player can give.
 
 ```go
 type DialogReply struct {
-    Text       string
-    Conditions []Condition
-    Effects    []Effect
-
-    NextResponse *DialogResponse
-    NextTopicID  TopicID
+    Text          string
+    Conditions    []DialogCondition
+    Effects       []DialogEffect
+    Goodbye       bool
+    NextResponse  *DialogResponse  // NPC's next reply
+    NextTopicID   TopicID          // Return to topic selection
 }
 ```
 
-A dialog reply represents a player’s response to an NPC line.
-
-When selected:
-
-1. Conditions are validated.
-2. Effects are applied.
-3. If `NextResponse` is set → NPC immediately responds.
-4. If `NextTopicID` is set → dialog shifts to that topic.
-
-Replies allow branching conversational flow.
-
 ---
 
-# Conditions
+## Conditions
+
+Conditions determine when dialog elements appear. All conditions in a list use AND logic.
+
+### ConditionDialogMemory
+
+Check if a dialog memory key exists.
 
 ```go
-type Condition interface {
-    IsMet(ctx ConditionContext) bool
+DialogCondition: dialogv2.ConditionDialogMemory{
+    Key: "told_player_secret",
 }
 ```
 
-Conditions control:
+### ConditionCulture
 
-- Topic visibility
-- Response eligibility
-- Reply availability
-
-All conditions use AND logic.
-
----
-
-## ConditionContext
+Check character culture.
 
 ```go
-type ConditionContext interface {
-    HasSeenTopic(id TopicID) bool
-    IsTopicUnlocked(id TopicID) bool
+DialogCondition: dialogv2.ConditionCulture{
+    CharDefID: "npc_blacksmith",
+    IsCulture: "barbarian",
 }
 ```
 
-Conditions operate only on context passed in.  
-They should not directly access global systems.
+### ConditionHasGold
 
-This keeps them testable and modular.
-
----
-
-## Example: MemoryCondition
+Check player's gold amount.
 
 ```go
-type MemoryCondition struct {
-    Key  string
-    Seen bool
+DialogCondition: dialogv2.ConditionHasGold{
+    Amount: 100,
 }
 ```
 
-Used for checking simple memory state, such as:
+### ConditionMapID
 
-- Whether a topic has been seen
-- Whether a narrative beat occurred
-
----
-
-# Effects
+Check current map.
 
 ```go
-type Effect interface {
-    Apply(ctx EffectContext)
+DialogCondition: dialogv2.ConditionMapID{
+    MapID: "main_town",
 }
 ```
 
-Effects are responsible for changing state.
+### ConditionRand
 
-Dialog does not directly modify systems.  
-It applies `Effect`s, and those effects perform the changes.
-
----
-
-## EffectContext
+Random chance (0.0 to 1.0).
 
 ```go
-type EffectContext interface {
-    MarkTopicSeen(id TopicID)
-    UnlockTopic(id TopicID)
-
-    AddGold(amount int)
+DialogCondition: dialogv2.ConditionRand{
+    Percent: 0.5, // 50% chance
 }
 ```
 
-Effects are applied through this interface to prevent direct coupling.
+### ConditionSocialRank
 
-Effects may:
-
-- Unlock topics
-- Mark topics as seen
-- Add gold
-- Set memory flags
-- Emit narrative events
-- Give items
-- Trigger quest events (indirectly)
-
----
-
-## Example: SetMemoryEffect
+Check character social rank.
 
 ```go
-type SetMemoryEffect struct {
-    Key  string
-    Seen bool
+DialogCondition: dialogv2.ConditionSocialRank{
+    Player: true,           // Check player instead of NPC
+    Rank:   "noble",
+    GEQ:    true,           // Greater than or equal
 }
 ```
 
-Used to mark narrative state for later condition checks.
+### ConditionHasRole
 
----
-
-# DialogAction
+Check character has a role.
 
 ```go
-type DialogAction struct {
-    Type   DialogActionType
-    Scope  DialogActionResultScope
-    Params any
+DialogCondition: dialogv2.ConditionHasRole{
+    Player: false,          // Check NPC
+    RoleID: "guard_captain",
 }
 ```
 
-A DialogAction temporarily interrupts dialog flow.
+#### What Roles Are For
 
-Examples:
+Roles are flexible identifiers for character status. They are **not** for character class (barbarian, warlock, etc.)—that's handled separately. Roles are for:
 
-- Showing a text input modal
-- Presenting a trade interface
-- Triggering a cutscene
-- Opening a special UI panel
+**1. Faction membership**
+```go
+RoleID: "thieves_guild_member"
+RoleID: "fighters_guild_rank_journeyman"
+RoleID: "royal_court_favorite"
+```
 
-### Execution Rules
+**2. Faction rank/hierarchy**
+```go
+RoleID: "fighters_guild_rank_apprentice"
+RoleID: "fighters_guild_rank_journeyman"
+RoleID: "fighters_guild_rank_master"
+```
 
-- Actions execute before dialog text or effects.
-- They may return data, depending on `Scope`.
-- The UI layer handles rendering and user interaction.
+**3. Temporary access/permissions**
+```go
+RoleID: "lions_den_inn_guest"      // Can sleep at the inn
+RoleID: "library_member"             // Can access restricted books
+RoleID: "barracks_resident"         // Can enter military area
+```
 
----
+**4. Special status**
+```go
+RoleID: "wanted_criminal"
+RoleID: "messenger_of_the_king"
+RoleID: "blessed_by_priest"
+```
 
-# Dialog Flow Lifecycle
+Roles can be granted and revoked dynamically during gameplay (e.g., joining a guild, renting a room, completing a quest).
 
-1. Player initiates conversation.
-2. Greeting response is selected and executed.
-3. Available topics are shown.
-4. Player selects topic.
-5. Eligible response is chosen.
-6. Effects are applied.
-7. Replies are presented (if any).
-8. Flow continues via `NextResponse` or topic selection.
+### ConditionNOT
 
----
+Negates a condition.
 
-# Architectural Principles
+```go
+DialogCondition: dialogv2.ConditionNOT{
+    Arg: dialogv2.ConditionDialogMemory{
+        Key: "already_paid",
+    },
+}
+```
 
-The dialog system follows these design principles:
+### ConditionOR
 
-### 1. Definition-Driven
+OR logic over conditions.
 
-All dialog is written as Go definitions.  
-This allows:
-
-- Compile-time safety
-- IDE validation
-- Easy refactoring of IDs
-- No runtime parsing
-
----
-
-### 2. Decoupled from Quests
-
-Dialog does not directly manipulate quests.
-
-Instead:
-
-- Dialog may emit events via an `Effect`.
-- QuestManager listens to events.
-- Quest state changes occur externally.
-
-This preserves separation of concerns.
-
----
-
-### 3. Context-Based Logic
-
-All eligibility decisions are driven by:
-
-- `Condition`
-- `ConditionContext`
-
-No hardcoded branching inside the dialog system itself.
+```go
+DialogCondition: dialogv2.ConditionOR{
+    Args: []defs.DialogCondition{
+        dialogv2.ConditionCulture{IsCulture: "roman"},
+        dialogv2.ConditionCulture{IsCulture: "greek"},
+    },
+}
+```
 
 ---
 
-### 4. Explicit State Mutation
+## Effects
 
-All state changes occur via `Effect`.
+Effects trigger actions during dialog.
 
-No hidden side effects.
+### EventEffect
+
+Broadcast an event (can trigger quests!).
+
+```go
+DialogEffect: dialogv2.EventEffect{
+    Event: defs.Event{
+        Type: "quest_started",
+        Data: map[string]any{
+            "questID": "deliver_package",
+        },
+    },
+},
+```
+
+### AddGoldEffect
+
+Give gold to player.
+
+```go
+DialogEffect: dialogv2.AddGoldEffect{
+    Amount: 50,
+},
+```
+
+### RemoveGoldEffect
+
+Take gold from player.
+
+```go
+DialogEffect: dialogv2.RemoveGoldEffect{
+    Amount: 25,
+},
+```
+
+### SetDialogMemoryEffect
+
+Store arbitrary memory.
+
+```go
+DialogEffect: dialogv2.SetDialogMemoryEffect{
+    MemoryKey: "met_blacksmith",
+},
+```
+
+### ScheduleFutureEventEffect
+
+Schedule an event for later.
+
+```go
+DialogEffect: dialogv2.ScheduleFutureEventEffect{
+    Event: defs.Event{
+        Type: "payment_overdue",
+        Data: map[string]any{},
+    },
+    WaitDays: 7,       // 7 days from now
+    UntilHour: utils.Int(9), // At 9 AM
+},
+```
+
+### StartLoadScreenEffect
+
+Trigger a load screen (ends dialog).
+
+```go
+DialogEffect: dialogv2.StartLoadScreenEffect{
+    LoadFunction: func(ctx defs.GameContext) {
+        // Your load logic here
+    },
+},
+
+```
+
+NOTE: this should only be used in special situations. Most dialogs will not use this effect.
 
 ---
 
-# Intended Strengths
+## Actions
 
-This dialog architecture supports:
+Actions interrupt dialog flow for UI interactions.
 
-- Conditional branching
-- Stateful conversations
-- One-time responses
-- Unlockable topics
-- Event-driven quest progression
-- UI interruptions
-- Narrative chaining
-- Reusable profiles
+### GetUserInput
 
-It is scalable, testable, and suitable for complex narrative systems.
+Shows a text input modal.
+
+```go
+Action: &defs.DialogAction{
+    Type:   dialogv2.ActionTypeGetUserInput,
+    Scope:  dialogv2.ActionScopePlayerName,
+    Params: dialogv2.GetUserInputActionParams{
+        ModalTitle:        "Enter Your Name",
+        ConfirmButtonText:  "Confirm",
+    },
+},
+```
+
+NOTE: this should only be used in special situations. Most dialogs will never need this.
+
+### ShowScreen
+
+Display another screen (e.g., trade, inventory).
+
+```go
+Action: &defs.DialogAction{
+    Type:   dialogv2.ActionTypeShowScreen,
+    Params: dialogv2.ShowScreenActionParams{
+        ScreenID: "trade_screen",
+    },
+},
+```
+
+NOTE: this should only be used for special situations. Most dialogs will not use this effect.
 
 ---
 
-# Summary
+## Response Chaining
 
-The dialog system is:
+Responses can chain together for dramatic pacing:
 
-- Declarative
-- Modular
-- Extensible
-- Event-compatible
-- Architecturally clean
+```go
+Responses: []DialogResponse{
+    {
+        Text: "I have something to tell you...",
+        Effects: []DialogEffect{...},
+        NextResponse: &DialogResponse{
+            Text: "Actually, never mind. Forget I said anything.",
+            Effects: []DialogEffect{...},
+        },
+    },
+},
+```
 
-It separates:
+### Groupers
 
-- **What is said** (definitions)
-- **When it is said** (conditions)
-- **What happens because of it** (effects)
-- **How the UI reacts** (actions)
+Responses without text act as condition-based routers:
 
-This structure ensures long-term maintainability as narrative complexity grows.
+```go
+DialogResponse{
+    Conditions: []DialogCondition{
+        dialogv2.ConditionDialogMemory{Key: "knows_secret"},
+    },
+    NextResponseOptions: []DialogResponse{
+        {
+            Conditions: []DialogCondition{
+                dialogv2.ConditionHasRole{RoleID: "trusted_ally"},
+            },
+            Text: "Since you're a trusted ally, I'll tell you...",
+            Effects: []DialogEffect{...},
+        },
+        {
+            Text: "Actually, it's not important.",
+        },
+    },
+},
+```
+
+---
+
+## Contextual Responses (Profile/Role-Based)
+
+A powerful pattern: shared topics (like "Background" or "Rumors") can have different responses depending on who is speaking. Use groupers with `ConditionDialogProfile` or `ConditionHasRole` to route to the appropriate response.
+
+### Pattern: Responses by Dialog Profile
+
+```go
+DialogTopic{
+    ID:     "background",
+    Prompt: "What is your background?",
+    Responses: []DialogResponse{
+        // Grouper with no conditions - evaluated in order until a match
+        {
+            // Check for specific NPC profiles first
+            NextResponseOptions: []DialogResponse{
+                {
+                    Conditions: []DialogCondition{
+                        dialogv2.ConditionDialogProfile{ProfileID: "elder_dialog"},
+                    },
+                    Text: "I have served as elder of this village for thirty winters. I remember when the old fortress was still inhabited...",
+                },
+                {
+                    Conditions: []DialogCondition{
+                        dialogv2.ConditionDialogProfile{ProfileID: "blacksmith_dialog"},
+                    },
+                    Text: "I learned my trade in the imperial capital. The finest smiths in the land trained me before I set out on my own.",
+                },
+                {
+                    Conditions: []DialogCondition{
+                        dialogv2.ConditionDialogProfile{ProfileID: "guard_dialog"},
+                    },
+                    Text: "I served in the king's army for ten years. Now I keep the peace here in this village.",
+                },
+            },
+        },
+        // Fallback: generic responses based on role
+        {
+            NextResponseOptions: []DialogResponse{
+                {
+                    Conditions: []DialogCondition{
+                        dialogv2.ConditionHasRole{RoleID: "merchant"},
+                    },
+                    Text: "I've traveled far and wide, trading goods across many lands.",
+                },
+                {
+                    Conditions: []DialogCondition{
+                        dialogv2.ConditionHasRole{RoleID: "scholar"},
+                    },
+                    Text: "I devoted my life to studying the ancient texts. Knowledge is my greatest treasure.",
+                },
+                {
+                    Conditions: []DialogCondition{
+                        dialogv2.ConditionHasRole{RoleID: "guard"},
+                    },
+                    Text: "I patrol these lands, keeping travelers safe from bandits.",
+                },
+            },
+        },
+        // Final fallback: generic default
+        {
+            Text: "I'm just a simple folk, living my life one day at a time.",
+        },
+    },
+}
+```
+
+### When to Use Each Condition
+
+| Condition | Use When |
+|----------|----------|
+| `ConditionDialogProfile` | A specific NPC has unique dialog that shouldn't apply to others |
+| `ConditionHasRole` | A role (like "guard" or "scholar") shares common dialog across NPCs |
+| `ConditionCulture` | NPCs of a certain culture share background/history |
+| `ConditionMapID` | The NPC's location affects their background |
+
+### Rule of Thumb
+
+1. **Most specific first** - Specific NPCs (via `ConditionDialogProfile`)
+2. **General categories next** - Roles or cultures
+3. **Default last** - Generic fallback with no conditions
+
+This ensures the most appropriate response is always selected, but no one is left without an answer.
+
+---
+
+## Topic Unlocking
+
+Topics can be unlocked dynamically via `NextTopics`:
+
+```go
+DialogResponse{
+    Text: "I heard rumors about a treasure in the old mine.",
+    NextTopics: []TopicID{"mine_location"},
+    Effects: []DialogEffect{...},
+},
+```
+
+The player will then see "mine_location" as an available topic in future conversations.
+
+---
+
+## Dialog Memory
+
+Dialog state persists via `DialogProfileState.Memory` (a `map[string]bool`).
+
+**Special Memory Keys:**
+- `TOPIC_SEEN:<TopicID>` - Topic was discussed
+- `TOPIC_UNLOCKED:<TopicID>` - Topic was unlocked
+- `RESPONSE_SEEN:<ResponseID>` - Response was shown (for `Once` tracking)
+
+**Custom Memory:**
+```go
+// Set
+SetDialogMemoryEffect{MemoryKey: "met_at_tavern"}
+
+// Check
+ConditionDialogMemory{Key: "met_at_tavern"}
+```
+
+---
+
+## Variable Substitution
+
+Text can include variables that are replaced at runtime:
+
+```go
+Text: "Welcome, {player_name} of {player_culture}!",
+```
+
+Available variables:
+- `{player_name}` - Player's name
+- `{player_culture}` - Player's culture display name
+
+---
+
+## Creating a Dialog Profile
+
+```go
+DialogProfileDef{
+    ProfileID: "blacksmith_dialog",
+    Greeting: []DialogResponse{
+        // First: conditional responses in priority order
+        {
+            Conditions: []DialogCondition{
+                dialogv2.ConditionDialogMemory{Key: "completed_repair"},
+            },
+            Text: "Back again? Good to see you!",
+        },
+        // Last: default fallback (no conditions)
+        {
+            Text: "Good day, traveler! Need any weapons forged?",
+        },
+    },
+    TopicsIDs: []TopicID{
+        "blacksmith_weapons",
+        "blacksmith_repair",
+        "blacksmith_rumors",
+    },
+}
+```
+
+---
+
+## Creating Topics
+
+```go
+DialogTopic{
+    ID:     "blacksmith_weapons",
+    Prompt: "Show me your weapons",
+    Responses: []DialogResponse{
+        {
+            Text: "Take a look at these fine blades!",
+            Effects: []DialogEffect{
+                dialogv2.EventEffect{Event: defs.Event{Type: "open_shop"}},
+            },
+            Replies: []DialogReply{
+                {Text: "I'll take the sword.", Goodbye: true},
+                {Text: "Too expensive for me.", Goodbye: true},
+            },
+        },
+    },
+}
+```
+
+---
+
+## Integration with Quests
+
+Dialog effects can trigger quests via events:
+
+```go
+Effects: []DialogEffect{
+    dialogv2.EventEffect{
+        Event: defs.Event{
+            Type: "quest_started",
+            Data: map[string]any{
+                "questID": "deliver_message",
+            },
+        },
+    },
+},
+```
+
+The quest system listens for this event and starts the quest if conditions are met.
+The quest system will also listen for specific events to advance a quest to its next stage. For more information about quests, see `quest_system.md`. 
+
+---
+
+## Best Practices
+
+1. **Condition order matters** - Responses are checked in order; first true wins. Put specific conditions first, defaults last.
+2. **Always include a default** - Every response list should end with a fallback that has no conditions
+3. **Use contextual routing for shared topics** - When multiple NPCs share a topic (like "Background"), use groupers with profile/role conditions to provide varied responses
+4. **Keep responses concise** - Long text should be broken into chained responses
+5. **Use conditions sparingly** - Each condition adds evaluation overhead
+6. **Group related topics** - Topics the NPC can always discuss should be in `ProfileDef.TopicsIDs`
+7. **Unlock topics strategically** - Don't unlock everything at once
+8. **Use memory for state** - Track important conversation outcomes

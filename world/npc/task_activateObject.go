@@ -2,7 +2,7 @@ package npc
 
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/data/id"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
@@ -34,6 +34,9 @@ func NewActivateObjectTask(n *NPC, obj *object.Object) *ActivateObjectTask {
 	}
 	if obj.GetTargetingNPC() != "" {
 		panic("object is already being targeted by another NPC; you should ensure the object is not targeted before setting the activateObjectTask.")
+	}
+	if !n.SatisfiesObjectOwnership(*obj) {
+		logz.Panicln("ActivateObjectTask", "tried to create activate object task, but NPC is not authorized to use this object. objID:", obj.ID, n.WhoAmI())
 	}
 	obj.SetTargetingNPC(n.Entity.ID())
 	return &ActivateObjectTask{
@@ -105,7 +108,7 @@ func (t *ActivateObjectTask) Update() {
 	charState := *t.Owner.CharacterStateRef
 	t.targetObj.ClearTargetingNPC()
 	res := t.targetObj.Activate(t.Owner.Entity.X, t.Owner.Entity.Y, object.ObjectActivationParams{
-		ActivatorID: state.CharacterStateID(t.Owner.ID()),
+		ActivatorID: id.CharacterStateID(t.Owner.ID()),
 		LockIDs:     characterstate.GetLockIDs(charState),
 	})
 	if res.UpdateOccurred {

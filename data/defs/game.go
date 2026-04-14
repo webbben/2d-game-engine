@@ -26,10 +26,12 @@ type GameContext interface {
 }
 
 type GameDialogContext interface {
+	GetCurrentGameTime() clock.GameTime
 	GetMapID() MapID
 	GetPlayerInfo() PlayerInfo
 	SetPlayerName(name string)
 	DialogCtxAddGold(amount int)
+	RemoveGold(amount int)
 
 	TransitionContext
 }

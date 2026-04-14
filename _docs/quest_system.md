@@ -1,10 +1,21 @@
-# Quest System Architecture
+# Quest System
 
-This document describes the structure and behavior of the quest system.
+The quest system manages narrative progression through event-driven, stage-based quests.
 
-The quest system is:
+---
 
-- Definition-driven (written in Go code)
+## Architecture Overview
+
+```
+QuestManager
+├── QuestDef (definitions)
+│   ├── QuestStageDef (stages)
+│   │   └── QuestReactionDef (event responses)
+│   └── QuestStartTrigger (start condition)
+└── QuestState (runtime state)
+```
+
+**Key Principles:**
 - Event-driven (no polling or update-loop checks)
 - Stage-based (finite progression states)
 - Data-indexed (efficient event-to-reaction matching)
@@ -12,65 +23,48 @@ The quest system is:
 
 ---
 
-# High-Level Overview
+## Core Types
 
-A quest consists of:
-
-- A unique ID
-- A name and description
-- A set of stages
-- A start trigger
-- Event-driven reactions
-- Optional terminal states (success/failure)
-
-Quests progress only when:
-
-1. A relevant event occurs.
-2. A reaction subscribed to that event evaluates true.
-3. Actions execute.
-4. The stage transitions (or ends).
-
-There is **no continuous condition checking** in update loops.
-
----
-
-# Core Concepts
-
-## 1. QuestDef
+### QuestDef
 
 ```go
 type QuestDef struct {
     ID          QuestID
-    Name        string
-    Description string
+    Name        string                    // Player-visible name
+    Description string                    // Initial description
     Stages      map[QuestStageID]QuestStageDef
     StartStage  QuestStageID
-
-    StartTrigger QuestStartTrigger
+    StartTrigger QuestStartTrigger        // What starts this quest
 }
 ```
 
-A `QuestDef` defines the entire lifecycle of a quest.
+### QuestStageDef
 
-### Required Components
+```go
+type QuestStageDef struct {
+    ID          QuestStageID
+    Title       string                    // Optional stage title
+    Objective   string                    // What player sees
+    Description string                    // Narrative context
+    OnEnter     []QuestAction            // Fires on stage entry
+    Reactions   []QuestReactionDef        // Event-based responses
+}
+```
 
-- `ID` — unique identifier
-- `Name` — player-facing name
-- `Stages` — all quest stages
-- `StartStage` — initial stage
-- `StartTrigger` — event that causes the quest to begin
+### QuestReactionDef
 
-Validation ensures:
+```go
+type QuestReactionDef struct {
+    SubscribeEvent EventType              // Event to listen for
+    Conditions     []QuestConditionDef   // When to react
+    Actions        []QuestAction         // What to do
+    NextStage      QuestStageID           // Progress to this stage
+    TerminalStatus QuestTerminalStatus   // Complete/Fail
+    Text           string                 // Optional message
+}
+```
 
-- ID is set
-- Name is set
-- At least one stage exists
-- Start stage exists
-- StartTrigger has an EventType
-
----
-
-## 2. QuestStartTrigger
+### QuestStartTrigger
 
 ```go
 type QuestStartTrigger struct {
@@ -79,179 +73,58 @@ type QuestStartTrigger struct {
 }
 ```
 
-Defines how a quest begins.
-
-When `EventType` is fired:
-
-1. Conditions are evaluated.
-2. If true → quest is started.
-3. The `StartStage` becomes active.
-
-This is fully event-driven.
-
-Common start triggers include:
-
-- Narrative events from dialog
-- NPC death events
-- Item acquisition
-- Location discovery
-
 ---
 
-# Quest Stages
+## Actions
 
-## 3. QuestStageDef
+Quest actions execute when a stage is entered or a reaction triggers.
+
+### AssignTaskAction
+
+Assigns a task to an NPC (character must be unique).
 
 ```go
-type QuestStageDef struct {
-    ID                QuestStageID
-    Title             string
-    Description       string
-    LongerDescription string
-    OnEnter           []QuestActionDef
-    Reactions         []QuestReactionDef
+quest.AssignTaskAction{
+    CharDefID: "npc_guard_captain",
+    TaskDef: defs.TaskDef{
+        TaskID:   "goto",
+        Priority: defs.PriorityAssigned,
+        Params: map[string]any{
+            "targetX": 100,
+            "targetY": 200,
+        },
+    },
 }
 ```
 
-A quest stage represents a single objective state.
+### QueueScenarioAction
 
-Each stage:
-
-- Has a player-visible description.
-- May run actions when entered.
-- Defines reactions to events.
-- Determines how progression occurs.
-
-### OnEnter
-
-Executed immediately when the stage becomes active.
-
-Examples:
-
-- Show quest update notification
-- Spawn NPC
-- Unlock door
-- Trigger cutscene
-- Set quest variable
-
-These actions are unconditional.
-
----
-
-# Reactions (Core of Progression)
-
-## 4. QuestReactionDef
+Loads a scenario (isolated map setup).
 
 ```go
-type QuestReactionDef struct {
-    SubscribeEvent EventType
-    Conditions     []QuestConditionDef
-    Actions        []QuestActionDef
-    NextStage      *QuestStageID
-    TerminalStatus QuestTerminalStatus
+quest.QueueScenarioAction{
+    ScenarioID: "ambush_scene",
 }
 ```
 
-Reactions define how a stage responds to events.
+### UnlockAction
 
-When `SubscribeEvent` occurs:
-
-1. Conditions are evaluated.
-2. If true:
-   - Actions execute.
-   - Stage may transition.
-   - Quest may terminate.
-
----
-
-### Reaction Rules
-
-- `SubscribeEvent` is required.
-- If `NextStage` is set:
-  - The quest transitions to that stage.
-  - `TerminalStatus` must not be set.
-- If `TerminalStatus` is set:
-  - Quest ends (success or failure).
-  - `NextStage` must be nil.
-
----
-
-# Event-Driven Execution Model
-
-The quest system does NOT poll conditions every frame.
-
-Instead:
-
-1. QuestManager subscribes to gameplay events.
-2. When an event occurs:
-   - Look up all start triggers for that event.
-   - Look up all stage reactions subscribed to that event.
-3. Evaluate only relevant quests.
-
-This prevents scanning all quests on every event.
-
----
-
-# Internal Indexing Strategy (Recommended)
-
-At load time, build:
-
-```
-startTriggersByEvent map[EventType][]QuestID
-stageReactionsByEvent map[EventType][]ReactionRef
-```
-
-Where `ReactionRef` identifies:
-
-- QuestID
-- StageID
-- Reaction index
-
-On event:
-
-1. Map lookup for event type.
-2. Process only relevant quests/reactions.
-3. Immediate return if none found.
-
-This ensures scalability.
-
----
-
-# Quest Actions
-
-## 5. QuestActionDef
+Unlocks a map lock (door, gate).
 
 ```go
-type QuestActionDef struct {
-    Type   QuestActionType
-    Params map[string]string
+quest.UnlockAction{
+    MapLock: defs.MapLock{
+        MapID:  "dungeon_1",
+        LockID: "cell_door",
+    },
 }
 ```
 
-Defines actions executed:
-
-- When entering a stage (`OnEnter`)
-- When a reaction triggers
-
-Actions are interpreted by QuestManager or a related system.
-
-Examples of possible action types:
-
-- ShowNotification
-- SpawnNPC
-- UnlockDoor
-- SetVariable
-- EmitEvent
-- GiveItem
-- TriggerCutscene
-
-Actions are data-driven and extensible.
-
 ---
 
-# Quest Conditions
+## Conditions
 
-## 6. QuestConditionDef
+Conditions use AND logic. Define in quest definitions using `QuestConditionDef`:
 
 ```go
 type QuestConditionDef struct {
@@ -260,147 +133,358 @@ type QuestConditionDef struct {
 }
 ```
 
-Conditions determine whether:
+Common condition types (implemented in quest.go):
 
-- A quest can start
-- A reaction should trigger
+| Type | Description |
+|------|-------------|
+| `event_data` | Check event payload data |
+| `quest_stage` | Check current quest stage |
+| `time_range` | Check game time |
 
-All conditions use AND logic.
-
-Conditions may inspect:
-
-- Event data
-- Quest variables
-- World state
-- NPC state
-- Inventory
-- Time
-- Faction reputation
-
-Condition evaluation happens only when the subscribed event occurs.
+**For dialog integration**, use `EventEffect` to emit custom events from dialog.
 
 ---
 
-# Terminal Status
+## Terminal Status
 
 ```go
 type QuestTerminalStatus int
+
+const (
+    QuestTerminalSuccess QuestTerminalStatus = iota
+    QuestTerminalFailure
+)
 ```
 
-Represents quest end states:
-
-- Success
-- Failure
-- Still ongoing
-
-A reaction may mark the quest terminal instead of transitioning stages.
+Set `TerminalStatus` instead of `NextStage` to end the quest.
 
 ---
 
-# Lifecycle Example
+## Creating a Quest
 
-1. Dialog emits `EventGuardApproaching`.
-2. QuestStartTrigger matches event.
-3. Conditions pass.
-4. Quest starts at `StartStage`.
-5. `OnEnter` actions execute.
-6. Later, `EventNPCDied` occurs.
-7. Stage reaction subscribed to `EventNPCDied` runs.
-8. Conditions pass.
-9. Actions execute.
-10. Quest transitions to next stage or ends.
+### Basic Structure
 
-No polling.
-No global scanning.
-Fully event-driven.
+```go
+import "github.com/webbben/2d-game-engine/quest"
+
+questDef := quest.QuestDef{
+    ID:          "deliver_package",
+    Name:        "Package Delivery",
+    Description: "Deliver a package to the blacksmith.",
+    StartStage:  "intro",
+    StartTrigger: defs.QuestStartTrigger{
+        EventType: "quest_activate_deliver_package",
+    },
+    Stages: map[defs.QuestStageID]defs.QuestStageDef{
+        "intro": {
+            ID:        "intro",
+            Objective: "Pick up the package from the merchant.",
+            OnEnter: []defs.QuestAction{
+                quest.AssignTaskAction{
+                    CharDefID: "npc_merchant",
+                    TaskDef: defs.TaskDef{
+                        TaskID:   "goto",
+                        Priority: defs.PriorityAssigned,
+                        Params:   map[string]any{"targetX": 50, "targetY": 60},
+                    },
+                },
+            },
+            Reactions: []defs.QuestReactionDef{
+                {
+                    SubscribeEvent: "package_picked_up",
+                    NextStage:      "delivering",
+                },
+            },
+        },
+        "delivering": {
+            ID:        "delivering",
+            Objective: "Deliver the package to the blacksmith.",
+            Reactions: []defs.QuestReactionDef{
+                {
+                    SubscribeEvent: "package_delivered",
+                    NextStage:      "complete",
+                },
+            },
+        },
+        "complete": {
+            ID:        "complete",
+            Objective: "Quest complete!",
+            Reactions: []defs.QuestReactionDef{
+                {
+                    SubscribeEvent: "dummy_event", // Always fires
+                    Actions: []defs.QuestAction{
+                        quest.UnlockAction{
+                            MapLock: defs.MapLock{
+                                MapID:  "dungeon_1",
+                                LockID: "cell_door",
+                            },
+                        },
+                    },
+                    TerminalStatus: defs.QuestTerminalSuccess,
+                },
+            },
+        },
+    },
+}
+```
+
+### Linear Quest Example
+
+A quest that progresses by talking to NPCs:
+
+```go
+// Stage 1: Initial conversation
+"stage_talk_to_npc": {
+    Objective: "Speak to the village elder.",
+    Reactions: []defs.QuestReactionDef{
+        {
+            SubscribeEvent: "dialog_topic_selected",
+            Conditions: []defs.QuestConditionDef{
+                {Type: "event_data", Params: map[string]string{
+                    "key":   "topic",
+                    "value": "elder_quest",
+                }},
+            },
+            NextStage: "stage_gather_items",
+        },
+    },
+},
+
+// Stage 2: Gather items
+"stage_gather_items": {
+    Objective: "Gather 5 wolf pelts.",
+    Reactions: []defs.QuestReactionDef{
+        {
+            SubscribeEvent: "item_collected",
+            Conditions: []defs.QuestConditionDef{
+                {Type: "event_data", Params: map[string]string{
+                    "key":   "itemID",
+                    "value": "wolf_pelt",
+                }},
+            },
+            Actions: []defs.QuestAction{
+                // Update quest tracking
+            },
+            NextStage: "stage_return_to_elder",
+        },
+    },
+},
+```
+
+### Branching Quest Example
+
+```go
+Stages: map[defs.QuestStageID]defs.QuestStageDef{
+    "stage_choose_path": {
+        Objective: "Choose your approach.",
+        Reactions: []defs.QuestReactionDef{
+            {
+                SubscribeEvent: "player_chose_action",
+                Conditions: []defs.QuestConditionDef{
+                    {Type: "event_data", Params: map[string]string{
+                        "key":   "choice",
+                        "value": "diplomacy",
+                    }},
+                },
+                NextStage: "stage_diplomatic",
+            },
+            {
+                SubscribeEvent: "player_chose_action",
+                Conditions: []defs.QuestConditionDef{
+                    {Type: "event_data", Params: map[string]string{
+                        "key":   "choice",
+                        "value": "combat",
+                    }},
+                },
+                NextStage: "stage_combat",
+            },
+        },
+    },
+}
+```
+
+### Multi-Stage Boss Quest
+
+```go
+Stages: map[defs.QuestStageID]defs.QuestStageDef{
+    "stage_find_dungeon": {
+        Objective: "Find the entrance to the dragon's lair.",
+        OnEnter: []defs.QuestAction{
+            quest.QueueScenarioAction{ScenarioID: "dungeon_entrance"},
+        },
+        Reactions: []defs.QuestReactionDef{
+            {
+                SubscribeEvent: "entered_dungeon",
+                NextStage:      "stage_prepare",
+            },
+        },
+    },
+    "stage_prepare": {
+        Objective: "Prepare for the battle.",
+        Reactions: []defs.QuestReactionDef{
+            {
+                SubscribeEvent: "ready_for_battle",
+                NextStage:      "stage_boss_fight",
+            },
+        },
+    },
+    "stage_boss_fight": {
+        Objective: "Defeat the dragon!",
+        OnEnter: []defs.QuestAction{
+            quest.QueueScenarioAction{ScenarioID: "dragon_boss_encounter"},
+        },
+        Reactions: []defs.QuestReactionDef{
+            {
+                SubscribeEvent: "dragon_defeated",
+                NextStage:      "stage_victory",
+            },
+            {
+                SubscribeEvent: "player_died_in_battle",
+                NextStage:      "stage_retreat",
+            },
+        },
+    },
+    "stage_victory": {
+        Objective: "Return to claim your reward.",
+        Reactions: []defs.QuestReactionDef{
+            {
+                SubscribeEvent: "dummy_event",
+                Actions: []defs.QuestAction{
+                    quest.UnlockAction{MapLock: defs.MapLock{MapID: "treasury", LockID: "dragon_hoard"}},
+                },
+                TerminalStatus: defs.QuestTerminalSuccess,
+            },
+        },
+    },
+}
+```
 
 ---
 
-# Architectural Principles
+## Triggering Quests
 
-## 1. Event-Driven, Not Polled
+Quests are triggered by events. Use `EventEffect` in dialog:
 
-Quests react only when relevant events occur.
-
-No update-loop condition checking.
-
----
-
-## 2. Decoupled From Dialog
-
-Dialog may emit events.
-
-Quest system listens to events.
-
-Dialog does NOT directly manipulate quest state.
+```go
+// In dialog response
+Effects: []defs.DialogEffect{
+    dialogv2.EventEffect{
+        Event: defs.Event{
+            Type: "quest_activate_deliver_package",
+            Data: map[string]any{},
+        },
+    },
+}
+```
 
 ---
 
-## 3. Data-Driven
+## Event Naming Conventions
 
-All progression logic lives in definitions.
+Use descriptive, namespaced event types:
 
-QuestManager executes behavior based on data.
-
----
-
-## 4. Explicit Stage Ownership
-
-Each stage defines:
-
-- What it cares about
-- What happens when triggered
-- Where it transitions
-
-No hidden transitions.
+```
+quest_<questID>                    // Quest start triggers
+quest_<questID>_stage_<stageID>    // Stage transitions
+dialog_<topicID>                   // Dialog topics
+npc_<action>                       // NPC actions
+item_<action>                      // Item actions
+combat_<action>                    // Combat events
+location_<mapID>                   // Location events
+time_<period>                      // Time events
+```
 
 ---
 
-## 5. Deterministic Flow
+## Best Practices
 
-Given the same event sequence, quest progression is deterministic.
-
-No hidden randomness unless explicitly defined.
-
----
-
-# Strengths of This Architecture
-
-- Highly scalable
-- Easy to debug (clear event names)
-- No polling overhead
-- Clean separation of concerns
-- Clear progression logic
-- Easy to add new quest types
-- Safe refactoring via Go constants
-- IDE-supported validation
+1. **One event per reaction** - Keep reactions focused
+2. **Use descriptive IDs** - `stage_talk_to_merchant` not `stage_1`
+3. **Provide fallback stages** - Handle edge cases
+4. **Test terminal states** - Ensure quests can complete/fail
+5. **OnEnter for setup** - Use OnEnter for stage initialization
+6. **Event-driven only** - Don't check conditions in update loops
+7. **Clear objectives** - Player should always know what to do
 
 ---
 
-# Intended System Boundaries
+## Quest Manager
 
-The quest system:
+The engine provides `QuestManager` for managing quest lifecycle:
 
-- Does not render UI directly
-- Does not own dialog
-- Does not directly manipulate world objects
+```go
+type QuestManager struct {
+    questDefs map[QuestID]QuestDef
+    notStarted map[QuestID]bool    // Waiting to be started
+    active     map[QuestID]*state.QuestState
+    completed  map[QuestID]*state.QuestState
+    failed     map[QuestID]*state.QuestState
+}
+```
 
-It issues actions.
-
-Other systems execute those actions.
+**Loading Quests:**
+```go
+questManager.LoadQuestDef(questDef)
+```
 
 ---
 
-# Summary
+## Quest State
 
-The quest system is a:
+Runtime state is stored separately from definitions:
 
-- Stage-based
-- Event-driven
-- Definition-driven
-- Data-indexed
-- Decoupled progression engine
+```go
+type QuestState struct {
+    QuestID   QuestID
+    StageID   QuestStageID
+    Completed bool
+    Failed    bool
+    // Custom fields for tracking
+}
+```
 
-It integrates cleanly with dialog and gameplay systems through events and actions, while remaining modular and scalable.
+---
 
-This design supports simple linear quests as well as complex multi-stage branching narratives.
+## Integration Patterns
+
+### Dialog → Quest
+
+```go
+// In DialogTopic
+{
+    Text: "I'll help you find the artifact.",
+    Effects: []defs.DialogEffect{
+        dialogv2.EventEffect{
+            Event: defs.Event{Type: "quest_activate_find_artifact"},
+        },
+        dialogv2.SetDialogMemoryEffect{MemoryKey: "accepted_artifact_quest"},
+    },
+}
+```
+
+### Quest → NPC Task
+
+```go
+// On quest start
+OnEnter: []defs.QuestAction{
+    quest.AssignTaskAction{
+        CharDefID: "npc_ally",
+        TaskDef: defs.TaskDef{
+            TaskID:   "follow",
+            Priority: defs.PriorityAssigned,
+            Params:   map[string]any{"target": "player"},
+        },
+    },
+}
+```
+
+### Quest → Scenario
+
+```go
+// When reaching a stage
+OnEnter: []defs.QuestAction{
+    quest.QueueScenarioAction{
+        ScenarioID: " ambush_at_bridge",
+    },
+}
+```

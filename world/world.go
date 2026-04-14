@@ -9,7 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/debug"
@@ -45,7 +45,7 @@ type World struct {
 
 	Player             *player.Player
 	BlockPlayerChanges bool
-	NPCs               map[state.CharacterStateID]*npc.NPC
+	NPCs               map[id.CharacterStateID]*npc.NPC
 
 	// simulation
 
@@ -58,7 +58,7 @@ type World struct {
 	ActiveMap *activemap.ActiveMap
 
 	// tracks which NPCs are in which maps; this is what is checked to determine if an NPC should show up in an ActiveMap or not.
-	MapOccupancy map[defs.MapID][]state.CharacterStateID
+	MapOccupancy map[defs.MapID][]id.CharacterStateID
 }
 
 // NewWorld returns a World that is ready to run. Assumes that all data definitions and player state has already been loaded/created.
@@ -82,7 +82,7 @@ func NewWorld(
 
 	w.SetGameTime(initTime)
 
-	playerEnt := entity.LoadCharacterStateIntoEntity(state.CharacterStateID(defs.PlayerID), w.Dataman, w.Audioman)
+	playerEnt := entity.LoadCharacterStateIntoEntity(id.CharacterStateID(defs.PlayerID), w.Dataman, w.Audioman)
 	p := player.NewPlayer(w.Dataman, playerEnt)
 	w.Player = &p
 
@@ -103,29 +103,29 @@ func NewWorld(
 }
 
 func (w *World) populateNPCMap() {
-	w.NPCs = make(map[state.CharacterStateID]*npc.NPC)
-	w.MapOccupancy = make(map[defs.MapID][]state.CharacterStateID)
+	w.NPCs = make(map[id.CharacterStateID]*npc.NPC)
+	w.MapOccupancy = make(map[defs.MapID][]id.CharacterStateID)
 
-	for id, charState := range w.Dataman.CharacterStates {
-		if id == state.CharacterStateID(defs.PlayerID) {
+	for charID, charState := range w.Dataman.CharacterStates {
+		if charID == id.CharacterStateID(defs.PlayerID) {
 			// we don't want to make an NPC for the player
 			continue
 		}
-		if _, exists := w.NPCs[id]; exists {
-			logz.Panicln("World", "loading NPC, but an existing NPC with the same ID was found...", id)
+		if _, exists := w.NPCs[charID]; exists {
+			logz.Panicln("World", "loading NPC, but an existing NPC with the same ID was found...", charID)
 		}
 		if charState.Temp {
 			// don't use temp char states, since those are just for scenarios
 			continue
 		}
-		n := npc.NewNPC(npc.NPCParams{CharStateID: id}, w.Dataman, w.Audioman, w.EventBus, w)
-		w.NPCs[id] = n
+		n := npc.NewNPC(npc.NPCParams{CharStateID: charID}, w.Dataman, w.Audioman, w.EventBus, w)
+		w.NPCs[charID] = n
 
 		currentMap := charState.CurrentMap
 		if currentMap == "" {
-			logz.Panicln("World", "charState didn't have a current map. charStateID:", id)
+			logz.Panicln("World", "charState didn't have a current map. charStateID:", charID)
 		}
-		w.MapOccupancy[currentMap] = append(w.MapOccupancy[currentMap], id)
+		w.MapOccupancy[currentMap] = append(w.MapOccupancy[currentMap], charID)
 	}
 }
 
@@ -269,7 +269,8 @@ func (w *World) OnHourChange(hour int, skipFade bool, postEvent bool) {
 		w.EventBus.Publish(defs.Event{
 			Type: pubsub.EventTimePass,
 			Data: map[string]any{
-				"hour": hour,
+				"hour":     hour, // should we send the hour? I think sending the full game time is probably better.
+				"gameTime": w.Clock.GetCurrentGameTime(),
 			},
 		})
 	}
@@ -302,7 +303,7 @@ func (w *World) FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldP
 // 2. update character state 'currentMap' field
 //
 // Does NOT change anything in ActiveMap; ActiveMap should handle removing or inserting NPCs to its own NPC slice elsewhere.
-func (w *World) ChangeMapOccupancy(charStateID state.CharacterStateID, from, to defs.MapID) {
+func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to defs.MapID) {
 	if from == "" {
 		panic("from was empty!")
 	}
@@ -319,7 +320,7 @@ func (w *World) ChangeMapOccupancy(charStateID state.CharacterStateID, from, to 
 	if _, exists := w.MapOccupancy[to]; !exists {
 		// it's not actually a problem if the 'to' doesn't exist yet. That could just mean that there are no
 		// character beds in this map, so on initialization nobody was ever placed in it initially as their "home" map.
-		w.MapOccupancy[to] = make([]state.CharacterStateID, 0)
+		w.MapOccupancy[to] = make([]id.CharacterStateID, 0)
 	}
 
 	logz.Printf("WORLD", "Change map occupancy (%s) %s -> %s", charStateID, from, to)
@@ -365,7 +366,7 @@ func (w World) GetActiveMapID() defs.MapID {
 	return w.ActiveMap.MapID
 }
 
-func (w World) getNPC(id state.CharacterStateID) *npc.NPC {
+func (w World) getNPC(id id.CharacterStateID) *npc.NPC {
 	n, exists := w.NPCs[id]
 	if !exists {
 		logz.Panicln("WORLD", "NPC not found! charStateID:", id)
@@ -375,7 +376,7 @@ func (w World) getNPC(id state.CharacterStateID) *npc.NPC {
 
 // AddNPCToActiveMap adds an NPC to the current active map. All it does is place the NPC into the map; it doesn't do any task active state setup or anything.
 // This is because this function is used to allow NPCs to enter the map that the player is already in - so it's like they're walking into the map from the doorway.
-func (w *World) AddNPCToActiveMap(charStateID state.CharacterStateID, spawnIndex int) {
+func (w *World) AddNPCToActiveMap(charStateID id.CharacterStateID, spawnIndex int) {
 	n := w.getNPC(charStateID)
 	x, y, found := w.ActiveMap.GetSpawnPosition(spawnIndex)
 	if !found {

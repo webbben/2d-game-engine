@@ -180,7 +180,10 @@ func (qm *QuestManager) SetQuestStage(questID defs.QuestID, nextStage defs.Quest
 }
 
 func (qm QuestManager) GetActiveQuestStage(questID defs.QuestID) defs.QuestStageDef {
-	questState := qm.active[questID]
+	questState, found := qm.active[questID]
+	if !found {
+		panic("quest wasn't active")
+	}
 	currentStageID := questState.CurrentStage
 	questDef := qm.GetQuestDef(questID)
 	return questDef.Stages[currentStageID]

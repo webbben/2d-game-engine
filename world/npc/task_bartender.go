@@ -122,6 +122,9 @@ func (t *BartenderTask) findTaskArea() {
 	for _, obj := range t.Owner.ActiveMapCtx.GetAllObjects() {
 		if obj.Type == object.TypeTaskArea {
 			if obj.TaskArea.TaskID == string(TaskBartender) {
+				if !t.Owner.SatisfiesObjectOwnership(*obj) {
+					continue
+				}
 				// found the task area
 				t.taskAreaObj = obj
 				return

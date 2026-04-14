@@ -84,3 +84,15 @@ func ConvertIntToCommaString(n int) string {
 	p := message.NewPrinter(message.MatchLanguage("en"))
 	return p.Sprintf("%d", n)
 }
+
+func Int(v int) *int {
+	return &v
+}
+
+func Bool(v bool) *bool {
+	return &v
+}
+
+func Str(s string) *string {
+	return &s
+}
