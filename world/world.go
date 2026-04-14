@@ -16,6 +16,7 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/utils"
 	activemap "github.com/webbben/2d-game-engine/world/activeMap"
@@ -33,6 +34,7 @@ type World struct {
 	Audioman  *audio.AudioManager
 	EventBus  *pubsub.EventBus
 	Screenman *screen.ScreenManager
+	Questman  *quest.QuestManager
 	GameCtx   defs.GameContext
 
 	// General world information
@@ -68,6 +70,7 @@ func NewWorld(
 	audioman *audio.AudioManager,
 	eventBus *pubsub.EventBus,
 	screenman *screen.ScreenManager,
+	questman *quest.QuestManager,
 	gameCtx defs.GameContext,
 ) *World {
 	w := &World{
@@ -75,6 +78,7 @@ func NewWorld(
 		Audioman:  audioman,
 		EventBus:  eventBus,
 		Screenman: screenman,
+		Questman:  questman,
 		GameCtx:   gameCtx,
 
 		cmdCh: make(chan SimCommand, 1), // purposely making buffer size 1, since commands should be infrequent and not queuing up
@@ -168,6 +172,7 @@ func (w *World) setupNewMap(mapID defs.MapID) {
 		w.Audioman,
 		w.EventBus,
 		w.Screenman,
+		w.Questman,
 		w.GameCtx,
 		w,
 		mapID,

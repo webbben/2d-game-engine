@@ -153,7 +153,7 @@ func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
 		logz.Panicln("InitializeGameWorld", "no character defs found. are you sure you loaded all data definitions?")
 	}
 
-	g.World = world.NewWorld(initTime, g.Dataman, g.AudioManager, g.EventBus, g.ScreenManager, g)
+	g.World = world.NewWorld(initTime, g.Dataman, g.AudioManager, g.EventBus, g.ScreenManager, g.QuestManager, g)
 	debug.StopTimer("InitializeGameWorld")
 	debug.ShowAllReports()
 }
