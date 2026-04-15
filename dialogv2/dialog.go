@@ -150,7 +150,7 @@ func NewDialogSession(
 	profileDef := dataman.GetDialogProfile(params.ProfileID)
 	profileState := dataman.GetDialogProfileState(params.ProfileID)
 
-	ctx := NewDialogContext(params.NPCID, profileState, gameCtx, eventBus, dataman, questman)
+	ctx := NewDialogContext(params.NPCID, profileState, *profileDef, gameCtx, eventBus, dataman, questman)
 	ds := DialogSession{
 		scrMgr:       scrMgr,
 		ctxForScreen: gameCtx,
@@ -225,8 +225,9 @@ func NewAdhocDialogSession(
 
 	// since adhoc doesn't need to save any state, we will just make an empty stand-in
 	profileState := state.DialogProfileState{}
+	profileDef := defs.DialogProfileDef{}
 
-	ctx := NewDialogContext(params.NPCID, &profileState, gameCtx, eventBus, dataman, questman)
+	ctx := NewDialogContext(params.NPCID, &profileState, profileDef, gameCtx, eventBus, dataman, questman)
 	ds := DialogSession{
 		scrMgr:       scrMgr,
 		ctxForScreen: gameCtx,
@@ -437,9 +438,12 @@ func (ds *DialogSession) GetTopicOptions() []defs.DialogTopic {
 		}
 	}
 
-	// next, go through unlocked topics
-	for _, topicID := range ds.Ctx.GetUnlockedTopics() {
+	// next, get knowledge topics that both player and NPC have access to
+	for _, topicID := range ds.Ctx.GetKnowledgeTopics() {
 		topic := ds.dataman.GetDialogTopic(topicID)
+		// TODO: I wonder if we should find a way to avoid checking conditions everytime.
+		// one idea is to cache the result, and only recalculate whenever any effect happens, since that's probably the only
+		// time conditions could be affected.
 		if ConditionsMet(topic.Conditions, ds.Ctx) {
 			topics[topicID] = *topic
 		}

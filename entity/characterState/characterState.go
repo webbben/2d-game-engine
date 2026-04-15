@@ -307,6 +307,41 @@ func EquipItem(cs *state.CharacterState, i defs.InventoryItem) (success bool) {
 	return true
 }
 
+func IsItemEquipped(itemID defs.ItemID, charState state.CharacterState) bool {
+	if itemID == "" {
+		panic("itemID was empty")
+	}
+	equipment := charState.Equipment
+	if equipment.EquipedHeadwear.Def.GetID() == itemID {
+		return true
+	}
+	if equipment.EquipedBodywear.Def.GetID() == itemID {
+		return true
+	}
+	if equipment.EquipedFootwear.Def.GetID() == itemID {
+		return true
+	}
+	if equipment.EquipedWeapon.Def.GetID() == itemID {
+		return true
+	}
+	if equipment.EquipedAuxiliary.Def.GetID() == itemID {
+		return true
+	}
+	if equipment.EquipedAmmo.Def.GetID() == itemID {
+		return true
+	}
+	if equipment.EquipedRing1.Def.GetID() == itemID {
+		return true
+	}
+	if equipment.EquipedRing2.Def.GetID() == itemID {
+		return true
+	}
+	if equipment.EquipedAmulet.Def.GetID() == itemID {
+		return true
+	}
+	return false
+}
+
 func GetLockIDs(charState state.CharacterState) []string {
 	// make a map, since there could be multiple keys that have the same lock IDs in them.
 	lockIDs := map[string]bool{}

@@ -9,32 +9,33 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
 )
 
 const (
-	TopicSeenKey     string = "TOPIC_SEEN"
-	TopicUnlockedKey string = "TOPIC_UNLOCKED"
-	ResponseSeenKey  string = "RESPONSE_SEEN"
+	TopicSeenKey    string = "TOPIC_SEEN"
+	ResponseSeenKey string = "RESPONSE_SEEN"
 )
 
 type DialogContext struct {
-	Exit      bool // if set, the DialogSession will see it and apply it up there too, causing the dialog to end.
-	NPCID     string
-	Profile   *state.DialogProfileState
-	GameState defs.GameDialogContext
-	eventBus  *pubsub.EventBus
-	dataman   *datamanager.DataManager
-	questman  *quest.QuestManager
+	Exit       bool // if set, the DialogSession will see it and apply it up there too, causing the dialog to end.
+	NPCID      string
+	Profile    *state.DialogProfileState
+	ProfileDef defs.DialogProfileDef
+	GameState  defs.GameDialogContext
+	eventBus   *pubsub.EventBus
+	dataman    *datamanager.DataManager
+	questman   *quest.QuestManager
 
-	seenTopics     map[defs.TopicID]bool
-	unlockedTopics map[defs.TopicID]bool
-	seenResponses  map[string]bool
+	seenTopics      map[defs.TopicID]bool // topics the player has already discussed before (with this NPC)
+	knowledgeTopics map[defs.TopicID]bool // topics which both the player and NPC have knowledge of
+	seenResponses   map[string]bool
 }
 
-func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState defs.GameDialogContext, eventBus *pubsub.EventBus, dataman *datamanager.DataManager, questman *quest.QuestManager) DialogContext {
+func NewDialogContext(npcID string, profile *state.DialogProfileState, profDef defs.DialogProfileDef, gameState defs.GameDialogContext, eventBus *pubsub.EventBus, dataman *datamanager.DataManager, questman *quest.QuestManager) DialogContext {
 	// just confirming dialog context implements the necessary interfaces
 	_ = append([]defs.ConditionContext{}, &DialogContext{})
 	if profile == nil {
@@ -58,7 +59,7 @@ func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState
 		questman:  questman,
 	}
 	ds.seenTopics = make(map[defs.TopicID]bool)
-	ds.unlockedTopics = make(map[defs.TopicID]bool)
+	ds.knowledgeTopics = make(map[defs.TopicID]bool)
 	ds.seenResponses = make(map[string]bool)
 
 	// parse out data from memory map
@@ -71,14 +72,20 @@ func NewDialogContext(npcID string, profile *state.DialogProfileState, gameState
 			switch key {
 			case TopicSeenKey:
 				ds.seenTopics[defs.TopicID(value)] = true
-			case TopicUnlockedKey:
-				ds.unlockedTopics[defs.TopicID(value)] = true
 			case ResponseSeenKey:
 				ds.seenResponses[value] = true
 			}
 		} else {
 			// so far, we only have the above pattern, so panic
 			panic("unexpected key pattern found in memory")
+		}
+	}
+
+	// find intersection of knowledge topics that both the player and NPC know about
+	playerCharState := dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	for _, topicID := range profDef.KnowledgeTopics {
+		if playerCharState.Knowledge[topicID] {
+			ds.knowledgeTopics[topicID] = true
 		}
 	}
 
@@ -99,10 +106,8 @@ func (ctx *DialogContext) RecordTopicUnlocked(topicID defs.TopicID) {
 	if topicID == "" {
 		panic("topicID was empty")
 	}
-	key := fmt.Sprintf("%s:%s", TopicUnlockedKey, topicID)
-	ctx.Profile.Memory[key] = true
-
-	ctx.unlockedTopics[topicID] = true
+	playerCharState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	playerCharState.Knowledge[topicID] = true
 }
 
 func (ctx *DialogContext) RecordResponseSeen(greetingID string) {
@@ -115,9 +120,9 @@ func (ctx *DialogContext) RecordResponseSeen(greetingID string) {
 	ctx.seenResponses[greetingID] = true
 }
 
-func (ctx *DialogContext) GetUnlockedTopics() []defs.TopicID {
+func (ctx *DialogContext) GetKnowledgeTopics() []defs.TopicID {
 	ids := []defs.TopicID{}
-	for topicID := range ctx.unlockedTopics {
+	for topicID := range ctx.knowledgeTopics {
 		ids = append(ids, topicID)
 	}
 	return ids
@@ -136,7 +141,8 @@ func (ctx DialogContext) HasSeenTopic(id defs.TopicID) bool {
 }
 
 func (ctx DialogContext) IsTopicUnlocked(id defs.TopicID) bool {
-	return ctx.unlockedTopics[id]
+	// TODO: do we need this function? I guess it would just check the player's knowledge map?
+	return false
 }
 
 func (ctx DialogContext) HasSeenResponse(id string) bool {
@@ -229,4 +235,23 @@ func (ctx DialogContext) GetQuestStage(qid defs.QuestID) (started, comp, fail bo
 		logz.Panicln("GetQuestStage", "unknown status?", status, qid)
 		return false, false, false, ""
 	}
+}
+
+func (ctx DialogContext) AddItem(itemID defs.ItemID, quantity int) {
+	if quantity <= 0 {
+		panic("item quantity was <= 0")
+	}
+	playerCharState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	itemDef := ctx.dataman.GetItemDef(itemID)
+	characterstate.AddItemToInventory(playerCharState, defs.NewInventoryItem(itemDef, quantity))
+}
+
+func (ctx DialogContext) IsItemEquipped(itemID defs.ItemID) bool {
+	playerCharState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	return characterstate.IsItemEquipped(itemID, *playerCharState)
+}
+
+func (ctx DialogContext) PlayerHasKnowledge(topicID defs.TopicID) bool {
+	playerCharState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	return playerCharState.Knowledge[topicID]
 }

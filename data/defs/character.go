@@ -38,7 +38,8 @@ type CharacterDef struct {
 	DisplayName string // REQ: the main name this character uses. Somewhat short so it can be used everywhere. Ex: "Scipio Africanus".
 	FullName    string // OPT: a longer version of the name. Ex: Roman elites will have multiple names, like "Publius Cornelius Scipio Africanus".
 
-	InitialRoles []RoleID // roles that this character starts out with
+	InitialRoles     []RoleID  // roles that this character starts out with
+	InitialKnowledge []TopicID // knowledge that this character starts out with. could be specific dialog topics or general "world" knowledge
 
 	// REQ: the "class" of this character. Usually describes what type of person they are, their combat style, or whatever is most notable.
 	// This is set by the classDef, but the classDef remains as is; this just allows a character to have a customized name, but still use a specific base classDef.

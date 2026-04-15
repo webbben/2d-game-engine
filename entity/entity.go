@@ -361,6 +361,7 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		DisplayName: displayName,
 		IsPlayer:    params.IsPlayer,
 		Roles:       make(map[defs.RoleID]bool),
+		Knowledge:   make(map[defs.TopicID]bool),
 		SocialRank:  charDef.SocialRank,
 
 		CurrentMap:   params.InitialMapID,
@@ -375,9 +376,12 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		Traits:         charDef.InitialTraits,
 	}
 
-	// add roles
+	// add roles and knowledge
 	for _, roleID := range charDef.InitialRoles {
 		charState.Roles[roleID] = true
+	}
+	for _, topicID := range charDef.InitialKnowledge {
+		charState.Knowledge[topicID] = true
 	}
 
 	// check if this characters' dialog profile has a state created yet. if not, create it now.

@@ -244,6 +244,57 @@ DialogCondition: dialogv2.ConditionHasRole{
 }
 ```
 
+### ConditionQuestStage
+
+Check the current stage of a quest.
+
+```go
+DialogCondition: dialogv2.ConditionQuestStage{
+    QuestID: "deliver_package",
+    StageID: "delivering",  // Specific stage
+}
+
+// Or check quest status without specific stage:
+DialogCondition: dialogv2.ConditionQuestStage{
+    QuestID:    "deliver_package",
+    Completed: true,  // Check if quest is completed
+}
+
+DialogCondition: dialogv2.ConditionQuestStage{
+    QuestID:    "deliver_package",
+    NotStarted: true,  // Check if quest hasn't started
+}
+
+DialogCondition: dialogv2.ConditionQuestStage{
+    QuestID: "deliver_package",
+    Failed:  true,  // Check if quest failed
+}
+```
+
+### ConditionItemEquipped
+
+Check if the player has a specific item equipped.
+
+```go
+DialogCondition: dialogv2.ConditionItemEquipped{
+    ItemID: "iron_sword",
+}
+```
+
+Useful for: requiring certain equipment for dialog options, recognizing hero status from equipment.
+
+### ConditionKnowledge
+
+Check if the player has learned about a topic (from previous conversations or other sources).
+
+```go
+DialogCondition: dialogv2.ConditionKnowledge{
+    TopicID: "dark_ritual_secret",
+}
+```
+
+Useful for: tracking what lore/ secrets the player has discovered, unlocking advanced dialog about learned topics.
+
 #### What Roles Are For
 
 Roles are flexible identifiers for character status. They are **not** for character class (barbarian, warlock, etc.)—that's handled separately. Roles are for:
@@ -353,6 +404,25 @@ DialogEffect: dialogv2.SetDialogMemoryEffect{
     MemoryKey: "met_blacksmith",
 },
 ```
+
+### AddItemEffect
+
+Add an item to the player's inventory.
+
+```go
+DialogEffect: dialogv2.AddItemEffect{
+    ItemID:   "health_potion",
+    Quantity: nil,  // defaults to 1
+}
+
+// Or give multiple items:
+DialogEffect: dialogv2.AddItemEffect{
+    ItemID:   "wolf_pelt",
+    Quantity: &[]int{5},
+}
+```
+
+Note: If the player's inventory is full, the item appears on the ground next to the player.
 
 ### ScheduleFutureEventEffect
 

@@ -10,12 +10,13 @@ import (
 type CharacterState struct {
 	// Name, Identity
 
-	DisplayName string               // the actual name of the entity, as displayed in game to players
-	ID          id.CharacterStateID  // the unique identifier of this entity (not usually seen by players - only by developers)
-	DefID       defs.CharacterDefID  // the ID of the characterDef used for creating this character state originally. Use this to look things up like which dialogProfileID to use.
-	IsPlayer    bool                 `json:"-"` // flag indicating if this entity is the player RUNTIME
-	Temp        bool                 // if true, then this character state is not meant to be saved long term, and will not be persisted after a play session ends.
-	Roles       map[defs.RoleID]bool // which roles this character currently has
+	DisplayName string                // the actual name of the entity, as displayed in game to players
+	ID          id.CharacterStateID   // the unique identifier of this entity (not usually seen by players - only by developers)
+	DefID       defs.CharacterDefID   // the ID of the characterDef used for creating this character state originally. Use this to look things up like which dialogProfileID to use.
+	IsPlayer    bool                  `json:"-"` // flag indicating if this entity is the player RUNTIME
+	Temp        bool                  // if true, then this character state is not meant to be saved long term, and will not be persisted after a play session ends.
+	Roles       map[defs.RoleID]bool  // which roles this character currently has
+	Knowledge   map[defs.TopicID]bool // specific knowledge this character has. mainly impacts dialog, giving the player access to certain topics.
 
 	SocialRank defs.SocialRank // the social rank this character currently has
 

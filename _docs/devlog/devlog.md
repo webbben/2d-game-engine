@@ -1,3 +1,226 @@
+# 2026-04-15
+
+New topic to discuss: Character "Knowledge".
+
+In a game like the one I'm creating, it's an open world, and there are lots of different things that exist in that world.
+There are lots of physical places, like cities, and there are lots of things that you can learn about, which lead to new topics. This is especially true
+when it comes to things like quest lines. When the player starts out in a guild, he knows nothing about the different members of the guild, or the way things work.
+As he completes quests, he will "unlock" new topics of discussion as he learns about new things. For example, maybe someone mentions in a dialog something about 
+a "Conspiracy against the guildmaster". Suddenly you see this is a new topic that you can discuss and learn more about. And now, you can also go to other 
+characters in the same guild and find that they too can discuss this topic, possibly with their own twist on it.
+
+Until now, I haven't been completely clear about how unlocking topics should work. So far, we have a "new topics" mechanism in dialog which will unlock it with 
+the current dialog profile. But, the problem there is, it's not unlocked for other dialog profiles. You talk to one person, unlock the topic, but then you talk to 
+another person (who should know about it) but the topic isn't there.
+
+So, I want to do a couple things here:
+
+1) Clarify how topics get unlocked, and how to decide which NPCs/dialog profiles can discuss which topics 
+2) Introduce the concept of "knowledge" to the player, and clarify its scope and purpose.
+
+## Unlocking Dialog Topics 
+
+As I said above, currently the only way to unlock a topic is:
+
+- on a profile by profile basis (not across profiles)
+- using the NextTopic field in a dialog response
+
+In addition to this, each dialog profile will have a set of topics set in its definition.
+I think we should first work out exactly what that set of topics is for, because it seems a bit ambiguous to me.
+
+### Topics in DialogProfileDef 
+
+The Topics field in DialogProfileDef is just a slice of Topic IDs, and no comment. So let's take a look at how it's used in the code currently.
+
+```go 
+func (ds *DialogSession) GetTopicOptions() []defs.DialogTopic {
+	// use a map at first to ensure de-duplication
+	topics := make(map[defs.TopicID]defs.DialogTopic)
+	topicOptions := []defs.DialogTopic{}
+
+	// first, get them from the profile
+	for _, topicID := range ds.ProfileDef.TopicsIDs {
+		topic := ds.dataman.GetDialogTopic(topicID)
+		if ConditionsMet(topic.Conditions, ds.Ctx) {
+			topics[topicID] = *topic
+		}
+	}
+
+	// next, go through unlocked topics
+	for _, topicID := range ds.Ctx.GetUnlockedTopics() {
+		topic := ds.dataman.GetDialogTopic(topicID)
+		if ConditionsMet(topic.Conditions, ds.Ctx) {
+			topics[topicID] = *topic
+		}
+	}
+
+	// convert map to slice
+	for _, topic := range topics {
+		topicOptions = append(topicOptions, topic)
+	}
+
+	return topicOptions
+}
+```
+
+It's used in this single place, in the dialog system, in the function for getting topic options.
+This function is called every time the dialog session goes back to showing topics and waiting for the player to select one.
+If a topic's conditions are met, then it is shown. It also does the same thing with "unlocked topics", which are topics that are unlocked
+according to the dialog profile's memory map. These "unlocked" topics are specific to the dialog profile of course, and not globally unlocked.
+
+Ok, so I think that makes sense. Now the question is, what do we _want_ Topics to be for. Should it be for...
+
+- default topics that the NPC immediately can discuss?
+- all possible topics that the NPC could discuss, including unlockable topics?
+
+I guess as I look at how the code is written now, it seems like it's more of the first point: default topics that the NPC is already prepared to discuss
+(as long as its conditions are met). And that conditions part does make things a bit tricky, because "unlocking" a topic does seem sort of like a condition.
+But, I guess you wouldn't put NPC-specific conditions into a topic definition, so those two "conditions" are a bit different:
+
+Topic Def Conditions: general conditions for this topic to be allowed, not NPC-specific.
+Unlocking topics: done to add a new topic that isn't default-ly available to an NPC/dialog profile. still will check those general topic conditions.
+
+So, currently, when it comes to a dialog profile, the topics that are shown come down to:
+
+1) Default Topics that are set in the dialogProfileDef. These will always show as long as their conditions are met.
+2) Unlocked Topics that are unlocked **during dialog**. This can only happen if one of the default topics unlocks another topic.
+
+Therefore, all topics shown ultimately derive from the Topics list in the dialog profile def.
+
+## Introducing Topics "from the world"
+
+What if we want topics to be able to be introduced by conversations with other NPCs/dialog profiles? Or, maybe even from other places in the game, like say,
+from reading a book? Well, if we want that, we will need to introduce something new to the equation.
+
+At first I simply thought: we can have a "topics knowledge" map with the player which, when a new "knowledge topic" arises in a dialog, is updated to include that topic.
+Then, everytime you enter a dialog with someone those knowledge topics can also be considered, and their conditions can be run.
+
+... But, the obvious problem there is, not everyone is going to be relevant to a given "knowledge topic". And, like I said before, the conditions attached to topics
+are meant to be generalized, and not specific conditions that check things like which dialog profile/NPC the player is talking to. The conditions on a topic are supposed 
+to be something like "quest has certain status" or "player has certain role". Not something like `DialogProfile == X || DialogProfile == Y || ...`
+
+So, I'm thinking we can do two things:
+
+1) the player has a "knowledge map" that can introduce topics into dialog 
+2) each dialog profile def has a "knowledge topics" list that defines what "knowledge topics" it can possibly discuss, as long as the player has knowledge of it.
+
+And so when topics are calculated to show in a dialog session, it does the existing logic, but in addition to that it includes the intersection of the player's and the NPC's 
+knowledge topics.
+
+## "Knowledge" In-Game
+
+Now that we've cleared that up, I want to get back to one of the original points: a "knowledge map" in the character def and character state.
+
+One thing that isn't quite clarified yet is if knowledge is only for dialog topics, or if it can influence other things.
+For example, I think it would be nice if knowledge can also give the player access to certain replies in a dialog, rather than just topics.
+Maybe the player is asked a question about a specific lore topic, but the player happened to have read a relevant book (in-game) before, so 
+he can give a new, better answer. Maybe knowledge is added in other ways that will be convenient or add depth to the game, that I'm not thinking of now.
+But anyway, I can at least foresee that I want to use knowledge to add dialog topics as well as being a condition for certain replies.
+
+Before, the knowledge map might've looked something like this:
+
+`map[defs.TopicID]bool`
+
+However, this would mean every piece of worldly knowledge would have to be defined as a topic. I guess that _could_ work, but it'll be awkward for
+knowledge that doesn't have an actual topic that can be discussed in a dialog conversation.
+
+But, it's not necessarily a big problem. Semantically, "topic" does match what is represented by having "knowledge" of something anyway.
+
+Another consideration is, if there end up being lots and lots of "world knowledge" that isn't tied to topics, it seems possible that it _could_ be a slight performance
+thing for dialog. I guess it should be pretty unlikely that the player will end up having unlocked knowledge topics to the tunes of hundreds or thousands though.
+I'm guessing that it would only get up to maybe 100 or so at most, and we can always be smart about calculating the intersection of knowledge topics only when necessary,
+like at the start of a dialog session or whenever a new knowledge topic is unlocked midway through dialog.
+
+Okay, I think it's settled: let's make "worldly knowledge" just as topic IDs that don't have a corresponding dialog topic definition.
+
+## Q: Should the `NextTopics` system be changed? 
+
+Now as I'm working on implementing this new knowledge concept, I realized that Knowledge and `NextTopics` ("unlockable topics" from dialog responses)
+seems to work quite similarly to this new Knowledge concept. Both are things that can be unlocked during dialog, but only one ("unlockable topics") doesn't
+require a predefined list of possibly unlockable topics. In other words, a "world topic" will show in dialog if the NPC/dialog profile has access to that topic.
+But an "unlocked topic" doesn't require any other checks about "should this dialog profile have access?".
+
+I'm starting to think that we should just convert `NextTopics` into something that adds new "knowledge" topics to the player, and then of course if the NPC/dialog profile
+in the dialog also supports that new world topic, then you will see it show up. It could get messy if we have two places where "unlockable" topics live, and it's
+a little safer to ensure that a random dialog profile wouldn't accidentally be showing an unexpected topic because we were accidentally sharing a dialog response between 
+dialog profiles.
+
+Ok, so my next conclusion is to change `NextTopics` in dialog responses to simply add the topic to the player's knowledge map, and remove the mechanism of registering 
+"unlocked topics" in the dialog profile's memory.
+
+## Q: What topics should be "unlockable" vs "default"?
+
+One thing I'm now thinking about is, when making a dialog profile def, which topics should I make as default vs unlockable (i.e. knowledge topics for the NPC)?
+
+I guess the default topics should mainly be very standard things that _don't_ require unlocking... right?
+But, what if I accidentally give one NPC some default topics that normally _do_ require unlocking? Does that mean that the player could discuss this topic
+with that specific NPC, then go talk to another NPC and not see the topic, even though that NPC has that same topic as unlockable?
+
+I guess there are several things we could do about this hypothetical situation:
+
+1) automatically register every topic discussed as "unlocked" (i.e. add it to the player's knowledge map)
+2) add a field to topic defs that designates a topic as "Knowledge" or "Locked", so that it cannot be added as a default topic 
+
+I think that 1 is unappealing because it would unnecessarily bloat up the knowledge map. It would mean that the knowledge map would approach the total number of all existing topics,
+in the worst case, but at that point it would represent something more like a "topic history" rather than specific knowledge, since 99% of topics in it wouldn't be used for
+any "knowledge" purpose.
+
+Number 2 would work well enough, but the unappealing part is that it adds an extra field to consider for every single topic we make. Not a big deal necessarily, but
+I hesitate to add it just because the benefit is not that great. This would all go towards solving a problem which, at worst case, just causes an odd or awkward dialog interaction
+maybe once or twice. It seems pretty unlikely to be a real problem.
+
+Instead, I think we can just define specific purposes and meanings to the two different lists of topics.
+Each dialog profile will have the two topic lists, and here's how we will view them:
+
+**TopicIDs**:
+- Default topics that this character immediately is prepared to talk about.
+- They represent mainly topics that are "publicly known" or don't include any prior context or knowledge.
+  - Ex: "Rumors", "Background" (you don't need to be introduced to these things or "discover" the concepts)
+- Or, they represent character specific topics that wouldn't be able to be introduced by other people anyway.
+  - Ex: "Lost my dog", "Help me out", "A funny joke" (often something that would lead to a unique side quest)
+- Shopkeepers or NPCs that offer services would put their service's topic here, most likely at the very top.
+
+Knowledge Topics:
+- Topics that are related to lore, or is specific to some quest line
+- Topics that would not be immediately available to a new character
+- Ex: "The Empire", "Aquileia", "The Rhine" (all specific concepts or geography that the player may hear about in dialog.)
+- Ex: "The Thieves Guild", "The Cherusci", "The Legion" (all guilds, political entities, or groups of people involved in the game's lore)
+
+## Q: How should topics be mentioned in dialog text? Should they have links or be highlighted?
+
+In games like Morrowind, when other topics are mentioned in a dialog, the topic's text is always highlighted and serves as a link to start that topic.
+I think it would be good to have something like this in my game here. It would definitely be good for usability, since it would be annoying to have to
+hunt down the topic in the topic list each time. It also helps as a visual cue to tell you "this is a topic I can discuss further".
+
+I'm thinking about the best way to do this. I'm considered some ideas in the past about how to add formatting to text. For example, I've considered using underscores
+to make text an "aside", like the character is talking to himself or muttering something. I could also do something similar with asterisks to make text appear bold
+or in a larger, emphasized font, as though the character is yelling something or to symbolize a loud noise.
+
+I could do something similar with topics, but it's a bit trickier because I have to decide add some guardrails and handle more complex logic:
+
+- what if the conditions of the topic mentioned are not met? normally, such topics don't show up in the topic options list, so we'd need to block them.
+- how do we ensure the right topic is linked to the right text? (e.g. ensure that we don't accidentally connect the "background" topic to text that says "rumors")
+- how do we ensure safety? I want to make sure I'm not just writing topic IDs into text as string literals - we need to use constants one way or another.
+
+One system I considered before is to use the NextTopics slice (in a dialog response) to set which topics would be linked in a dialog response.
+Alongside this, in the text, I could put some kind of syntax that denotes a link, like using square brackets: `"I've heard some strange [rumors] recently..."`.
+I think this could work well, because it doesn't depend on the text in the string having the correct topic ID, or anything related to spelling.
+It also would allow topics to be introduced as NextTopics without needing to put them into the text; but, if you use the brackets in the text and there are
+NextTopics set, it will assume it should put links to those topics in the text within the brackets.
+The only problem here is, it does require the usage of NextTopics, which is meant to record topic knowledge. It's not a huge problem, because often times
+a linked topic would also represent a "knowledge topic". The only case where that's not correct is when you have a unique side quest for an NPC, and his greeting may include
+a mention of the topic that introduces the side-quest; not a knowledge topic that would ever be relevant to other situations, and so not something that's important
+to put in a knowledge map. But, realistically it's not a big problem if those topics end up in the knowledge map.
+
+On the "conditions" note, I guess we will just have to add an extra check before rendering the text as a link and ensure that the topic's conditions are met by
+the NPC/dialog profile. I don't think it'll be a big issue, and I also don't think there's anyway to avoid it, as long as I want this feature in the first place.
+
+Okay, let's sum up my conclusions here:
+
+- use `"... [topic reference] ..."` to reference topics in text, and put the topic ID (in the correct order) in `NextTopics`
+  - it's okay even if this causes unimportant topics to get added to the player's knowledge map
+- update dialog logic to check if topics in `NextTopics` have their conditions met, and if _not_, then don't show make it into an actual link (just plain text).
+
 # 2026-04-12
 
 I just wanted to add a screenshot of the first city I'm making, Aquileia. This is how it looks in Tiled, when viewed as a collection of maps in the game world.
