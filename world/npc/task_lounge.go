@@ -14,7 +14,6 @@ import (
 // If no interesting objects (like chairs) are nearby, then the NPC just idles.
 type LoungeTask struct {
 	TaskBase
-	NoBackgroundWork
 	isLounging         bool // if set, then NPC is considered to be actively lounging, and no updates are needed.
 	activateObjectTask *ActivateObjectTask
 	idleTask           *IdleTask
@@ -37,6 +36,10 @@ func NewLoungeTask(n *NPC, def defs.TaskDef) *LoungeTask {
 func (t *LoungeTask) Update() {
 	if t.isLounging {
 		// chilling in a chair somewhere; no need to do anything
+		return
+	}
+	if !t.RouteToStartMap(false) {
+		// we are routing to a different map to start task
 		return
 	}
 	if t.activateObjectTask != nil {
@@ -116,6 +119,11 @@ func (t *LoungeTask) startIdleTask() {
 }
 
 func (t *LoungeTask) SetupActiveState() {
+	if !t.InStartMap() {
+		// if we aren't in start map at this function call, then we should already be routing there; setupActiveState for underlying routing task.
+		t.RouteToStartMapSetupActiveState()
+		return
+	}
 	// basically, we need to do what we do in the main update, but without the "gotos".
 	// 1. find a chair if one is free, and immediately activate/sit in it.
 	t.Status = TaskInProg // TODO: is taskinProg checked anywhere?
@@ -151,4 +159,12 @@ func (t *LoungeTask) SetupActiveState() {
 	// 2. if no chair exists, then just idle in a random place.
 	t.startIdleTask()
 	t.idleTask.SetupActiveState()
+}
+
+func (t *LoungeTask) SimulationUpdate() {
+	t.RouteToStartMap(true)
+}
+
+func (t *LoungeTask) BackgroundAssist() {
+	t.RouteToStartMapBgAssist()
 }

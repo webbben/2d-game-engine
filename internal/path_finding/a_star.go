@@ -118,8 +118,10 @@ func aStar(start, goal m.Coords, costMap [][]int) (foundPath []m.Coords, visited
 	}
 
 	// if we didn't reach the goal, return the path to the closest found position
+	// (but, of course, if we didn't get past the start position, then there's no point)
 	if !closest.Equals(start) {
-		return reconstructPath(parent, start, closest), closed, false
+		p := reconstructPath(parent, start, closest)
+		return p, closed, false
 	}
 
 	return nil, nil, false

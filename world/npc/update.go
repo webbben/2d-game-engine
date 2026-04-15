@@ -54,7 +54,8 @@ func (mgmt *TaskMGMT) Update() {
 
 // OnHourChange handles NPC updates that should occur on hour change. mainly consideration about if scheduled tasks should run.
 func (n *NPC) OnHourChange(hour int) {
-	if n.CurrentTask == nil || n.Schedule.Hourly[hour].TaskID != n.CurrentTask.GetID() {
+	nextHourTask := n.Schedule.Hourly[hour]
+	if n.CurrentTask == nil || !n.CurrentTask.GetDef().Equals(nextHourTask) {
 		logz.Println("OnHourChange", "NPC is changing scheduled task.", n.WhoAmI())
 		n.RunScheduleTask(hour, n)
 	}

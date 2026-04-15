@@ -60,7 +60,7 @@ type QuestReactionDef struct {
     Actions        []QuestAction         // What to do
     NextStage      QuestStageID           // Progress to this stage
     TerminalStatus QuestTerminalStatus   // Complete/Fail
-    Text           string                 // Optional message
+    Text           string                 // Message displayed when reaction triggers (used for quest endings)
 }
 ```
 
@@ -147,16 +147,90 @@ Common condition types (implemented in quest.go):
 
 ## Terminal Status
 
-```go
-type QuestTerminalStatus int
+Quest reactions can end a quest using `TerminalStatus`. When set, the quest will terminate with the specified outcome instead of transitioning to a new stage.
 
+### Status Types
+
+```go
 const (
-    QuestTerminalSuccess QuestTerminalStatus = iota
-    QuestTerminalFailure
+    TerminalStatusNone     QuestTerminalStatus = iota  // 0 - Quest continues (requires NextStage)
+    TerminalStatusComplete                               // Quest succeeded
+    TerminalStatusFail                                  // Quest failed
 )
 ```
 
-Set `TerminalStatus` instead of `NextStage` to end the quest.
+### Usage
+
+Set `TerminalStatus` instead of `NextStage` to end the quest. Do not set both.
+
+```go
+QuestReactionDef{
+    SubscribeEvent: "dragon_defeated",
+    Actions: []defs.QuestAction{
+        quest.UnlockAction{...},
+    },
+    TerminalStatus: quest.TerminalStatusComplete,  // Quest ends successfully
+    // NextStage: ""  // Do not set this when using TerminalStatus
+}
+```
+
+### Rules
+
+- `TerminalStatusNone` + `NextStage` → Transition to next stage
+- `TerminalStatusComplete` → End quest as success (ignore `NextStage`)
+- `TerminalStatusFail` → End quest as failure (ignore `NextStage`)
+
+### Complete Example
+
+```go
+"stage_return_to_elder": {
+    Objective: "Return to the elder with the pelts.",
+    Reactions: []defs.QuestReactionDef{
+        {
+            SubscribeEvent: "talked_to_elder",
+            TerminalStatus: quest.TerminalStatusComplete,  // Success ending
+            Actions: []defs.QuestAction{
+                quest.UnlockAction{...},  // Reward: unlock treasure room
+            },
+        },
+    },
+},
+"stage_caught_stealing": {
+    Objective: "You were caught!",
+    Reactions: []defs.QuestReactionDef{
+        {
+            SubscribeEvent: "caught_by_guard",
+            TerminalStatus: quest.TerminalStatusFail,  // Failure ending
+        },
+    },
+},
+```
+
+### Quest Ending Text
+
+Use the `Text` field to display a conclusion message to the player when the quest ends. This appears when `TerminalStatus` is set.
+
+```go
+QuestReactionDef{
+    SubscribeEvent: "talked_to_elder",
+    TerminalStatus: quest.TerminalStatusComplete,
+    Text: "The elder is pleased with your work. The village is safe once more.",
+}
+```
+
+**Tips for good ending text:**
+- Explain what happened or what was accomplished
+- Provide narrative closure
+- Can hint at future consequences or follow-up quests
+- Keep it concise but satisfying
+
+### Best Practices
+
+1. **Always provide a dummy event** for terminal stages so the status actually fires
+2. **Use success for positive outcomes** - quest objectives met, rewards earned
+3. **Use failure for negative outcomes** - player failed, time expired, died
+4. **Grant rewards in Actions** before `TerminalStatus` executes
+5. **Include ending text** - give players narrative closure on terminal stages
 
 ---
 
