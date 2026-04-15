@@ -22,14 +22,15 @@ const (
 
 const ticksPerTextWrite = 1
 
-var slowDownChars = map[byte]bool{
+var slowDownChars = map[rune]bool{
 	'.': true,
 	'!': true,
 	'?': true,
+	'-': true,
 }
 
-func isSlowdownChar(c byte) bool {
-	_, exists := slowDownChars[c]
+func isSlowdownChar(r rune) bool {
+	_, exists := slowDownChars[r]
 	return exists
 }
 
@@ -53,6 +54,7 @@ type LineWriter struct {
 	currentPage       int              // the current page the lineWriter is writing
 	currentLineNumber int              // the current line (of linesToWrite) that we are writing
 	currentLineIndex  int              // the index of the current line we are writing
+	currentLineRunes  []rune           // the runes on the current line that is being written. for 'typewriter' style where one character is drawn at a time.
 	writtenLines      []string         // the "output" that is actually drawn. Note that this isn't used to draw the actual text anymore; just keeping in case its useful for debugging.
 	WritingStatus     LineWriterStatus // the current status of the lineWriter, regarding the text it is writing
 	writeImmediately  bool
@@ -216,12 +218,9 @@ func (lw LineWriter) Draw(screen *ebiten.Image, startX, startY int) int {
 	return lw.cursorY
 }
 
-func (lw *LineWriter) drawText(s string) {
+func (lw *LineWriter) drawRune(r, prev rune) {
 	if lw.textImg == nil {
 		panic("text img is nil")
-	}
-	if s == "" {
-		panic("tried to draw an empty string")
 	}
 	if lw.sourceText == "" {
 		panic("source text hasn't been set yet")
@@ -233,32 +232,47 @@ func (lw *LineWriter) drawText(s string) {
 		logz.Panicln("LineWriter", "tried to draw text, but linewriter status isn't set to Writing. status:", lw.WritingStatus)
 	}
 
-	dx, dy, _ := GetStringSize(s, lw.fontFace)
+	_, dy, _ := GetStringSize(string(r), lw.fontFace)
+	dx := AdvanceWidth(r, prev, lw.fontFace)
 
 	// sanity check: make sure the cursor isn't drawing outside the bounds of textImage
 	if lw.cursorY-dy < 0 {
+		logz.Println("LineWriter", "r:", r)
 		logz.Panicln("LineWriter", "it looks like the cursor is drawing text above the text box (clipping it at the top)", "cursorY:", lw.cursorY, "dy:", dy)
 	}
 	if lw.cursorY > lw.maxHeight {
+		logz.Println("LineWriter", "r:", r)
 		logz.Panicln("LineWriter", "it looks like the cursor is drawing text below the text box (clipping it at the bottom)", "cursorY:", lw.cursorY, "maxHeight:", lw.maxHeight)
 	}
 	if lw.cursorX < 0 {
+		logz.Println("LineWriter", "r:", r)
 		logz.Panicln("LineWriter", "it looks like the cursor is drawing text left of the text box (clipping it at the beginning)", "cursorX:", lw.cursorX)
 	}
 	if lw.cursorX+dx > lw.maxLineWidth+lw.cursorOffsetX {
-		logz.Panicln("LineWriter", "it looks like the cursor is drawing text right of the text box (clipping it at the end)", "cursorX:", lw.cursorX, "dx:", dx, "maxWidth:", lw.maxLineWidth, fmt.Sprintf("s: \"%s\"", s))
+		logz.Println("LineWriter", "r:", r)
+		logz.Panicln("LineWriter", "it looks like the cursor is drawing text right of the text box (clipping it at the end)", "cursorX:", lw.cursorX, "dx:", dx, "maxWidth:", lw.maxLineWidth, fmt.Sprintf("s: \"%s\"", string(r)))
 	}
 
-	// TODO: detect things like underscores, which should change the color of the text.
-	// Need to also handle underscores in fast forward too...
+	// apply kerning before draw
+	kern := lw.fontFace.Kern(prev, r)
+	lw.cursorX += kern.Round()
 
 	if lw.shadow {
-		DrawShadowText(lw.textImg, s, lw.fontFace, lw.cursorX, lw.cursorY, lw.fgColor, lw.bgColor, -2, -2)
+		DrawShadowText(lw.textImg, string(r), lw.fontFace, lw.cursorX, lw.cursorY, lw.fgColor, lw.bgColor, -2, -2)
 	} else {
-		DrawText(lw.textImg, s, lw.fontFace, lw.cursorX, lw.cursorY, lw.fgColor)
+		DrawText(lw.textImg, string(r), lw.fontFace, lw.cursorX, lw.cursorY, lw.fgColor)
 	}
 
-	lw.cursorX += dx
+	adv, ok := lw.fontFace.GlyphAdvance(r)
+	if ok {
+		// this should pretty much never fail, but I guess some glyphs don't have advance in theory
+		lw.cursorX += adv.Round()
+	}
+
+	// assert: dx = kern + adv, just to make sure nothing funky is going on
+	if dx != (kern + adv).Round() {
+		logz.Panicln("drawRune", "AdvanceWidth didn't add up to kern + advance... something must've gone wrong. dx:", dx, "kern:", kern.Round(), "adv:", adv.Round())
+	}
 }
 
 func (lw *LineWriter) newLine() {
@@ -295,21 +309,37 @@ func (lw *LineWriter) Update() {
 		}
 		currentPage := lw.pages[lw.currentPage]
 		if lw.currentLineNumber < len(currentPage) {
-			if lw.currentLineIndex < len(currentPage[lw.currentLineNumber]) {
+
+			// ensure runes slice has been made for this line.
+			// Note: the reason we can't use bytes is because some languages' characters are represented by multiple bytes.
+			// (e.g. "A" is 1 byte, but "あ" is 3 bytes)
+			// so, if we need to draw runes, we need to get the runes from a string. Getting a byte at a certain index will not work
+			// unless we are only dealing with ASCII single byte characters.
+			if len(lw.currentLineRunes) == 0 {
+				for _, r := range currentPage[lw.currentLineNumber] {
+					lw.currentLineRunes = append(lw.currentLineRunes, r)
+				}
+			}
+
+			if lw.currentLineIndex < len(lw.currentLineRunes) {
 				lw.textUpdateTimer++
 
 				if lw.textUpdateTimer >= ticksPerTextWrite+lw.addedUpdateTimer {
 					// continue to write the current line
-					nextChar := currentPage[lw.currentLineNumber][lw.currentLineIndex]
+					next := lw.currentLineRunes[lw.currentLineIndex]
+					prev := rune(0)
+					if lw.currentLineIndex > 0 {
+						prev = lw.currentLineRunes[lw.currentLineIndex-1]
+					}
 
-					lw.drawText(string(nextChar))
+					lw.drawRune(next, prev)
 
-					lw.writtenLines[lw.currentLineNumber] += string(nextChar)
+					lw.writtenLines[lw.currentLineNumber] += string(next)
 					lw.currentLineIndex++
 					lw.textUpdateTimer = 0
 
 					// see if we should slow down the writing due to an upcoming end of sentence
-					if isSlowdownChar(nextChar) {
+					if isSlowdownChar(next) {
 						lw.addedUpdateTimer = 25
 					} else {
 						lw.addedUpdateTimer = 0
@@ -321,9 +351,11 @@ func (lw *LineWriter) Update() {
 				lw.currentLineIndex = 0
 				lw.newLine()
 				lw.writtenLines = append(lw.writtenLines, "") // start next output line
+				lw.currentLineRunes = []rune{}                // reset runes
 			}
 		} else {
 			// everything has been written for the current page
+			lw.currentLineRunes = []rune{}
 			if lw.currentPage < len(lw.pages)-1 {
 				// there are more pages; wait for pager signal
 				lw.WritingStatus = AwaitPager
@@ -364,15 +396,16 @@ func (lw *LineWriter) FastForward() {
 	lw.resetCursor()
 	lw.textImg.Clear()
 	for _, line := range currentPage {
-		// had a situation where one extra space was at the end of a sentence, which caused it to overflow and clip the right side.
-		// TODO: should we just trim this when creating the pages in the first place?
-		line = strings.TrimSpace(line)
 		// Note: we draw character by character since, soon, I plan to add logic that checks an individual character and changes draw behavior
 		// e.g. drawing asides in a different color by using underscores
 		// even though this looks pretty inefficient, realistically I don't think it'll have any impact
-		for _, c := range line {
-			lw.drawText(string(c))
+		prev := rune(0)
+
+		for _, r := range line {
+			lw.drawRune(r, prev)
+			prev = r
 		}
+
 		lw.newLine()
 	}
 

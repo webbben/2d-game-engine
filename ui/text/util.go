@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"golang.org/x/image/font"
 )
@@ -48,8 +49,17 @@ func ConvertStringToLines(s string, f font.Face, lineWidthPx int) []string {
 		}
 
 		if currentLine.Len() > 0 {
-			lines = append(lines, currentLine.String())
+			// ensure no leading or trailing spaces
+			lines = append(lines, strings.TrimSpace(currentLine.String()))
 			currentLine.Reset()
+		}
+	}
+
+	// double check that each entire line is within the line width limit
+	for _, line := range lines {
+		dx, _, _ := GetStringSize(line, f)
+		if dx > lineWidthPx {
+			logz.Panicln("ConvertStringToLines", "a line was bigger than the max line width!")
 		}
 	}
 
@@ -69,12 +79,28 @@ func GetStringLinesHeight(s string, f font.Face, lineWidthPx int) int {
 	return height
 }
 
+// GetStringSize gets the size of a given string with the given font.
+// Note: if you want the width of a single rune, especially including things like kern which are influenced by preceding runes,
+// you should use AdvanceWidth instead.
 func GetStringSize(s string, f font.Face) (dx int, dy int, baseline int) {
 	if f == nil {
 		panic("tried to get string size with nil font")
 	}
 	bounds, advance := font.BoundString(f, s)
 	return advance.Round(), (bounds.Max.Y - bounds.Min.Y).Round(), -bounds.Min.Y.Round()
+}
+
+// AdvanceWidth gives the full width that a rune would take up if drawn with text.Draw.
+// It includes things like the "kern" which is an offset from the previous character.
+func AdvanceWidth(r, prevRune rune, f font.Face) int {
+	kern := f.Kern(prevRune, r)
+	advance, ok := f.GlyphAdvance(r)
+	if !ok {
+		// fallback (not sure when this would happen, but Chat-Gippity says it's rare)
+		return kern.Round()
+	}
+
+	return (kern + advance).Round()
 }
 
 // GetFontMetrics gets size metrics for a font. here is what each value means:
