@@ -16,9 +16,10 @@ type (
 // DialogProfileDef represents a body of greetings, dialog topics, etc that can be assigned to an NPC.
 // A dialog profile can be shared between entities or be entity-specific.
 type DialogProfileDef struct {
-	ProfileID DialogProfileID
-	Greeting  []DialogResponse
-	TopicsIDs []TopicID
+	ProfileID       DialogProfileID
+	Greeting        []DialogResponse
+	TopicsIDs       []TopicID // default topics that the NPC can immediately discuss; doesn't require player knowledge
+	KnowledgeTopics []TopicID // topics that require player knowledge; if the player doesn't know about this topic yet, it won't be available
 }
 
 // DialogTopic defines a specific dialog topic, and all the various ways that NPCs may discuss this topic.
@@ -115,7 +116,9 @@ type DialogReply struct {
 	Goodbye    bool // if set, this reply will cause dialog to end
 
 	NextResponse *DialogResponse // once this reply is chosen, this is how the NPC reacts. If nil, no response is given by the NPC.
-	NextTopicID  TopicID
+
+	// TODO: I don't know what the original intention of this was, but it's not being used. should we just delete it?
+	// NextTopicID  TopicID
 }
 
 type DialogCondition interface {
@@ -134,6 +137,8 @@ type ConditionContext interface {
 	CharacterHasRole(id id.CharacterStateID, roleID RoleID) bool
 	GetPlayerGold() int
 	GetNPCDialogProfileID() DialogProfileID
+	IsItemEquipped(itemID ItemID) bool
+	PlayerHasKnowledge(topicID TopicID) bool
 }
 
 type MemoryCondition struct {
@@ -154,6 +159,8 @@ type EffectContext interface {
 
 	AddGold(amount int)
 	RemoveGold(amount int)
+	AddItem(itemID ItemID, quantity int)
+	// TODO: RemoveItem(itemID ItemID, quantity int)
 
 	StartCustomLoadScreen(scrID ScreenID, open, close Transition, loadFunction func(ctx GameContext))
 	StartLoadScreen(loadFunction func(ctx GameContext))

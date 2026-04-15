@@ -145,3 +145,19 @@ func (c ConditionQuestStage) IsMet(ctx defs.ConditionContext) bool {
 	}
 	return sid == c.StageID
 }
+
+type ConditionItemEquipped struct {
+	ItemID defs.ItemID
+}
+
+func (c ConditionItemEquipped) IsMet(ctx defs.ConditionContext) bool {
+	return ctx.IsItemEquipped(c.ItemID)
+}
+
+type ConditionKnowledge struct {
+	TopicID defs.TopicID
+}
+
+func (c ConditionKnowledge) IsMet(ctx defs.ConditionContext) bool {
+	return ctx.PlayerHasKnowledge(c.TopicID)
+}

@@ -31,11 +31,14 @@ func (e RemoveGoldEffect) Apply(ctx defs.EffectContext) {
 	ctx.RemoveGold(e.Amount)
 }
 
+// SetDialogMemoryEffect sets a specific dialog memory key.
+// This should be used sparingly, only when other effects or mechanisms won't accomplish what you need to do.
 type SetDialogMemoryEffect struct {
 	MemoryKey string
 }
 
 func (e SetDialogMemoryEffect) Apply(ctx defs.EffectContext) {
+	ctx.RecordMiscDialogMemory(e.MemoryKey)
 }
 
 // StartCustomLoadScreenEffect causes a load screen (transition + execute load script) to occur in a dialog.
@@ -102,4 +105,22 @@ func (e ScheduleFutureEventEffect) Apply(ctx defs.EffectContext) {
 			"time":  gt,
 		},
 	})
+}
+
+// AddItemEffect adds an item to the player's inventory.
+// TODO: if the player's inventory is full, then the item just appears on the ground next to the player
+type AddItemEffect struct {
+	ItemID   defs.ItemID
+	Quantity *int // if unset, defaults to 1. use this to enable giving larger quantities.
+}
+
+func (e AddItemEffect) Apply(ctx defs.EffectContext) {
+	quantity := 1
+	if e.Quantity != nil {
+		quantity = *e.Quantity
+		if quantity <= 0 {
+			panic("custom quantity was <= 0")
+		}
+	}
+	ctx.AddItem(e.ItemID, quantity)
 }
