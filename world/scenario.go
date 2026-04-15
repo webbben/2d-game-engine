@@ -23,6 +23,7 @@ func (w *World) loadScenario(scenarioDef defs.ScenarioDef) {
 			Temp:                    true,
 			OverrideDialogProfileID: charDef.DialogProfileID,
 			OverrideScheduleID:      charDef.DefaultSchedule,
+			InitialMapID:            scenarioDef.MapID,
 		}
 		charStateID := entity.CreateNewCharacterState(
 			charDef.CharDefID,

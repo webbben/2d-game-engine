@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/internal/debug"
@@ -120,7 +121,17 @@ func BuildWorldGraph(dataman *datamanager.DataManager) *WorldGraph {
 			}
 			// TODO: these coordinates are probably a bit wrong; it'll point to the top left, but we would actually want to know the position right next to the door,
 			// where a character would actually be standing when using the door.
-			edgeCoords := model.ConvertPxToTilePos((obj.X), (obj.Y))
+			x := obj.X
+			y := obj.Y
+			if obj.Height > config.TileSize {
+				// doors are usually 2 tiles tall, so make sure we have the bottom tile
+				y = (y + obj.Height) - config.TileSize
+			}
+			edgeCoords := model.ConvertPxToTilePos(x, y)
+			// TODO: should we go through the trouble here of actually finding the "right" position to go to in order to access the door?
+			// lots of doors will be on buildings, and therefore their positions will be blocked.
+			// I also wonder if path finding when the goal tile is blocked takes a performance hit at all, since it probably leads to excess searching (even if a little)
+
 			node.Edges = append(node.Edges, MapEdge{
 				To:           defs.MapID(doorTo),
 				ToSpawn:      toSpawn,
@@ -304,7 +315,11 @@ func (wg *WorldGraph) reconstructPath(prev map[defs.MapID]defs.MapID, prevEdge m
 				// that are collidable. I don't know if the pathfinding function tries to walk directly onto the goal tile, but just in case we won't panic for now.
 				// If it turns out that this shouldn't be a problem, then we can go ahead and make this a panic case.
 				// Until then, I'm going to add a check to make sure that the path at least got "close enough".
-				if utils.EuclideanDistCoords(inMapPath[len(inMapPath)-1], lastStep.NextEdge.EdgeCoords) > 2 {
+				lastPathPos := inMapPath[len(inMapPath)-1]
+				dist := utils.EuclideanDistCoords(lastPathPos, lastStep.NextEdge.EdgeCoords)
+				if dist > 2 {
+					logz.Println("WorldGraph", "start:", lastSpawnCoords, "goal:", lastStep.NextEdge.EdgeCoords)
+					logz.Println("WorldGraph", "last path pos:", lastPathPos, "dist from goal:", dist)
 					logz.Panicln("WorldGraph", "failed to find path between spawn point and edge of path step; last step of path didn't get close enough to goal (dist > 2)")
 				}
 				// if the incomplete path is close enough, then let's just use it

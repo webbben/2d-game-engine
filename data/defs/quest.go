@@ -64,6 +64,9 @@ func (qd QuestDef) Validate() {
 	if qd.StartTrigger.EventType == "" {
 		logz.Panicln(string(qd.ID), "quest def has no start trigger event type set")
 	}
+	if qd.StartStage == "" {
+		logz.Panicln(string(qd.ID), "quest def had no start stage defined")
+	}
 	startStageFound := false
 	for _, stage := range qd.Stages {
 		if stage.ID == qd.StartStage {
@@ -110,7 +113,7 @@ func (stage QuestStageDef) Validate() {
 		panic("stage ID was empty")
 	}
 	if len(stage.Reactions) == 0 {
-		panic("stage has no reactions... so this quest would never be able to progress from here")
+		logz.Panicln(string(stage.ID), "stage has no reactions... so this quest would never be able to progress from here")
 	}
 	for _, reaction := range stage.Reactions {
 		reaction.Validate()

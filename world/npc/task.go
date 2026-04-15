@@ -58,6 +58,7 @@ func (ts TaskStatus) String() string {
 // Anything that is task-specific and not needing exposure to the task management system should be left out of this interface.
 type Task interface {
 	GetID() defs.TaskID
+	GetDef() defs.TaskDef
 
 	GetStartLocation() *defs.TaskStartLocation
 
@@ -103,6 +104,10 @@ type TaskBase struct {
 	_baseRouting    *RouteTask
 	_startTime      *time.Time // records the instant this task received its first update of any kind. used for detecting "unplugged" background assist.
 	_bgAssistCalled bool       // records if bg assist has ever been called. used for detecting "unplugged" bg assist.
+}
+
+func (tb TaskBase) GetDef() defs.TaskDef {
+	return tb.Def
 }
 
 func (tb *TaskBase) RecordBgAssist() {
@@ -205,6 +210,9 @@ func (tb TaskBase) InStartMap() bool {
 	if startLoc == nil || startLoc.MapID == "" {
 		// nothing set, so we assume true
 		return true
+	}
+	if tb.Owner.CharacterStateRef.CurrentMap == "" {
+		logz.Warnln("InStartMap", "NPC we are checking doesn't have a current map set")
 	}
 	return tb.Owner.CharacterStateRef.CurrentMap == startLoc.MapID
 }
