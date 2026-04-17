@@ -37,6 +37,9 @@ type RouteTask struct {
 	lastMapID defs.MapID // the last map that the NPC was in - to confirm if changing maps works
 
 	activateDoorTask *ActivateObjectTask
+
+	awaitingMapChange bool       // set when we send a change map occupancy event; causes code to wait until we are confirmed in the next map.
+	awaitMapChangeTo  defs.MapID // map we are waiting to change to
 }
 
 type RouteTaskParams struct {
@@ -102,6 +105,10 @@ func (t RouteTask) inDestinationMap() bool {
 // SimulationUpdate is what runs during the background NPC simulation loop, instead of Update.
 // So, basically Update for the background simulation when an NPC is not in the active map.
 func (t *RouteTask) SimulationUpdate() {
+	if t.awaitingMapChange {
+		t.handleAwaitMapChange()
+		return
+	}
 	if t.Owner.CharacterStateRef.CurrentMap == t.Owner.WorldCtx.GetActiveMapID() {
 		// SimulationUpdate shouldn't be getting called...
 		logz.Panicln("RouteTask", "SimulationUpdate called when NPC should already be in active map!")
@@ -149,30 +156,16 @@ func (t *RouteTask) SimulationUpdate() {
 		currentMap := t.worldPath.Path[t.worldPathIndex].MapID
 		nextEdge := t.worldPath.Path[t.worldPathIndex].NextEdge
 		nextMap := nextEdge.To
-		t.Owner.WorldCtx.ChangeMapOccupancy(t.Owner.CharacterStateRef.ID, currentMap, nextMap)
+		toSpawn := nextEdge.ToSpawn
 
-		// If the NPC is moving into the active map, handle placing him in the actual position of the ToSpawn
-		if nextMap == t.Owner.WorldCtx.GetActiveMapID() {
-			t.Owner.WorldCtx.AddNPCToActiveMap(t.Owner.CharacterStateRef.ID, nextEdge.ToSpawn)
-			// from this point, further updates will be done in the regular Update function, instead of SimulationUpdate
+		if nextMap == "" {
+			panic("next map was empty...")
 		}
 
-		// advance to the next path step
-		t.worldPathIndex++
-		if t.worldPathIndex >= len(t.worldPath.Path) {
-			// we've reached the end
-			// ensure we are at the destination map
-			if !t.inDestinationMap() {
-				panic("route task finished, but NPC's current map doesn't match destination map!")
-			}
-			t.Status = TaskEnded
-			return
-		}
-		if t.inDestinationMap() {
-			panic("huh, I didn't think we'd be at the destination at this point, since worldPathIndex is still within range of Path. Does the last goal map have a step too?")
-		}
-		t.currentSimPath = t.worldPath.Path[t.worldPathIndex].MapPath
-		t.currentPathProgress = 0
+		t.Owner.WorldCtx.ChangeMapOccupancyEvent(t.Owner.CharacterStateRef.ID, currentMap, nextMap, toSpawn)
+
+		t.awaitingMapChange = true
+		t.awaitMapChangeTo = nextMap
 		return
 	}
 
@@ -180,10 +173,46 @@ func (t *RouteTask) SimulationUpdate() {
 	t.currentPathProgress += float64(1) / float64(len(t.currentSimPath))
 }
 
+func (t *RouteTask) handleAwaitMapChange() {
+	if !t.awaitingMapChange {
+		panic("not awaiting map change?")
+	}
+	// check if we are now in the next map
+	if t.Owner.CharacterStateRef.CurrentMap != t.awaitMapChangeTo {
+		// not there yet...
+		return
+	}
+
+	// we've reached the next map (main Update loop processed the event)
+	t.awaitingMapChange = false
+	t.awaitMapChangeTo = ""
+
+	// advance to the next path step
+	t.worldPathIndex++
+	if t.worldPathIndex >= len(t.worldPath.Path) {
+		// we've reached the end
+		// ensure we are at the destination map
+		if !t.inDestinationMap() {
+			panic("route task finished, but NPC's current map doesn't match destination map!")
+		}
+		t.Status = TaskEnded
+		return
+	}
+	if t.inDestinationMap() {
+		panic("huh, I didn't think we'd be at the destination at this point, since worldPathIndex is still within range of Path. Does the last goal map have a step too?")
+	}
+	t.currentSimPath = t.worldPath.Path[t.worldPathIndex].MapPath
+	t.currentPathProgress = 0
+}
+
 // Update for RouteTask is only done when NPC is in the active map; for NPCs that are routing while in other maps, the SimulationUpdate function is used instead.
 func (t *RouteTask) Update() {
 	if t.BgAssistUnplugged() {
 		logz.Panicln("RouteTask", "Background Assist appears to be unplugged! Whatever task is using this one should make sure to forward calls to BackgroundAssist to RouteTask's BackgroundAssist function.")
+	}
+	if t.awaitingMapChange {
+		t.handleAwaitMapChange()
+		return
 	}
 
 	if t.Owner.CharacterStateRef.CurrentMap != t.Owner.WorldCtx.GetActiveMapID() {
@@ -225,6 +254,10 @@ func (t *RouteTask) Update() {
 				if t.Owner.CharacterStateRef.CurrentMap == t.Owner.WorldCtx.GetActiveMapID() {
 					logz.Panicln("RouteTask", "NPC should've successfully activated a door, but its current map is still the active map...", t.Owner.WhoAmI())
 				}
+				// next, we can expect the code to continue to SimulationUpdate if there are still more places for the NPC to travel
+				// set the flags that SimulationUpdate will use to move to next map
+				t.awaitMapChangeTo = t.worldPath.Path[t.worldPathIndex].NextEdge.To
+				t.awaitingMapChange = true
 			} else {
 				// failed to activate door... retry?
 				logz.Panicln("RouteTask", "NPC failed to activate door:", t.activateDoorTask.FailReason, t.Owner.WhoAmI())
@@ -254,6 +287,9 @@ func (t *RouteTask) goActivateDoor() {
 	if t.activateDoorTask != nil {
 		panic("activateDoorTask is already set")
 	}
+	if t.Owner.CharacterStateRef.CurrentMap != t.Owner.WorldCtx.GetActiveMapID() {
+		panic("goActivateDoor called, but npc is not in active map!")
+	}
 
 	pathNode := t.worldPath.Path[t.worldPathIndex]
 	var doorObj *object.Object
@@ -269,7 +305,7 @@ func (t *RouteTask) goActivateDoor() {
 		}
 	}
 	if doorObj == nil {
-		logz.Panicln("RouteTask", "failed to find next door in world path:", pathNode, t.Owner.WhoAmI())
+		logz.Panicln("RouteTask", "failed to find next door in world path:", pathNode, "\n", t.Owner.WhoAmI())
 	}
 
 	t.lastMapID = t.Owner.CharacterStateRef.CurrentMap

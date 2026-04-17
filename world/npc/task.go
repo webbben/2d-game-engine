@@ -315,9 +315,10 @@ func (n *NPC) HandleTaskUpdate() {
 }
 
 type NPCCollisionResult struct {
-	NoneDetected bool
-	Wait         bool
-	ReRoute      bool
+	NoneDetected     bool
+	UnknownCollision bool
+	Wait             bool
+	ReRoute          bool
 }
 
 // HandleNPCCollision handles any collisions that are occurring.
@@ -340,7 +341,6 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 		panic("Goto task: npc movement was interrupted, but there is no next step in target path")
 	}
 
-	// get NPCs that are at the next target tile - i.e. the next position in the target path
 	nextTarget := t.Owner.Entity.Movement.TargetPath[0]
 
 	collidingObjs := t.Owner.ActiveMapCtx.FindObjectsAtPosition(nextTarget)
@@ -369,5 +369,6 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 		}
 	}
 	// no collidable objects found; should be good to continue?
-	return NPCCollisionResult{NoneDetected: true}
+	logz.Println("HandleNPCCollision", "unknown collision. did the collision resolve itself?")
+	return NPCCollisionResult{UnknownCollision: true}
 }

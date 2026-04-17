@@ -98,11 +98,15 @@ func (e ScheduleFutureEventEffect) Apply(ctx defs.EffectContext) {
 		}
 	}
 
+	if gt == nil {
+		logz.Panicln("ScheduleFutureEventEffect", "gametime was nil. event:", e.Event.Type)
+	}
+
 	ctx.BroadcastEvent(defs.Event{
 		Type: pubsub.EventScheduleFutureEvent,
 		Data: map[string]any{
 			"event": e.Event,
-			"time":  gt,
+			"time":  *gt,
 		},
 	})
 }

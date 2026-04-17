@@ -39,8 +39,6 @@ func (w *World) Update() {
 }
 
 func (w *World) startNpcSimulation() {
-	w.simPaused = false
-	w.simStopped = false
 	logz.Println("SIMULATION", "Initializing NPC tasks...")
 
 	if w.ActiveMap != nil {
@@ -62,51 +60,14 @@ func (w *World) startNpcSimulation() {
 			logz.Warnln("SIMULATION", "NPC didn't have a start map:", id)
 		} else {
 			if startMap != n.CharacterStateRef.CurrentMap {
-				w.ChangeMapOccupancy(id, n.CharacterStateRef.CurrentMap, startMap)
+				w.ChangeMapOccupancy(id, n.CharacterStateRef.CurrentMap, startMap, -1)
 			}
 		}
 		n.SetupTaskState(w.Clock.GetCurrentGameTime(), nil)
 	}
 
 	logz.Println("SIMULATION", "Starting background NPC simulation...")
-	go w.npcBackgroundSimulation(w.cmdCh)
-}
-
-func (w *World) pauseNpcSimulation() {
-	if w.simPaused {
-		// simulation should already be paused; don't send the command
-		logz.Warnln("SIMULATION", "tried to pause NPC simulation, but simulation was already paused.")
-		return
-	}
-
-	w.sendSimCmd(SimPause)
-}
-
-func (w *World) resumeNpcSimulation() {
-	if !w.simPaused {
-		// simulation isn't paused... don't send the command
-		logz.Warnln("SIMULATION", "tried to resume NPC simulation, but simulation wasn't paused.")
-	}
-
-	w.sendSimCmd(SimResume)
-}
-
-func (w *World) stopNpcSimulation() {
-	if w.simStopped {
-		// simulation already stopped...
-		logz.Warnln("SIMULATION", "tried to stop NPC simulation, but simulation was already stopped.")
-	}
-
-	w.sendSimCmd(SimStop)
-}
-
-func (w *World) sendSimCmd(cmd SimCommand) {
-	select {
-	case w.cmdCh <- cmd:
-	// ok
-	default:
-		panic("uh oh")
-	}
+	go w.npcBackgroundSimulation()
 }
 
 func (w *World) HandleMapDoor(result object.ObjectUpdateResult) {
@@ -125,9 +86,7 @@ const (
 	SimStop
 )
 
-func (w *World) npcBackgroundSimulation(cmdCh <-chan SimCommand) {
-	paused := false
-
+func (w *World) npcBackgroundSimulation() {
 	logz.Println("SIMULATION", "NPC background simulation started!")
 
 	var lastTick time.Time
@@ -135,73 +94,45 @@ func (w *World) npcBackgroundSimulation(cmdCh <-chan SimCommand) {
 	lastHour := w.Clock.GetCurrentGameTime().Hour
 
 	for {
-		select {
-		case cmd := <-cmdCh:
-			switch cmd {
-			case SimPause:
-				logz.Println("SIMULATION", "Simulation pausing...")
-				paused = true
-			case SimResume:
-				logz.Panicln("SIMULATION", "a resume command came through, but the background simulation wasn't paused. is the logic sending these commands working correctly?")
-				paused = false
-			case SimStop:
-				logz.Println("SIMULATION", "Simulation stopping!")
-				return
-			}
+		if w.SimPaused.Load() {
+			continue
+		}
 
-		default:
-			if paused {
-				// block until we get a command to resume
-				cmd := <-cmdCh
-				switch cmd {
-				case SimResume:
-					logz.Println("SIMULATION", "Simulation resuming...")
-					paused = false
-				case SimPause:
-					logz.Panicln("SIMULATION", "a pause command came through, but the background simulation is already paused. is the logic sending these commands working correctly?")
-				case SimStop:
-					logz.Println("SIMULATION", "Simulation stopping!")
-					return
-				}
+		if w.ActiveMap == nil {
+			// if active map is nil at the moment, then don't do any background simulations
+			// TODO: is there actually a good reason to sleep here?
+			time.Sleep(time.Second)
+			continue
+		}
+
+		lastTick = time.Now()
+
+		newHour := lastHour != w.Clock.GetCurrentGameTime().Hour
+		lastHour = w.Clock.GetCurrentGameTime().Hour
+
+		// Do simulation work
+		for _, n := range w.NPCs {
+			if n.CharacterStateRef.CurrentMap == w.ActiveMap.MapID {
+				// do not do simulation updates for NPCs in the active map
 				continue
 			}
-
-			if w.ActiveMap == nil {
-				// if active map is nil at the moment, then don't do any background simulations
-				time.Sleep(time.Second)
+			if newHour {
+				// check if this NPC should change tasks or not
+				n.OnHourChange(lastHour)
 				continue
 			}
-
-			lastTick = time.Now()
-
-			newHour := lastHour != w.Clock.GetCurrentGameTime().Hour
-			lastHour = w.Clock.GetCurrentGameTime().Hour
-
-			// Do simulation work
-			for _, n := range w.NPCs {
-				if n.CharacterStateRef.CurrentMap == w.ActiveMap.MapID {
-					// do not do simulation updates for NPCs in the active map
-					continue
-				}
-				// TODO: do we need to use a mutex to ensure safety between the threads?
-				if newHour {
-					// check if this NPC should change tasks or not
-					n.OnHourChange(lastHour)
-					continue
-				}
-				if n.CurrentTask == nil {
-					// TODO: should a schedule task be launched for this NPC?
-					continue
-				}
-				n.CurrentTask.SimulationUpdate()
+			if n.CurrentTask == nil {
+				// TODO: should a schedule task be launched for this NPC?
+				continue
 			}
+			n.CurrentTask.SimulationUpdate()
+		}
 
-			tickElapsed := time.Since(lastTick)
-			if tickElapsed < tickSpeed {
-				time.Sleep(tickSpeed - tickElapsed)
-			} else if tickElapsed > tickSpeed {
-				logz.Warnln("SIMULATION", "simulation tick was longer than the expected duration:", tickElapsed)
-			}
+		tickElapsed := time.Since(lastTick)
+		if tickElapsed < tickSpeed {
+			time.Sleep(tickSpeed - tickElapsed)
+		} else if tickElapsed > tickSpeed {
+			logz.Warnln("SIMULATION", "simulation tick was longer than the expected duration:", tickElapsed)
 		}
 	}
 }

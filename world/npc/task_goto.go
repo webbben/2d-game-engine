@@ -12,8 +12,10 @@ type GotoTask struct {
 	TaskBase
 	NoBackgroundWork
 
-	goalPos   model.Coords
-	isGoingTo bool
+	goalPos          model.Coords
+	isGoingTo        bool
+	unknownCollision int  // counter for repeated unknown collisions; used for triggering failure.
+	ReachedTarget    bool // tells you if this task succeeded in reaching the goal tile
 }
 
 type GotoTaskParams struct {
@@ -56,6 +58,7 @@ func (t *GotoTask) start() {
 	if len(t.Owner.Entity.Movement.TargetPath) == 0 {
 		panic("started goto, but target path is empty")
 	}
+	t.unknownCollision = 0
 	logz.Println(t.Owner.ID(), "GotoTask started")
 }
 
@@ -73,8 +76,18 @@ func (t *GotoTask) Update() {
 			t.start()
 			return
 		}
+		if result.UnknownCollision {
+			t.unknownCollision++
+			if t.unknownCollision > 5 {
+				t.Status = TaskEnded
+				return
+			}
+		} else {
+			t.unknownCollision = 0
+		}
 		if t.isComplete() {
 			t.Status = TaskEnded
+			t.ReachedTarget = true
 			return
 		}
 		if !t.Owner.Entity.Movement.IsMoving {
@@ -98,5 +111,5 @@ func (t GotoTask) isComplete() bool {
 }
 
 func (t *GotoTask) SetupActiveState() {
-	panic("not yet implemented!")
+	panic("not yet implemented! could this ever be called anyway? i think goto tasks are only created when NPC is in same map as player.")
 }

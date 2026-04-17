@@ -23,8 +23,7 @@ import (
 type WorldContext interface {
 	GetActiveMapID() defs.MapID // this is here instead of activeMapContext so that NPCs can check it without being in the active world
 	FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldPath, foundPath bool)
-	ChangeMapOccupancy(charStateID id.CharacterStateID, from, to defs.MapID)
-	AddNPCToActiveMap(charStateID id.CharacterStateID, spawnIndex int)
+	ChangeMapOccupancyEvent(charStateID id.CharacterStateID, from, to defs.MapID, toSpawn int)
 }
 
 type ActiveMapContext interface {

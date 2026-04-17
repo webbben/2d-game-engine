@@ -92,16 +92,17 @@ func (t *ActivateObjectTask) Update() {
 	// 2. once next to the object, try to activate it
 	// confirm we are next to the target object now
 	objPos := t.targetObj.TilePos()
-	dist := utils.EuclideanDistCoords(t.Owner.Entity.TilePos(), objPos)
-	if dist > 2 {
-		// it seems we didn't manage to get close enough to the object...
-		// TODO: maybe we should add a field to GotoTask that says if it successfully reached the target or not
-		logz.Println("ActivateObjectTask", "failed to reach object; didn't get close enough. distance to object:", dist, "objPos:", objPos, "objID:", t.targetObj.ID, "whoami:", t.Owner.WhoAmI())
-		t.Status = TaskEnded
-		t.targetObj.ClearTargetingNPC()
-		t.Success = false
-		t.FailReason.failedToReachObject = true
-		return
+	if !t.gotoTask.ReachedTarget {
+		dist := utils.EuclideanDistCoords(t.Owner.Entity.TilePos(), objPos)
+		if dist > 2 {
+			// it seems we didn't manage to get close enough to the object...
+			logz.Println("ActivateObjectTask", "failed to reach object; didn't get close enough. distance to object:", dist, "objPos:", objPos, "objID:", t.targetObj.ID, "whoami:", t.Owner.WhoAmI())
+			t.Status = TaskEnded
+			t.targetObj.ClearTargetingNPC()
+			t.Success = false
+			t.FailReason.failedToReachObject = true
+			return
+		}
 	}
 
 	// try to activate the object
