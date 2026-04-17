@@ -130,7 +130,7 @@ func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMa
 		if n.CharacterStateRef.ID == charStateID {
 			n.Entity.ResetActiveMapRuntimeState()
 			// move to the new map's occupancy
-			m.worldCtx.ChangeMapOccupancy(charStateID, m.MapID, toMap)
+			m.worldCtx.ChangeMapOccupancy(charStateID, m.MapID, toMap, -1)
 			// remove from active map
 			m.NPCs = utils.RemoveIndexUnordered(m.NPCs, i)
 			return

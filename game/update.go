@@ -13,6 +13,8 @@ func (g *Game) Update() error {
 		g.handleGlobalKeyBindings()
 	}
 
+	g.EventBus.ProcessEvents()
+
 	if g.TransitionManager.TransitionInProgress {
 		g.TransitionManager.Update(g)
 		if g.TransitionManager.ShowingLoadingScreen {
@@ -24,6 +26,7 @@ func (g *Game) Update() error {
 		if !g.TransitionManager.TransitionInProgress {
 			// transition just ended. resume letting player do things in game map
 			g.World.BlockPlayerChanges = false
+			g.World.SimPaused.Store(false)
 		}
 	}
 

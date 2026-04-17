@@ -14,8 +14,9 @@ const (
 
 	// General world
 
-	EventVisitMap defs.EventType = "visit_map" // player enters a map
-	EventTimePass defs.EventType = "time_pass" // event called on every hour; can be used for tracking time passage
+	EventVisitMap           defs.EventType = "visit_map"                // player enters a map
+	EventTimePass           defs.EventType = "time_pass"                // event called on every hour; can be used for tracking time passage
+	EventMapOccupancyChange defs.EventType = "npc_map_occupancy_change" // called when an NPC changes maps
 
 	// Quests
 
@@ -47,6 +48,8 @@ type EventBus struct {
 	subscribeAll      map[string]func(defs.Event)
 
 	futureEventSchedule map[clock.GameTime][]defs.Event
+
+	queue chan defs.Event
 }
 
 func NewEventBus() *EventBus {
@@ -56,6 +59,7 @@ func NewEventBus() *EventBus {
 		subscribeAll:        make(map[string]func(defs.Event)),
 		alreadySubscribed:   make(map[string]bool),
 		futureEventSchedule: make(map[clock.GameTime][]defs.Event),
+		queue:               make(chan defs.Event, 256),
 	}
 }
 
@@ -101,18 +105,33 @@ func (eb *EventBus) SubscribeToNPCEvents(subscriberID string, npcID string, fn f
 	eb.Subscribe(subID, NpcAssignTaskType(npcID), fn)
 }
 
+// Publish handles enqueing an event to be published on the next update tick.
+// This is the correct, safe way to publish an event from any thread.
 func (eb *EventBus) Publish(e defs.Event) {
+	eb.queue <- e
+}
+
+// dispatches a single event.
+func (eb *EventBus) dispatch(e defs.Event) {
 	e.Log()
 	if e.Type == EventScheduleFutureEvent {
 		// queuing future events will not be broadcast to anyone; it's a special event type that is recorded to be fired later on.
 		// useful for doing things like causing an event to happen a day later after talking to an NPC, for example.
-		eventData, ok := e.Data["event"].(defs.Event)
+		eventDataVal, ok := e.Data["event"]
 		if !ok {
-			logz.Panicln("QueueFutureEvent", "tried to queue future event from incoming event, but data could not be type asserted to Event.", e.String())
+			logz.Panicln("QueueFutureEvent", "tried to queue future event from incoming event, but data did not include future event.", e.String())
 		}
-		futureTime, ok := e.Data["time"].(clock.GameTime)
+		eventData, ok := eventDataVal.(defs.Event)
+		if !ok {
+			logz.Panicln("QueueFutureEvent", "tried to queue future event from incoming event, but data could not be type asserted to Event.", e.String(), eventDataVal)
+		}
+		futureTimeVal, ok := e.Data["time"]
 		if !ok {
 			logz.Panicln("QueueFutureEvent", "received event for queuing a future event, but event data didn't include the time.", e.String())
+		}
+		futureTime, ok := futureTimeVal.(clock.GameTime)
+		if !ok {
+			logz.Panicln("QueueFutureEvent", "received event for queuing a future event, but time data couldn't be type asserted to gametime (note: pointers can mess this up)", e.String(), futureTimeVal)
 		}
 		eb.ScheduleFutureEvent(eventData, futureTime)
 		return
@@ -132,6 +151,26 @@ func (eb *EventBus) Publish(e defs.Event) {
 	// broadcast every published event to the "subscribe all" list
 	for _, fn := range eb.subscribeAll {
 		fn(e)
+	}
+}
+
+// ProcessEvents is called from the main Update loop to process all queued events.
+// This must never be called asynchronously from the main update loop!
+func (eb *EventBus) ProcessEvents() {
+	count := 0
+	for {
+		select {
+		case e := <-eb.queue:
+			eb.dispatch(e)
+			count++
+		default:
+			if count >= 255 {
+				logz.Warnln("EVENT BUS", "Event channel buffer was maxed out! Something must be sending a lot of events... This could cause simulation lag.")
+			} else if count > 50 {
+				logz.Warnln("EVENT BUS", "High volume of events processed:", count)
+			}
+			return
+		}
 	}
 }
 

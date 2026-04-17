@@ -571,14 +571,8 @@ func (ds *DialogSession) handleResponseGrouper() {
 		ds.ApplyResponse(*ds.currentResponse.NextResponse)
 		return
 	}
-	for _, nr := range ds.currentResponse.NextResponseOptions {
-		if ConditionsMet(nr.Conditions, ds.Ctx) {
-			ds.ApplyResponse(nr)
-			return
-		}
-	}
-
-	ds.panicln("DialogSession", "No valid response found in dialog response grouper")
+	resp := chooseResponse(ds.currentResponse.NextResponseOptions, ds.Ctx)
+	ds.ApplyResponse(resp)
 }
 
 func (ds *DialogSession) setResponseText(s string) {

@@ -36,7 +36,7 @@ type WorldContext interface {
 	GenerateCharacter(chargen defs.CharacterGenerator, initialMap defs.MapID, homeMap defs.MapID, homeMapBedID int) id.CharacterStateID
 	HandleMapDoor(result object.ObjectUpdateResult)
 	FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldPath, found bool)
-	ChangeMapOccupancy(charStateID id.CharacterStateID, fromMap, toMap defs.MapID)
+	ChangeMapOccupancy(charStateID id.CharacterStateID, fromMap, toMap defs.MapID, toSpawn int)
 }
 
 // ActiveMap contains information about the current room the player is in
@@ -387,28 +387,28 @@ func (mi ActiveMap) Collides(r model.Rect) model.CollisionResult {
 		r1 := mi.Map.CollisionRects[tl.Y][tl.X]
 		if r1.IsCollision {
 			cr.TopLeft = r1.OffsetRect(float64(tl.X*config.TileSize), float64(tl.Y*config.TileSize)).IntersectionArea(r)
-			cr.Note = "map collision rect"
+			cr.Note = fmt.Sprintf("map collision rect TL (X: %v, Y: %v)", tl.X, tl.Y)
 		}
 	}
 	if !cr.TopRight.Intersects {
 		r2 := mi.Map.CollisionRects[tr.Y][tr.X]
 		if r2.IsCollision {
 			cr.TopRight = r2.OffsetRect(float64(tr.X*config.TileSize), float64(tr.Y*config.TileSize)).IntersectionArea(r)
-			cr.Note = "map collision rect"
+			cr.Note = fmt.Sprintf("map collision rect TR (X: %v, Y: %v)", tr.X, tr.Y)
 		}
 	}
 	if !cr.BottomLeft.Intersects {
 		r3 := mi.Map.CollisionRects[bl.Y][bl.X]
 		if r3.IsCollision {
 			cr.BottomLeft = r3.OffsetRect(float64(bl.X*config.TileSize), float64(bl.Y*config.TileSize)).IntersectionArea(r)
-			cr.Note = "map collision rect"
+			cr.Note = fmt.Sprintf("map collision rect BL (X: %v, Y: %v)", bl.X, bl.Y)
 		}
 	}
 	if !cr.BottomRight.Intersects {
 		r4 := mi.Map.CollisionRects[br.Y][br.X]
 		if r4.IsCollision {
 			cr.BottomRight = r4.OffsetRect(float64(br.X*config.TileSize), float64(br.Y*config.TileSize)).IntersectionArea(r)
-			cr.Note = "map collision rect"
+			cr.Note = fmt.Sprintf("map collision rect BR (X: %v, Y: %v)", br.X, br.Y)
 		}
 	}
 

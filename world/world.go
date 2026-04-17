@@ -3,6 +3,7 @@ package world
 import (
 	"fmt"
 	"slices"
+	"sync/atomic"
 
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/clock"
@@ -51,9 +52,7 @@ type World struct {
 
 	// simulation
 
-	cmdCh      chan SimCommand
-	simPaused  bool
-	simStopped bool
+	SimPaused atomic.Bool
 
 	// Map Information
 
@@ -80,8 +79,6 @@ func NewWorld(
 		Screenman: screenman,
 		Questman:  questman,
 		GameCtx:   gameCtx,
-
-		cmdCh: make(chan SimCommand, 1), // purposely making buffer size 1, since commands should be infrequent and not queuing up
 	}
 
 	w.SetGameTime(initTime)
@@ -102,6 +99,8 @@ func NewWorld(
 	w.populateNPCMap()
 
 	w.startNpcSimulation()
+
+	w.EventBus.SubscribeToWorldEvents("WORLD", w.OnEvent)
 
 	return w
 }
@@ -155,6 +154,7 @@ func (w *World) EnterMap(mapID defs.MapID, playerSpawnIndex int, doTransition bo
 		// block player changes so they can't accidentally enter the same map twice
 		w.BlockPlayerChanges = true
 		w.GameCtx.StartLoadScreen(loadFunc)
+		w.SimPaused.Store(true)
 	} else {
 		loadFunc(w.GameCtx)
 	}
@@ -301,14 +301,34 @@ func (w *World) FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldP
 	return w.WorldGraph.FindPath(from, to)
 }
 
+func (w *World) ChangeMapOccupancyEvent(charStateID id.CharacterStateID, from, to defs.MapID, toSpawn int) {
+	w.EventBus.SysChangeMapOccupancy(charStateID, from, to, toSpawn)
+}
+
+func (w *World) OnEvent(e defs.Event) {
+	logz.Println("WORLD", "Incoming event:", e.Type)
+	switch e.Type {
+	case pubsub.SysEventChangeMapOccupancy:
+		if _, ok := e.Data["params"]; ok {
+			params, ok := e.Data["params"].(pubsub.SysEventChangeMapOccupancyParams)
+			if !ok {
+				logz.Panicln("WORLD", "SysEventChangeMapOccupancy:", "event data couldn't be type asserted to params.", e.Data)
+			}
+			w.ChangeMapOccupancy(params.CharacterStateID, params.From, params.To, params.ToSpawn)
+		} else {
+			logz.Panicln("WORLD", "SysEventChangeMapOccupancy:", "didn't find params in data.", e.Data)
+		}
+	}
+}
+
 // ChangeMapOccupancy handles moving a character from one map to another, including:
 //
 // 1. update MapOccupancy map (determines which NPCs should load for which maps)
 //
 // 2. update character state 'currentMap' field
 //
-// Does NOT change anything in ActiveMap; ActiveMap should handle removing or inserting NPCs to its own NPC slice elsewhere.
-func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to defs.MapID) {
+// 3. if entering the active map, also places the NPC in at the spawn point
+func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to defs.MapID, toSpawn int) {
 	if from == "" {
 		panic("from was empty!")
 	}
@@ -346,7 +366,7 @@ func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to def
 		}
 	}
 	if !found {
-		logz.Panicln("ChangeMapOccupancy", "didn't find character state ID in map occupancy: charStateID:", charStateID, "mapID:", from)
+		logz.Panicln("ChangeMapOccupancy", "didn't find character state ID in from map occupancy. charStateID:", charStateID, "from mapID:", from)
 	}
 
 	// ensure ID doesn't already exist in new map (before adding)
@@ -362,16 +382,43 @@ func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to def
 	// update character state
 	charState := w.Dataman.GetCharacterState(charStateID)
 	charState.CurrentMap = to
+
+	// handle placing at spawn point if NPC is entering active map
+	if w.ActiveMap != nil && w.ActiveMap.MapID == to {
+		if toSpawn == -1 {
+			panic("to spawn was -1; that implies this was called from a place that doesn't expect to put the NPC in the active map...")
+		}
+		n := w.NPCs[charStateID]
+		if n == nil {
+			panic("npc was nil")
+		}
+		x, y, found := w.ActiveMap.GetSpawnPosition(toSpawn)
+		if !found {
+			logz.Panicln("ChangeMapOccupancy", "spawn point not found! spawn index:", toSpawn)
+		}
+		startPos := model.ConvertPxToTilePos(x, y)
+		w.ActiveMap.AddNPCToMap(n, startPos)
+	}
+
+	// send event to notify map movement
+	w.EventBus.Publish(defs.Event{
+		Type: pubsub.EventMapOccupancyChange,
+		Data: map[string]any{
+			"charStateID": charStateID,
+			"to":          to,
+			"from":        from,
+		},
+	})
 }
 
-func (w World) GetActiveMapID() defs.MapID {
+func (w *World) GetActiveMapID() defs.MapID {
 	if w.ActiveMap == nil {
 		return ""
 	}
 	return w.ActiveMap.MapID
 }
 
-func (w World) getNPC(id id.CharacterStateID) *npc.NPC {
+func (w *World) getNPC(id id.CharacterStateID) *npc.NPC {
 	n, exists := w.NPCs[id]
 	if !exists {
 		logz.Panicln("WORLD", "NPC not found! charStateID:", id)

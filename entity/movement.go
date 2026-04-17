@@ -340,7 +340,7 @@ func (e *Entity) TryMovePx(dx, dy, speed float64) MoveError {
 			CollisionPoint:  &newPos,
 			Collision:       true,
 			CollisionResult: res,
-			Info:            "first step towards new target was collision",
+			Info:            "first step towards new target was collision: " + res.Note,
 		}
 	}
 
@@ -351,7 +351,7 @@ func (e *Entity) TryMovePx(dx, dy, speed float64) MoveError {
 			CollisionPoint:  &target,
 			Collision:       true,
 			CollisionResult: res,
-			Info:            "new target position was collision",
+			Info:            "new target position was collision: " + res.Note,
 		}
 	}
 
@@ -499,11 +499,10 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		panic("tried to set next target along path for entity that has no set target path")
 	}
 	nextTarget := e.Movement.TargetPath[0]
-	if nextTarget.Equals(e.TilePos()) {
+	tilePos := e.TilePos()
+	if nextTarget.Equals(tilePos) {
 		panic("trySetNextTargetPath: next target is the same tile as current position")
 	}
-
-	tilePos := e.TilePos()
 
 	if float64(tilePos.X) != e.X/config.TileSize || float64(tilePos.Y) != e.Y/config.TileSize {
 		logz.Println(e.DisplayName(), "trySetNextTargetPath: entity is not at its tile position. Was it bumped by an enemy attack or something?")
