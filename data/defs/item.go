@@ -205,7 +205,7 @@ func InventoryToString(inv []*InventoryItem) string {
 
 func (invItem InventoryItem) Validate() {
 	if invItem.Def == nil {
-		panic("item def is nil")
+		logz.Panicln("Validate Inventory Item", "item def is nil.", invItem.Instance.DefID)
 	}
 	if invItem.Instance.DefID == "" {
 		panic("item instance has no def ID")
@@ -216,6 +216,7 @@ func (invItem InventoryItem) Validate() {
 	if invItem.Def.GetID() != invItem.Instance.DefID {
 		panic("def.GetID() does not match instance.defID")
 	}
+	invItem.Def.Validate()
 }
 
 type EquipedItems struct {

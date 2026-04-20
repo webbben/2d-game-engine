@@ -9,15 +9,15 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/mouse"
-	"github.com/webbben/2d-game-engine/ui/overlay"
-	"github.com/webbben/2d-game-engine/imgutil/rendering"
-	"github.com/webbben/2d-game-engine/ui/text"
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/ui/box"
 	"github.com/webbben/2d-game-engine/ui/button"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/ui/popup"
+	"github.com/webbben/2d-game-engine/ui/text"
 	"github.com/webbben/2d-game-engine/ui/textfield"
 	"golang.org/x/image/font"
 )
@@ -52,6 +52,10 @@ type OptionSelect struct {
 	inputField          textfield.TextField
 	lastInput           string
 	lastFilteredOptions []string
+}
+
+func (os OptionSelect) GetOptions() []string {
+	return os.masterOptionsList
 }
 
 func (os OptionSelect) Dimensions() (barDx, barDy, windowDx, windowDy int) {
@@ -176,7 +180,12 @@ func (os *OptionSelect) Update() {
 		if os.optionWindowOpen {
 			os.dropDownWindow = os.getDropDownWindow()
 			os.popupMgr.SetPopup(os.dropDownWindow)
-			os.inputField.SetText(os.GetCurrentValue())
+			// if input enabled, clear the current input field value so that other options can show
+			if os.inputEnabled {
+				os.inputField.SetText("")
+			} else {
+				os.inputField.SetText(os.GetCurrentValue())
+			}
 			os.inputField.Focus()
 		} else {
 			os.dropDownWindow = nil

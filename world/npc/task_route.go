@@ -169,8 +169,9 @@ func (t *RouteTask) SimulationUpdate() {
 		return
 	}
 
-	// we assume a movement speed of 1 tile per tick
-	t.currentPathProgress += float64(1) / float64(len(t.currentSimPath))
+	// we assume a movement speed of 4 tile per tick. this is just roughly how many tiles the player walks at default speed
+	// in ~ 1 second / 1 in-game minute, and the simulation loop currently runs every second.
+	t.currentPathProgress += float64(4) / float64(len(t.currentSimPath))
 }
 
 func (t *RouteTask) handleAwaitMapChange() {
