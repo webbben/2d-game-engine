@@ -37,11 +37,9 @@ func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {
 
 	g.OverlayManager.Draw(screen)
 
-	// TODO: these should probably be turned into Screens, right?
+	// TODO: at some point, logic for showing screens should be fully handled by an action that is triggered from the game project, not here.
 	if g.ShowPlayerMenu {
-		g.PlayerMenu.Draw(screen, om)
-	} else if g.ShowTradeScreen {
-		g.TradeScreen.Draw(screen, om)
+		g.playerMenuViewer.Draw(screen)
 	}
 
 	if g.hud != nil {

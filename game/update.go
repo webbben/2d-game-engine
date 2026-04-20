@@ -55,16 +55,12 @@ func (g *Game) Update() error {
 
 		// TODO: turn these menus and things into Screens
 		if g.ShowPlayerMenu {
-			g.PlayerMenu.Update()
 			// set last player update to now, so that the time hud doesn't immediately display
 			g.World.Player.LastUserInput = time.Now()
-		} else if g.ShowTradeScreen {
-			g.TradeScreen.Update()
-			if g.TradeScreen.Exit {
-				g.ShowTradeScreen = false
+			g.playerMenuViewer.Update()
+			if g.playerMenuViewer.IsDone() {
+				g.ShowPlayerMenu = false
 			}
-			// set last player update to now, so that the time hud doesn't immediately display
-			g.World.Player.LastUserInput = time.Now()
 		} else {
 			g.World.Update()
 		}

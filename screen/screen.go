@@ -20,6 +20,7 @@ type Screen interface {
 	// then, the screen that loads can confirm it got the right params type, or panic if not.
 	Load(dataman *datamanager.DataManager, eventBus *pubsub.EventBus, om *overlay.OverlayManager, popupMgr *popup.Manager, gameCtx defs.GameContext)
 	Update()
+	OnOpen() // runs before the screen shows; for things like refreshing data if it could be out of date
 	Draw(screen *ebiten.Image)
 	// IsDone tells the code that triggered this screen that it can move on now.
 	IsDone() bool
@@ -73,9 +74,10 @@ func (sm ScreenManager) GetScreen(id defs.ScreenID) Screen {
 // ScreenViewer provides the basic setup needed to run most screens;
 // things like overlay managers, popup managers, and the minimal logic needed for updates and drawing control.
 type ScreenViewer struct {
-	scr      Screen
-	om       *overlay.OverlayManager
-	popupMgr *popup.Manager
+	lastUpdateTick int64 // used for detecting if OnOpen should be called
+	scr            Screen
+	om             *overlay.OverlayManager
+	popupMgr       *popup.Manager
 }
 
 func NewScreenViewer(scr Screen, dataman *datamanager.DataManager, eventBus *pubsub.EventBus, gameCtx defs.GameContext) ScreenViewer {
@@ -109,6 +111,11 @@ func (sv ScreenViewer) IsDone() bool {
 }
 
 func (sv *ScreenViewer) Update() {
+	if ebiten.Tick()-sv.lastUpdateTick > 1 {
+		sv.scr.OnOpen()
+	}
+	sv.lastUpdateTick = ebiten.Tick()
+
 	// NOTE: I don't stop updates even if IsDone is true, since in some cases screens might stay active until something else decides to end it.
 	if sv.popupMgr.IsPopupActive() {
 		sv.popupMgr.Update()
@@ -119,9 +126,12 @@ func (sv *ScreenViewer) Update() {
 }
 
 func (sv *ScreenViewer) Draw(screen *ebiten.Image) {
+	if ebiten.Tick()-sv.lastUpdateTick > 1 {
+		// don't allow draw if update hasn't run recently, since it might need to run OnOpen
+		return
+	}
+
 	sv.scr.Draw(screen)
-
 	sv.popupMgr.Draw(screen)
-
 	sv.om.Draw(screen)
 }

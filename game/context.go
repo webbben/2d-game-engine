@@ -111,10 +111,10 @@ func (g *Game) GetPlayerInfo() defs.PlayerInfo {
 }
 
 func (g *Game) StartTradeSession(shopkeeperID defs.ShopID) {
-	shopkeeperDef := g.Dataman.GetShopkeeperDef(shopkeeperID)
-	shopkeeperState := g.Dataman.GetShopkeeperState(shopkeeperID)
-	g.TradeScreen.SetupTradeSession(*shopkeeperDef, shopkeeperState)
-	g.ShowTradeScreen = true
+	// shopkeeperDef := g.Dataman.GetShopkeeperDef(shopkeeperID)
+	// shopkeeperState := g.Dataman.GetShopkeeperState(shopkeeperID)
+	// g.TradeScreen.SetupTradeSession(*shopkeeperDef, shopkeeperState)
+	// g.ShowTradeScreen = true
 }
 
 // StartDialogSession starts a dialog session with the given dialog profile ID
@@ -152,4 +152,15 @@ func (g Game) GetMapID() defs.MapID {
 		return ""
 	}
 	return g.World.ActiveMap.MapID
+}
+
+func (g Game) GetPlayerInventoryRef() *defs.StandardInventory {
+	if g.World == nil {
+		panic("world was nil")
+	}
+	if g.World.Player == nil {
+		panic("player was nil")
+	}
+
+	return &g.World.Player.CharacterStateRef.StandardInventory
 }

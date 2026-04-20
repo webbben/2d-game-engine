@@ -90,6 +90,10 @@ func (mi *ActiveMap) StartTradeSession(shopkeeperID defs.ShopID) {
 	mi.gameCtx.StartTradeSession(shopkeeperID)
 }
 
+func (mi *ActiveMap) TogglePlayerMenu() {
+	mi.gameCtx.TogglePlayerMenu()
+}
+
 func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID string) {
 	params := dialogv2.DialogSessionParams{
 		NPCID:         npcID,

@@ -138,7 +138,12 @@ func (p *Player) handleMovement() bool {
 // handleActions handles all user actions. returns true if an action occurred.
 func (p *Player) handleActions() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
-		p.CharacterStateRef.UnequipWeapon()
+		// TODO: commenting this out for now since combat system is out of date. need to fix it since so many updates have happened.
+		// p.CharacterStateRef.UnequipWeapon()
+		return true
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
+		p.World.TogglePlayerMenu()
 		return true
 	}
 

@@ -14,11 +14,9 @@ import (
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/logz"
-	playermenu "github.com/webbben/2d-game-engine/playerMenu"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/screen"
-	"github.com/webbben/2d-game-engine/trade"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/world"
 
@@ -42,10 +40,9 @@ type Game struct {
 
 	World *world.World
 
-	PlayerMenu      playermenu.PlayerMenu
-	ShowPlayerMenu  bool
-	TradeScreen     trade.TradeScreen // screen for handling trades
-	ShowTradeScreen bool
+	ShowPlayerMenu   bool
+	PlayerMenu       screen.Screen
+	playerMenuViewer screen.ScreenViewer
 
 	GlobalKeyBindings map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
 
@@ -162,6 +159,23 @@ func (g *Game) SetMainMenu(scrID defs.ScreenID) {
 	scr := g.ScreenManager.GetScreen(scrID)
 	g.MainMenu = scr
 	g.mainMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g)
+}
+
+func (g *Game) SetPlayerMenu(scrID defs.ScreenID) {
+	scr := g.ScreenManager.GetScreen(scrID)
+	g.PlayerMenu = scr
+	g.playerMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g)
+}
+
+func (g *Game) TogglePlayerMenu() {
+	if g.PlayerMenu == nil {
+		panic("player menu not set")
+	}
+	if g.gameStage != InGameWorld {
+		panic("tried to toggle player menu when not in the game world")
+	}
+	g.ShowPlayerMenu = !g.ShowPlayerMenu
+	logz.Println("TogglePlayerMenu", "show player menu:", g.ShowPlayerMenu)
 }
 
 func (g Game) LastPlayerUpdate() time.Time {
