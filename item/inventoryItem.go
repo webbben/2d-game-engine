@@ -5,16 +5,20 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/data/datamanager"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/ui/text"
 )
 
 func DrawInventoryItem(screen *ebiten.Image, invItem defs.InventoryItem, x, y float64) {
 	tileSize := int(config.TileSize * config.UIScale)
+	tileImg := invItem.Def.GetTileImg()
+	if tileImg == nil {
+		logz.Panicln("DrawInventoryItem", "inventory item had no tile image.", invItem.Instance.DefID)
+	}
 	rendering.DrawImage(screen, invItem.Def.GetTileImg(), x, y, config.UIScale)
 
 	if invItem.Quantity > 1 {

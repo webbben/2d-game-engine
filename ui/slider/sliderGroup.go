@@ -91,3 +91,14 @@ func (sg SliderGroup) GetValue(sliderKey string) (val int) {
 
 	return slider.GetValue()
 }
+
+func (sg SliderGroup) SetValue(sliderKey string, val int) {
+	slider, found := sg.sliders[sliderKey]
+	if !found {
+		logz.Panicf("tried to get value of nonexistent slider: %s", sliderKey)
+	}
+	if val < slider.minVal || val > slider.maxVal {
+		logz.Panicf("tried to set value outside of slider bounds: %v (%v, %v)", val, slider.minVal, slider.maxVal)
+	}
+	slider.SetValue(val)
+}

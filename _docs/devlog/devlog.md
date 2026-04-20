@@ -1,3 +1,43 @@
+# 2026-04-17
+
+Wanted to cover something I've learned recently, just because I thought it was interesting, and I'm excited to gain some real hands-on experience 
+with asynchronous programming and parallelism.
+
+This game engine, and more specifically `ebiten`, uses a "main update loop" to trigger all updates in the game. If you have a list of NPCs,
+you could call their update logic on each "tick" of this update loop.
+
+During development of this game/game engine, I've had to make a separate thread/background "update loop" to help process expensive calculations. This is to prevent 
+lag in the main update loop. For example, if an NPC needs to do an expensive path finding calculation, if we let that execute in the main update loop, then 
+you'd notice a split second of lag in updates processing. So, instead we can offload that kind of work to a separate goroutine and just get the result when it's ready.
+
+However, when you're messing with threads, things can get messy. The most common problem is what you call a "race condition": when two different threads
+or asynchronous processes are "racing" each other to access or modify the same resource.
+
+I ran into an issue here once I implemented what I call the "simulation loop". This "simulation loop" is what simulates NPC task updates in the background while said
+NPCs are not in the "active map" (i.e. the map the player is in). Obviously, I want this to be its own separate thread/goroutine, because I don't want lower priority
+processing of NPCs not in the map to cause any sort of lag or performance issue.
+
+But, one issue was handling when maps change. The player could change maps, and suddenly the NPCs who were using the simulation loop could now be expected to switch to
+processing their task updates in the main update loop. This is usually not really a problem, because the simulation loop doesn't do almost any work at all for most tasks.
+But the tricky task where things get complicated is the `RouteTask`.
+
+In case I haven't mentioned it before, I'll describe the RouteTask now. This task is a general "utility task" for getting an NPC from one map to another. Most tasks
+will call this task under the hood if the NPC's task needs to send it to a new map.
+
+So, suppose an NPC is routing to a new map in the simulation loop. It's possible that around the same moment the player is changing maps, the simulation loop could
+be in the process of doing the same thing, and suddenly the behavior of the tasks can enter a race condition - since tasks update different in the simulation loop
+vs the main update loop.
+
+To handle this, one basic principle is to avoid manipulating NPCs directly in the simulation loop. In the case I described above, the simulation loop shouldn't
+directly change the NPC's map. Instead, it can send an event, and that event can be processed in the main update loop synchronously with all the other logic.
+
+So, due to these changes, I've also changed how all events are processed in general. Previously, events were fired right when they were published.
+But, due to the multi-threaded nature of this game engine now, I've moved the actually event firing to the main update loop. When an event is "published", it's just 
+sent to a channel and queued up until the update loop reaches the point to process events. So, if the simulation loop wants to make real changes to an NPC, like
+changing maps or something, then we can associate that action with an event and have it processed synchronously with the main update loop now.
+
+Much better, and hopefully less error prone in the future.
+
 # 2026-04-15
 
 New topic to discuss: Character "Knowledge".

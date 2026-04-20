@@ -70,11 +70,12 @@ type Object struct {
 	CustomY      float64 // for setting a custom Y value (used when sorting renderables to determine what shows on top of what)
 	OnTopOfObjID int     // if set (not -1) then this object is on top of another object, like on a table for example.
 
-	DrawX, DrawY  float64 // the actual position on the screen where this was last drawn - for things like click detection
-	Width, Height int
-	rect          model.Rect // rect used for step detection (covers entire object)
-	collisionRect model.Rect // rect used for collision (e.g. for gates, only covers bottom tiles)
-	collidable    bool       // if set, game will check for collisions with this object
+	DrawX, DrawY    float64 // the actual position on the screen where this was last drawn - for things like click detection
+	Width, Height   int
+	rect            model.Rect // rect used for step detection (covers entire object)
+	collisionRect   model.Rect // rect used for collision (e.g. for gates, only covers bottom tiles)
+	collidable      bool       // if set, game will check for collisions with this object
+	collisionHeight int        // number of tiles in height the collision should be. must not be 0 or bigger than object.
 
 	tileData tiled.TileData // data of a tile embedded in this object
 
@@ -336,6 +337,16 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 
 	// other flags set in objects
 	noCollision, _ := tiled.GetBoolProperty("no_collision", allProps)
+	collisionHeight, found := tiled.GetIntProperty("collision_height", allProps)
+	if found {
+		if collisionHeight*config.TileSize > o.Height {
+			logz.Panicln("Object", "collision height property is too tall for object. collision_height:", collisionHeight, "objID:", obj.ID)
+		}
+		if collisionHeight <= 1 {
+			logz.Panicln("Object", "collision_height property set, but it was <= 1 (shouldn't set to 1, since that's default...):", collisionHeight, "objID:", obj.ID)
+		}
+		o.collisionHeight = collisionHeight
+	}
 
 	// check ownership and roles
 	ownerID, found := tiled.GetStringProperty(PropOwnerCharID, allProps)
@@ -468,11 +479,17 @@ func (obj Object) validateGateObject() {
 }
 
 func (obj *Object) addDefaultCollision() {
+	tileHeight := 1
+	if obj.collisionHeight > 0 {
+		tileHeight = obj.collisionHeight
+	}
+	collisionHeight := float64(config.TileSize * tileHeight)
+
 	obj.collisionRect = model.Rect{
 		X: obj.xPos,
-		Y: obj.yPos + float64(obj.Height) - config.TileSize, // only TileSize height, from the bottom of the object
+		Y: obj.yPos + float64(obj.Height) - collisionHeight, // only TileSize height, from the bottom of the object
 		W: float64(obj.Width),
-		H: config.TileSize,
+		H: collisionHeight,
 	}
 	obj.collidable = true
 }
