@@ -3,6 +3,7 @@ package textwindow
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/display"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/mouse"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 )
@@ -41,6 +42,9 @@ func (hw *HoverWindow) Update(x, y float64, width, height int) {
 func (hw *HoverWindow) Draw(om *overlay.OverlayManager) {
 	if !hw.IsHovering {
 		return
+	}
+	if om == nil {
+		logz.Panic("om was nil")
 	}
 	hw.placeHolderImg.Clear()
 

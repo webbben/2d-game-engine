@@ -45,6 +45,8 @@ type GameQuestContext interface {
 // GameScreenContext isn't actually directly used anywhere; we just have it here to keep these functions organized by intended use,
 // and to prevent the other contexts from using them. Screens just have direct access to GameContext.
 type GameScreenContext interface {
+	SetPlayerMenu(scrID ScreenID)
+	GetPlayerInventoryRef() *StandardInventory
 	EnterMap(mapID MapID, spawnIndex int, doTransition bool)
 	PlacePlayerInMap(mapID MapID, x, y float64, doTransition bool)
 
@@ -64,6 +66,7 @@ type GameScreenContext interface {
 type ActiveMapContext interface {
 	StartDialogSession(dialogProfileID DialogProfileID, npcID string)
 	StartTradeSession(shopkeeperID ShopID)
+	TogglePlayerMenu()
 }
 
 type TransitionContext interface {
