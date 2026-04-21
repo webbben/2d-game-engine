@@ -111,8 +111,10 @@ func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 		t = NewStartDialogTask(params, n, taskDef)
 	case TaskBartender:
 		t = NewBartenderTask(n, taskDef)
+	case TaskShopkeeper:
+		t = NewShopkeeperTask(n, taskDef)
 	case TaskRoute:
-		// these are tasks that we don't plan to allow as "top level" tasks (they are considered "sub-tasks" that should be used inside other tasks' logic)
+		// we don't plan to allow this as a "top level" task (it's considered a "sub-task" that should be used inside other tasks' logic)
 		// TODO: if we decide for sure that a task (like routing) should never be "top level", maybe we should make it private (lowercase) so that schedules can't add it.
 		logz.Panicln("TaskMGMT", "This task is not intended to use as a top-level task:", taskDef.TaskID, "If this is a mistake, we can always change that of course.")
 	default:

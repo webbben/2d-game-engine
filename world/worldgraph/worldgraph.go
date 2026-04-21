@@ -87,6 +87,9 @@ func BuildWorldGraph(dataman *datamanager.DataManager) *WorldGraph {
 			allObjs = append(allObjs, tiled.GetAllObjectsFromLayer(l)...)
 		}
 
+		// a little validation; make sure spawn point 0 is found
+		foundSpawn0 := false
+
 		// look for "edges" (door objects)
 		for _, obj := range allObjs {
 			objectInfo := m.GetObjectPropsAndTile(obj)
@@ -100,6 +103,9 @@ func BuildWorldGraph(dataman *datamanager.DataManager) *WorldGraph {
 				spawnID, found := tiled.GetIntProperty(object.PropSpawnIndex, obj.Properties)
 				if !found {
 					logz.Panicln("BuildWorldGraph", "Tried to get spawn index of spawn point, but property wasn't found. mapID:", mapID, "objID:", obj.ID)
+				}
+				if spawnID == 0 {
+					foundSpawn0 = true
 				}
 				spawnCoords := model.ConvertPxToTilePos((obj.X), (obj.Y))
 				node.SpawnPoints[spawnID] = spawnCoords
@@ -138,6 +144,10 @@ func BuildWorldGraph(dataman *datamanager.DataManager) *WorldGraph {
 				EdgeCoords:   edgeCoords,
 				EdgeObjectID: obj.ID,
 			})
+		}
+
+		if !foundSpawn0 {
+			logz.Panicln("BuildWorldGraph", "map doesn't have spawn point index 0! this is required for all maps. mapID:", mapID)
 		}
 
 		m.TileImageMap = nil // delete this stuff, since it could take up extra memory; we don't need tile images here.

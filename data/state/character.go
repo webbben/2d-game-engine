@@ -42,7 +42,6 @@ type CharacterState struct {
 
 	// Attributes, Skills
 
-	Vitals         defs.Vitals
 	BaseAttributes map[defs.AttributeID]int // Base attribute levels (not including modifiers from traits, etc)
 	BaseSkills     map[defs.SkillID]int     // Base skill levels (not including modifiers from traits, etc)
 	Traits         []defs.TraitID

@@ -128,7 +128,7 @@ type DialogCondition interface {
 type ConditionContext interface {
 	GetQuestStage(qid QuestID) (started, comp, fail bool, sid QuestStageID)
 	GetNPCCharStateID() id.CharacterStateID
-	GetMapID() MapID
+	GetActiveMapDef() MapDef
 	HasSeenTopic(id TopicID) bool
 	IsTopicUnlocked(id TopicID) bool
 	HasMemory(key string) bool

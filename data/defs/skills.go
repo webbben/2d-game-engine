@@ -69,16 +69,6 @@ type ClassDef struct {
 	AboutMe           string
 }
 
-type CurMax struct {
-	CurrentVal int
-	MaxVal     int
-}
-
-type Vitals struct {
-	Health  CurMax
-	Stamina CurMax
-}
-
 type AttributeDef struct {
 	ID          AttributeID
 	DisplayName string

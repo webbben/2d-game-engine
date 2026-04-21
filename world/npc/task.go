@@ -32,6 +32,7 @@ const (
 	TaskStartDialog defs.TaskID = "START_DIALOG"
 	TaskFaceDir     defs.TaskID = "FACE_DIR" // TODO
 	TaskBartender   defs.TaskID = "BARTENDER"
+	TaskShopkeeper  defs.TaskID = "SHOPKEEPER"
 )
 
 const (
