@@ -57,7 +57,6 @@ type CharacterDef struct {
 	BaseAttributes map[AttributeID]int // Base attribute levels (not including modifiers from traits, etc)
 	BaseSkills     map[SkillID]int     // Base skill levels (not including modifiers from traits, etc)
 	InitialTraits  []TraitID
-	BaseVitals     Vitals // TODO: delete this, since base vitals are determined by attributes
 }
 
 // A CharacterGenerator is a definition of a "type" of character to generate in the game world.

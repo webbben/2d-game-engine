@@ -1,6 +1,12 @@
 package defs
 
-type MapID string
+import "github.com/webbben/2d-game-engine/logz"
+
+type (
+	MapID    string
+	RegionID string
+	MapType  int
+)
 
 // MapDef defines a map in the game.
 // Most of the details of a map and its "definition" come from the Tiled map (.tmj) file.
@@ -19,7 +25,20 @@ type MapID string
 //     is from the Tiled map editor anyway, so it can easily be forgotten there.
 type MapDef struct {
 	ID          MapID
+	Region      RegionID // the overall location you are in, such as which city, or which forest, etc.
 	DisplayName string
+}
+
+func (md MapDef) Validate() {
+	if md.ID == "" {
+		panic("id was empty")
+	}
+	if md.Region == "" {
+		logz.Panicln(string(md.ID), "no region specified")
+	}
+	if md.DisplayName == "" {
+		logz.Panicln(string(md.ID), "no display name set")
+	}
 }
 
 // A MapLock is used for pairing a lock ID to the map that has the locked object in it.

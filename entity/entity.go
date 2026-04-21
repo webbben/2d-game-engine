@@ -370,7 +370,6 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 
 		StandardInventory: charDef.InitialInventory,
 
-		Vitals:         charDef.BaseVitals,
 		BaseAttributes: charDef.BaseAttributes,
 		BaseSkills:     charDef.BaseSkills,
 		Traits:         charDef.InitialTraits,

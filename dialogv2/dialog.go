@@ -555,9 +555,6 @@ func (ds *DialogSession) continueApplyResponse() {
 }
 
 func (ds *DialogSession) handleResponseGrouper() {
-	if len(ds.currentResponse.Conditions) == 0 {
-		ds.panicln("dialog response has no text or conditions. if this is a grouper, it must have conditions.")
-	}
 	if ds.currentResponse.NextResponse == nil && len(ds.currentResponse.NextResponseOptions) == 0 {
 		ds.panicln("dialog response has no text or next responses. if this is a grouper, it must have next responses set.")
 	}

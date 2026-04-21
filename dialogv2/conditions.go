@@ -61,7 +61,17 @@ type ConditionMapID struct {
 }
 
 func (c ConditionMapID) IsMet(ctx defs.ConditionContext) bool {
-	return c.MapID == ctx.GetMapID()
+	mapDef := ctx.GetActiveMapDef()
+	return c.MapID == mapDef.ID
+}
+
+type ConditionRegion struct {
+	RegionID defs.RegionID
+}
+
+func (c ConditionRegion) IsMet(ctx defs.ConditionContext) bool {
+	mapDef := ctx.GetActiveMapDef()
+	return c.RegionID == mapDef.Region
 }
 
 type ConditionNOT struct {

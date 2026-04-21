@@ -150,8 +150,9 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	}
 	e.waitingToAttack = false
 
-	e.characterStateRef.Vitals.Health.CurrentVal -= attack.Damage
-	logz.Println(e.DisplayName(), "current health:", e.characterStateRef.Vitals.Health.CurrentVal)
+	// TODO: handle health once I've worked out how it will be implemented. currently planning to use attributes to calculate max health
+	// e.characterStateRef.Vitals.Health.CurrentVal -= attack.Damage
+	// logz.Println(e.DisplayName(), "current health:", e.characterStateRef.Vitals.Health.CurrentVal)
 
 	e.Body.SetDamageFlicker(15)
 

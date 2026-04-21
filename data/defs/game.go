@@ -28,6 +28,7 @@ type GameContext interface {
 type GameDialogContext interface {
 	GetCurrentGameTime() clock.GameTime
 	GetMapID() MapID
+	GetActiveMapDef() MapDef
 	GetPlayerInfo() PlayerInfo
 	SetPlayerName(name string)
 	DialogCtxAddGold(amount int)

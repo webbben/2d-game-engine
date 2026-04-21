@@ -154,6 +154,18 @@ func (g Game) GetMapID() defs.MapID {
 	return g.World.ActiveMap.MapID
 }
 
+func (g Game) GetActiveMapDef() defs.MapDef {
+	if g.World == nil {
+		logz.Panicln("GetActiveMapDef", "tried to get active map def, but world is nil")
+	}
+	if g.World.ActiveMap == nil {
+		logz.Panicln("GetActiveMapDef", "tried to get active map def, but active map is nil")
+	}
+	mapID := g.World.ActiveMap.MapID
+	mapDef := g.Dataman.GetMapDef(mapID)
+	return mapDef
+}
+
 func (g Game) GetPlayerInventoryRef() *defs.StandardInventory {
 	if g.World == nil {
 		panic("world was nil")
