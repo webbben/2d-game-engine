@@ -5,11 +5,12 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
-	"github.com/webbben/2d-game-engine/ui/text"
 	"github.com/webbben/2d-game-engine/ui/box"
 	"github.com/webbben/2d-game-engine/ui/button"
+	"github.com/webbben/2d-game-engine/ui/text"
 	"github.com/webbben/2d-game-engine/ui/textfield"
 	"golang.org/x/image/font"
 )
@@ -57,7 +58,7 @@ func (m TextInputModal) Dimensions() (dx, dy int) {
 	return bounds.Dx(), bounds.Dy()
 }
 
-func NewTextInputModal(params TextInputModalParams) TextInputModal {
+func NewTextInputModal(params TextInputModalParams, audioman *audio.AudioManager) TextInputModal {
 	if params.TitleFont == nil {
 		params.TitleFont = config.DefaultTitleFont
 	}
@@ -106,7 +107,7 @@ func NewTextInputModal(params TextInputModalParams) TextInputModal {
 
 	m.textInput = *textfield.NewTextField(textFieldParams)
 
-	m.confirmBtn = button.NewButton(params.ConfirmButtonText, m.bodyFont, 0, 0)
+	m.confirmBtn = button.NewButton(params.ConfirmButtonText, m.bodyFont, 0, 0, audioman)
 
 	return m
 }

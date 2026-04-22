@@ -473,6 +473,11 @@ func (dataman *DataManager) LoadShopkeeperState(sk state.ShopkeeperState) {
 	dataman.ShopkeeperStates[sk.ShopID] = &sk
 }
 
+func (dataman DataManager) ShopkeeperStateExists(id defs.ShopID) bool {
+	_, exists := dataman.ShopkeeperStates[id]
+	return exists
+}
+
 func (dataman *DataManager) GetShopkeeperState(id defs.ShopID) *state.ShopkeeperState {
 	shopkeeper, exists := dataman.ShopkeeperStates[id]
 	if !exists {

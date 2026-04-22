@@ -30,6 +30,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.TransitionManager.TransitionInProgress {
 		g.TransitionManager.Draw(screen)
 	}
+
+	if g.globalHud != nil {
+		g.globalHud.Draw(screen)
+	}
 }
 
 func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {

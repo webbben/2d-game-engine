@@ -3,6 +3,7 @@ package screen
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
@@ -11,6 +12,14 @@ import (
 	"github.com/webbben/2d-game-engine/ui/popup"
 )
 
+type Managers struct {
+	Dataman        *datamanager.DataManager
+	EventBus       *pubsub.EventBus
+	OverlayManager *overlay.OverlayManager
+	PopupManager   *popup.Manager
+	Audioman       *audio.AudioManager
+}
+
 type Screen interface {
 	GetID() defs.ScreenID
 	// Load is for preparing the screen for use.
@@ -18,7 +27,7 @@ type Screen interface {
 	// for example, a chest inventory screen; it will need to know a specific chest state (not yet implemented) to open and load data for.
 	// maybe params could be 'any', and then we can pre-define params for different screen types, like a "chestParams" which includes a chestID.
 	// then, the screen that loads can confirm it got the right params type, or panic if not.
-	Load(dataman *datamanager.DataManager, eventBus *pubsub.EventBus, om *overlay.OverlayManager, popupMgr *popup.Manager, gameCtx defs.GameContext)
+	Load(mgmt Managers, gameCtx defs.GameContext, params any)
 	Update()
 	OnOpen() // runs before the screen shows; for things like refreshing data if it could be out of date
 	Draw(screen *ebiten.Image)
@@ -80,7 +89,7 @@ type ScreenViewer struct {
 	popupMgr       *popup.Manager
 }
 
-func NewScreenViewer(scr Screen, dataman *datamanager.DataManager, eventBus *pubsub.EventBus, gameCtx defs.GameContext) ScreenViewer {
+func NewScreenViewer(scr Screen, dataman *datamanager.DataManager, eventBus *pubsub.EventBus, audioman *audio.AudioManager, gameCtx defs.GameContext, params any) ScreenViewer {
 	if scr == nil {
 		panic("screen was nil")
 	}
@@ -93,6 +102,10 @@ func NewScreenViewer(scr Screen, dataman *datamanager.DataManager, eventBus *pub
 	if gameCtx == nil {
 		panic("gameCtx was nil")
 	}
+	if audioman == nil {
+		panic("audioman was nil")
+	}
+
 	popupMgr := popup.NewPopupManager()
 	om := overlay.OverlayManager{}
 	sv := ScreenViewer{
@@ -101,7 +114,15 @@ func NewScreenViewer(scr Screen, dataman *datamanager.DataManager, eventBus *pub
 		popupMgr: &popupMgr,
 	}
 
-	sv.scr.Load(dataman, eventBus, &om, &popupMgr, gameCtx)
+	mgmt := Managers{
+		Dataman:        dataman,
+		EventBus:       eventBus,
+		OverlayManager: &om,
+		PopupManager:   &popupMgr,
+		Audioman:       audioman,
+	}
+
+	sv.scr.Load(mgmt, gameCtx, params)
 
 	return sv
 }

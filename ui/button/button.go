@@ -5,7 +5,9 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/mouse"
@@ -28,18 +30,22 @@ type Button struct {
 	textImg     *ebiten.Image
 
 	flashFactor float32 // gets set when we want to flash the button
+
+	clickSfx defs.SoundID
+
+	audioman *audio.AudioManager
 }
 
-func NewImageButton(buttonText string, fontFace font.Face, img *ebiten.Image) *Button {
+func NewImageButton(buttonText string, fontFace font.Face, img *ebiten.Image, audioman *audio.AudioManager) *Button {
 	dx := img.Bounds().Dx()
 	dy := img.Bounds().Dy()
-	b := NewButton(buttonText, fontFace, dx, dy)
+	b := NewButton(buttonText, fontFace, dx, dy, audioman)
 	b.buttonImg = img
 
 	return b
 }
 
-func NewLinearBoxButton(buttonText string, tilesetSrc string, originIndex int, fontFace font.Face) *Button {
+func NewLinearBoxButton(buttonText string, tilesetSrc string, originIndex int, fontFace font.Face, audioman *audio.AudioManager) *Button {
 	if fontFace == nil {
 		panic("font must be defined")
 	}
@@ -56,10 +62,10 @@ func NewLinearBoxButton(buttonText string, tilesetSrc string, originIndex int, f
 		TileWidth:   tileWidth,
 	})
 
-	return NewImageButton(buttonText, fontFace, linearBox.Image())
+	return NewImageButton(buttonText, fontFace, linearBox.Image(), audioman)
 }
 
-func NewButton(buttonText string, fontFace font.Face, width, height int) *Button {
+func NewButton(buttonText string, fontFace font.Face, width, height int, audioman *audio.AudioManager) *Button {
 	// set defaults
 	if fontFace == nil {
 		fontFace = config.DefaultFont
@@ -103,6 +109,10 @@ func NewButton(buttonText string, fontFace font.Face, width, height int) *Button
 		Width:      width,
 		Height:     height,
 		fontFace:   fontFace,
+
+		audioman: audioman,
+
+		clickSfx: config.ButtonClickSfx,
 	}
 
 	// build images
@@ -137,6 +147,9 @@ func (b *Button) Update() ButtonUpdateResult {
 	b.mouseBehavior.Update(b.x, b.y, b.Width, b.Height, false)
 
 	if b.mouseBehavior.LeftClick.ClickReleased {
+		if b.clickSfx != "" {
+			b.audioman.PlaySFX(b.clickSfx, 0.5)
+		}
 		result.Clicked = true
 	}
 

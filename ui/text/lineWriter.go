@@ -72,7 +72,7 @@ func (lw LineWriter) IsWriting() bool {
 // If the linewriter is still writing, this may continue to change.
 func (lw LineWriter) CurrentDimensions() (dx, dy int) {
 	if lw.lineHeight == 0 {
-		panic("tried to get dimensions of linewriter, but line height is 0")
+		panic("tried to get dimensions of linewriter, but line height is 0. did you set the source text yet?")
 	}
 	if lw.maxLineWidth == 0 {
 		panic("tried to get dimensions, but maxLineWidth was 0")

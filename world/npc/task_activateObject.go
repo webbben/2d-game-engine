@@ -89,6 +89,10 @@ func (t *ActivateObjectTask) Update() {
 		return
 	}
 
+	if t.gotoTask == nil {
+		logz.Panicln("ActivateObjectTask", "goto task was unexpectedly nil... this shouldn't be possible, right?", t.Owner.WhoAmI())
+	}
+
 	// 2. once next to the object, try to activate it
 	// confirm we are next to the target object now
 	objPos := t.targetObj.TilePos()

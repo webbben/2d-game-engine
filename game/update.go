@@ -13,6 +13,10 @@ func (g *Game) Update() error {
 		g.handleGlobalKeyBindings()
 	}
 
+	if g.globalHud != nil {
+		g.globalHud.Update(g)
+	}
+
 	g.EventBus.ProcessEvents()
 
 	if g.TransitionManager.TransitionInProgress {

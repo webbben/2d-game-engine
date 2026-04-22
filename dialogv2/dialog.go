@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -57,7 +58,8 @@ type GetUserInputActionParams struct {
 }
 
 type ShowScreenActionParams struct {
-	ScreenID defs.ScreenID
+	ScreenID     defs.ScreenID
+	ScreenParams any
 }
 
 var quitTopic defs.DialogTopic = defs.DialogTopic{
@@ -81,6 +83,7 @@ type DialogSession struct {
 	eventBus *pubsub.EventBus
 	dataman  *datamanager.DataManager
 	scrMgr   *screen.ScreenManager
+	audioman *audio.AudioManager
 
 	flashContinueIcon   bool
 	iconFlashTimer      int
@@ -142,6 +145,7 @@ func NewDialogSession(
 	scrMgr *screen.ScreenManager,
 	gameCtx defs.GameContext,
 	questman *quest.QuestManager,
+	audioman *audio.AudioManager,
 ) DialogSession {
 	validateParams(params, eventBus, dataman, gameCtx, scrMgr)
 
@@ -159,6 +163,7 @@ func NewDialogSession(
 		Ctx:          ctx,
 		eventBus:     eventBus,
 		dataman:      dataman,
+		audioman:     audioman,
 		f:            params.TextFont,
 	}
 
@@ -306,7 +311,7 @@ func (ds *DialogSession) setupTopicOptions() {
 			// TODO: probably at some point we can just make this a warn instead of panic. just want this here for now to catch oversized topic prompts early on.
 			logz.Panicln("setupTopicOptions", "topic prompt was too long for the topic box. prompt width:", dx, "boxWidth:", w)
 		}
-		ds.topicButtons = append(ds.topicButtons, button.NewButton(topic.Prompt, ds.f, w, h))
+		ds.topicButtons = append(ds.topicButtons, button.NewButton(topic.Prompt, ds.f, w, h, ds.audioman))
 		ds.topicList = append(ds.topicList, topic.ID)
 	}
 
@@ -365,7 +370,7 @@ func (ds *DialogSession) setupReplyOptions() {
 			Text:    Goodbye,
 			Goodbye: true,
 		})
-		ds.replyButtons = append(ds.replyButtons, button.NewButton(Goodbye, ds.f, maxReplyWidth, h))
+		ds.replyButtons = append(ds.replyButtons, button.NewButton(Goodbye, ds.f, maxReplyWidth, h, ds.audioman))
 		return
 	}
 
@@ -417,7 +422,7 @@ func (ds *DialogSession) setupReplyOptions() {
 
 	// build all the buttons, now that we know the width to use
 	for _, reply := range replies {
-		ds.replyButtons = append(ds.replyButtons, button.NewButton(reply.Text, ds.f, maxReplyWidth, h))
+		ds.replyButtons = append(ds.replyButtons, button.NewButton(reply.Text, ds.f, maxReplyWidth, h, ds.audioman))
 	}
 
 	if len(ds.replyButtons) == 0 {
@@ -507,7 +512,7 @@ func (ds *DialogSession) startAction() {
 			BoxOriginIndex:    config.DefaultUIBox.OriginIndex,
 			TitleText:         params.ModalTitle,
 			ConfirmButtonText: params.ConfirmButtonText,
-		})
+		}, ds.audioman)
 		ds.userInputModal = &m
 	case ActionTypeShowScreen:
 		params, ok := action.Params.(ShowScreenActionParams)
@@ -515,7 +520,7 @@ func (ds *DialogSession) startAction() {
 			panic("unable to resolve params as ShowScreenActionParams... was the wrong params type chosen?")
 		}
 		s := ds.scrMgr.GetScreen(params.ScreenID)
-		sv := screen.NewScreenViewer(s, ds.dataman, ds.eventBus, ds.ctxForScreen)
+		sv := screen.NewScreenViewer(s, ds.dataman, ds.eventBus, ds.audioman, ds.ctxForScreen, params.ScreenParams)
 		ds.screenViewer = &sv
 	default:
 		logz.Panicln("startAction", "action type not recognized:", action.Type)
@@ -654,8 +659,9 @@ func (ds *DialogSession) SetTopic(topicID defs.TopicID) {
 	resp := GetNPCResponse(*ds.currentTopic, ds.Ctx)
 	ds.ApplyResponse(resp)
 
-	if ds.responseStatus != dialogResponseStarted {
-		panic("why isn't status response started?")
+	if ds.responseStatus != dialogResponseStarted && ds.responseStatus != dialogResponseActionInProg {
+		// after applying a response, we expect to either start the response or an action, if applicable
+		logz.Panicln("SetTopic", "unexpected status after applying topic response:", ds.responseStatus)
 	}
 }
 

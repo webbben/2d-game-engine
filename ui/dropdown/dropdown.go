@@ -8,6 +8,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
@@ -42,6 +43,7 @@ type OptionSelect struct {
 	selectedOptionIndex int
 
 	popupMgr *popup.Manager
+	audioman *audio.AudioManager
 
 	// properties for the input feature
 
@@ -92,7 +94,7 @@ type OptionSelectParams struct {
 	InputEnabled          bool
 }
 
-func NewOptionSelect(params OptionSelectParams, popupMgr *popup.Manager) OptionSelect {
+func NewOptionSelect(params OptionSelectParams, popupMgr *popup.Manager, audioman *audio.AudioManager) OptionSelect {
 	if len(params.Options) == 0 {
 		panic("no options given")
 	}
@@ -107,6 +109,7 @@ func NewOptionSelect(params OptionSelectParams, popupMgr *popup.Manager) OptionS
 		f:                 params.Font,
 		popupMgr:          popupMgr,
 		masterOptionsList: params.Options,
+		audioman:          audioman,
 	}
 	os.tiles = append(os.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex, true))
 	os.tiles = append(os.tiles, tiled.GetTileImage(params.TilesetSrc, params.OriginIndex+1, true))
@@ -167,7 +170,7 @@ func (os *OptionSelect) createOptionButtons(options []string) {
 	buttonWidth := os.totalWidth - (tileSize / 2)
 	buttonHeight := tileSize - (tileSize / 8)
 	for _, s := range options {
-		os.optionButtons = append(os.optionButtons, button.NewButton(s, config.DefaultFont, buttonWidth, buttonHeight))
+		os.optionButtons = append(os.optionButtons, button.NewButton(s, config.DefaultFont, buttonWidth, buttonHeight, os.audioman))
 	}
 }
 

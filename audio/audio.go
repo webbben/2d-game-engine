@@ -4,11 +4,15 @@ package audio
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
+	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/logz"
 )
 
 const sampleRate = 44100
@@ -68,12 +72,24 @@ func NewSound(relAudioPath string, volume float64) (Sound, error) {
 		return Sound{}, err
 	}
 
-	s, err := mp3.DecodeF32(bytes.NewReader(data))
+	var stream io.ReadSeeker
+
+	ext := filepath.Ext(srcPath)
+
+	switch ext {
+	case ".mp3":
+		stream, err = mp3.DecodeF32(bytes.NewReader(data))
+	case ".wav":
+		stream, err = wav.DecodeF32(bytes.NewReader(data))
+	default:
+		logz.Panicln("NewSound", "unsupported audio format:", ext)
+	}
+
 	if err != nil {
 		return Sound{}, err
 	}
 
-	player, err := audioContext.NewPlayerF32(s)
+	player, err := audioContext.NewPlayerF32(stream)
 	if err != nil {
 		return Sound{}, err
 	}

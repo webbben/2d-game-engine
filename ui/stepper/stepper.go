@@ -5,6 +5,7 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
@@ -33,7 +34,7 @@ type StepperParams struct {
 	IncrementButtonImage *ebiten.Image
 }
 
-func NewStepper(params StepperParams) Stepper {
+func NewStepper(params StepperParams, audioman *audio.AudioManager) Stepper {
 	if params.Font == nil {
 		params.Font = config.DefaultFont
 	}
@@ -42,8 +43,8 @@ func NewStepper(params StepperParams) Stepper {
 	}
 
 	s := Stepper{
-		decrementButton: button.NewImageButton("", config.DefaultFont, params.DecrementButtonImage),
-		incrementButton: button.NewImageButton("", config.DefaultFont, params.IncrementButtonImage),
+		decrementButton: button.NewImageButton("", config.DefaultFont, params.DecrementButtonImage, audioman),
+		incrementButton: button.NewImageButton("", config.DefaultFont, params.IncrementButtonImage, audioman),
 		counterFont:     params.Font,
 		counterMin:      params.MinVal,
 		counterMax:      params.MaxVal,

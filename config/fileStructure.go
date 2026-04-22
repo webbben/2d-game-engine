@@ -123,10 +123,7 @@ func ResolveAudioPath(audioPath string) string {
 	if filepath.IsAbs(audioPath) {
 		panic("given path is absolute; you should give a relative path based on the audio directory structure.")
 	}
-	ext := filepath.Ext(audioPath)
-	if ext != ".mp3" {
-		panic("given audio path has a non-mp3 extension; audio files must be mp3. ext: " + ext)
-	}
+
 	fullPath := filepath.Join(gameAudioPath(), audioPath)
 	return fullPath
 }
