@@ -102,7 +102,7 @@ func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID str
 		BoxOriginID:   16,
 		TextFont:      config.DefaultFont,
 	}
-	ds := dialogv2.NewDialogSession(params, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx, mi.questman)
+	ds := dialogv2.NewDialogSession(params, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx, mi.questman, mi.audioman)
 	mi.dialogSession = &ds
 }
 

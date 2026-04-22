@@ -22,3 +22,22 @@ func (sk *ShopkeeperState) SetShopInventory(newItems []*defs.InventoryItem) {
 		})
 	}
 }
+
+func NewShopKeeperState(def defs.ShopkeeperDef) ShopkeeperState {
+	def.Validate()
+
+	sk := ShopkeeperState{
+		ShopID: def.ID,
+		Gold:   def.BaseGold,
+	}
+
+	for _, inv := range def.BaseInventory {
+		sk.ShopInventory = append(sk.ShopInventory, &defs.InventoryItem{
+			Instance: inv.Instance,
+			Def:      inv.Def,
+			Quantity: inv.Quantity,
+		})
+	}
+
+	return sk
+}

@@ -54,7 +54,13 @@ type Game struct {
 
 	OverlayManager *overlay.OverlayManager
 
-	hud HUD // if set, this will update and be drawn on top of the in-game world
+	// if set, this will update and be drawn on top of the in-game world.
+	// example: game-world HUD that shows player's health and stamina bars, etc
+	hud HUD
+
+	// if set, this will update and be drawn on top of all things, including outside of the game world.
+	// for example, showing UI warnings or success/failure popups
+	globalHud HUD
 
 	Dataman       *datamanager.DataManager
 	AudioManager  *audio.AudioManager
@@ -72,6 +78,10 @@ func (g *Game) SetGameStage(stage defs.GameStage) {
 
 func (g *Game) SetHUD(hud HUD) {
 	g.hud = hud
+}
+
+func (g *Game) SetGlobalHud(hud HUD) {
+	g.globalHud = hud
 }
 
 // HUD interface provides a type that can be drawn as an HUD over the in-game world
@@ -158,13 +168,13 @@ func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
 func (g *Game) SetMainMenu(scrID defs.ScreenID) {
 	scr := g.ScreenManager.GetScreen(scrID)
 	g.MainMenu = scr
-	g.mainMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g)
+	g.mainMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g.AudioManager, g, nil)
 }
 
 func (g *Game) SetPlayerMenu(scrID defs.ScreenID) {
 	scr := g.ScreenManager.GetScreen(scrID)
 	g.PlayerMenu = scr
-	g.playerMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g)
+	g.playerMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g.AudioManager, g, nil)
 }
 
 func (g *Game) TogglePlayerMenu() {

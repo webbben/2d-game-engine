@@ -11,6 +11,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/debug"
@@ -89,6 +90,12 @@ func NewWorld(
 
 	for id := range w.Dataman.MapDefs {
 		w.EnsureMapStateExists(id)
+	}
+
+	for id, def := range w.Dataman.ShopkeeperDefs {
+		if !w.Dataman.ShopkeeperStateExists(id) {
+			w.Dataman.LoadShopkeeperState(state.NewShopKeeperState(*def))
+		}
 	}
 
 	w.WorldGraph = worldgraph.BuildWorldGraph(w.Dataman)
@@ -260,6 +267,9 @@ func (w *World) OnHourChange(hour int, skipFade bool, postEvent bool) {
 	}
 
 	if w.ActiveMap != nil {
+		if w.ActiveMap.InScenario {
+			logz.Panicln("OnHourChange", "Time is not supposed to pass while in scenarios.")
+		}
 		w.ActiveMap.OnHourChange(hour, skipFade)
 		// check if NPCs in the map need to change their current task due to their schedule
 		for _, n := range w.ActiveMap.NPCs {

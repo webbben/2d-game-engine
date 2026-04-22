@@ -44,6 +44,8 @@ type ActiveMap struct {
 	debugData debugData
 	MapID     defs.MapID
 
+	InScenario bool // if set, this active map is part of a scenario. changes behavior about things like hourly task schedules.
+
 	dialogSession *dialogv2.DialogSession
 
 	// TODO: this is not used yet

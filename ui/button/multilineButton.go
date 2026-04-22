@@ -2,6 +2,7 @@ package button
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/ui/text"
 	"golang.org/x/image/font"
@@ -13,7 +14,7 @@ type MultilineButton struct {
 	ml text.Multiline
 }
 
-func NewMultilineButton(buttonText string, maxWidthPx int, f font.Face, mlParams text.MultilineParams) *MultilineButton {
+func NewMultilineButton(buttonText string, maxWidthPx int, f font.Face, mlParams text.MultilineParams, soundman *audio.AudioManager) *MultilineButton {
 	if f == nil {
 		f = config.DefaultFont
 		if f == nil {
@@ -26,7 +27,7 @@ func NewMultilineButton(buttonText string, maxWidthPx int, f font.Face, mlParams
 
 	_, dsc := text.GetRealisticFontMetrics(f)
 	dy += dsc
-	btn := NewButton("", nil, dx, dy)
+	btn := NewButton("", nil, dx, dy, soundman)
 
 	mb := MultilineButton{
 		btn: btn,

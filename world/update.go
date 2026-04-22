@@ -26,9 +26,7 @@ func (w *World) Update() {
 	w.Player.Update(blockPlayerChanges)
 	w.ActiveMap.Update(blockPlayerChanges)
 
-	if blockPlayerChanges {
-		// also block NPC simulation if player changes are blocked.
-	} else {
+	if !blockPlayerChanges && !w.ActiveMap.InScenario {
 		// don't update time while player is in dialog or something where his in-map input is paused
 		if w.Clock.Update() {
 			// hour just changed

@@ -34,7 +34,7 @@ func (ds *DialogSession) setupReplyBox(maxReplyWidth int, replies []defs.DialogR
 	totalHeight := 0
 
 	for _, reply := range replies {
-		btn := button.NewMultilineButton(reply.Text, maxWidth, config.DefaultFont, text.MultilineParams{})
+		btn := button.NewMultilineButton(reply.Text, maxWidth, config.DefaultFont, text.MultilineParams{}, ds.audioman)
 		ds.replyBox.replyButtons = append(ds.replyBox.replyButtons, btn)
 		_, dy := btn.Dimensions()
 		totalHeight += dy

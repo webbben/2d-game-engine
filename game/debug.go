@@ -22,12 +22,12 @@ func (g Game) showGameDebugInfo(screen *ebiten.Image) {
 	}
 
 	// show screen size information
-	scaleX := math.Round(float64(g.outsideWidth) / float64(display.SCREEN_WIDTH) * 100)
-	scaleY := math.Round(float64(g.outsideHeight) / float64(display.SCREEN_HEIGHT) * 100)
+	scaleX := float64(g.outsideWidth) / float64(display.SCREEN_WIDTH) * 100
+	scaleY := float64(g.outsideHeight) / float64(display.SCREEN_HEIGHT) * 100
 	scale := math.Min(scaleX, scaleY)
 	s.WriteString(
 		fmt.Sprintf(
-			"SCREEN SIZE\nvirtual: %v x %v\nreal: %v x %v\nscale: %v%%\n",
+			"SCREEN SIZE\nvirtual: %v x %v\nreal: %v x %v\nscale: %.2f%%\n",
 			display.SCREEN_WIDTH, display.SCREEN_HEIGHT, g.outsideWidth, g.outsideHeight, scale,
 		))
 
