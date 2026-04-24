@@ -176,3 +176,17 @@ func (g Game) GetPlayerInventoryRef() *defs.StandardInventory {
 
 	return &g.World.Player.CharacterStateRef.StandardInventory
 }
+
+func (g *Game) StartTimeLapse(newTime clock.GameTime) {
+	g.World.TimeLapse(newTime)
+}
+
+func (g *Game) ShowMiscScreen(scrID defs.ScreenID) {
+	if g.World == nil {
+		panic("world was nil")
+	}
+
+	scr := g.ScreenManager.GetScreen(scrID)
+
+	g.World.ShowMiscScreen(scr)
+}

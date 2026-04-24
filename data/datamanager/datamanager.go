@@ -508,3 +508,26 @@ func (dataman *DataManager) GetFootstepSFXDef(id defs.FootstepSFXDefID) defs.Foo
 	}
 	return sfxDef
 }
+
+func (dataman *DataManager) Validate() {
+	fail := false
+	// ensure that all topics mentioned in dialog profiles are defined
+	for _, dp := range dataman.DialogProfiles {
+		for _, topic := range dp.TopicsIDs {
+			if _, exists := dataman.DialogTopics[topic]; !exists {
+				logz.Printf("Dialog Topic", "dialog topic %s was found in profile %s topics list, but dialog topic def does not exist.", topic, dp.ProfileID)
+				fail = true
+			}
+		}
+		for _, topic := range dp.KnowledgeTopics {
+			if _, exists := dataman.DialogTopics[topic]; !exists {
+				logz.Printf("Dialog Topic", "dialog topic %s was found in profile %s knowledge topics, but dialog topic def does not exist.", topic, dp.ProfileID)
+				fail = true
+			}
+		}
+	}
+
+	if fail {
+		panic("Datamanager validation failed!")
+	}
+}

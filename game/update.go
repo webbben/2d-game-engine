@@ -1,8 +1,6 @@
 package game
 
 import (
-	"time"
-
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/logz"
@@ -25,12 +23,10 @@ func (g *Game) Update() error {
 			// if we are showing a loading screen, then no other content should get updates.
 			// we do allow updates during opening and closing transitions though, since we don't want things to look oddly "frozen"
 			// and snap into update only once the transition has fully finished. that makes it look weird.
-			return nil
 		}
 		if !g.TransitionManager.TransitionInProgress {
 			// transition just ended. resume letting player do things in game map
 			g.World.BlockPlayerChanges = false
-			g.World.SimPaused.Store(false)
 		}
 	}
 
@@ -57,19 +53,12 @@ func (g *Game) Update() error {
 			logz.Panicln("UPDATE", "World has not been initialized yet! Ensure this happens before InGameWorld stage; The Main Menu should be sure to handle this before it is 'done'.")
 		}
 
-		// TODO: turn these menus and things into Screens
-		if g.ShowPlayerMenu {
-			// set last player update to now, so that the time hud doesn't immediately display
-			g.World.Player.LastUserInput = time.Now()
-			g.playerMenuViewer.Update()
-			if g.playerMenuViewer.IsDone() {
-				g.ShowPlayerMenu = false
-			}
-		} else {
-			g.World.Update()
-		}
+		// we allow some world updates to process while in loading screens, such as time lapse logic.
+		g.World.Update(g.TransitionManager.ShowingLoadingScreen)
 
-		g.hud.Update(g)
+		if !g.TransitionManager.ShowingLoadingScreen {
+			g.hud.Update(g)
+		}
 	default:
 		logz.Panicln("UPDATE", "Game stage was invalid! Game stage value:", g.gameStage)
 	}

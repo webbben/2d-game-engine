@@ -91,11 +91,12 @@ func (tm *TransitionManager) runLoadFunction(ctx defs.GameContext) {
 	logz.Println("TransitionManager", "Loading function completed.")
 }
 
-// StartBasicTransition is for starting a "lightweight" transition - a transition that has no screen, and is only for lightweight setup.
+// StartSyncTransition is for starting a "lightweight" transition - a transition that has no screen, and is only for lightweight setup.
+// It's workload runs SYNCHRONOUSLY, so ensure that nothing within expects to await events or anything that requires main Update processing.
 // Think of a simple fade out and back in. If you pass a setup function, it should be something that can execute immediately and in within the Update loop without causing hang.
 // For heavier loading that could be take time, use StartLoadScreen so that the loading can be done in a separate go routine and a screen can show during the wait.
-func (g *Game) StartBasicTransition(open, close defs.Transition, lightWeightSetup func(ctx defs.GameContext)) {
-	logz.Println("TransitionManager", "Starting basic transition")
+func (g *Game) StartSyncTransition(open, close defs.Transition, lightWeightSetup func(ctx defs.GameContext)) {
+	logz.Println("TransitionManager", "Starting basic sync transition")
 	if g.TransitionManager.TransitionInProgress {
 		logz.Panicln("TransitionInProgress", "tried to start transition, but one is already in progress...")
 	}
@@ -132,8 +133,10 @@ func (tm *TransitionManager) Update(gameCtx defs.GameContext) {
 			// if the game world is still showing (e.g. loading a new map while an existing map is still showing)
 			if tm.loadFunc != nil {
 				if tm.runLoadFuncSync {
+					logz.Println("TransitionManager", "running load function sync")
 					tm.runLoadFunction(gameCtx)
 				} else {
+					logz.Println("TransitionManager", "running load function async")
 					go tm.runLoadFunction(gameCtx)
 				}
 			} else {

@@ -33,6 +33,9 @@ type Screen interface {
 	Draw(screen *ebiten.Image)
 	// IsDone tells the code that triggered this screen that it can move on now.
 	IsDone() bool
+
+	// clones the screen to ensure no pointers to the original are passed. this prevents changes to screens being reflected back into the screen manager version.
+	Clone() Screen
 }
 
 // LoadScreenParams is just for convenience to pass params through functions; includes the pointers you need for loading a screen.
@@ -77,7 +80,11 @@ func (sm ScreenManager) GetScreen(id defs.ScreenID) Screen {
 		logz.Panicln("ScreenManager", "tried to get screen, but id doesn't exist:", id)
 	}
 
-	return s
+	// clone it to attempt to prevent changes being reflected to "source" screen stored here in the screen manager.
+	// Note that this clone probably (depending on screen implementation) just does a "shallow copy", so if there are
+	// reference fields (slices, maps, pointers, etc) in the screen then those could still get affected.
+	// In such a case, probably a good idea to have the Load function of the screen reset things to their expected initial states.
+	return s.Clone()
 }
 
 // ScreenViewer provides the basic setup needed to run most screens;
@@ -132,6 +139,9 @@ func (sv ScreenViewer) IsDone() bool {
 }
 
 func (sv *ScreenViewer) Update() {
+	if sv.scr == nil {
+		logz.Panic("screen was nil!")
+	}
 	if ebiten.Tick()-sv.lastUpdateTick > 1 {
 		sv.scr.OnOpen()
 	}

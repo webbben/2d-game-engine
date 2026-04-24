@@ -4,7 +4,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/ui/overlay"
 )
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -18,7 +17,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			if g.World == nil || g.World.ActiveMap == nil {
 				logz.Panicln("DRAW", "game stage is InGameWorld, but no map info exists...")
 			}
-			g.drawWorld(screen, g.OverlayManager)
+			g.drawWorld(screen)
 
 			// show game debug info, including this scale info
 			if config.ShowGameDebugInfo {
@@ -36,16 +35,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 }
 
-func (g *Game) drawWorld(screen *ebiten.Image, om *overlay.OverlayManager) {
-	g.World.ActiveMap.Draw(screen, om)
+func (g *Game) drawWorld(screen *ebiten.Image) {
+	g.World.Draw(screen)
 
-	g.OverlayManager.Draw(screen)
-
-	// TODO: at some point, logic for showing screens should be fully handled by an action that is triggered from the game project, not here.
-	if g.ShowPlayerMenu {
-		g.playerMenuViewer.Draw(screen)
-	}
-
+	// TODO: move to World?
 	if g.hud != nil {
 		g.hud.Draw(screen)
 	}

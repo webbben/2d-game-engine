@@ -227,6 +227,8 @@ type WorldContext interface {
 	// TODO: should we have this? also, it seems possible that NPCs will need to be able to activate objects (like doors, to open them)
 	GetPlayerRect() model.Rect
 
+	PublishEvent(e defs.Event)
+
 	// Used for checking if an object like a gate has other entities colliding with it
 	RectCollidesWithOthers(r model.Rect, excludeEntID string, excludeObjID int) bool
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"golang.org/x/text/message"
@@ -95,4 +96,12 @@ func Bool(v bool) *bool {
 
 func Str(s string) *string {
 	return &s
+}
+
+func CenterInScreen(dx, dy int) (x, y float64) {
+	screenDx := float64(display.SCREEN_WIDTH)
+	screenDy := float64(display.SCREEN_HEIGHT)
+	x = screenDx/2 - float64(dx)/2
+	y = screenDy/2 - float64(dy)/2
+	return x, y
 }

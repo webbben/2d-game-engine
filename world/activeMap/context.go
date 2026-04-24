@@ -130,6 +130,10 @@ func (m ActiveMap) GetAllNPCs() []*npc.NPC {
 }
 
 func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMap defs.MapID) {
+	if toMap == m.MapID {
+		logz.Panicln("RemoveNPCFromActiveMap", "toMap matches active map ID!", toMap)
+	}
+
 	for i, n := range m.NPCs {
 		if n.CharacterStateRef.ID == charStateID {
 			n.Entity.ResetActiveMapRuntimeState()
@@ -141,4 +145,8 @@ func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMa
 		}
 	}
 	logz.Panicln("RemoveNPCFromActiveMap", "NPC not found in active map:", charStateID)
+}
+
+func (m ActiveMap) PublishEvent(e defs.Event) {
+	m.eventBus.Publish(e)
 }

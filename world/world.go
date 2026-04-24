@@ -20,6 +20,7 @@ import (
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/screen"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/utils"
 	activemap "github.com/webbben/2d-game-engine/world/activeMap"
 	"github.com/webbben/2d-game-engine/world/npc"
@@ -30,6 +31,15 @@ import (
 // It has all the important state data about things like which NPCs are where, what their current tasks are, etc.
 // It also knows about what is in the current map that the player is in.
 type World struct {
+	// Screens
+
+	showPlayerMenu   bool
+	playerMenu       screen.Screen
+	playerMenuViewer screen.ScreenViewer
+
+	showMiscScreen   bool
+	miscScreenViewer screen.ScreenViewer
+
 	// Data managers and contexts
 
 	Dataman   *datamanager.DataManager
@@ -38,6 +48,8 @@ type World struct {
 	Screenman *screen.ScreenManager
 	Questman  *quest.QuestManager
 	GameCtx   defs.GameContext
+
+	OverlayManager *overlay.OverlayManager
 
 	// General world information
 
@@ -53,7 +65,13 @@ type World struct {
 
 	// simulation
 
-	SimPaused atomic.Bool
+	SimPaused        atomic.Bool // set this as the flag to get the simulation to pause
+	SimPauseEffected atomic.Bool // if true, then the sim has successfully paused and is no longer processing NPC simulation updates.
+
+	// time lapse - for things like sleeping or waiting in-game.
+
+	AwaitingTimeLapse bool            // when a time lapse action comes in, set this flag and then wait until sim pause has been effected before doing time lapse.
+	TimeLapseTo       *clock.GameTime // the time we should lapse to
 
 	// Map Information
 
@@ -72,17 +90,32 @@ func NewWorld(
 	screenman *screen.ScreenManager,
 	questman *quest.QuestManager,
 	gameCtx defs.GameContext,
+	playerMenu screen.Screen,
 ) *World {
 	w := &World{
-		Dataman:   dataman,
-		Audioman:  audioman,
-		EventBus:  eventBus,
-		Screenman: screenman,
-		Questman:  questman,
-		GameCtx:   gameCtx,
+		Dataman:        dataman,
+		Audioman:       audioman,
+		EventBus:       eventBus,
+		Screenman:      screenman,
+		Questman:       questman,
+		GameCtx:        gameCtx,
+		playerMenu:     playerMenu,
+		OverlayManager: &overlay.OverlayManager{},
 	}
 
-	w.SetGameTime(initTime)
+	w.playerMenuViewer = screen.NewScreenViewer(playerMenu, w.Dataman, w.EventBus, w.Audioman, w.GameCtx, nil)
+
+	// no need to setup things like lighting or post events; active map doesn't exist yet,
+	// and those things are handled at the time of creating the active map.
+	w.Clock = clock.NewClock(
+		config.HourSpeed,
+		initTime.Hour,
+		initTime.Minute,
+		initTime.Season,
+		initTime.DayOfSeason,
+		initTime.Year,
+		config.DaysInSeason,
+	)
 
 	playerEnt := entity.LoadCharacterStateIntoEntity(id.CharacterStateID(defs.PlayerID), w.Dataman, w.Audioman)
 	p := player.NewPlayer(w.Dataman, playerEnt)
@@ -143,7 +176,15 @@ func (w *World) EnterMapAtPosition(mapID defs.MapID, x, y float64, doTransition 
 	loadFunc := func(ctx defs.GameContext) {
 		w.setupNewMap(mapID)
 		w.ActiveMap.PlacePlayerAtPosition(w.Player, x, y)
+
+		// only unpause simulation if we aren't in a scenario (simulation doesn't run in scenarios)
+		if !w.ActiveMap.InScenario {
+			w.SimPaused.Store(false)
+		}
 	}
+
+	w.SimPaused.Store(true)
+
 	if doTransition {
 		w.GameCtx.StartLoadScreen(loadFunc)
 	} else {
@@ -156,18 +197,33 @@ func (w *World) EnterMap(mapID defs.MapID, playerSpawnIndex int, doTransition bo
 	loadFunc := func(ctx defs.GameContext) {
 		w.setupNewMap(mapID)
 		w.ActiveMap.PlacePlayerAtSpawnPoint(w.Player, playerSpawnIndex)
+
+		// only unpause simulation if we aren't in a scenario (simulation doesn't run in scenarios)
+		if !w.ActiveMap.InScenario {
+			w.SimPaused.Store(false)
+		}
 	}
+
+	// pause the simulation while loading
+	w.SimPaused.Store(true)
+
 	if doTransition {
 		// block player changes so they can't accidentally enter the same map twice
 		w.BlockPlayerChanges = true
 		w.GameCtx.StartLoadScreen(loadFunc)
-		w.SimPaused.Store(true)
 	} else {
 		loadFunc(w.GameCtx)
 	}
 }
 
 func (w *World) setupNewMap(mapID defs.MapID) {
+	if !w.SimPaused.Load() {
+		logz.Panicln("setupNewMap", "setting up new map, but simulation isn't paused.")
+	}
+	if !w.SimPauseEffected.Load() {
+		logz.Warnln("setupNewMap", "setting up new map, but simulation pause doesn't seem to have taken effect yet")
+	}
+
 	debug.StartTimer("setupNewMap")
 	logz.Println("WORLD", "setting up map:", mapID)
 	if w.ActiveMap != nil {
@@ -186,7 +242,9 @@ func (w *World) setupNewMap(mapID defs.MapID) {
 		false,
 	)
 
-	w.ActiveMap.OnHourChange(w.Clock.Hour, true)
+	// initialize day light and send out hour event
+	// skip NPC check since that is handled below in the NPC loading functions
+	w.OnHourChange(w.Clock.Hour, true, true, true)
 
 	// figure out which NPCs should be added to the map
 	// check if a scenario should be loaded into the map
@@ -223,13 +281,15 @@ func (w *World) loadRegularMapNPCs() {
 		// if the initial task starter is successful, it should necessarily be moved somewhere else.
 		n := w.NPCs[id]
 		w.ActiveMap.AddNPCToMap(n, spawnPoint0)
-		n.SetupTaskState(currentHour, nil)
+		if n.CurrentTask == nil {
+			n.SetupTaskState(currentHour, nil)
+		}
 		// We do this separately from SetupTaskState since SetupTaskState is also for initializing NPC tasks for background simulation
 		if n.CurrentTask != nil {
 			logz.Println("loadRegularMapNPCs", "NPC setting up task active state:", n.CurrentTask.GetID(), n.WhoAmI())
 			n.CurrentTask.SetupActiveState()
 		} else {
-			logz.Println("loadRegularMapNPCs", "NPC has no active task:", n.WhoAmI())
+			logz.Warnln("loadRegularMapNPCs", "NPC has no active task:", n.WhoAmI())
 		}
 	}
 }
@@ -243,27 +303,16 @@ func (w *World) CloseMap() {
 	w.ActiveMap = nil
 }
 
-func (w *World) SetGameTime(gameTime clock.GameTime) {
-	w.Clock = clock.NewClock(
-		config.HourSpeed,
-		gameTime.Hour,
-		gameTime.Minute,
-		gameTime.Season,
-		gameTime.DayOfSeason,
-		gameTime.Year,
-		config.DaysInSeason,
-	)
-
-	// make sure lighting is initialized
-	w.OnHourChange(gameTime.Hour, true, false)
-}
-
 // OnHourChange handles any hourly changes that should occur; such as lighting, event publishing, etc.
 // postEvent: this exists to suppress the event when we initialize the first time. the main reason being that the quest manager
 // won't have its data set yet, and will panic if it receives events beforehand.
-func (w *World) OnHourChange(hour int, skipFade bool, postEvent bool) {
+func (w *World) OnHourChange(hour int, skipFade, skipNpcCheck, postEvent bool) {
 	if hour < 0 || hour > 23 {
 		panic("invalid hour")
+	}
+	currentTime := w.Clock.GetCurrentGameTime()
+	if hour != currentTime.Hour {
+		logz.Panicln("OnHourChange", "given hour doesn't match actual game time. hour:", hour, "gameTime hour:", currentTime.Hour)
 	}
 
 	if w.ActiveMap != nil {
@@ -271,12 +320,15 @@ func (w *World) OnHourChange(hour int, skipFade bool, postEvent bool) {
 			logz.Panicln("OnHourChange", "Time is not supposed to pass while in scenarios.")
 		}
 		w.ActiveMap.OnHourChange(hour, skipFade)
-		// check if NPCs in the map need to change their current task due to their schedule
-		for _, n := range w.ActiveMap.NPCs {
-			if n == nil {
-				panic("npc was nil?")
+
+		if !skipNpcCheck {
+			// check if NPCs in the map need to change their current task due to their schedule
+			for _, n := range w.ActiveMap.NPCs {
+				if n == nil {
+					panic("npc was nil?")
+				}
+				n.OnHourChange(hour)
 			}
-			n.OnHourChange(hour)
 		}
 	}
 
@@ -284,8 +336,8 @@ func (w *World) OnHourChange(hour int, skipFade bool, postEvent bool) {
 		w.EventBus.Publish(defs.Event{
 			Type: pubsub.EventTimePass,
 			Data: map[string]any{
-				"hour":     hour, // should we send the hour? I think sending the full game time is probably better.
-				"gameTime": w.Clock.GetCurrentGameTime(),
+				"hour":     hour, // we send the hour too, just because that's how we originally did it
+				"gameTime": currentTime,
 			},
 		})
 	}
@@ -394,10 +446,14 @@ func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to def
 	charState.CurrentMap = to
 
 	// handle placing at spawn point if NPC is entering active map
-	if w.ActiveMap != nil && w.ActiveMap.MapID == to {
-		if toSpawn == -1 {
-			panic("to spawn was -1; that implies this was called from a place that doesn't expect to put the NPC in the active map...")
-		}
+	if w.ActiveMap != nil && w.ActiveMap.MapID == to && toSpawn != -1 {
+		// if toSpawn is set to -1, then that means the place calling this function doesn't expect the player to be in the map, or at least to have to place the
+		// NPC in a specific spot. One reason could be, the game is setting up initial map occupancies for NPC's based on their scheduled task, and later on it will
+		// actually run logic to place them at their active locations. Such as during a time lapse.
+
+		// TODO: should we add some extra check to ensure that toSpawn is never "incorrectly" set to -1?
+		// Maybe that's the job of the calling code?
+
 		n := w.NPCs[charStateID]
 		if n == nil {
 			panic("npc was nil")
@@ -447,4 +503,34 @@ func (w *World) AddNPCToActiveMap(charStateID id.CharacterStateID, spawnIndex in
 	spawnPos := model.ConvertPxToTilePos(x, y)
 
 	w.ActiveMap.AddNPCToMap(n, spawnPos)
+}
+
+func (w *World) TogglePlayerMenu() {
+	if w.playerMenu == nil {
+		panic("player menu was nil")
+	}
+	w.showPlayerMenu = !w.showPlayerMenu
+}
+
+func (w *World) ShowMiscScreen(scr screen.Screen) {
+	if scr == nil {
+		logz.Panic("screen was nil!")
+	}
+	if w.showMiscScreen {
+		logz.Panicln("ShowMiscScreen", "tried to show screen, but another one was already set (or at least the flag was set)")
+	}
+	logz.Println("ShowMiscScreen", "showing screen:", scr.GetID())
+
+	w.miscScreenViewer = screen.NewScreenViewer(
+		scr,
+		w.Dataman,
+		w.EventBus,
+		w.Audioman,
+		w.GameCtx,
+		nil)
+	w.showMiscScreen = true
+
+	if w.miscScreenViewer.IsDone() {
+		logz.Panic("screen is already done, but we just set it up!")
+	}
 }

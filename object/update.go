@@ -10,6 +10,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/utils"
 )
 
@@ -82,6 +83,16 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 			// we have the key to the lock; so can proceed
 		}
 	}
+
+	obj.World.PublishEvent(defs.Event{
+		Type: pubsub.EventObjectActivated,
+		Data: map[string]any{
+			pubsub.DataKey: pubsub.EventObjectActivatedData{
+				ObjectType:  string(obj.Type),
+				ActivatorID: string(params.ActivatorID),
+			},
+		},
+	})
 
 	switch obj.Type {
 	case TypeDoor:

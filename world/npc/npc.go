@@ -214,49 +214,51 @@ func (n *NPC) WaitUntilNotMoving() {
 // GetScheduledMap returns the mapID where the NPC is supposed to be, according to their schedule
 func (n *NPC) GetScheduledMap(gameTime clock.GameTime) defs.MapID {
 	hour := gameTime.Hour
+	if hour < 0 || hour > 23 {
+		logz.Panicln("GetScheduledMap", "hour was invalid:", hour)
+	}
 	scheduleTask := n.Schedule.Hourly[hour]
+	if scheduleTask.TaskID == "" {
+		logz.Panicln("GetScheduledMap", "task at the given hour has no task ID! hour:", gameTime.Hour, n.WhoAmI())
+	}
 	if scheduleTask.StartLocation == nil {
 		if scheduleTask.TaskID == TaskSleep {
 			// sleep task with no set start location => home bed location
 			return n.CharacterStateRef.HomeMapID
 		}
+		logz.Warnln("GetScheduledMap", "NPC scheduled task doesn't have start map. taskID:", scheduleTask.TaskID)
 		return ""
 	}
 	return scheduleTask.StartLocation.MapID
 }
 
-// SetupTaskState puts an NPC into its "active state" in a map.
-// It is expected that the NPC is first officially "added to the map" which means it is part of the NPC list,
-// and is placed at some position that is guaranteed to be open (like a spawn point).
-// Then, this will handle actually moving the NPC to its correct place; wherever in the map it should be while doing its task.
+// SetupTaskState is for initializing a task for an NPC based on their schedule and the given hour.
+// It does not require the NPC to be in the active map, and can be used for setting up tasks for NPC's in the simulation loop too.
+// To actually prepare the "active map" state of a task, use task.SetupActiveState function.
 //
-// Behavior:
-//
-//   - some NPC tasks will be running even while the NPC is not in the active map (e.g. RouteTask).
-//     So, if the NPC already has a task, that same task will be continued, but setup in its "active state".
-//
-//   - for NPCs that don't have an active task, the task for the current hour of their schedule will be started, and put into its "active state".
+// It's expected that current task is nil if this is called, and will panic if not; make sure to clear an existing task before calling this.
 func (n *NPC) SetupTaskState(gameTime clock.GameTime, customStartLocation *defs.TaskStartLocation) {
-	// If a task is already set, then continue it.
-	// otherwise, setup a schedule task
+	if n.CurrentTask != nil {
+		logz.Panic("called SetupTaskState, but NPC already has a task set. Make sure to clear the current task if you really want to call this.")
+	}
+
+	// setup the task scheduled for the given hour
+	hour := gameTime.Hour
+	scheduleTask := n.Schedule.Hourly[hour]
+	if customStartLocation != nil {
+		scheduleTask.StartLocation = customStartLocation
+	}
+	logz.Println("SetupTaskState", "setting up schedule task:", scheduleTask.TaskID, n.WhoAmI())
+
+	// Note: Routing is handled in individual task logic (through TaskBase, unless a task decides to someday have special handling for some reason)
+	n.RunTask(scheduleTask, n)
+
 	if n.CurrentTask == nil {
-		hour := gameTime.Hour
-		scheduleTask := n.Schedule.Hourly[hour]
-		if customStartLocation != nil {
-			scheduleTask.StartLocation = customStartLocation
+		if scheduleTask.TaskID == TaskDoNothing {
+			// as expected, no task was assigned.
+			return
 		}
-		logz.Println("SetupTaskState", "setting up schedule task:", scheduleTask.TaskID, n.WhoAmI())
-
-		// Note: Routing is handled in individual task logic (through TaskBase, unless a task decides to someday have special handling for some reason)
-		n.RunTask(scheduleTask, n)
-
-		if n.CurrentTask == nil {
-			if scheduleTask.TaskID == TaskDoNothing {
-				// as expected, no task was assigned.
-				return
-			}
-			panic("current task is nil")
-		}
+		panic("current task is nil")
 	}
 }
 

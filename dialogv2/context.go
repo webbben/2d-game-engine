@@ -65,6 +65,7 @@ func NewDialogContext(npcID string, profile *state.DialogProfileState, profDef d
 	// parse out data from memory map
 	for k := range ds.Profile.Memory {
 		parts := strings.Split(k, ":")
+		// if a memory key doesn't have parts, it's probably just a misc memory key used for random dialog purposes.
 		if len(parts) == 2 {
 			// found a key:value combo
 			key := parts[0]
@@ -75,9 +76,6 @@ func NewDialogContext(npcID string, profile *state.DialogProfileState, profDef d
 			case ResponseSeenKey:
 				ds.seenResponses[value] = true
 			}
-		} else {
-			// so far, we only have the above pattern, so panic
-			panic("unexpected key pattern found in memory")
 		}
 	}
 

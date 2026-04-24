@@ -7,25 +7,7 @@ import (
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
-)
-
-const (
-	EventScheduleFutureEvent defs.EventType = "schedule_future_event" // for queueing up an event to broadcast in the future. not noticed by global event subscribers.
-
-	// General world
-
-	EventVisitMap           defs.EventType = "visit_map"                // player enters a map
-	EventTimePass           defs.EventType = "time_pass"                // event called on every hour; can be used for tracking time passage
-	EventMapOccupancyChange defs.EventType = "npc_map_occupancy_change" // called when an NPC changes maps
-
-	// Quests
-
-	EventQuestStarted defs.EventType = "quest_started" // a quest is started by the player
-
-	// Dialog
-
-	EventDialogStarted defs.EventType = "dialog_started"
-	EventDialogEnded   defs.EventType = "dialog_ended"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 func NpcAssignTaskType(npcID string) defs.EventType {
@@ -42,10 +24,16 @@ func NPCAssignTask(npcID string, taskDef defs.TaskDef) defs.Event {
 	}
 }
 
+type subscriberFn struct {
+	subscriberID string
+	fn           func(defs.Event)
+}
+
 type EventBus struct {
-	alreadySubscribed map[string]bool // tracks what subscriptions have already been registered. used to detect extra, unintended subscriptions.
-	subscribers       map[defs.EventType][]func(defs.Event)
-	subscribeAll      map[string]func(defs.Event)
+	alreadySubscribed map[string]defs.EventType // tracks what subscriptions have already been registered. used to detect extra, unintended subscriptions.
+	subscribers       map[defs.EventType][]subscriberFn
+
+	subscribeAll map[string]func(defs.Event)
 
 	futureEventSchedule map[clock.GameTime][]defs.Event
 
@@ -55,9 +43,9 @@ type EventBus struct {
 func NewEventBus() *EventBus {
 	logz.Warnln("EVENT BUS", "New event bus created! any previous subscriptions are no longer active.")
 	return &EventBus{
-		subscribers:         make(map[defs.EventType][]func(defs.Event)),
+		subscribers:         make(map[defs.EventType][]subscriberFn),
 		subscribeAll:        make(map[string]func(defs.Event)),
-		alreadySubscribed:   make(map[string]bool),
+		alreadySubscribed:   make(map[string]defs.EventType),
 		futureEventSchedule: make(map[clock.GameTime][]defs.Event),
 		queue:               make(chan defs.Event, 256),
 	}
@@ -75,9 +63,12 @@ func (eb *EventBus) Subscribe(subscriberID string, eventType defs.EventType, fn 
 		logz.Panicln("EVENT BUS", "duplicate subscription detected:", subscriberID)
 	}
 
-	logz.Printf("EVENT BUS", "%s subscribed to event type %s\n", subscriberID, eventType)
-	eb.alreadySubscribed[subscriberID] = true
-	eb.subscribers[eventType] = append(eb.subscribers[eventType], fn)
+	logz.Printf("EVENT BUS", "%s subscribed to event type %s", subscriberID, eventType)
+	eb.alreadySubscribed[subscriberID] = eventType
+	eb.subscribers[eventType] = append(eb.subscribers[eventType], subscriberFn{
+		subscriberID: subscriberID,
+		fn:           fn,
+	})
 }
 
 // SubscribeAll subscribes a function to all events of a certain event type.
@@ -91,8 +82,8 @@ func (eb *EventBus) SubscribeAll(subscriberID string, fn func(defs.Event)) {
 		logz.Panicln("EVENT BUS", "duplicate subscription detected:", subscriberID)
 	}
 
-	logz.Printf("EVENT BUS", "%s subscribed to ALL event types\n", subscriberID)
-	eb.alreadySubscribed[subscriberID] = true
+	logz.Printf("EVENT BUS", "%s subscribed to ALL event types", subscriberID)
+	eb.alreadySubscribed[subscriberID] = "ALL"
 	eb.subscribeAll[subscriberID] = fn
 }
 
@@ -145,8 +136,8 @@ func (eb *EventBus) dispatch(e defs.Event) {
 		}
 		eb.FireScheduledEvents(gameTime)
 	}
-	for _, fn := range eb.subscribers[e.Type] {
-		fn(e)
+	for _, sub := range eb.subscribers[e.Type] {
+		sub.fn(e)
 	}
 	// broadcast every published event to the "subscribe all" list
 	for _, fn := range eb.subscribeAll {
@@ -195,4 +186,40 @@ func (eb *EventBus) FireScheduledEvents(currentTime clock.GameTime) {
 			delete(eb.futureEventSchedule, gt)
 		}
 	}
+}
+
+// Unsubscribe removes an event subscription. Panics if the subscriber ID isn't registered, so only use this if you are sure
+// the subscription exists.
+func (eb *EventBus) Unsubscribe(subID string) {
+	logz.Println("EVENT BUS", "unsubscribing:", subID)
+
+	eventID, exists := eb.alreadySubscribed[subID]
+	if !exists {
+		logz.Panicln("EVENT BUS", "tried to unsubscribe, but subscriber ID not found:", subID)
+	}
+
+	delete(eb.alreadySubscribed, subID)
+
+	if eventID == "ALL" {
+		if _, exists := eb.subscribeAll[subID]; !exists {
+			logz.Panicln("EVENT BUS", "subscriber was mapped to the subscribeAll list, but subscriber ID not found in that map. subID:", subID)
+		}
+		delete(eb.subscribeAll, subID)
+		return
+	}
+
+	if _, exists := eb.subscribers[eventID]; !exists {
+		logz.Panicln("EVENT BUS", "event ID mapped to this subscriber doesn't appear to have any subscriptions mapped to it. subID:", subID, "mapped eventID:", eventID)
+	}
+
+	// find the specific subscriber in the map
+	for i, sub := range eb.subscribers[eventID] {
+		if sub.subscriberID == subID {
+			// found the match; remove this index.
+			eb.subscribers[eventID] = utils.RemoveIndexUnordered(eb.subscribers[eventID], i)
+			return
+		}
+	}
+
+	logz.Panicln("EVENT BUS", "failed to find subscriber in subscribers map; subID:", subID, "event ID mapped to this subID:", eventID)
 }

@@ -63,6 +63,10 @@ type GameTime struct {
 	DayOfSeason  int
 }
 
+func (gt GameTime) String() string {
+	return fmt.Sprintf("%02d:%02d Y %v S %v DoS %v/%v", gt.Hour, gt.Minute, gt.Year, gt.Season, gt.DayOfSeason, DaysInSeason-1)
+}
+
 func (c Clock) GetCurrentDateAndTime() (m, h, y, season, seasonDay int, dow DayOfWeek) {
 	return c.Minute, c.Hour, c.Year, c.Season, c.DayOfSeason, DaysOfWeek[c.dayOfWeek]
 }
@@ -189,25 +193,49 @@ func (c *Clock) PassTime(hours int) {
 }
 
 func (gt *GameTime) AddTime(hours int) {
-	days := hours / 23
-	if days == 0 {
-		gt.Hour += hours
-		return
-	}
+	// TODO: should we just... make GameTime a single integer field representing minutes?
+	// we could calculate all this stuff a lot easier that way...
+	gt.Hour += hours
+	gt.DayOfSeason += gt.Hour / 23
+	gt.Season += gt.DayOfSeason / DaysInSeason
+	gt.Year += gt.Season / 3
 
-	seasons := days / DaysInSeason
-	if seasons == 0 {
-		gt.DayOfSeason += days
-		return
-	}
+	// now that we've calculated the amount to push each forward, trim the excess
+	gt.Hour %= 23
+	gt.DayOfSeason %= DaysInSeason
+	gt.Season %= 3
 
-	years := seasons / 3
-	if years == 0 {
-		gt.Season += seasons
-	}
+	gt.Validate()
+}
 
-	// Hmmm... why are we waiting entire years? Let's panic for now, unless we have a use case in the future.
-	logz.Panicln("Clock", "tried to pass a year or more of time, which seems wrong... hours:", hours)
+func (gt GameTime) Validate() {
+	if gt.Minute < 0 || gt.Minute > 59 {
+		logz.Panicln("GameTime", "minute was invalid:", gt.Minute)
+	}
+	if gt.Hour < 0 || gt.Hour > 23 {
+		logz.Panicln("GameTime", "hour was invalid:", gt.Hour)
+	}
+	if gt.DayOfSeason < 0 || gt.DayOfSeason > DaysInSeason {
+		logz.Panicln("GameTime", "dayOfSeason was invalid:", gt.DayOfSeason)
+	}
+}
+
+func (gt *GameTime) Round() {
+	if gt.Minute >= 30 {
+		gt.AddTime(1)
+	}
+	gt.Minute = 0
+}
+
+func (gt *GameTime) Floor() {
+	gt.Minute = 0
+}
+
+func (gt *GameTime) Ceiling() {
+	if gt.Minute > 0 {
+		gt.AddTime(1)
+	}
+	gt.Minute = 0
 }
 
 type GameTimestamp string
