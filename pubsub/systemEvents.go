@@ -8,6 +8,14 @@ import (
 const (
 	// NOTE: Only used by world to enact map occupancy changes from background threads; not meant for detecting map changes!
 	SysEventChangeMapOccupancy defs.EventType = "SYS_CHANGE_MAP_OCCUPANCY"
+
+	// fires when a time lapse has occurred. should never be fired by anything other than the game engine; game projects can listen for this event
+	// if they want to know when a time lapse has finished.
+	//
+	// Event Data:
+	//
+	// "time": clock.GameTime
+	SysTimeLapse defs.EventType = "SYS_TIME_LAPSE"
 )
 
 func (eb *EventBus) SubscribeToWorldEvents(subscriberID string, fn func(defs.Event)) {

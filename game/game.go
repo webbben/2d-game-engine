@@ -17,7 +17,6 @@ import (
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/screen"
-	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/world"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -36,13 +35,15 @@ type Game struct {
 	mainMenuViewer screen.ScreenViewer
 	gameStage      defs.GameStage
 
+	// just set here so it can be passed into World
+	PlayerMenuScreenID defs.ScreenID
+
+	// TODO: should I move these screens to World? seems like it makes more sense to be there, since these screens
+	// only appear in the game world
+
 	TransitionManager TransitionManager
 
 	World *world.World
-
-	ShowPlayerMenu   bool
-	PlayerMenu       screen.Screen
-	playerMenuViewer screen.ScreenViewer
 
 	GlobalKeyBindings map[ebiten.Key]func(g *Game) // global keybindings. mainly for testing purposes.
 
@@ -51,8 +52,6 @@ type Game struct {
 	outsideWidth, outsideHeight int
 
 	EventBus *pubsub.EventBus
-
-	OverlayManager *overlay.OverlayManager
 
 	// if set, this will update and be drawn on top of the in-game world.
 	// example: game-world HUD that shows player's health and stamina bars, etc
@@ -126,11 +125,10 @@ func NewGame() *Game {
 
 		// managers
 
-		EventBus:       pubsub.NewEventBus(),
-		OverlayManager: &overlay.OverlayManager{},
-		Dataman:        datamanager.NewDataManager(),
-		AudioManager:   audio.NewAudioManager(),
-		ScreenManager:  screen.NewScreenManager(),
+		EventBus:      pubsub.NewEventBus(),
+		Dataman:       datamanager.NewDataManager(),
+		AudioManager:  audio.NewAudioManager(),
+		ScreenManager: screen.NewScreenManager(),
 	}
 
 	g.QuestManager = quest.NewQuestManager(g.EventBus, &g)
@@ -160,7 +158,9 @@ func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
 		logz.Panicln("InitializeGameWorld", "no character defs found. are you sure you loaded all data definitions?")
 	}
 
-	g.World = world.NewWorld(initTime, g.Dataman, g.AudioManager, g.EventBus, g.ScreenManager, g.QuestManager, g)
+	playerMenuScreen := g.ScreenManager.GetScreen(g.PlayerMenuScreenID)
+
+	g.World = world.NewWorld(initTime, g.Dataman, g.AudioManager, g.EventBus, g.ScreenManager, g.QuestManager, g, playerMenuScreen)
 	debug.StopTimer("InitializeGameWorld")
 	debug.ShowAllReports()
 }
@@ -171,21 +171,15 @@ func (g *Game) SetMainMenu(scrID defs.ScreenID) {
 	g.mainMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g.AudioManager, g, nil)
 }
 
-func (g *Game) SetPlayerMenu(scrID defs.ScreenID) {
-	scr := g.ScreenManager.GetScreen(scrID)
-	g.PlayerMenu = scr
-	g.playerMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g.AudioManager, g, nil)
-}
-
 func (g *Game) TogglePlayerMenu() {
-	if g.PlayerMenu == nil {
-		panic("player menu not set")
-	}
 	if g.gameStage != InGameWorld {
 		panic("tried to toggle player menu when not in the game world")
 	}
-	g.ShowPlayerMenu = !g.ShowPlayerMenu
-	logz.Println("TogglePlayerMenu", "show player menu:", g.ShowPlayerMenu)
+	if g.World == nil {
+		panic("world is nil")
+	}
+
+	g.World.TogglePlayerMenu()
 }
 
 func (g Game) LastPlayerUpdate() time.Time {

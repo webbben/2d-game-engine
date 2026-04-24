@@ -39,9 +39,12 @@ func (w *World) loadScenario(scenarioDef defs.ScenarioDef) {
 		w.ActiveMap.AddNPCToMap(n, startPos)
 		// set the start position, to make sure a task doesn't put the NPC in a random place (such as what Idle will do, if no position is set)
 		startLocation := defs.TaskStartLocation{TileX: &startPos.X, TileY: &startPos.Y, MapID: scenarioDef.MapID}
-		n.SetupTaskState(w.Clock.GetCurrentGameTime(), &startLocation)
 		if n.CurrentTask == nil {
-			// NPC must have the "do nothing" task, so no task was assigned.
+			logz.Warnln("loadScenario", "just wondering - should an NPC be able to not have a current task at this point?")
+			n.SetupTaskState(w.Clock.GetCurrentGameTime(), &startLocation)
+		}
+		if n.CurrentTask == nil {
+			// if current task is still nil, NPC must have the "do nothing" task, so no task was assigned.
 			continue
 		}
 		n.CurrentTask.SetupActiveState()
