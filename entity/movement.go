@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type MoveError struct {
@@ -154,6 +155,10 @@ func (e *Entity) TryMoveMaxPx(dx, dy, speed float64) MoveError {
 	if dx == 0 && dy == 0 {
 		panic("TryMoveMaxPx called with no distance given")
 	}
+
+	originalDx := dx
+	originalDy := dy
+
 	moveError := e.TryMovePx(dx, dy, speed)
 	if moveError.Collision {
 		// a collision occurred; try to adjust the target by the intersection area
@@ -290,7 +295,28 @@ func (e *Entity) TryMoveMaxPx(dx, dy, speed float64) MoveError {
 			return moveError
 		}
 
-		return e.TryMovePx(dx, dy, speed)
+		// ensure nothing weird happened, like dx or dy getting larger, changing directions entirely, etc...
+		if utils.DifferentSigns(originalDx, dx) {
+			logz.Warnln("TryMoveMaxPx", "dx changed directions after adjustment. dx:", dx, "original:", originalDx)
+		}
+		if utils.DifferentSigns(originalDy, dy) {
+			logz.Warnln("TryMoveMaxPx", "dy changed directions after adjustment. dy:", dy, "original:", originalDy)
+		}
+		if math.Abs(dx) > math.Abs(originalDx) {
+			logz.Warnln("TryMoveMaxPx", "dx got bigger after adjustment. dx:", dx, "original:", originalDx)
+		}
+		if math.Abs(dy) > math.Abs(originalDy) {
+			logz.Warnln("TryMoveMaxPx", "dy got bigger after adjustment. dy:", dy, "original:", originalDy)
+		}
+
+		moveError2 := e.TryMovePx(dx, dy, speed)
+		if moveError2.Collision {
+			// check if dx or dy is greater than 1; if so, then try just moving a single pixel in either direction to ensure there isn't any space we could move into
+			if math.Abs(dx) > 1 || math.Abs(dy) > 1 {
+				return e.TryMovePx(dx/math.Abs(dx), dy/math.Abs(dy), speed)
+			}
+		}
+		return moveError2
 	}
 	return moveError
 }

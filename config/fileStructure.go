@@ -39,7 +39,11 @@ func GameDataRootPath() string {
 	if err != nil {
 		panic(err)
 	}
-	return filepath.Join(homePath, GameDataDirectoryName)
+	p := filepath.Join(homePath, GameDataDirectoryName)
+	if !FileExists(p) {
+		logz.Panicln("GameDataRootPath", "path doesn't exist!", p)
+	}
+	return p
 }
 
 func InitFileStructure() error {
@@ -67,7 +71,11 @@ func InitFileStructure() error {
 // SAVE GAME
 
 func saveFilesPath() string {
-	return filepath.Join(GameDataRootPath(), "saves")
+	p := filepath.Join(GameDataRootPath(), "saves")
+	// if !FileExists(p) {
+	// 	logz.Panicln("saveFilesPath", "path doesn't exist!", p)
+	// }
+	return p
 }
 
 func getPlayerSaveDir(uniquePlayerID defs.UniquePlayerID) string {
@@ -75,7 +83,7 @@ func getPlayerSaveDir(uniquePlayerID defs.UniquePlayerID) string {
 }
 
 func GetAllSaveDirs() []string {
-	return files.GetListOfFiles(saveFilesPath(), true)
+	return files.GetListOfDirs(saveFilesPath(), true)
 }
 
 func ResolveSaveFilePath(uniquePlayerID defs.UniquePlayerID, filename string) string {

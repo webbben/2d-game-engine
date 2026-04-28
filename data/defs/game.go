@@ -1,6 +1,8 @@
 package defs
 
 import (
+	"time"
+
 	"github.com/webbben/2d-game-engine/clock"
 )
 
@@ -15,14 +17,21 @@ functions.
 type GameStage string
 
 type GameContext interface {
-	SaveGame() (saveFileName string)
 	PublishEvent(event Event)
+
+	SaveFileContext
 
 	GameDialogContext
 	GameQuestContext
 	GameScreenContext
 
 	ActiveMapContext
+}
+
+type SaveFileContext interface {
+	SaveGame() (saveFileName string)
+	GetAllExistingCharacters() []ExistingCharacterInfo
+	LoadGame(saveFilePath string)
 }
 
 type GameDialogContext interface {
@@ -85,4 +94,24 @@ type TransitionContext interface {
 type PlayerInfo struct {
 	PlayerName    string
 	PlayerCulture CultureID
+}
+
+// SaveInfo is just an overview of a single save file - NOT the actual save data.
+// This is used for showing a preview of a save file, without actually loading all the data.
+type SaveInfo struct {
+	UniquePlayerID  UniquePlayerID
+	CharacterName   string
+	LastPlay        time.Time
+	CurrentMapID    MapID
+	CurrentGameTime clock.GameTime
+	SaveFilePath    string
+}
+
+// ExistingCharacterInfo gives info about an existing character that has save files.
+// A single character can have multiple save files, so this just gives you an overview of that character's info and save data.
+type ExistingCharacterInfo struct {
+	UniquePlayerID UniquePlayerID
+	DisplayName    string
+	RecentSave     SaveInfo
+	SaveFilePaths  []string
 }

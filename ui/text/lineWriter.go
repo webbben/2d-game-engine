@@ -77,6 +77,10 @@ func (lw LineWriter) CurrentDimensions() (dx, dy int) {
 	if lw.maxLineWidth == 0 {
 		panic("tried to get dimensions, but maxLineWidth was 0")
 	}
+	if lw.cursorX == lw.cursorOffsetX && lw.cursorY != lw.lineHeight {
+		// the cursor is sitting at the new line position, but the current line doesn't have any text
+		return lw.maxLineWidth, lw.cursorY - lw.lineHeight
+	}
 	return lw.maxLineWidth, lw.cursorY
 }
 

@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/logz"
 )
 
 /*
@@ -128,6 +129,10 @@ type Vec2 struct {
 	X, Y float64
 }
 
+func (v Vec2) String() string {
+	return fmt.Sprintf("(%v, %v)", v.X, v.Y)
+}
+
 func NewVec2(x, y float64) Vec2 {
 	return Vec2{X: x, Y: y}
 }
@@ -135,8 +140,12 @@ func NewVec2(x, y float64) Vec2 {
 func (v Vec2) Add(o Vec2) Vec2      { return Vec2{v.X + o.X, v.Y + o.Y} }
 func (v Vec2) Sub(o Vec2) Vec2      { return Vec2{v.X - o.X, v.Y - o.Y} }
 func (v Vec2) Scale(s float64) Vec2 { return Vec2{v.X * s, v.Y * s} }
-func (v Vec2) Len() float64         { return math.Sqrt(v.X*v.X + v.Y*v.Y) }
+func (v Vec2) Len() float64         { return math.Hypot(v.X, v.Y) }
 func (v Vec2) Equals(o Vec2) bool   { return v.X == o.X && v.Y == o.Y }
+
+func (v Vec2) IsNaN() bool {
+	return math.IsNaN(v.X) || math.IsNaN(v.Y)
+}
 
 func (v Vec2) Normalize() Vec2 {
 	l := v.Len()
@@ -152,6 +161,12 @@ func (pos Vec2) Dist(target Vec2) float64 {
 }
 
 func (pos Vec2) MoveTowards(target Vec2, speed float64) Vec2 {
+	if target.IsNaN() {
+		logz.Panic("target is NaN")
+	}
+	if pos.IsNaN() {
+		logz.Panic("pos is NaN")
+	}
 	dir := target.Sub(pos)
 	dist := dir.Len()
 	step := dir.Normalize().Scale(speed)
@@ -160,7 +175,11 @@ func (pos Vec2) MoveTowards(target Vec2, speed float64) Vec2 {
 		return target
 	}
 
-	return pos.Add(step)
+	output := pos.Add(step)
+	if output.IsNaN() {
+		logz.Panicln("MoveTowards", "new position became NaN! original pos:", pos, "target:", target, "speed:", speed)
+	}
+	return output
 }
 
 func (pos Vec2) MoveAway(target Vec2, speed float64) Vec2 {
@@ -208,8 +227,7 @@ func (r Rect) VecWithin(v Vec2) bool {
 
 // GetOverlappingTiles returns a slice of all tile positions that this rect overlaps with.
 func (r Rect) GetOverlappingTiles() []Coords {
-	// for each corner of the rect, convert it to a tile position. then de-duplicate.
-	coords := map[Coords]bool{}
+	result := []Coords{}
 
 	minC := ConvertPxToTilePos(r.X, r.Y)
 	// subtract width and height by 1, to ensure that we don't spill over into the next tile
@@ -218,13 +236,8 @@ func (r Rect) GetOverlappingTiles() []Coords {
 	// add 1 to the max position, so that those end positions will actually be reached
 	for x := minC.X; x < maxC.X+1; x++ {
 		for y := minC.Y; y < maxC.Y+1; y++ {
-			coords[Coords{X: x, Y: y}] = true
+			result = append(result, Coords{X: x, Y: y})
 		}
-	}
-
-	result := []Coords{}
-	for c := range coords {
-		result = append(result, c)
 	}
 
 	return result
@@ -283,6 +296,7 @@ type CollisionResult struct {
 	BottomRight IntersectionResult
 	Other       IntersectionResult // for general use when not specifically corner related
 	Note        string             // if you want to add a debug note
+	ObjID       *int               // if collision is with object, store its ID here
 }
 
 // MergeOtherCollisionResult merges the two collision results, basically by taking the "maximum" collision for each corner.
@@ -299,6 +313,12 @@ func (cr *CollisionResult) MergeOtherCollisionResult(other CollisionResult) {
 		cr.Note += "; "
 	}
 	cr.Note += other.Note
+
+	if cr.ObjID == nil {
+		if other.ObjID != nil {
+			cr.ObjID = other.ObjID
+		}
+	}
 }
 
 func (c CollisionResult) String() string {

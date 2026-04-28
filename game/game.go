@@ -67,6 +67,10 @@ type Game struct {
 	ScreenManager *screen.ScreenManager
 }
 
+func ShowFullDebugReport() {
+	debug.ShowAllReports()
+}
+
 func (g Game) GetGameStage() defs.GameStage {
 	return g.gameStage
 }

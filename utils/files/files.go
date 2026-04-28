@@ -32,6 +32,29 @@ func WriteToJSON(v any, outputFilePath string) error {
 	return os.WriteFile(outputFilePath, data, 0o644)
 }
 
+func GetListOfDirs(directoryPath string, getAbsPaths bool) []string {
+	if directoryPath == "" {
+		logz.Panicln("GetListOfDirs", "directoryPath was empty...")
+	}
+	files := []string{}
+	fileInfos, err := os.ReadDir(directoryPath)
+	if err != nil {
+		logz.Panicln("GetListOfDirs", "failed to read files in directory:", err)
+	}
+	for _, fi := range fileInfos {
+		if !fi.IsDir() {
+			continue
+		}
+		name := fi.Name()
+		if getAbsPaths {
+			name = filepath.Join(directoryPath, name)
+		}
+		files = append(files, name)
+	}
+
+	return files
+}
+
 func GetListOfFiles(directoryPath string, getAbsPaths bool) []string {
 	if directoryPath == "" {
 		logz.Panicln("GetListOfFiles", "directoryPath was empty...")

@@ -17,6 +17,7 @@ import (
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/camera"
+	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
@@ -98,6 +99,8 @@ func NewActiveMap(
 	mapID defs.MapID,
 	regenImages bool,
 ) *ActiveMap {
+	debug.StartTimer("NewActiveMap")
+
 	logz.Println("ActiveMap", "Creating new active map:", mapID)
 	mapDef := dataman.GetMapDef(mapID)
 	// load and setup the map
@@ -167,6 +170,8 @@ func NewActiveMap(
 			"MapDisplayName": m.DisplayName,
 		},
 	})
+
+	debug.StopTimer("NewActiveMap")
 
 	return m
 }
@@ -256,18 +261,28 @@ func (mi *ActiveMap) AddPlayerToMap(p *player.Player, x, y float64) {
 	r := model.Rect{
 		X: x,
 		Y: y,
-		W: config.TileSize,
-		H: config.TileSize,
+		W: config.TileSize - 1,
+		H: config.TileSize - 1,
 	}
 	if res := mi.Collides(r); res.Collides() {
 		// this also handles placement outside of map bounds
-		panic("player added to map on colliding tile")
+		logz.Panicln("AddPlayerToMap", "player added to map on colliding position:", r, res.Note)
 	}
 	mi.PlayerRef = p
 	p.Entity.World = mi
 	p.Entity.SetPositionPx(x, y)
 
 	p.World = mi
+}
+
+func (mi ActiveMap) GetObjByID(objID int) *object.Object {
+	for _, obj := range mi.Objects {
+		if obj.ID == objID {
+			return obj
+		}
+	}
+	logz.Panicln("GetObjByID", "no object of the given ID found:", objID)
+	return nil
 }
 
 // AddNPCToMap is the official way to add an NPC to a map.
@@ -297,8 +312,8 @@ func (mi ActiveMap) IsTileCollision(coords model.Coords) bool {
 	r := model.Rect{
 		X: float64(coords.X * config.TileSize),
 		Y: float64(coords.Y * config.TileSize),
-		W: config.TileSize,
-		H: config.TileSize,
+		W: config.TileSize - 1,
+		H: config.TileSize - 1,
 	}
 	res := mi.Collides(r)
 	if res.Collides() {
@@ -354,10 +369,14 @@ func (m ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) bool {
 
 // Collides detects if the given rect collides in the map.
 func (mi ActiveMap) Collides(r model.Rect) model.CollisionResult {
+	// adding a full tilesize would make you spill over into the next tile's space.
+	// this is because an individual pixel position represents an actual pixel.
+	// so, the space within a tile at tile position 0,0 is:
+	// x: [0, tilesize-1] y: [0, tilesize-1]
 	tl := model.ConvertPxToTilePos(r.X, r.Y)
-	tr := model.ConvertPxToTilePos((r.X + r.W), (r.Y))
-	bl := model.ConvertPxToTilePos((r.X), (r.Y + r.H))
-	br := model.ConvertPxToTilePos((r.X + r.W), (r.Y + r.H))
+	tr := model.ConvertPxToTilePos(r.X+r.W, r.Y)
+	bl := model.ConvertPxToTilePos(r.X, r.Y+r.H)
+	br := model.ConvertPxToTilePos(r.X+r.W, r.Y+r.H)
 	// check if any part of the target is outside the map
 	maxTileX := len(mi.Map.CostMap[0]) - 1
 	maxTileY := len(mi.Map.CostMap) - 1
@@ -432,6 +451,7 @@ func (mi ActiveMap) Collides(r model.Rect) model.CollisionResult {
 		if newCr.Collides() {
 			newCr.Assert()
 			newCr.Note = fmt.Sprintf("collided with object %v", obj.ID)
+			newCr.ObjID = utils.Int(obj.ID)
 		}
 		cr.MergeOtherCollisionResult(newCr)
 	}
@@ -492,10 +512,6 @@ func (mi ActiveMap) MapDimensions() (width int, height int) {
 //
 // - Object rects
 //   - Does not include gates, since those may be opened by an NPC (even if locked). NPC logic handles unlocking gates if possible.
-//
-// TODO:
-// 1) at some point I plan to make NPCs not collide, but just slow each other down. we should factor in the cost
-// such that it discourages NPCs from overlapping, but won't actually make them collide.
 func (mi ActiveMap) CostMap() [][]int {
 	if mi.Map.CostMap == nil {
 		panic("tried to get ActiveMap cost map before Map costmap was created")
