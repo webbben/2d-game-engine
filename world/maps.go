@@ -25,6 +25,8 @@ func (w *World) EnsureMapStateExists(mapID defs.MapID) {
 	w.CreateNewMapState(mapID)
 }
 
+// CreateNewMapState is for creating a map state when initializing a new game. This should not be run when loading an existing game,
+// since it would cause duplicate NPCs to be recreated.
 func (w *World) CreateNewMapState(mapID defs.MapID) {
 	if w.Dataman.MapStateExists(mapID) {
 		logz.Panicln("CreateNewMapState", "tried to create a new map state, but one already exists:", mapID)
@@ -99,9 +101,11 @@ func (w *World) CreateNewMapState(mapID defs.MapID) {
 				var charStateID id.CharacterStateID
 				charGenID, found := tiled.GetStringProperty("characterGeneratorID", objectInfo.AllProps)
 				if found {
+					// generate an random NPC for this bed
 					charGen := w.Dataman.GetCharacterGenerator(charGenID)
 					charStateID = w.GenerateCharacter(charGen, mapID, mapID, obj.ID)
 				} else {
+					// create the NPC based on its def
 					charDefID, found := tiled.GetStringProperty("characterDefID", objectInfo.AllProps)
 					if found {
 						// this bed has a specific character def ID set

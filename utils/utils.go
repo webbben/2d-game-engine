@@ -105,3 +105,8 @@ func CenterInScreen(dx, dy int) (x, y float64) {
 	y = screenDy/2 - float64(dy)/2
 	return x, y
 }
+
+// DifferentSigns - if either is 0, then it returns false (0 is considered the "same sign" as both positive and negative here)
+func DifferentSigns(a, b float64) bool {
+	return a != 0 && b != 0 && ((a < 0) != (b < 0))
+}

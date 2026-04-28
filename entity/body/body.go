@@ -411,7 +411,7 @@ func (eb *EntityBodySet) ReloadArms() {
 
 func (eb *EntityBodySet) EquipBodyItem(i defs.ItemDef) {
 	if i == nil {
-		panic("item was nil")
+		logz.Panicln("EquipBodyItem", "item was nil")
 	}
 	if !i.IsBodywear() {
 		logz.Panicln("EquipBodyItem", "item is not bodywear:", i.GetID())
@@ -421,7 +421,7 @@ func (eb *EntityBodySet) EquipBodyItem(i defs.ItemDef) {
 
 func (eb *EntityBodySet) EquipHeadItem(i defs.ItemDef) {
 	if i == nil {
-		panic("item was nil")
+		logz.Panicln("EquipHeadItem", "item was nil")
 	}
 	if !i.IsHeadwear() {
 		logz.Panicln("EquipHeadItem", "item is not headwear:", i.GetID())
@@ -431,7 +431,7 @@ func (eb *EntityBodySet) EquipHeadItem(i defs.ItemDef) {
 
 func (eb *EntityBodySet) EquipAuxItem(i defs.ItemDef) {
 	if i == nil {
-		panic("item was nil")
+		logz.Panicln("EquipAuxItem", "item was nil")
 	}
 	if !i.IsAuxiliary() {
 		logz.Panicln("EquipAuxItem", "item is not aux:", i.GetID())
@@ -441,7 +441,7 @@ func (eb *EntityBodySet) EquipAuxItem(i defs.ItemDef) {
 
 func (eb *EntityBodySet) EquipWeaponItem(i defs.ItemDef) {
 	if i == nil {
-		panic("item was nil")
+		logz.Panicln("EquipWeaponItem", "item was nil")
 	}
 	if !i.IsWeapon() {
 		logz.Panicln("EquipWeaponItem", "item is not weapon:", i.GetID())
@@ -452,7 +452,7 @@ func (eb *EntityBodySet) EquipWeaponItem(i defs.ItemDef) {
 
 func (eb *EntityBodySet) EquipFootItem(i defs.ItemDef) {
 	if i == nil {
-		panic("item was nil")
+		logz.Panicln("EquipFootItem", "item was nil")
 	}
 	if !i.IsFootwear() {
 		logz.Panicln("EquipFootItem", "item is not footwear:", i.GetID())

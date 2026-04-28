@@ -58,6 +58,30 @@ type SaveFile struct {
 	Quests              QuestStates
 }
 
+func (sf SaveFile) validate() {
+	if sf.SaveTime.IsZero() {
+		logz.Panic("save time is zero value")
+	}
+	if sf.CurrentMapID == "" {
+		logz.Panic("current map ID is empty")
+	}
+	if sf.CurrentGameTime == "" {
+		logz.Panic("CurrentGameTime is empty")
+	}
+	if len(sf.CharacterStates) == 0 {
+		logz.Warnln("SaveFile", "no character states... this probably shouldn't happen, right?")
+	}
+	if len(sf.DialogProfileStates) == 0 {
+		logz.Warnln("SaveFile", "no dialog profile states... this probably shouldn't happen, right?")
+	}
+	if len(sf.MapStates) == 0 {
+		logz.Warnln("SaveFile", "no map states... this probably shouldn't happen, right?")
+	}
+	if len(sf.ShopkeeperStates) == 0 {
+		logz.Warnln("SaveFile", "no shopkeeper states... this probably shouldn't happen, right?")
+	}
+}
+
 type QuestStates struct {
 	Active    []state.QuestState
 	Completed []state.QuestState
@@ -71,7 +95,12 @@ func SaveGame(
 	mapID defs.MapID,
 	mapCoords model.Coords,
 ) (saveFilePath string) {
-	sf := SaveFile{}
+	sf := SaveFile{
+		SaveTime:        time.Now(),
+		CurrentGameTime: gameTime.GetTimestamp(),
+		CurrentMapID:    mapID,
+		MapCoords:       mapCoords,
+	}
 
 	// sanity checks; make sure things exist
 	_ = dataman.GetMapDef(mapID)
@@ -113,6 +142,9 @@ func SaveGame(
 
 	config.EnsurePlayerSaveDirExists(uniqueID)
 	saveFilePath = config.ResolveSaveFilePath(uniqueID, filename)
+
+	// ensure this save file has no validation errors
+	sf.validate()
 
 	err := files.WriteToJSON(sf, saveFilePath)
 	if err != nil {
@@ -189,39 +221,20 @@ func LoadSave(saveFilePath string, dataman *datamanager.DataManager, questMgr *q
 	return info, nil
 }
 
-// ExistingCharacterInfo gives info about an existing character that has save files.
-// A single character can have multiple save files, so this just gives you an overview of that character's info and save data.
-type ExistingCharacterInfo struct {
-	UniquePlayerID defs.UniquePlayerID
-	DisplayName    string
-	RecentSave     SaveInfo
-	SaveFilePaths  []string
-}
-
-// SaveInfo is just an overview of a single save file - NOT the actual save data.
-// This is used for showing a preview of a save file, without actually loading all the data.
-type SaveInfo struct {
-	UniquePlayerID  defs.UniquePlayerID
-	CharacterName   string
-	LastPlay        time.Time
-	CurrentMapID    defs.MapID
-	CurrentGameTime clock.GameTime
-	SaveFilePath    string
-}
-
-func GetAllExistingCharacters() []ExistingCharacterInfo {
-	existingChars := []ExistingCharacterInfo{}
+func GetAllExistingCharacters() []defs.ExistingCharacterInfo {
+	existingChars := []defs.ExistingCharacterInfo{}
 
 	// each of these should be directories for a single character's saves
 	characterSaveDirs := config.GetAllSaveDirs()
 
 	if len(characterSaveDirs) == 0 {
+		logz.Println("GetAllExistingCharacters", "no character save directories found.")
 		return existingChars
 	}
 
 	// for each character save directory, get info about the character and the recent save
 	for _, saveDir := range characterSaveDirs {
-		charInfo := ExistingCharacterInfo{}
+		charInfo := defs.ExistingCharacterInfo{}
 		saveFiles := files.GetListOfFiles(saveDir, true)
 		if len(saveFiles) == 0 {
 			logz.Panicln("GetAllExistingCharacters", "a character saves directory was empty, and had no save files.")
@@ -247,14 +260,18 @@ func GetAllExistingCharacters() []ExistingCharacterInfo {
 
 		// load the data of the most recent save
 		charInfo.RecentSave = GetSaveInfo(mostRecentSavePath)
+		charInfo.DisplayName = charInfo.RecentSave.CharacterName
+		charInfo.UniquePlayerID = charInfo.RecentSave.UniquePlayerID
+
 		existingChars = append(existingChars, charInfo)
 	}
 
 	return existingChars
 }
 
-func GetSaveInfo(saveFilePath string) SaveInfo {
-	si := SaveInfo{}
+func GetSaveInfo(saveFilePath string) defs.SaveInfo {
+	logz.Println("GetSaveInfo", saveFilePath)
+	si := defs.SaveInfo{}
 	si.SaveFilePath = saveFilePath
 
 	sf := loadSaveFileStruct(saveFilePath)
@@ -280,6 +297,8 @@ func loadSaveFileStruct(saveFilePath string) SaveFile {
 	if err != nil {
 		logz.Panicln("loadSaveFileStruct", "failed to unmarshal save file data:", err)
 	}
+
+	sf.validate()
 
 	return sf
 }

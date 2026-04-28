@@ -37,6 +37,10 @@ func NewMultilineButton(buttonText string, maxWidthPx int, f font.Face, mlParams
 	return &mb
 }
 
+func (mb *MultilineButton) SetHighlight(highlight bool) {
+	mb.btn.SetHighlight(highlight)
+}
+
 func (mb *MultilineButton) Update() ButtonUpdateResult {
 	return mb.btn.Update()
 }

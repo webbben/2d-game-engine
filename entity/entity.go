@@ -149,6 +149,14 @@ func (e *Entity) LeaveChair() {
 	e.chairObj = nil
 }
 
+func (e Entity) GetSleepInfo() (bedPos, standPos model.Vec2, bedID int) {
+	if !e.IsSleeping {
+		logz.Panic("entity is not sleeping, so you cant get sleep info. check IsSleeping before calling this.")
+	}
+
+	return e.bedPosition, e.positionBeforeSleeping, e.bedObj.ID
+}
+
 func (e *Entity) SleepInBed(bedObj *object.Object) {
 	if e.IsSleeping {
 		panic("already sleeping in a bed")
@@ -226,6 +234,11 @@ func (e Entity) IsPlayer() bool {
 // Grabs the character state from definition manager, outfits it in an entity, and prepares it for runtime use.
 func LoadCharacterStateIntoEntity(charStateID id.CharacterStateID, dataman *datamanager.DataManager, audioMgr *audio.AudioManager) *Entity {
 	charState := dataman.GetCharacterState(charStateID)
+
+	// ensure that item defs have been loaded. these would be nil if you are loading a game, since the character state would have been loaded from JSON.
+	item.LoadStandardInventoryItemDefs(&charState.StandardInventory, dataman)
+
+	charState.Validate()
 
 	// load body def from charDef
 	charDef := dataman.GetCharacterDef(charState.DefID)
@@ -594,8 +607,8 @@ func (e Entity) CollisionRect() model.Rect {
 	return model.Rect{
 		X: e.X + offsetX,
 		Y: e.Y,
-		W: e.width,
-		H: e.width,
+		W: e.width - 1,
+		H: e.width - 1,
 	}
 }
 

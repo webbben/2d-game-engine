@@ -121,6 +121,8 @@ func NewWorld(
 	p := player.NewPlayer(w.Dataman, playerEnt)
 	w.Player = &p
 
+	// this ensures all map states exist, and also effectively that all NPC states exist, since everytime it encounters a bed for an NPC it ensures that NPC's state
+	// has been created too.
 	for id := range w.Dataman.MapDefs {
 		w.EnsureMapStateExists(id)
 	}
@@ -265,6 +267,7 @@ func (w *World) loadRegularMapNPCs() {
 	if w.ActiveMap == nil {
 		panic("map was nil")
 	}
+	debug.StartTimer("loadRegularMapNPCs")
 
 	logz.Println("loadRegularMapNPCs", "loading regular NPCs for map:", w.ActiveMap.MapID)
 
@@ -292,6 +295,8 @@ func (w *World) loadRegularMapNPCs() {
 			logz.Warnln("loadRegularMapNPCs", "NPC has no active task:", n.WhoAmI())
 		}
 	}
+
+	debug.StopTimer("loadRegularMapNPCs")
 }
 
 // CloseMap handles all work that should be done when an ActiveMap is left by the player.

@@ -246,26 +246,32 @@ func (gt GameTime) GetTimestamp() GameTimestamp {
 }
 
 func TimestampToGameTime(timestamp GameTimestamp) GameTime {
+	if timestamp == "" {
+		logz.Panic("timestamp was an empty string")
+	}
 	parts := strings.Split(string(timestamp), "-")
+	if len(parts) != 5 {
+		logz.Panicln("TimestampToGameTime", "incorrect number of parts in game timestamp (should be 5):", len(parts), parts, timestamp)
+	}
 	y, err := strconv.Atoi(parts[0])
 	if err != nil {
-		panic(err)
+		logz.Panicln("TimestampToGameTime", "failed to parse part as int:", parts[0], err)
 	}
-	s, err := strconv.Atoi(parts[0])
+	s, err := strconv.Atoi(parts[1])
 	if err != nil {
-		panic(err)
+		logz.Panicln("TimestampToGameTime", "failed to parse part as int:", parts[1], err)
 	}
-	d, err := strconv.Atoi(parts[0])
+	d, err := strconv.Atoi(parts[2])
 	if err != nil {
-		panic(err)
+		logz.Panicln("TimestampToGameTime", "failed to parse part as int:", parts[2], err)
 	}
-	h, err := strconv.Atoi(parts[0])
+	h, err := strconv.Atoi(parts[3])
 	if err != nil {
-		panic(err)
+		logz.Panicln("TimestampToGameTime", "failed to parse part as int:", parts[3], err)
 	}
-	m, err := strconv.Atoi(parts[0])
+	m, err := strconv.Atoi(parts[4])
 	if err != nil {
-		panic(err)
+		logz.Panicln("TimestampToGameTime", "failed to parse part as int:", parts[4], err)
 	}
 
 	return GameTime{

@@ -30,6 +30,7 @@ type Button struct {
 	textImg     *ebiten.Image
 
 	flashFactor float32 // gets set when we want to flash the button
+	highlight   bool    // if set, the button will retain its highlight effect, as though being hovered over by the mouse
 
 	clickSfx defs.SoundID
 
@@ -127,6 +128,10 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, audioma
 	return &b
 }
 
+func (b *Button) SetHighlight(highlight bool) {
+	b.highlight = highlight
+}
+
 type ButtonUpdateResult struct {
 	Clicked bool
 }
@@ -193,7 +198,7 @@ func (b *Button) Draw(screen *ebiten.Image, x, y int) {
 		}
 		// draw button image instead of highlight hover box
 		ops := ebiten.DrawImageOptions{}
-		if b.mouseBehavior.IsHovering {
+		if b.mouseBehavior.IsHovering || b.highlight {
 			ops.ColorScale.Scale(1.2, 1.2, 1.2, 1)
 		} else if b.flashFactor > 0 {
 			ops.ColorScale.Scale(1+b.flashFactor, 1+b.flashFactor, 1+b.flashFactor, 1)
@@ -204,7 +209,7 @@ func (b *Button) Draw(screen *ebiten.Image, x, y int) {
 		if b.textImg != nil {
 			dx, dy = rendering.CenterImageOnImage(b.hoverBoxImg, b.textImg)
 		}
-		if b.mouseBehavior.IsHovering {
+		if b.mouseBehavior.IsHovering || b.highlight {
 			ops := ebiten.DrawImageOptions{}
 			ops.ColorScale.Scale(1, 1, 1, 0.1)
 			rendering.DrawImageWithOps(screen, b.hoverBoxImg, float64(x), float64(y), 0, &ops)
