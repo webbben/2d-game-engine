@@ -169,117 +169,15 @@ func (e *Entity) TryMoveMaxPx(dx, dy, speed float64) MoveError {
 		}
 		collisionPoint := *moveError.CollisionPoint
 		curPos := model.NewVec2(e.X, e.Y)
+
+		// TODO: it seems like this could cause dx or dy to go from 0 (originally) to a very, very small number. Not sure how that's possible,
+		// but just recording that here in case its of interest later. For now, it doesn't seem to be causing any major problems.
 		delta := collisionPoint.Sub(curPos)
 		dx = delta.X
 		dy = delta.Y
 
 		cr := moveError.CollisionResult
-		cx, cy := 0.0, 0.0
-
-		top := cr.TopLeft.Int() + cr.TopRight.Int()
-		left := cr.TopLeft.Int() + cr.BottomLeft.Int()
-		right := cr.TopRight.Int() + cr.BottomRight.Int()
-		bottom := cr.BottomLeft.Int() + cr.BottomRight.Int()
-
-		// TODO: the below logic seems to work well, but it seems too long and probably can be simplified.
-		// let's try to combine the "one direction" logic into the "bi-direction" section
-		if dx == 0 || dy == 0 {
-			// only moving in one direction; simpler logic
-			if dx < 0 {
-				// left
-				if left != fullOpen {
-					// get as close as possible
-					cx = max(cr.BottomLeft.Dx, cr.TopLeft.Dx)
-				}
-			} else if dx > 0 {
-				// right
-				if right != fullOpen {
-					cx = -max(cr.BottomRight.Dx, cr.TopRight.Dx)
-				}
-			}
-			if dy < 0 {
-				// up
-				if top != fullOpen {
-					cy = max(cr.TopLeft.Dy, cr.TopRight.Dy)
-				}
-			} else if dy > 0 {
-				// down
-				if bottom != fullOpen {
-					cy = -max(cr.BottomLeft.Dy, cr.BottomRight.Dy)
-				}
-			}
-		} else {
-			// moving in two directions; more special cases logic to consider
-			yDir := 0
-			var yDirCorner1, yDirCorner2 model.IntersectionResult
-			var xDirCorner1, xDirCorner2 model.IntersectionResult
-			xDirFactor, yDirFactor := 1.0, 1.0
-			// check how "open" each direction is
-			if dy < 0 {
-				yDir = top
-				yDirCorner1, yDirCorner2 = cr.TopLeft, cr.TopRight
-			} else {
-				yDir = bottom
-				yDirCorner1, yDirCorner2 = cr.BottomLeft, cr.BottomRight
-				yDirFactor = -1
-			}
-			xDir := 0
-			if dx < 0 {
-				xDir = left
-				xDirCorner1, xDirCorner2 = cr.TopLeft, cr.BottomLeft
-			} else {
-				xDir = right
-				xDirCorner1, xDirCorner2 = cr.TopRight, cr.BottomRight
-				xDirFactor = -1
-			}
-
-			// sanity check: if a collision occurred, then both directions cannot be "full open"
-			if yDir == fullOpen && xDir == fullOpen {
-				logz.Panicln("TryMoveMaxPx", "collision occurred, but both directions (x & y) appear to be fully open...")
-			}
-
-			if yDir != fullOpen || xDir != fullOpen {
-				// there is blockage in one (or both) directions. let's suss it out.
-				switch xDir {
-				case fullBlock:
-					// get as close as possible, but ultimately block this direction
-					cx = xDirFactor * max(xDirCorner1.Dx, xDirCorner2.Dx)
-				case partialOpen:
-					switch yDir {
-					case fullBlock:
-						// sliding along a wall; continue freely
-					case partialOpen:
-						// walking into an outwardly pointing corner
-						// need to decide which side we will go along
-						// go along the direction that overlaps the most (smaller overlap gets clamped)
-						xOverlap := int(max(xDirCorner1.Dx, xDirCorner2.Dx))
-						yOverlap := int(max(yDirCorner1.Dy, yDirCorner2.Dy))
-						if xOverlap > yOverlap {
-							cy = yDirFactor * max(yDirCorner1.Dy, yDirCorner2.Dy)
-						} else {
-							cx = xDirFactor * max(xDirCorner1.Dx, xDirCorner2.Dx)
-						}
-					case fullOpen:
-						// about to turn around a corner
-						// this direction should be cancelled for now
-						cx = xDirFactor * max(xDirCorner1.Dx, xDirCorner2.Dx)
-					}
-				}
-				switch yDir {
-				case fullBlock:
-					cy = yDirFactor * max(yDirCorner1.Dy, yDirCorner2.Dy)
-				case partialOpen:
-					switch xDir {
-					case fullBlock:
-						// sliding along a wall; continue freely
-					case fullOpen:
-						// about to turn around a corner
-						// this direction should be cancelled for now
-						cy = yDirFactor * max(yDirCorner1.Dy, yDirCorner2.Dy)
-					}
-				}
-			}
-		}
+		cx, cy := calculateCollisionAdjustment(dx, dy, cr)
 
 		if cx == 0 && cy == 0 {
 			// no changes suggested? this seems wrong
@@ -295,30 +193,176 @@ func (e *Entity) TryMoveMaxPx(dx, dy, speed float64) MoveError {
 			return moveError
 		}
 
-		// ensure nothing weird happened, like dx or dy getting larger, changing directions entirely, etc...
+		// ensure nothing weird happened like changing directions entirely, etc...
 		if utils.DifferentSigns(originalDx, dx) {
-			logz.Warnln("TryMoveMaxPx", "dx changed directions after adjustment. dx:", dx, "original:", originalDx)
+			logz.Panicln("TryMoveMaxPx", "dx changed directions after adjustment. dx:", dx, "original:", originalDx, "cx:", cx)
 		}
 		if utils.DifferentSigns(originalDy, dy) {
-			logz.Warnln("TryMoveMaxPx", "dy changed directions after adjustment. dy:", dy, "original:", originalDy)
+			logz.Panicln("TryMoveMaxPx", "dy changed directions after adjustment. dy:", dy, "original:", originalDy, "cy:", cy)
 		}
-		if math.Abs(dx) > math.Abs(originalDx) {
-			logz.Warnln("TryMoveMaxPx", "dx got bigger after adjustment. dx:", dx, "original:", originalDx)
-		}
-		if math.Abs(dy) > math.Abs(originalDy) {
-			logz.Warnln("TryMoveMaxPx", "dy got bigger after adjustment. dy:", dy, "original:", originalDy)
-		}
+
+		// TODO: there's a case that has caused some trouble with the "adjustment" logic:
+		// when moving diagonally along a wall into a doorway, the first move attempt can sometimes collide with the opposite doorway corner.
+		// this causes an adjustment that can then send the move attempt into the other doorway corner closer to the player, ultimately making the movement fail.
+		// this makes it seem like the player is "caught" on a corner while trying to go around it and into a doorway.
+		// For now, I added the two final movement attempts that cancel one direction's movement altogether, and it seems to at least prevent the "sticky corner" problem.
 
 		moveError2 := e.TryMovePx(dx, dy, speed)
 		if moveError2.Collision {
-			// check if dx or dy is greater than 1; if so, then try just moving a single pixel in either direction to ensure there isn't any space we could move into
-			if math.Abs(dx) > 1 || math.Abs(dy) > 1 {
-				return e.TryMovePx(dx/math.Abs(dx), dy/math.Abs(dy), speed)
+			// still colliding after adjustment, so report this case
+			logz.Warnln("TryMoveMaxPx", "failed to adjust movement to avoid collision. delta:", delta)
+			logz.Warnln("", "origDx:", originalDx, "origDy:", originalDy)
+			logz.Warnln("", "cx:", cx, "cy:", cy, "newDx:", dx, "newDy:", dy)
+			logz.Warnln("", "curPos:", curPos, "collision point:", moveError.CollisionPoint)
+			logz.Warnln("", "collision result:", moveError.CollisionResult)
+
+			// at this point, just try to move in one of the two directions
+			// TODO: I think this produces an effect where the player doesn't fully touch the wall sometimes, since one direction's movement is cancelled
+			// (while approaching a wall diagonally). But, it does seem to stop the "getting caught on the edge of a corner" thing, so maybe it's good for now?
+			if dx != 0 {
+				moveError = e.TryMovePx(dx/2, 0, speed)
+				if !moveError.Collision {
+					return moveError
+				}
+			}
+			if dy != 0 {
+				moveError = e.TryMovePx(0, dy/2, speed)
+				if !moveError.Collision {
+					return moveError
+				}
 			}
 		}
 		return moveError2
 	}
 	return moveError
+}
+
+// calculateCollisionAdjustment determines how to adjust dx/dy movement when a collision occurs.
+// It returns the cx and cy adjustments to apply to dx and dy respectively.
+func calculateCollisionAdjustment(dx, dy float64, cr model.CollisionResult) (cx, cy float64) {
+	top := cr.TopLeft.Int() + cr.TopRight.Int()
+	left := cr.TopLeft.Int() + cr.BottomLeft.Int()
+	right := cr.TopRight.Int() + cr.BottomRight.Int()
+	bottom := cr.BottomLeft.Int() + cr.BottomRight.Int()
+
+	// TODO: the below logic seems to work well, but it seems too long and probably can be simplified.
+	// let's try to combine the "one direction" logic into the "bi-direction" section
+	if dx == 0 || dy == 0 {
+		// only moving in one direction; simpler logic
+		if dx < 0 {
+			// left
+			if left != fullOpen {
+				// get as close as possible
+				cx = max(cr.BottomLeft.Dx, cr.TopLeft.Dx)
+			}
+		} else if dx > 0 {
+			// right
+			if right != fullOpen {
+				cx = -max(cr.BottomRight.Dx, cr.TopRight.Dx)
+			}
+		}
+		if dy < 0 {
+			// up
+			if top != fullOpen {
+				cy = max(cr.TopLeft.Dy, cr.TopRight.Dy)
+			}
+		} else if dy > 0 {
+			// down
+			if bottom != fullOpen {
+				cy = -max(cr.BottomLeft.Dy, cr.BottomRight.Dy)
+			}
+		}
+	} else {
+		// moving in two directions; more special cases logic to consider
+		yDir := 0
+		var yDirCorner1, yDirCorner2 model.IntersectionResult
+		var xDirCorner1, xDirCorner2 model.IntersectionResult
+		xDirFactor, yDirFactor := 1.0, 1.0
+		// check how "open" each direction is
+		if dy < 0 {
+			yDir = top
+			yDirCorner1, yDirCorner2 = cr.TopLeft, cr.TopRight
+		} else {
+			yDir = bottom
+			yDirCorner1, yDirCorner2 = cr.BottomLeft, cr.BottomRight
+			yDirFactor = -1
+		}
+		xDir := 0
+		if dx < 0 {
+			xDir = left
+			xDirCorner1, xDirCorner2 = cr.TopLeft, cr.BottomLeft
+		} else {
+			xDir = right
+			xDirCorner1, xDirCorner2 = cr.TopRight, cr.BottomRight
+			xDirFactor = -1
+		}
+
+		// sanity check: if a collision occurred, then both directions cannot be "full open"
+		if yDir == fullOpen && xDir == fullOpen {
+			logz.Panicln("calculateCollisionAdjustment", "collision occurred, but both directions (x & y) appear to be fully open...")
+		}
+
+		if yDir != fullOpen || xDir != fullOpen {
+			// there is blockage in one (or both) directions. let's suss it out.
+			switch xDir {
+			case fullBlock:
+				// get as close as possible, but ultimately block this direction
+				// Note: If you are running into a corner where one of the rects is smaller (like a half tile collision rect), then this can produce a cx
+				// that is larger than dx. that's because the starting points of both of these xDirCorners is different, so the Dx value for one would be a lot higher.
+				// The current way of handling this is just to clamp the magnitude of cx to be no greater than that of the input dx.
+				cx = xDirFactor * max(xDirCorner1.Dx, xDirCorner2.Dx)
+			case partialOpen:
+				switch yDir {
+				case fullBlock:
+					// sliding along a wall; continue freely
+				case partialOpen:
+					// walking into an outwardly pointing corner
+					// need to decide which side we will go along
+					// go along the direction that overlaps the most (smaller overlap gets clamped)
+					xOverlap := int(max(xDirCorner1.Dx, xDirCorner2.Dx))
+					yOverlap := int(max(yDirCorner1.Dy, yDirCorner2.Dy))
+					if xOverlap > yOverlap {
+						cy = yDirFactor * max(yDirCorner1.Dy, yDirCorner2.Dy)
+					} else {
+						cx = xDirFactor * max(xDirCorner1.Dx, xDirCorner2.Dx)
+					}
+				case fullOpen:
+					// about to turn around a corner
+					// this direction should be cancelled for now
+					cx = xDirFactor * max(xDirCorner1.Dx, xDirCorner2.Dx)
+				}
+			}
+			switch yDir {
+			case fullBlock:
+				cy = yDirFactor * max(yDirCorner1.Dy, yDirCorner2.Dy)
+			case partialOpen:
+				switch xDir {
+				case fullBlock:
+					// sliding along a wall; continue freely
+				case fullOpen:
+					// about to turn around a corner
+					// this direction should be cancelled for now
+					cy = yDirFactor * max(yDirCorner1.Dy, yDirCorner2.Dy)
+				}
+			}
+		}
+	}
+
+	// validate cx and cy, to make sure nothing weird happened
+	if math.Abs(cx) > math.Abs(dx) {
+		cx = -dx
+	}
+	if math.Abs(cy) > math.Abs(dy) {
+		cy = -dy
+	}
+	if cx != 0 && !utils.DifferentSigns(cx, dx) {
+		logz.Warnln("collisionAdjustment", "cx and dx are the same sign! this would cause dx to be driven further in the same direction... cx:", cx, "dx:", dx)
+	}
+	if cy != 0 && !utils.DifferentSigns(cy, dy) {
+		logz.Warnln("collisionAdjustment", "cy and dy are the same sign! this would cause dy to be driven further in the same direction... cy:", cy, "dy:", dy)
+	}
+
+	return cx, cy
 }
 
 func (e *Entity) TryMovePx(dx, dy, speed float64) MoveError {

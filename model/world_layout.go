@@ -207,7 +207,7 @@ func (r Rect) GetCenter() (x, y float64) {
 }
 
 func (r Rect) String() string {
-	return fmt.Sprintf("x: %v y: %v w: %v h: %v", r.X, r.Y, r.W, r.H)
+	return fmt.Sprintf("(x: %v y: %v w: %v h: %v)", r.X, r.Y, r.W, r.H)
 }
 
 func (r Rect) Intersects(other Rect) bool {
@@ -246,6 +246,8 @@ func (r Rect) GetOverlappingTiles() []Coords {
 type IntersectionResult struct {
 	Intersects bool
 	Dx, Dy     float64
+
+	R, OtherR Rect
 
 	// where the intersection came from, from the perspective of "r" (the main rect the Intersection function was called on)
 	FromTL, FromTR, FromBL, FromBR bool
@@ -362,7 +364,10 @@ func (c CollisionResult) Assert() {
 // IntersectionArea gets the area that intersects between two rects.
 // dx and dy area always positive (or 0 if no intersection)
 func (r Rect) IntersectionArea(other Rect) IntersectionResult {
-	res := IntersectionResult{}
+	res := IntersectionResult{
+		R:      r,
+		OtherR: other,
+	}
 	res.Intersects = r.Intersects(other)
 	if res.Intersects {
 		// find intersecting area
