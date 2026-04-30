@@ -69,6 +69,9 @@ func (ds *DialogSession) updateDialogResponse() {
 			// move to chained response
 			// wait for the player to click to continue though, in case they are still reading.
 			if ds.flashUntilContinue() {
+				if config.ButtonClickSfx != "" {
+					ds.audioman.PlaySFX(config.ButtonClickSfx, 0.3)
+				}
 				ds.ApplyResponse(*ds.currentResponse.NextResponse)
 			}
 			return
@@ -230,6 +233,9 @@ func (ds *DialogSession) flashUntilContinue() bool {
 
 func (ds *DialogSession) awaitContinue() {
 	if ds.flashUntilContinue() {
+		if config.ButtonClickSfx != "" {
+			ds.audioman.PlaySFX(config.ButtonClickSfx, 0.3)
+		}
 		ds.LineWriter.NextPage()
 	}
 }

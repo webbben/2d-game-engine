@@ -46,7 +46,8 @@ var (
 	DefaultFont      font.Face // default font for most body text (e.g. item info tooltips); must be set by game
 	DefaultTitleFont font.Face // default font for titles of text areas (e.g. item info tooltips); must be set by game
 
-	ButtonClickSfx defs.SoundID = "" // if set, buttons will play this sfx when clicked
+	ButtonClickSfx     defs.SoundID = "" // if set, buttons will play this sfx when clicked
+	DefaultTextBlipSfx defs.SoundID = "" // if set, dialogs will play this on text writing
 
 	// default box used for simple tooltips (e.g. tooltips for tabs); must be set by game
 	// (this one is actually required as of now)

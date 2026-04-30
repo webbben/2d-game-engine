@@ -75,7 +75,7 @@ func (e *Entity) GoToPos(c model.Coords, closeEnough bool) (model.Coords, MoveEr
 	// set first target in our new path
 	moveError := e.trySetNextTargetPath()
 	if !moveError.Success {
-		logz.Panicln(string(e.ID()), "GoToPos: managed to get path, but failed when trying to target the first step of the path...")
+		logz.Panicln(string(e.ID()), "GoToPos: managed to get path, but failed when trying to target the first step of the path...\n", moveError)
 	}
 	return path[len(path)-1], MoveError{Success: true}
 }
