@@ -89,6 +89,8 @@ type DialogSession struct {
 	iconFlashTimer      int
 	ticksSinceLastClick int
 
+	blipSfxID defs.SoundID
+
 	topicButtons []*button.Button
 	topicList    []defs.TopicID
 	replyButtons []*button.Button // reply buttons that can appear in the topic box (for small replies only)
@@ -264,6 +266,9 @@ func (ds *DialogSession) dialogSetup(boxTilesetSrc string, boxOrigin int, f font
 	ds.buildTopicBox(textBoxHeight)
 
 	ds.LineWriter = text.NewLineWriter(textBoxWidth-tileSize, textBoxHeight-tileSize, f, nil, nil, true, false)
+	if config.DefaultTextBlipSfx != "" {
+		ds.LineWriter.AddTextBlipSfx(config.DefaultTextBlipSfx, 7, ds.audioman)
+	}
 }
 
 // builds the topic box to fit the given height. has a minimum height it defaults to.

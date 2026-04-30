@@ -73,6 +73,13 @@ func (it *IdleTask) Update() {
 		return
 	}
 
+	if it.Owner.Entity.IsSleeping {
+		it.Owner.Entity.LeaveBed()
+	}
+	if it.Owner.Entity.IsSitting {
+		it.Owner.Entity.LeaveChair()
+	}
+
 	it.Status = TaskInProg
 	if it.timer.timeExpired() {
 		// time to do another random change

@@ -1,3 +1,62 @@
+# 2026-04-29
+
+It's been awhile, and a lot has happened since last post (or at least it feels like it).
+
+Probably the biggest thing I've most recently accomplished is, now I can fully load save files and start where they left off.
+Saving currently only works when you sleep in a bed, and once you enter a bed a little screen pops up that lets you choose how long to sleep.
+It's not very fancy yet, but once you click accept, a time lapse occurs and a new save file is created afterwards.
+When you load the save, you appear at the same position as you were at before you entered the bed, in the same map, and at the same time as when you woke up.
+So it's sort of like starting you up at the point in which your character got out of bed after sleeping. I was gonna try to make it so you load in and are sleeping 
+in the bed, but there were some technical difficulties so I decided to skip that for now. Nice to have, but not worth spending lots of time on it right now.
+
+I also just got done fixing up some movement bugs. There was an issue where the player could get stuck at a corner when trying to turn around it.
+It was similar to a past issue I've had, but this time it was because I was trying to turn into a doorway, which means there were two different "corners" that the
+player's entity kept bumping into, resulting in collisions that couldn't be resolved. It's not perfect, but it works a lot smoother now that you don't get "stuck".
+
+Also been doing some fine tuning of task management, and ensuring that NPCs don't glitch out when following their schedule tasks. There were a handful of issues,
+but that's to be expected considering I just wrote must of these tasks' logic recently, so they haven't really been tested thoroughly yet.
+
+In the same vein as that, I've been fixing things up with what has come to be called the "Simulation loop". Basically, ensuring that any real actions it needs to take
+are sorted out in the main update loop, while letting expensive calculations like path finding work in the background. As of now (knock on wood) things seem to work 
+pretty smoothly, but then again there are only 3 NPCs in my game's world that actually have schedules... I imagine once I have a whole city of dozens of NPCs, I'll
+start to find more and more issues.
+
+I'll hold off on adding new screenshots for now, partly because I'm too lazy to gather them, but also because I'd like to get a little more actual world progress done first
+so that I have something extra interesting to show off. I've mainly just been building new houses and building interiors, so there isn't a whole lot of "new" stuff to
+showcase yet.
+
+## Next Steps
+
+My main focus right now is building out the first quests in the main quest line, adding new dialog and quest features as needed, and also fleshing out the first 
+in-game city, Aquileia. Will also probably need to continue designing new items as I go, but I'm trying not to make too many items yet since there's always a risk 
+that something with the player animations could change. And if that happens, lots of equipable items will need to be partially redrawn to align with the new body
+animation frames, which is quite tedious to do.
+
+I guess, the way I see things, here's a vague outline of how development could progress from here:
+
+1. Work on getting core content of first few main quests done (dialog, maps, character definitions, etc)
+
+2. Work on getting general game features implemented and working nice (merchants, dialog in general, fighting mechanics, etc)
+
+3. Once 1 and 2 are looking nice, revisit the artistic side of things and really confirm exactly how I want characters to look, animations to look, etc.
+My goal here would be to 100% nail down the look, so that I never have to worry about touching up or fixing item animation frames. But, since I'm not much of a
+digital artist, I think this step could be pretty time consuming.
+
+4. Once the above are going well... hopefully the art style will be rock solid, the core game mechanics will be 90% coded up, and so it'll be time to
+just do lots of writing and filling in game data for things like quests and dialog. Once I truly get to this stage (assuming things go as planned), progress
+should be able to speed up considerably. I'm sure there will be a continuous need to make more art, which will probably end up slowing things down here and there,
+but at least I won't be tied down with creating the core systems and debugging them too frequently.
+
+I have a milestone coming up by the middle of June which I hope to achieve: it's to have a semi-playable/demo-able game ready.
+I'm not 100% sure what all will be included in that demo, but I imagine it'll include the following:
+
+- At least one town (probably the one I'm making now) that has at least a handful of characters in it, with their own daily schedules.
+- At least a couple quests implemented, along with a quest tracking UI so that you can see your progress, which quests are active, completed, etc.
+- Fully functioning player inventory, merchant system of buying and selling items for gold, wearing items, using (some) special use items (like reading books, maybe?)
+- A rudimentary combat system where you can fight and kill NPCs. This has sort of been started on, but still has a long way to go.
+
+As I write things out, I realize I still have a long way to go. But, hopefully I can manage to get things things together by the end of the next couple months.
+
 # 2026-04-17
 
 Wanted to cover something I've learned recently, just because I thought it was interesting, and I'm excited to gain some real hands-on experience 

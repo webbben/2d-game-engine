@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/audio"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"golang.org/x/image/font"
@@ -36,6 +38,11 @@ func isSlowdownChar(r rune) bool {
 
 // LineWriter is a tool to write lines of text that handle various functions like wrapping lines, etc.
 type LineWriter struct {
+	audioman         *audio.AudioManager
+	textBlipSfx      defs.SoundID
+	ticksTilBlip     int // remaining ticks until next "blip" sfx
+	blipTickInterval int // number of ticks between blip sound while text is writing
+
 	init             bool        // flag to indicate if this LineWriter was properly initialized
 	sourceText       string      // full text the line writer is currently aiming to write
 	textUpdateTimer  int         // number of ticks until the next text character is added
@@ -118,6 +125,16 @@ func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color
 	lw.cursorOffsetX = 2
 
 	return lw
+}
+
+// AddTextBlipSfx adds a text blip sound effect to the lineWriter. Made it configurable here just because I didn't wanna mess with the main constructor function.
+func (lw *LineWriter) AddTextBlipSfx(sfxID defs.SoundID, tickInterval int, audioman *audio.AudioManager) {
+	if tickInterval < 0 {
+		panic("tick interval was < 0")
+	}
+	lw.audioman = audioman
+	lw.textBlipSfx = sfxID
+	lw.blipTickInterval = tickInterval
 }
 
 // SetSourceText sets the text for the lineWriter to write. It's expected that you will call Clear first if there is already written text.
@@ -347,6 +364,18 @@ func (lw *LineWriter) Update() {
 						lw.addedUpdateTimer = 25
 					} else {
 						lw.addedUpdateTimer = 0
+
+						// play sfx when we aren't drawing a slow-down character. it sounds weird if the sfx plays randomly during series of "..."
+						if lw.textBlipSfx != "" {
+							if lw.audioman == nil {
+								panic("audioman was nil")
+							}
+							lw.ticksTilBlip--
+							if lw.ticksTilBlip <= 0 {
+								lw.audioman.PlaySFX(lw.textBlipSfx, 0.3)
+								lw.ticksTilBlip = lw.blipTickInterval
+							}
+						}
 					}
 				}
 			} else {
