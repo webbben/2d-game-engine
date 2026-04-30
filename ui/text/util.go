@@ -3,6 +3,7 @@ package text
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"github.com/webbben/2d-game-engine/logz"
@@ -185,4 +186,13 @@ func CenterTextOnYPos(s string, f font.Face, yPos float64) float64 {
 	r := model.NewRect(0, yPos-100, 100, 200)
 	_, writeY := CenterTextInRect(s, f, r)
 	return float64(writeY)
+}
+
+func ColorsEqual(c1, c2 color.Color) bool {
+	if c1 == nil || c2 == nil {
+		logz.Panic("one of the colors was nil!")
+	}
+	r1, g1, b1, a1 := c1.RGBA()
+	r2, g2, b2, a2 := c2.RGBA()
+	return r1 == r2 && g1 == g2 && b1 == b2 && a1 == a2
 }

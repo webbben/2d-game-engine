@@ -3,6 +3,7 @@ package dialogv2
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -96,6 +97,8 @@ type DialogSession struct {
 	replyButtons []*button.Button // reply buttons that can appear in the topic box (for small replies only)
 	replyBox     *replyBox        // a box to show bigger replies, when a reply needs more space for an entire sentence (or more).
 	replyList    []defs.DialogReply
+
+	topicLinks []topicLink // links in the current response's text
 
 	f font.Face // font used for all text in dialog
 
@@ -265,10 +268,16 @@ func (ds *DialogSession) dialogSetup(boxTilesetSrc string, boxOrigin int, f font
 	ds.TextBoxImg = b.BuildBoxImage(textBoxWidth, textBoxHeight)
 	ds.buildTopicBox(textBoxHeight)
 
-	ds.LineWriter = text.NewLineWriter(textBoxWidth-tileSize, textBoxHeight-tileSize, f, nil, nil, true, false)
-	if config.DefaultTextBlipSfx != "" {
-		ds.LineWriter.AddTextBlipSfx(config.DefaultTextBlipSfx, 7, ds.audioman)
+	lwParams := text.LineWriterParams{
+		LineWidthPx:           textBoxWidth - tileSize,
+		MaxHeightPx:           textBoxHeight - tileSize,
+		FontFace:              f,
+		UseShadow:             true,
+		TextBlipSfx:           config.DefaultTextBlipSfx,
+		TextBlipTickInterval:  7,
+		SupportSpecialSymbols: true,
 	}
+	ds.LineWriter = text.NewLineWriter(ds.audioman, lwParams)
 }
 
 // builds the topic box to fit the given height. has a minimum height it defaults to.
@@ -478,6 +487,10 @@ func (ds *DialogSession) ApplyResponse(dr defs.DialogResponse) {
 	// response has started, so we don't need topic buttons anymore
 	ds.topicButtons = []*button.Button{}
 	ds.topicList = []defs.TopicID{}
+	ds.topicLinks = []topicLink{}
+
+	// find any topic links that might exist in the text
+	ds.topicLinks = parseTextLinks(dr)
 
 	// if the response has an ID, mark it as seen
 	if dr.ID != "" {
@@ -493,6 +506,54 @@ func (ds *DialogSession) ApplyResponse(dr defs.DialogResponse) {
 	}
 
 	ds.continueApplyResponse()
+}
+
+// topicLink is used to denote a link that is found in a dialog response text.
+type topicLink struct {
+	text    string       // text of the actual link
+	topicID defs.TopicID // topic that it links to
+
+	// the following is set after linewriter has finished writing text and knows all link positions
+
+	linkButton *button.Button
+	x, y       float64
+}
+
+func parseTextLinks(dr defs.DialogResponse) []topicLink {
+	// find all "[...]" sections of the text, and record those as topic links.
+	linkCandidates := []string{}
+	re := regexp.MustCompile(`\[([^\]]+)\]`)
+
+	matches := re.FindAllStringSubmatch(dr.Text, -1)
+
+	if len(matches) == 0 {
+		// no topic notation found
+		return []topicLink{}
+	}
+
+	for _, match := range matches {
+		// match[1] has the string stripped of square brackets
+		linkCandidates = append(linkCandidates, match[1])
+	}
+
+	topicLinks := []topicLink{}
+
+	// now, we associate a link candidate the topic IDs in NextTopics.
+	// we assume nextTopics should be matched with link candidates in the same order as set in the slice.
+	// panic if there are not enough nextTopics for the number of link candidates, but don't panic if there are more nextTopics than link candidates.
+	// this is because every link candidate ("[...]") must have a topic assosciated, but we also allow to introduce next topics without including them in
+	// the dialog text itself.
+	if len(linkCandidates) > len(dr.NextTopics) {
+		logz.Panicln("parseTextLinks", "more link candidates found than NextTopics")
+	}
+	for i, linkText := range linkCandidates {
+		topicLinks = append(topicLinks, topicLink{
+			text:    linkText,
+			topicID: dr.NextTopics[i],
+		})
+	}
+
+	return topicLinks
 }
 
 func (ds *DialogSession) startAction() {

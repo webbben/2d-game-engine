@@ -95,6 +95,18 @@ func LoadStandardInventoryItemDefs(inv *defs.StandardInventory, dataman *dataman
 	reloadItemDef(inv.Equipment.EquipedAmmo)
 }
 
+// LoadItemDefs ensures that all items have their defs loaded, since they may be nil if loaded from JSON
+func LoadItemDefs(invItems []*defs.InventoryItem, dataman *datamanager.DataManager) {
+	for _, invItem := range invItems {
+		if invItem == nil {
+			continue
+		}
+		if invItem.Def == nil {
+			invItem.Def = dataman.GetItemDef(invItem.Instance.DefID)
+		}
+	}
+}
+
 func AddItemToStandardInventory(inv *defs.StandardInventory, invItem defs.InventoryItem) (bool, defs.InventoryItem) {
 	invItem.Validate()
 

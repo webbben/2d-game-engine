@@ -31,9 +31,18 @@ func NewMultiline(textToWrite string, lineWidthPx int, f font.Face, params Multi
 	if f == nil {
 		panic("font was nil")
 	}
+	lwParams := LineWriterParams{
+		FontFace:         f,
+		FgColor:          params.Fg,
+		BgColor:          params.Bg,
+		UseShadow:        params.UseShadow,
+		WriteImmediately: true,
+		LineWidthPx:      lineWidthPx,
+		MaxHeightPx:      display.SCREEN_HEIGHT,
+	}
 	ml := Multiline{
 		// I set the max height as screen height since I'd never expect it to go beyond that...
-		lw: NewLineWriter(lineWidthPx, display.SCREEN_HEIGHT, f, params.Fg, params.Bg, params.UseShadow, true),
+		lw: NewLineWriter(nil, lwParams),
 	}
 	ml.lw.SetSourceText(textToWrite)
 	// only need to update once, to get the text to be processed and ready to draw.

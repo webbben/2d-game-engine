@@ -40,8 +40,9 @@ func isSlowdownChar(r rune) bool {
 type LineWriter struct {
 	audioman         *audio.AudioManager
 	textBlipSfx      defs.SoundID
-	ticksTilBlip     int // remaining ticks until next "blip" sfx
-	blipTickInterval int // number of ticks between blip sound while text is writing
+	ticksTilBlip     int  // remaining ticks until next "blip" sfx
+	blipTickInterval int  // number of ticks between blip sound while text is writing
+	specialSymbols   bool // if true, lineWriter handles special symbols like underscores, square brackets, etc. otherwise, it just draws those symbols as is.
 
 	init             bool        // flag to indicate if this LineWriter was properly initialized
 	sourceText       string      // full text the line writer is currently aiming to write
@@ -53,7 +54,9 @@ type LineWriter struct {
 	pageLineCount    int         // based on max height and line height, the number of lines that can fit in a single page
 	fontFace         font.Face   // font to use when writing
 	fgColor          color.Color // color of the text (foreground). defaults to black
+	currentFgColor   color.Color // color currently being used to write the next rune in Fg. this can change based on text notation for asides or links, etc.
 	bgColor          color.Color // color of the text shadow. defaults to a semi-transparent gray.
+	linkColor        color.Color // color of links in text
 	shadow           bool        // if set, text is drawn with the shadow (bgColor) effect
 
 	linesToWrite      []string         // source text broken down into their lines
@@ -63,6 +66,8 @@ type LineWriter struct {
 	currentLineIndex  int              // the index of the current line we are writing
 	currentLineRunes  []rune           // the runes on the current line that is being written. for 'typewriter' style where one character is drawn at a time.
 	writtenLines      []string         // the "output" that is actually drawn. Note that this isn't used to draw the actual text anymore; just keeping in case its useful for debugging.
+	linkPositions     []LinkPos        // positions of all links drawn by the linkWriter.
+	currentLinkPos    *LinkPos         // if currently drawing a link, this is created to record start X/Y.
 	WritingStatus     LineWriterStatus // the current status of the lineWriter, regarding the text it is writing
 	writeImmediately  bool
 
@@ -91,50 +96,79 @@ func (lw LineWriter) CurrentDimensions() (dx, dy int) {
 	return lw.maxLineWidth, lw.cursorY
 }
 
+type LineWriterParams struct {
+	LineWidthPx, MaxHeightPx int
+	FontFace                 font.Face
+	SupportSpecialSymbols    bool // if true, special symbols (like underscore, square brackets) will produce text formatting effects
+
+	UseShadow            bool // if true, text will draw a shadow behind it using the BgColor
+	WriteImmediately     bool // if true, text will write immediately on first update
+	TextBlipSfx          defs.SoundID
+	TextBlipTickInterval int
+
+	FgColor   color.Color // color used for text foreground. defaults to black.
+	BgColor   color.Color // color used for shadow behind text, or for de-emphasized/aside text (text inside underscores). defaults to light gray.
+	LinkColor color.Color // color used for link text (text inside square brackets). defaults to blue.
+}
+
 // NewLineWriter creates a new LineWriter.
 // fg and bg colors can be left nil, in which case they assume the normal defaults (fg = black, bg = gray).
 // set useShadow to true if you want the shadow effect to be used when drawing text.
-func NewLineWriter(lineWidthPx, maxHeightPx int, f font.Face, fg, bg color.Color, useShadow bool, writeImmediately bool) LineWriter {
-	minWidth, minHeight, _ := GetStringSize("ABC!/|", f)
-	if lineWidthPx < minWidth {
+//
+// Audioman is optional; only needed if you set TextBlipSfx.
+func NewLineWriter(audioman *audio.AudioManager, params LineWriterParams) LineWriter {
+	// NOTE: audioman may be nil if linewriter is used by a place that doesn't expect to use sound effects. sound effects are mainly used by dialog.
+
+	if params.FontFace == nil {
+		logz.Panic("font face was nil!")
+	}
+	minWidth, minHeight, _ := GetStringSize("ABC!/|", params.FontFace)
+	if params.LineWidthPx < minWidth {
 		panic(fmt.Sprintf("lineWriter lineWidthPx must not be too small to draw text. minWidth determined by font: %v px", minWidth))
 	}
-	if maxHeightPx < minHeight {
+	if params.MaxHeightPx < minHeight {
 		panic(fmt.Sprintf("lineWriter maxHeightPx must be be able to fit a single line of text. minHeight determined by font: %v px", minHeight))
 	}
-	if fg == nil {
-		fg = color.Black
+	if params.FgColor == nil {
+		params.FgColor = color.Black
 	}
-	if bg == nil {
-		bg = color.RGBA{20, 20, 20, 75}
+	if params.BgColor == nil {
+		params.BgColor = color.RGBA{20, 20, 20, 75}
+	}
+	if params.LinkColor == nil {
+		params.LinkColor = color.RGBA{0, 0, 255, 255}
 	}
 
 	lw := LineWriter{
 		WritingStatus:    AwaitText,
 		init:             true,
-		maxLineWidth:     lineWidthPx,
-		maxHeight:        maxHeightPx,
-		fontFace:         f,
-		fgColor:          fg,
-		bgColor:          bg,
-		shadow:           useShadow,
-		writeImmediately: writeImmediately,
+		maxLineWidth:     params.LineWidthPx,
+		maxHeight:        params.MaxHeightPx,
+		fontFace:         params.FontFace,
+		fgColor:          params.FgColor,
+		bgColor:          params.BgColor,
+		linkColor:        params.LinkColor,
+		shadow:           params.UseShadow,
+		writeImmediately: params.WriteImmediately,
+		audioman:         audioman,
+		specialSymbols:   params.SupportSpecialSymbols,
 	}
 
 	lw.textImg = ebiten.NewImage(lw.maxLineWidth, lw.maxHeight)
 	lw.cursorOffsetX = 2
 
-	return lw
-}
-
-// AddTextBlipSfx adds a text blip sound effect to the lineWriter. Made it configurable here just because I didn't wanna mess with the main constructor function.
-func (lw *LineWriter) AddTextBlipSfx(sfxID defs.SoundID, tickInterval int, audioman *audio.AudioManager) {
-	if tickInterval < 0 {
-		panic("tick interval was < 0")
+	if params.TextBlipSfx != "" {
+		if params.TextBlipTickInterval < 0 {
+			panic("tick interval was < 0")
+		}
+		if lw.audioman == nil {
+			logz.Panic("audioman was nil. ensure it's passed into NewLineWriter if this linewriter is supposed to support SFX.")
+		}
+		lw.textBlipSfx = params.TextBlipSfx
+		lw.blipTickInterval = params.TextBlipTickInterval
 	}
-	lw.audioman = audioman
-	lw.textBlipSfx = sfxID
-	lw.blipTickInterval = tickInterval
+
+	return lw
 }
 
 // SetSourceText sets the text for the lineWriter to write. It's expected that you will call Clear first if there is already written text.
@@ -146,6 +180,8 @@ func (lw *LineWriter) SetSourceText(textToWrite string) {
 	if lw.WritingStatus != AwaitText {
 		panic("tried to set lineWriter text while it was in an invalid status. be sure to properly clear the lineWriter first with lw.Clear().")
 	}
+
+	lw.linkPositions = []LinkPos{}
 
 	textToWrite = strings.TrimSpace(textToWrite)
 
@@ -279,9 +315,9 @@ func (lw *LineWriter) drawRune(r, prev rune) {
 	lw.cursorX += kern.Round()
 
 	if lw.shadow {
-		DrawShadowText(lw.textImg, string(r), lw.fontFace, lw.cursorX, lw.cursorY, lw.fgColor, lw.bgColor, -2, -2)
+		DrawShadowText(lw.textImg, string(r), lw.fontFace, lw.cursorX, lw.cursorY, lw.currentFgColor, lw.bgColor, -2, -2)
 	} else {
-		DrawText(lw.textImg, string(r), lw.fontFace, lw.cursorX, lw.cursorY, lw.fgColor)
+		DrawText(lw.textImg, string(r), lw.fontFace, lw.cursorX, lw.cursorY, lw.currentFgColor)
 	}
 
 	adv, ok := lw.fontFace.GlyphAdvance(r)
@@ -353,30 +389,34 @@ func (lw *LineWriter) Update() {
 						prev = lw.currentLineRunes[lw.currentLineIndex-1]
 					}
 
-					lw.drawRune(next, prev)
+					skippedRune := lw.handleDrawRune(next, prev)
 
-					lw.writtenLines[lw.currentLineNumber] += string(next)
-					lw.currentLineIndex++
-					lw.textUpdateTimer = 0
+					if !skippedRune {
+						lw.textUpdateTimer = 0
 
-					// see if we should slow down the writing due to an upcoming end of sentence
-					if isSlowdownChar(next) {
-						lw.addedUpdateTimer = 25
-					} else {
-						lw.addedUpdateTimer = 0
+						// see if we should slow down the writing due to an upcoming end of sentence
+						if isSlowdownChar(next) {
+							lw.addedUpdateTimer = 25
+						} else {
+							lw.addedUpdateTimer = 0
 
-						// play sfx when we aren't drawing a slow-down character. it sounds weird if the sfx plays randomly during series of "..."
-						if lw.textBlipSfx != "" {
-							if lw.audioman == nil {
-								panic("audioman was nil")
-							}
-							lw.ticksTilBlip--
-							if lw.ticksTilBlip <= 0 {
-								lw.audioman.PlaySFX(lw.textBlipSfx, 0.3)
-								lw.ticksTilBlip = lw.blipTickInterval
+							// play sfx when we aren't drawing a slow-down character. it sounds weird if the sfx plays randomly during series of "..."
+							if lw.textBlipSfx != "" {
+								if lw.audioman == nil {
+									panic("audioman was nil")
+								}
+								lw.ticksTilBlip--
+								if lw.ticksTilBlip <= 0 {
+									lw.audioman.PlaySFX(lw.textBlipSfx, 0.3)
+									lw.ticksTilBlip = lw.blipTickInterval
+								}
 							}
 						}
 					}
+
+					// update line index
+					lw.writtenLines[lw.currentLineNumber] += string(next)
+					lw.currentLineIndex++
 				}
 			} else {
 				// go to the next line
@@ -400,6 +440,54 @@ func (lw *LineWriter) Update() {
 	}
 }
 
+func (lw *LineWriter) handleDrawRune(next, prev rune) (skipThisRune bool) {
+	if lw.currentFgColor == nil {
+		lw.currentFgColor = lw.fgColor
+	}
+	// check for symbols that may change fg color
+	skipThisRune = false
+	if lw.specialSymbols {
+		switch next {
+		case '[':
+			// start a new link position
+			if lw.currentLinkPos != nil {
+				logz.Panic("hit a [, but there's already a current link pos. if a previous link position was finished, this pointer needs to be cleared. otherwise, there is a [ inside an already opened link.")
+			}
+			lw.currentLinkPos = &LinkPos{
+				X:          float64(lw.cursorX),
+				Y:          float64(lw.cursorY),
+				LineHeight: lw.lineHeight,
+			}
+			lw.currentFgColor = lw.linkColor
+			skipThisRune = true
+		case ']':
+			// finish existing link position
+			if lw.currentLinkPos == nil {
+				logz.Panic("hit a ], but no current link pos is defined. is there a stray ] sitting in dialog text? or did the open [ not start a new current link pos?")
+			}
+			lw.currentLinkPos.X2 = float64(lw.cursorX)
+			lw.currentLinkPos.Y2 = float64(lw.cursorY)
+			lw.linkPositions = append(lw.linkPositions, *lw.currentLinkPos)
+			lw.currentLinkPos = nil
+			lw.currentFgColor = lw.fgColor
+			skipThisRune = true
+		case '_':
+			if ColorsEqual(lw.currentFgColor, lw.bgColor) {
+				lw.currentFgColor = lw.fgColor
+			} else {
+				lw.currentFgColor = lw.bgColor
+			}
+			skipThisRune = true
+		}
+	}
+
+	if !skipThisRune {
+		lw.drawRune(next, prev)
+	}
+
+	return skipThisRune
+}
+
 func (lw *LineWriter) NextPage() {
 	if lw.WritingStatus != AwaitPager {
 		panic("tried to page lineWriter that isn't waiting for pager")
@@ -412,6 +500,8 @@ func (lw *LineWriter) NextPage() {
 	lw.currentLineIndex = 0
 	lw.currentLineNumber = 0
 	lw.writtenLines = []string{""}
+
+	lw.linkPositions = []LinkPos{}
 
 	lw.resetCursor()
 	lw.textImg.Clear()
@@ -435,7 +525,7 @@ func (lw *LineWriter) FastForward() {
 		prev := rune(0)
 
 		for _, r := range line {
-			lw.drawRune(r, prev)
+			lw.handleDrawRune(r, prev)
 			prev = r
 		}
 
@@ -444,4 +534,21 @@ func (lw *LineWriter) FastForward() {
 
 	lw.currentLineNumber = len(currentPage)
 	lw.currentLineIndex = 0
+}
+
+type LinkPos struct {
+	X, Y       float64
+	X2, Y2     float64
+	LineHeight int
+}
+
+// GetLinkPositions returns the start and end positions of link text drawn in a lineWriter.
+// Used for overlaying a button on top of link text so simulate a link for things like topics.
+// Returned x and y are of the text writer's cursor, so y is from the bottom of the text, not the top like other things.
+// Panics if called while lineWriter is busy writing.
+func (lw LineWriter) GetLinkPositions() []LinkPos {
+	if lw.WritingStatus == Writing {
+		logz.Panic("tried to get link positions while linewriter was still writing")
+	}
+	return lw.linkPositions
 }

@@ -2,6 +2,7 @@ package dialogv2
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/webbben/2d-game-engine/clock"
@@ -51,12 +52,13 @@ func NewDialogContext(npcID string, profile *state.DialogProfileState, profDef d
 		panic("dataman was nil")
 	}
 	ds := DialogContext{
-		NPCID:     npcID,
-		Profile:   profile,
-		GameState: gameState,
-		eventBus:  eventBus,
-		dataman:   dataman,
-		questman:  questman,
+		NPCID:      npcID,
+		Profile:    profile,
+		ProfileDef: profDef,
+		GameState:  gameState,
+		eventBus:   eventBus,
+		dataman:    dataman,
+		questman:   questman,
 	}
 	ds.seenTopics = make(map[defs.TopicID]bool)
 	ds.knowledgeTopics = make(map[defs.TopicID]bool)
@@ -106,6 +108,14 @@ func (ctx *DialogContext) RecordTopicUnlocked(topicID defs.TopicID) {
 	}
 	playerCharState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
 	playerCharState.Knowledge[topicID] = true
+
+	// if the NPC also knows this topic, add it to this session's available knowledge topics
+	if slices.Contains(ctx.ProfileDef.KnowledgeTopics, topicID) {
+		ctx.knowledgeTopics[topicID] = true
+	} else {
+		// seems weird to unlock knowledge in a conversation where the other person doesn't have that knowledge...
+		logz.Warnln("RecordTopicUnlocked", "unlocked topic isn't in NPC's (dialog profile) knowledge.", topicID)
+	}
 }
 
 func (ctx *DialogContext) RecordResponseSeen(greetingID string) {
