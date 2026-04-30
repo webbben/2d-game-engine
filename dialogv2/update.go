@@ -7,6 +7,7 @@ import (
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/ui/button"
 	"github.com/webbben/2d-game-engine/ui/modal"
 	"github.com/webbben/2d-game-engine/ui/text"
 )
@@ -58,10 +59,32 @@ func (ds *DialogSession) updateDialogResponse() {
 		}
 	case dialogResponseStarted:
 		// since we are no longer writing, that means we should move on to the next status
+		logz.TODO("Dialog", "does this code ever get hit? seems like it shouldn't")
 		ds.responseStatus = dialogResponseTextDone
 		return
 	case dialogResponseTextDone:
-		// response is done: check if there are replies for the user, or a chained response to move into
+		// response is done
+		// if there are any topic links, create the buttons for them now
+		if len(ds.topicLinks) > 0 && ds.topicLinks[0].linkButton == nil {
+			linkPositions := ds.LineWriter.GetLinkPositions()
+			if len(linkPositions) != len(ds.topicLinks) {
+				logz.Panicln("Dialog", "number of link positions doesn't match number of topic links. link pos:", linkPositions, "topic links:", ds.topicLinks)
+			}
+			for i := range ds.topicLinks {
+				pos := linkPositions[i]
+				dx := int(pos.X2 - pos.X)
+				dy := pos.LineHeight
+				ds.topicLinks[i].linkButton = button.NewButton(
+					"",
+					config.DefaultFont,
+					dx,
+					dy,
+					ds.audioman)
+				ds.topicLinks[i].x = pos.X
+				ds.topicLinks[i].y = pos.Y - float64(pos.LineHeight)
+			}
+		}
+		// check if there are replies for the user, or a chained response to move into
 		if ds.currentResponse.NextResponse != nil && len(ds.currentResponse.Replies) > 0 {
 			panic("dialogResponse has conflicting options: next response is set, but there are also replies")
 		}
@@ -132,6 +155,13 @@ func (ds *DialogSession) updateDialogResponse() {
 				return
 			}
 		}
+		// also check if topic links are clicked
+		for i, link := range ds.topicLinks {
+			if ds.topicLinks[i].linkButton.Update().Clicked {
+				ds.SetTopic(link.topicID)
+				return
+			}
+		}
 	}
 }
 
@@ -152,21 +182,6 @@ func (ds *DialogSession) handleUserInputActionResp(resp modal.TextModalResponse,
 		logz.Panicln("handleUserInputActionResp", "action scope not recognized:", action.Scope)
 	}
 }
-
-/*
-*
-* Overview of DialogSession logic:
-*
-* 1. Dialog starts
-* - first greeting is shown (DialogResponse)
-*
-* 2. Await Topic Selection
-*
-* 3. Topic Selected:
-* - response chain plays
-* - topic's content ends -> back to (2)
-*
- */
 
 func (ds *DialogSession) Update() {
 	// handle text display
@@ -253,7 +268,16 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 	textBoxX := 0
 	rendering.DrawImage(screen, ds.TextBoxImg, float64(textBoxX), float64(textBoxY), 0)
 
-	ds.LineWriter.Draw(screen, textBoxX+int(tileSize/2), textBoxY+int(tileSize/2))
+	lwX := textBoxX + int(tileSize/2)
+	lwY := textBoxY + int(tileSize/2)
+	ds.LineWriter.Draw(screen, lwX, lwY)
+	for i, link := range ds.topicLinks {
+		if link.linkButton == nil {
+			// buttons haven't been made yet
+			break
+		}
+		ds.topicLinks[i].linkButton.Draw(screen, lwX+int(link.x), lwY+int(link.y))
+	}
 
 	// if linewriter is waiting to continue, show flashing continue icon
 	if ds.flashContinueIcon {

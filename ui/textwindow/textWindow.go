@@ -4,10 +4,10 @@ package textwindow
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
-	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/ui/text"
 	"golang.org/x/image/font"
 )
 
@@ -192,7 +192,14 @@ func newTextWindow(title, bodyText string, params TextWindowParams) textWindow {
 
 	textWindow.box.buildWindowImage(windowWidth, windowHeight)
 
-	textWindow.lineWriter = text.NewLineWriter(lineWidth, bodyTextHeight+tileSize, params.BodyFont, nil, nil, true, true)
+	lwParams := text.LineWriterParams{
+		LineWidthPx:      lineWidth,
+		MaxHeightPx:      bodyTextHeight + tileSize,
+		FontFace:         params.BodyFont,
+		UseShadow:        true,
+		WriteImmediately: true,
+	}
+	textWindow.lineWriter = text.NewLineWriter(nil, lwParams)
 
 	textWindow.lineWriter.SetSourceText(bodyText)
 
