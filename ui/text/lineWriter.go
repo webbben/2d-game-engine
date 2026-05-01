@@ -407,7 +407,7 @@ func (lw *LineWriter) Update() {
 								}
 								lw.ticksTilBlip--
 								if lw.ticksTilBlip <= 0 {
-									lw.audioman.PlaySFX(lw.textBlipSfx, 0.3)
+									lw.audioman.PlaySFX(lw.textBlipSfx, 0.2)
 									lw.ticksTilBlip = lw.blipTickInterval
 								}
 							}

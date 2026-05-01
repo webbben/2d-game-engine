@@ -8,6 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/ui/popup"
 )
@@ -18,6 +19,7 @@ type Managers struct {
 	OverlayManager *overlay.OverlayManager
 	PopupManager   *popup.Manager
 	Audioman       *audio.AudioManager
+	Questman       *quest.QuestManager
 }
 
 type Screen interface {
@@ -96,7 +98,15 @@ type ScreenViewer struct {
 	popupMgr       *popup.Manager
 }
 
-func NewScreenViewer(scr Screen, dataman *datamanager.DataManager, eventBus *pubsub.EventBus, audioman *audio.AudioManager, gameCtx defs.GameContext, params any) ScreenViewer {
+func NewScreenViewer(
+	scr Screen,
+	dataman *datamanager.DataManager,
+	eventBus *pubsub.EventBus,
+	audioman *audio.AudioManager,
+	questman *quest.QuestManager,
+	gameCtx defs.GameContext,
+	params any,
+) ScreenViewer {
 	if scr == nil {
 		panic("screen was nil")
 	}
@@ -127,6 +137,7 @@ func NewScreenViewer(scr Screen, dataman *datamanager.DataManager, eventBus *pub
 		OverlayManager: &om,
 		PopupManager:   &popupMgr,
 		Audioman:       audioman,
+		Questman:       questman,
 	}
 
 	sv.scr.Load(mgmt, gameCtx, params)

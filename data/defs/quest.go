@@ -4,25 +4,6 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 )
 
-/*
-*
-* What the Quest System is responsible for:
-* - Maintain persistent narrative state
-* - react to events
-* - advance through stages
-* - trigger world-side effects
-* - track objectives
-*
-* It should NOT:
-* - execute AI
-* - run animations
-* - modify NPC internals directly
-* - contain low-level behavior logic
-*
-* it's a state machine that reacts to events.
-*
- */
-
 type (
 	QuestID      string
 	QuestStageID string
@@ -100,20 +81,29 @@ func NewQuestDef(id QuestID, name string, stages map[QuestStageID]QuestStageDef,
 //
 // - Knows what the next stage is
 type QuestStageDef struct {
-	ID          QuestStageID
-	Title       string        // OPT: shows a title for the quest stage to the player
-	Objective   string        // REQ: what the player sees as the current objective. Should be somewhat brief and to the point.
-	Description string        // OPT: longer context about the current objective, and adds some narrative to the events.
-	OnEnter     []QuestAction // a list of (non-conditional) actions that execute right when this stage is reached.
-	Reactions   []QuestReactionDef
+	ID             QuestStageID
+	Title          string        // OPT: shows a title for the quest stage to the player
+	Objective      string        // REQ: what the player sees as the current objective. Should be somewhat brief and to the point.
+	Description    string        // OPT: longer context about the current objective, and adds some narrative to the events.
+	OnEnter        []QuestAction // a list of (non-conditional) actions that execute right when this stage is reached.
+	Reactions      []QuestReactionDef
+	TerminalStatus QuestTerminalStatus // Determines if this reaction is a "quest end". If this is set, there should be no reactions
 }
 
 func (stage QuestStageDef) Validate() {
 	if stage.ID == "" {
 		panic("stage ID was empty")
 	}
-	if len(stage.Reactions) == 0 {
-		logz.Panicln(string(stage.ID), "stage has no reactions... so this quest would never be able to progress from here")
+	if len(stage.Reactions) == 0 && stage.TerminalStatus == 0 {
+		logz.Panicln("QuestStageDef", "no reactions, and no terminal status set; one of these must be set, or else there is no conclusion to the quest.", stage.ID)
+	}
+	if stage.TerminalStatus != 0 {
+		if len(stage.Reactions) != 0 {
+			logz.Panicln("QuestStageDef", "a terminal status is set, but reactions are also set. only one or the other should be set.", stage.ID)
+		}
+		if stage.Objective != "" {
+			logz.Panicln("QuestStageDef", "an objective is set for a terminal stage.", stage.ID)
+		}
 	}
 	for _, reaction := range stage.Reactions {
 		reaction.Validate()
@@ -122,23 +112,22 @@ func (stage QuestStageDef) Validate() {
 
 // QuestReactionDef defins how a quest stage reacts, based on conditions.
 //
-// This means: when event X happens, if conditions pass, run actions and possibly move to next stage (if defined).
+// This means: when event X happens, if conditions pass, run actions and possibly move to next stage.
+// Quest Reactions do not directly end a quest; to end a quest (to complete or fail it), the reaction must move it to a terminal stage.
 type QuestReactionDef struct {
 	SubscribeEvent EventType // The event type to listen to, that triggers this Reaction to run, and check its conditions. This is so that we aren't constantly checking conditions on every loop.
 	Conditions     []QuestConditionDef
 	Actions        []QuestAction
-	NextStage      QuestStageID        // Points to the next quest stage. If a next stage is set, there should be no terminal status.
-	TerminalStatus QuestTerminalStatus // Determines if this reaction is a "quest end". If this is set, there should be no NextStage
-	// if this reaction should inform the player about anything, it can go here. especially if this is a terminal reaction, since the quest could use a conclusion.
-	// TODO: make sure this is recorded somewhere? I guess the quest state should be able to find this, at least.
-	Text string
+	NextStage      QuestStageID // Points to the next quest stage.
 }
 
 func (qr QuestReactionDef) Validate() {
 	if qr.SubscribeEvent == "" {
 		panic("no subscribe event set; no way for this reaction to be triggered for condition evaluation")
 	}
-	// TODO: validate conditions and all that
+	if qr.NextStage == "" {
+		logz.Panicln("QuestReactionDef", "no next stage defined.", qr.SubscribeEvent)
+	}
 }
 
 // QuestAction defines actions that occur right when a quest stage is reached.
