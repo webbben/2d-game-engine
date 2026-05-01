@@ -274,7 +274,7 @@ func (ds *DialogSession) dialogSetup(boxTilesetSrc string, boxOrigin int, f font
 		FontFace:              f,
 		UseShadow:             true,
 		TextBlipSfx:           config.DefaultTextBlipSfx,
-		TextBlipTickInterval:  7,
+		TextBlipTickInterval:  5,
 		SupportSpecialSymbols: true,
 	}
 	ds.LineWriter = text.NewLineWriter(ds.audioman, lwParams)
@@ -586,7 +586,7 @@ func (ds *DialogSession) startAction() {
 			panic("unable to resolve params as ShowScreenActionParams... was the wrong params type chosen?")
 		}
 		s := ds.scrMgr.GetScreen(params.ScreenID)
-		sv := screen.NewScreenViewer(s, ds.dataman, ds.eventBus, ds.audioman, ds.ctxForScreen, params.ScreenParams)
+		sv := screen.NewScreenViewer(s, ds.dataman, ds.eventBus, ds.audioman, ds.Ctx.questman, ds.ctxForScreen, params.ScreenParams)
 		ds.screenViewer = &sv
 	default:
 		logz.Panicln("startAction", "action type not recognized:", action.Type)

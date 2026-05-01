@@ -50,7 +50,7 @@ func (g *Game) StartCustomLoadScreen(scrID defs.ScreenID, open, close defs.Trans
 
 	scr := g.ScreenManager.GetScreen(scrID)
 	g.TransitionManager.LoadingScreen = scr
-	g.TransitionManager.loadingScreenViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g.AudioManager, g, nil)
+	g.TransitionManager.loadingScreenViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g.AudioManager, g.QuestManager, g, nil)
 
 	g.TransitionManager.OpenTransition = open
 	g.TransitionManager.CloseTransition = close
@@ -77,7 +77,7 @@ func (g *Game) StartLoadScreen(loadFunction func(ctx defs.GameContext)) {
 
 	scr := g.ScreenManager.GetScreen(config.DefaultLoadingScreen)
 	g.TransitionManager.LoadingScreen = scr
-	g.TransitionManager.loadingScreenViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g.AudioManager, g, nil)
+	g.TransitionManager.loadingScreenViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g.AudioManager, g.QuestManager, g, nil)
 
 	g.TransitionManager.OpenTransition = cutscene.NewFadeToBlackTransition(0.9)
 	g.TransitionManager.CloseTransition = cutscene.NewFadeFromBlackTransition(0.9)

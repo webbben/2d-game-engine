@@ -179,6 +179,9 @@ func (qm *QuestManager) SetQuestStage(questID defs.QuestID, nextStage defs.Quest
 	questState.CurrentStage = nextStage
 }
 
+// GetActiveQuestStage gets the stage of an active quest.
+// TODO: why have a function specifically for active quests?
+// I made a function that works for quests of all statuses now.
 func (qm QuestManager) GetActiveQuestStage(questID defs.QuestID) defs.QuestStageDef {
 	questState, found := qm.active[questID]
 	if !found {
@@ -187,6 +190,36 @@ func (qm QuestManager) GetActiveQuestStage(questID defs.QuestID) defs.QuestStage
 	currentStageID := questState.CurrentStage
 	questDef := qm.GetQuestDef(questID)
 	return questDef.Stages[currentStageID]
+}
+
+// GetQuestState gets the state of a quest, if it exists. returns nil for quests that haven't started yet.
+func (qm QuestManager) GetQuestState(qid defs.QuestID) *state.QuestState {
+	status := qm.GetQuestStatus(qid)
+	switch status {
+	case Active:
+		return qm.active[qid]
+	case Completed:
+		return qm.completed[qid]
+	case Failed:
+		return qm.failed[qid]
+	default:
+		return nil
+	}
+}
+
+func (qm QuestManager) GetQuestStage(qid defs.QuestID) (stage defs.QuestStageDef, status state.QuestStatus) {
+	questState := qm.GetQuestState(qid)
+	questDef := qm.GetQuestDef(qid)
+
+	status = qm.GetQuestStatus(qid)
+
+	stage = defs.QuestStageDef{}
+
+	if questState != nil {
+		stage = questDef.Stages[questState.CurrentStage]
+	}
+
+	return stage, status
 }
 
 func (qm *QuestManager) LoadQuestDef(d defs.QuestDef) {

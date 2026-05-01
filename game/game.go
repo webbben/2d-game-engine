@@ -172,7 +172,7 @@ func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
 func (g *Game) SetMainMenu(scrID defs.ScreenID) {
 	scr := g.ScreenManager.GetScreen(scrID)
 	g.MainMenu = scr
-	g.mainMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g.AudioManager, g, nil)
+	g.mainMenuViewer = screen.NewScreenViewer(scr, g.Dataman, g.EventBus, g.AudioManager, g.QuestManager, g, nil)
 }
 
 func (g *Game) TogglePlayerMenu() {

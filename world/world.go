@@ -103,7 +103,7 @@ func NewWorld(
 		OverlayManager: &overlay.OverlayManager{},
 	}
 
-	w.playerMenuViewer = screen.NewScreenViewer(playerMenu, w.Dataman, w.EventBus, w.Audioman, w.GameCtx, nil)
+	w.playerMenuViewer = screen.NewScreenViewer(playerMenu, w.Dataman, w.EventBus, w.Audioman, w.Questman, w.GameCtx, nil)
 
 	// no need to setup things like lighting or post events; active map doesn't exist yet,
 	// and those things are handled at the time of creating the active map.
@@ -531,6 +531,7 @@ func (w *World) ShowMiscScreen(scr screen.Screen) {
 		w.Dataman,
 		w.EventBus,
 		w.Audioman,
+		w.Questman,
 		w.GameCtx,
 		nil)
 	w.showMiscScreen = true

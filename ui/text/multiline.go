@@ -13,7 +13,10 @@ import (
 // logic, updates, settings, etc of the linewriter to get a simple UI component that can
 // draw multiline text on a screen immediately, without any delays. There is no max height.
 type Multiline struct {
-	lw LineWriter
+	lw       LineWriter
+	params   MultilineParams
+	lwParams LineWriterParams
+	txt      string
 }
 
 type MultilineParams struct {
@@ -43,6 +46,10 @@ func NewMultiline(textToWrite string, lineWidthPx int, f font.Face, params Multi
 	ml := Multiline{
 		// I set the max height as screen height since I'd never expect it to go beyond that...
 		lw: NewLineWriter(nil, lwParams),
+		// setting these so its easy to recreate for resizing
+		lwParams: lwParams,
+		params:   params,
+		txt:      textToWrite,
 	}
 	ml.lw.SetSourceText(textToWrite)
 	// only need to update once, to get the text to be processed and ready to draw.
@@ -57,4 +64,12 @@ func (ml Multiline) Dimensions() (dx, dy int) {
 
 func (ml *Multiline) Draw(screen *ebiten.Image, x, y float64) {
 	ml.lw.Draw(screen, int(x), int(y))
+}
+
+func (ml *Multiline) SetWidth(dx int) {
+	curDx, _ := ml.Dimensions()
+	if dx == curDx {
+		return
+	}
+	*ml = NewMultiline(ml.txt, dx, ml.lwParams.FontFace, ml.params)
 }
