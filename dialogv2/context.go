@@ -148,11 +148,6 @@ func (ctx DialogContext) HasSeenTopic(id defs.TopicID) bool {
 	return ctx.seenTopics[id]
 }
 
-func (ctx DialogContext) IsTopicUnlocked(id defs.TopicID) bool {
-	// TODO: do we need this function? I guess it would just check the player's knowledge map?
-	return false
-}
-
 func (ctx DialogContext) HasSeenResponse(id string) bool {
 	_, exists := ctx.seenResponses[id]
 	return exists
@@ -160,18 +155,6 @@ func (ctx DialogContext) HasSeenResponse(id string) bool {
 
 func (ctx *DialogContext) GetNPCID() string {
 	return ctx.NPCID
-}
-
-func (ctx *DialogContext) BroadcastEvent(e defs.Event) {
-	ctx.eventBus.Publish(e)
-}
-
-func (ctx *DialogContext) AddGold(amount int) {
-	ctx.GameState.DialogCtxAddGold(amount)
-}
-
-func (ctx *DialogContext) RemoveGold(amount int) {
-	ctx.GameState.RemoveGold(amount)
 }
 
 func (ctx DialogContext) GetCharacterDef(id defs.CharacterDefID) defs.CharacterDef {
@@ -195,16 +178,6 @@ func (ctx DialogContext) RecordMiscDialogMemory(key string) {
 	ctx.Profile.Memory[key] = true
 }
 
-func (ctx *DialogContext) StartCustomLoadScreen(scrID defs.ScreenID, open, close defs.Transition, loadFunction func(ctx defs.GameContext)) {
-	ctx.GameState.StartCustomLoadScreen(scrID, open, close, loadFunction)
-	ctx.Exit = true
-}
-
-func (ctx *DialogContext) StartLoadScreen(loadFunction func(ctx defs.GameContext)) {
-	ctx.GameState.StartLoadScreen(loadFunction)
-	ctx.Exit = true
-}
-
 func (ctx DialogContext) HasMemory(key string) bool {
 	return ctx.Profile.Memory[key]
 }
@@ -223,35 +196,8 @@ func (ctx DialogContext) CharacterHasRole(id id.CharacterStateID, roleID defs.Ro
 	return charState.Roles[roleID]
 }
 
-func (ctx DialogContext) GetCurrentGameTime() clock.GameTime {
-	return ctx.GameState.GetCurrentGameTime()
-}
-
-func (ctx DialogContext) GetQuestStage(qid defs.QuestID) (started, comp, fail bool, sid defs.QuestStageID) {
-	status := ctx.questman.GetQuestStatus(qid)
-	switch status {
-	case quest.NotStarted:
-		return false, false, false, ""
-	case quest.Active:
-		stg := ctx.questman.GetActiveQuestStage(qid)
-		return true, false, false, stg.ID
-	case quest.Completed:
-		return true, true, false, ""
-	case quest.Failed:
-		return true, false, true, ""
-	default:
-		logz.Panicln("GetQuestStage", "unknown status?", status, qid)
-		return false, false, false, ""
-	}
-}
-
-func (ctx DialogContext) AddItem(itemID defs.ItemID, quantity int) {
-	if quantity <= 0 {
-		panic("item quantity was <= 0")
-	}
-	playerCharState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
-	itemDef := ctx.dataman.GetItemDef(itemID)
-	characterstate.AddItemToInventory(playerCharState, defs.NewInventoryItem(itemDef, quantity))
+func (ctx DialogContext) GetQuestStage(qid defs.QuestID) (defs.QuestStageDef, defs.QuestStatus) {
+	return ctx.questman.GetQuestStage(qid)
 }
 
 func (ctx DialogContext) IsItemEquipped(itemID defs.ItemID) bool {
@@ -262,4 +208,46 @@ func (ctx DialogContext) IsItemEquipped(itemID defs.ItemID) bool {
 func (ctx DialogContext) PlayerHasKnowledge(topicID defs.TopicID) bool {
 	playerCharState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
 	return playerCharState.Knowledge[topicID]
+}
+
+// WorldEffectContext functions
+
+func (ctx *DialogContext) BroadcastEvent(e defs.Event) {
+	ctx.GameState.BroadcastEvent(e)
+}
+
+func (ctx *DialogContext) AddGold(amount int) {
+	ctx.GameState.AddGold(amount)
+}
+
+func (ctx *DialogContext) RemoveGold(amount int) {
+	ctx.GameState.RemoveGold(amount)
+}
+
+func (ctx DialogContext) GetCurrentGameTime() clock.GameTime {
+	return ctx.GameState.GetCurrentGameTime()
+}
+
+func (ctx DialogContext) AddItem(itemID defs.ItemID, quantity int) {
+	ctx.GameState.AddItem(itemID, quantity)
+}
+
+func (ctx DialogContext) AddRole(roleID defs.RoleID) {
+	ctx.GameState.AddRole(roleID)
+}
+
+func (ctx DialogContext) RemoveRole(roleID defs.RoleID) {
+	ctx.GameState.RemoveRole(roleID)
+}
+
+func (ctx DialogContext) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef, requireListener bool) {
+	ctx.GameState.AssignTaskToNPC(id, taskDef, requireListener)
+}
+
+func (ctx DialogContext) QueueScenario(scnID defs.ScenarioID) {
+	ctx.GameState.QueueScenario(scnID)
+}
+
+func (ctx DialogContext) UnlockMapLock(mapID defs.MapID, lockID string) {
+	ctx.GameState.UnlockMapLock(mapID, lockID)
 }

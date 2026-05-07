@@ -49,9 +49,6 @@ type ActiveMap struct {
 
 	dialogSession *dialogv2.DialogSession
 
-	// TODO: this is not used yet
-	cutsceneSession *CutsceneSession // if set, a cutscene is currently playing out
-
 	gameCtx  defs.GameContext
 	worldCtx WorldContext
 

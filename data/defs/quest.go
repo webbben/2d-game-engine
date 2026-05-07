@@ -11,6 +11,7 @@ type (
 	QuestActionType     string
 	QuestConditionType  string
 	QuestTerminalStatus int // represents if a quest stage triggers the end of a quest (failure, success, or still going).
+	QuestStatus         string
 )
 
 type QuestDef struct {
@@ -85,7 +86,7 @@ type QuestStageDef struct {
 	Title          string        // OPT: shows a title for the quest stage to the player
 	Objective      string        // REQ: what the player sees as the current objective. Should be somewhat brief and to the point.
 	Description    string        // OPT: longer context about the current objective, and adds some narrative to the events.
-	OnEnter        []QuestAction // a list of (non-conditional) actions that execute right when this stage is reached.
+	OnEnter        []WorldEffect // a list of (non-conditional) effects that execute right when this stage is reached.
 	Reactions      []QuestReactionDef
 	TerminalStatus QuestTerminalStatus // Determines if this reaction is a "quest end". If this is set, there should be no reactions
 }
@@ -117,7 +118,7 @@ func (stage QuestStageDef) Validate() {
 type QuestReactionDef struct {
 	SubscribeEvent EventType // The event type to listen to, that triggers this Reaction to run, and check its conditions. This is so that we aren't constantly checking conditions on every loop.
 	Conditions     []QuestConditionDef
-	Actions        []QuestAction
+	Effects        []WorldEffect
 	NextStage      QuestStageID // Points to the next quest stage.
 }
 
@@ -128,34 +129,6 @@ func (qr QuestReactionDef) Validate() {
 	if qr.NextStage == "" {
 		logz.Panicln("QuestReactionDef", "no next stage defined.", qr.SubscribeEvent)
 	}
-}
-
-// QuestAction defines actions that occur right when a quest stage is reached.
-//
-// Examples of actions concepts:
-//
-// - Show quest update notification
-//
-// - Spawn an NPC
-//
-// - Unlock a door
-//
-// - Set a quest variable
-//
-// - Trigger cutscene
-//
-// ... etc.
-type QuestAction interface {
-	Fire(ctx QuestActionContext)
-}
-
-type QuestActionContext interface {
-	// assigns a task to an NPC;
-	// NPCs are assigned to characters, so you pass a CharacterDefID.
-	// The characterDef must be "unique", which means only one instance can exist.
-	AssignTaskToNPC(id CharacterDefID, taskDef TaskDef)
-	QueueScenario(id ScenarioID)
-	UnlockMapLock(mapID MapID, lockID string)
 }
 
 type QuestConditionDef struct {

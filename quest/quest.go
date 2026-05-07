@@ -15,10 +15,10 @@ const (
 )
 
 const (
-	Active     state.QuestStatus = "ACTIVE"
-	Completed  state.QuestStatus = "COMPLETED"
-	Failed     state.QuestStatus = "FAILED"
-	NotStarted state.QuestStatus = "NOT_STARTED"
+	Active     defs.QuestStatus = "ACTIVE"
+	Completed  defs.QuestStatus = "COMPLETED"
+	Failed     defs.QuestStatus = "FAILED"
+	NotStarted defs.QuestStatus = "NOT_STARTED"
 )
 
 // Quest event data keys
@@ -145,23 +145,16 @@ func (qm *QuestManager) OnEvent(event defs.Event) {
 }
 
 func (qm *QuestManager) RunReaction(questID defs.QuestID, reaction defs.QuestReactionDef, event defs.Event) {
-	for _, action := range reaction.Actions {
-		action.Fire(qm.world)
+	for _, effect := range reaction.Effects {
+		effect.Apply(qm.world)
 	}
 
-	switch reaction.TerminalStatus {
-	case TerminalStatusNone:
-		if reaction.NextStage == "" {
-			logz.Panicln("QuestManager", "questReaction has no terminal status or next stage set:", questID)
-		}
-		qm.SetQuestStage(questID, reaction.NextStage)
-	case TerminalStatusComplete:
-		qm.CompleteQuest(questID)
-	case TerminalStatusFail:
-		qm.FailQuest(questID)
-	default:
-		logz.Panicln("QuestManager", "terminal status not recognized:", reaction.TerminalStatus)
+	if reaction.NextStage == "" {
+		logz.Panicln("QuestManager", "questReaction has no next stage set:", questID, "subEvent:", reaction.SubscribeEvent)
 	}
+
+	// Transition to the next stage
+	qm.SetQuestStage(questID, reaction.NextStage)
 }
 
 func (qm *QuestManager) SetQuestStage(questID defs.QuestID, nextStage defs.QuestStageID) {
@@ -170,13 +163,21 @@ func (qm *QuestManager) SetQuestStage(questID defs.QuestID, nextStage defs.Quest
 	// get stage def
 	stageDef := questDef.Stages[nextStage]
 
-	for _, action := range stageDef.OnEnter {
-		action.Fire(qm.world)
+	for _, effect := range stageDef.OnEnter {
+		effect.Apply(qm.world)
 	}
 
 	// set current stage ID in quest state
 	questState := qm.GetActiveQuestState(questID)
 	questState.CurrentStage = nextStage
+
+	// check if this is a terminal stage
+	switch stageDef.TerminalStatus {
+	case TerminalStatusComplete:
+		qm.CompleteQuest(questID)
+	case TerminalStatusFail:
+		qm.FailQuest(questID)
+	}
 }
 
 // GetActiveQuestStage gets the stage of an active quest.
@@ -207,7 +208,7 @@ func (qm QuestManager) GetQuestState(qid defs.QuestID) *state.QuestState {
 	}
 }
 
-func (qm QuestManager) GetQuestStage(qid defs.QuestID) (stage defs.QuestStageDef, status state.QuestStatus) {
+func (qm QuestManager) GetQuestStage(qid defs.QuestID) (stage defs.QuestStageDef, status defs.QuestStatus) {
 	questState := qm.GetQuestState(qid)
 	questDef := qm.GetQuestDef(qid)
 
@@ -325,7 +326,7 @@ func (qm QuestManager) GetActiveQuestState(id defs.QuestID) *state.QuestState {
 }
 
 // GetQuestStatus checks (and confirms validity) of a quest's status
-func (qm QuestManager) GetQuestStatus(id defs.QuestID) state.QuestStatus {
+func (qm QuestManager) GetQuestStatus(id defs.QuestID) defs.QuestStatus {
 	if questState, exists := qm.active[id]; exists {
 		if questState.Status != Active {
 			logz.Panicln("QuestManager", "GetQuestStatus: quest is in active bucket, but status is wrong:", questState.Status)

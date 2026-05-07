@@ -128,6 +128,10 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, audioma
 	return &b
 }
 
+func (b Button) IsHovering() bool {
+	return b.mouseBehavior.IsHovering
+}
+
 func (b *Button) SetHighlight(highlight bool) {
 	b.highlight = highlight
 }

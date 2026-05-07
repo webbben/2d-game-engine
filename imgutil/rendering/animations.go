@@ -14,6 +14,10 @@ type Fader struct {
 	fadeFactor   float32
 }
 
+func (f Fader) ReachedTarget() bool {
+	return f.currentScale == f.TargetScale
+}
+
 // NewFader creates a Fader. fadeFactor should be a decimal value in the range (0, 1], but probably no bigger than 0.1 or else it will be very fast
 func NewFader(initialScale float32, fadeFactor float32) Fader {
 	if fadeFactor <= 0 {
