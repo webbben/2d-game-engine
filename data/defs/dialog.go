@@ -2,7 +2,6 @@
 package defs
 
 import (
-	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/id"
 )
 
@@ -53,12 +52,13 @@ type DialogResponse struct {
 	// Notes:
 	// - DONT centralize in definitions manager as independent DialogResponses. These are contextual and often one-off. not good for global re-use.
 
-	Text       string
-	Conditions []DialogCondition // Whether this response is given to a topic. AND logic.
-	Effects    []DialogEffect
-	NextTopics []TopicID // IDs to unlock/emphasize
-	Once       bool      // if set, this response will only be possible to show once. after that, it is no longer eligible.
-	Goodbye    bool      // if set, this response will only have a 'Goodbye' reply available, which ends the conversation.
+	Text         string
+	Conditions   []DialogCondition // Whether this response is given to a topic. AND logic.
+	Effects      []DialogEffect    // effects that only manipulate dialog state
+	WorldEffects []WorldEffect     // effects that manipulate the game world outside of dialog
+	NextTopics   []TopicID         // IDs to unlock/emphasize
+	Once         bool              // if set, this response will only be possible to show once. after that, it is no longer eligible.
+	Goodbye      bool              // if set, this response will only have a 'Goodbye' reply available, which ends the conversation.
 
 	Replies []DialogReply // if the response should pose possibly replies by the player, set them here.
 
@@ -110,15 +110,13 @@ func (dr DialogResponse) Validate() {
 
 // DialogReply is a reply the player can give to a certain dialog response.
 type DialogReply struct {
-	Text       string // The text for the reply option (which represents how the player is responding)
-	Conditions []DialogCondition
-	Effects    []DialogEffect
-	Goodbye    bool // if set, this reply will cause dialog to end
+	Text         string // The text for the reply option (which represents how the player is responding)
+	Conditions   []DialogCondition
+	Effects      []DialogEffect // effects that only manipulate dialog state
+	WorldEffects []WorldEffect  // effects that manipulate the game world outside of dialog
+	Goodbye      bool           // if set, this reply will cause dialog to end
 
 	NextResponse *DialogResponse // once this reply is chosen, this is how the NPC reacts. If nil, no response is given by the NPC.
-
-	// TODO: I don't know what the original intention of this was, but it's not being used. should we just delete it?
-	// NextTopicID  TopicID
 }
 
 type DialogCondition interface {
@@ -126,11 +124,10 @@ type DialogCondition interface {
 }
 
 type ConditionContext interface {
-	GetQuestStage(qid QuestID) (started, comp, fail bool, sid QuestStageID)
+	GetQuestStage(qid QuestID) (QuestStageDef, QuestStatus)
 	GetNPCCharStateID() id.CharacterStateID
 	GetActiveMapDef() MapDef
 	HasSeenTopic(id TopicID) bool
-	IsTopicUnlocked(id TopicID) bool
 	HasMemory(key string) bool
 	GetCharacterDef(id CharacterDefID) CharacterDef
 	GetCharacterSocialRank(id id.CharacterStateID) SocialRank
@@ -146,24 +143,17 @@ type MemoryCondition struct {
 	Seen bool
 }
 
+// DialogEffect is for effects that only manipulate dialog state, such as memory.
 type DialogEffect interface {
-	Apply(ctx EffectContext)
+	Apply(ctx DialogEffectContext)
 }
 
-type EffectContext interface {
-	GetCurrentGameTime() clock.GameTime
+// DialogEffectContext is for effects that only impact in-dialog behavior (like recording dialog memory).
+// For effects that influence other aspects of the game world, use WorldEffectContext.
+type DialogEffectContext interface {
 	RecordTopicSeen(id TopicID)
 	RecordTopicUnlocked(id TopicID)
 	RecordMiscDialogMemory(key string)
-	BroadcastEvent(event Event)
-
-	AddGold(amount int)
-	RemoveGold(amount int)
-	AddItem(itemID ItemID, quantity int)
-	// TODO: RemoveItem(itemID ItemID, quantity int)
-
-	StartCustomLoadScreen(scrID ScreenID, open, close Transition, loadFunction func(ctx GameContext))
-	StartLoadScreen(loadFunction func(ctx GameContext))
 }
 
 type SetMemoryEffect struct {

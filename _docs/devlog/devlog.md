@@ -1,3 +1,49 @@
+# 2026-05-04
+
+One thing I need to work out is how exactly events should be used, versus other things like dialog effects.
+
+What I mean by this is, up until now I've mainly used things like dialog or quest effects to do things like add gold or items to the player's 
+inventory, or add and remove roles, or really almost anything. However, I've found myself considering making events handle those things too.
+
+One reason I might want to have events handle this sort of stuff is I'll need a way to schedule future effects to take place.
+For example, the player goes to an inn and rents a bed. A dialog effect grants the player the `"xyz_inn_rent_room_01"` which lets the player unlock
+the door to a certain inn room and sleep in the inn bed. However, we don't want this to be permanently granted, and in 24 hours we want that role to be revoked.
+
+So the question is, how should this be managed?
+
+1. Can we use dialog effects?
+
+I don't think so, no. I'm not sure how that would work. We don't want to rely on a dialog occurring in order to revoke the role.
+
+2. Should we use "future events"?
+
+This is the main idea I have right now. I've created this system of scheduling future events already, so it would just be a matter of adding a new event listener function
+to handle adding or revoking roles, and then scheduling the event to trigger this for the future.
+
+The only problem with this approach is, it starts to make things confusing about which place "owns" these kinds of changes. Should events be the main way to 
+do "effects"? Or should it only be used in specific cases? Is it okay to have both methods and use either one as its convenient?
+
+It does make me uncomfortable to have two ways that are side-by-side and do the same things. Should I just migrate to using an event-based system, 
+and make all dialog effects use events too? I don't know, that seems kind of pointless too. I generally prefer not to use events just because that feels
+more indirect and hard to debug. Instead of directly calling the code to make the change, we are queuing the change to occur later on or on the next tick,
+which seems more difficult to trace.
+
+3. Add support for "future effects"?
+
+This would be quite similar to the scheduled event thing, but maybe I could implement a "scheduled effects" thing that lives in the world state or something.
+I'd need to make a centralized library of these effects, and then dialog could reference those effects as well as queue them for a future scheduled time.
+I could just move the infrastructure for future event scheduling to future effects. One of the effects can be to send an event (which we already have in dialog effects),
+and so a "future event" could just be a future effect that broadcasts an event.
+
+If we went this route, I think events would effectively be reduced to a couple major use cases:
+
+- broadcasting whenever something specific happens in the game engine (like whenever a certain "effect" happens) in case something random wants to subscribe to that info.
+- allowing UI notifications to react to certain events, like showing notifications or pop ups to the player.
+- triggering quest starts or quest stage changes.
+
+After typing out the various options, I think I like option 3 the best. It offers a nice separation of the events and effects system, and doesn't make it too confusing 
+to understand which one to use in given situation.
+
 # 2026-04-29
 
 It's been awhile, and a lot has happened since last post (or at least it feels like it).

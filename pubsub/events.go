@@ -11,6 +11,10 @@ const (
 	EventTimePass           defs.EventType = "time_pass"                // event called on every hour; can be used for tracking time passage
 	EventMapOccupancyChange defs.EventType = "npc_map_occupancy_change" // called when an NPC changes maps
 
+	// Maps
+
+	EventUnlock defs.EventType = "unlock" // data: "mapID" (string), "lockID" (string)
+
 	// Quests
 
 	EventQuestStarted defs.EventType = "quest_started" // a quest is started by the player
@@ -23,6 +27,16 @@ const (
 	// Objects
 
 	EventObjectActivated defs.EventType = "object_activated"
+
+	// Items
+
+	EventAddItem    defs.EventType = "add_item"    // data: "itemID" (string)
+	EventGoldChange defs.EventType = "gold_change" // data: "amount" (int, non-zero)
+
+	// Player
+
+	EventRoleAdded   defs.EventType = "role_added"   // data: "roleID" (string)
+	EventRoleRemoved defs.EventType = "role_removed" // data: "roleID" (string)
 )
 
 // DataKey is the commonly used key in the Data map of an event to store specific structs.

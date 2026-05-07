@@ -23,6 +23,7 @@ func (g Game) SaveGame() (saveFilePath string) {
 	return savegame.SaveGame(
 		g.Dataman,
 		g.QuestManager,
+		g.EventBus,
 		g.World.Clock.GetCurrentGameTime(),
 		g.World.ActiveMap.MapID,
 		mapCoords,
@@ -32,7 +33,7 @@ func (g Game) SaveGame() (saveFilePath string) {
 // LoadGame loads a save file, sets up the game world/map, and places the player into that map.
 // After calling this, the game should start to run in the game world.
 func (g *Game) LoadGame(saveFilePath string) {
-	worldInfo, err := savegame.LoadSave(saveFilePath, g.Dataman, g.QuestManager)
+	worldInfo, err := savegame.LoadSave(saveFilePath, g.Dataman, g.QuestManager, g.EventBus)
 	if err != nil {
 		logz.Panicln("LoadGame", "failed to load save. err:", err)
 	}

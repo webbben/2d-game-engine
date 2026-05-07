@@ -19,7 +19,6 @@ import (
 	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/ui/box"
 	"github.com/webbben/2d-game-engine/ui/button"
-	"github.com/webbben/2d-game-engine/ui/modal"
 	"github.com/webbben/2d-game-engine/ui/text"
 	"golang.org/x/image/font"
 )
@@ -39,9 +38,7 @@ const (
 )
 
 const (
-	ActionTypeGetUserInput defs.DialogActionType        = "get_user_input"
-	ActionScopePlayerName  defs.DialogActionResultScope = "player_name"
-	ActionTypeShowScreen   defs.DialogActionType        = "show_screen"
+	ActionTypeShowScreen defs.DialogActionType = "show_screen"
 )
 
 const (
@@ -110,9 +107,8 @@ type DialogSession struct {
 
 	// possible action modals
 
-	userInputModal *modal.TextInputModal
-	screenViewer   *screen.ScreenViewer
-	ctxForScreen   defs.GameContext
+	screenViewer *screen.ScreenViewer
+	ctxForScreen defs.GameContext
 }
 
 func (ds DialogSession) panicln(args ...any) {
@@ -213,45 +209,6 @@ func validateParams(params DialogSessionParams, eventBus *pubsub.EventBus, datam
 	if scrMgr == nil {
 		panic("scrmgr was nil")
 	}
-}
-
-// NewAdhocDialogSession is similar to the regular Dialog Session, but just starts the dialog with a provided, "ad-hoc" dialog response.
-// This is for manually injecting a starting dialog response, as opposed to using the logic built into a dialog profile.
-// Used in cutscene dialogs.
-//
-// NOTE: this isn't really used... I think we were planning for this in cutscenes, but cutscenes aren't actually used/implemented fully yet.
-func NewAdhocDialogSession(
-	params DialogSessionParams,
-	dr defs.DialogResponse,
-	eventBus *pubsub.EventBus,
-	dataman *datamanager.DataManager,
-	scrMgr *screen.ScreenManager,
-	gameCtx defs.GameContext,
-	questman *quest.QuestManager,
-) DialogSession {
-	// set this, just so validation doesn't squack at us - adhoc doesn't use profiles
-	params.ProfileID = "CUTSCENE"
-	validateParams(params, eventBus, dataman, gameCtx, scrMgr)
-
-	// since adhoc doesn't need to save any state, we will just make an empty stand-in
-	profileState := state.DialogProfileState{}
-	profileDef := defs.DialogProfileDef{}
-
-	ctx := NewDialogContext(params.NPCID, &profileState, profileDef, gameCtx, eventBus, dataman, questman)
-	ds := DialogSession{
-		scrMgr:       scrMgr,
-		ctxForScreen: gameCtx,
-		Ctx:          ctx,
-		eventBus:     eventBus,
-		dataman:      dataman,
-		f:            params.TextFont,
-	}
-
-	ds.dialogSetup(params.BoxTilesetSrc, params.BoxOriginID, params.TextFont)
-
-	ds.ApplyResponse(dr)
-
-	return ds
 }
 
 func (ds *DialogSession) dialogSetup(boxTilesetSrc string, boxOrigin int, f font.Face) {
@@ -568,18 +525,6 @@ func (ds *DialogSession) startAction() {
 	action := ds.currentResponse.Action
 
 	switch action.Type {
-	case ActionTypeGetUserInput:
-		params, ok := action.Params.(GetUserInputActionParams)
-		if !ok {
-			panic("unable to resolve params as GetUserInputActionParams... was the wrong params type chosen?")
-		}
-		m := modal.NewTextInputModal(modal.TextInputModalParams{
-			BoxTilesetSrc:     config.DefaultUIBox.TilesetSrc,
-			BoxOriginIndex:    config.DefaultUIBox.OriginIndex,
-			TitleText:         params.ModalTitle,
-			ConfirmButtonText: params.ConfirmButtonText,
-		}, ds.audioman)
-		ds.userInputModal = &m
 	case ActionTypeShowScreen:
 		params, ok := action.Params.(ShowScreenActionParams)
 		if !ok {
@@ -617,6 +562,9 @@ func (ds *DialogSession) continueApplyResponse() {
 	}
 
 	for _, effect := range ds.currentResponse.Effects {
+		effect.Apply(&ds.Ctx)
+	}
+	for _, effect := range ds.currentResponse.WorldEffects {
 		effect.Apply(&ds.Ctx)
 	}
 

@@ -5,6 +5,8 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 )
 
+// TODO: should this be consolidated into WorldEffectContext?
+
 func (w *World) TimeLapse(newTime clock.GameTime) {
 	if w.AwaitingTimeLapse {
 		panic("AwaitingTimeLapse was already set; either the last time lapse didn't clear this, or we accidentally called a time lapse before the last one could trigger")

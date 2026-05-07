@@ -12,14 +12,26 @@ The purpose of GameContext is to group together all the different context interf
 game engine use. Ultimately, all of these contexts end up pointing to the Game struct, and some of them may share overlaps in
 functions.
 
+TODO: These contexts have gotten really messy, and on top of that it seems like a lot of things just simply use GameContext instead
+of a more specific context. That's not necessarily a big problem, but one structural issue it does pose is everything therefore has to route through the Game
+struct (since the GameContext is effectively the Game struct). This means that even if ALL of the logic for a given context (Like WorldEffectContext)
+lies in a more specific place (like the World struct), we have to still make all the functions at a "top level" in the Game struct, and then just have them
+pass directly into World.
+.
+I think in the future it would be good to continue to refine the groupings of these contexts, but also start passing those
+specific contexts to the places that would specifically use them. For example, Screens should take the GameScreenContext, and if needed, maybe some other
+context too. If we need more than one type of "Screen" that has different capabilities (like MainScreen vs InGameScreen) we can consider that too.
+.
+Anytime a new function is needed for a context somewhere, let's take care to analyze what that function is for in a more general purpose.
+
 */
 
 type GameStage string
 
+// GameContext is a context that contains all other contexts. Basically, the Game struct.
 type GameContext interface {
-	PublishEvent(event Event)
-
 	SaveFileContext
+	EventContext
 
 	GameDialogContext
 	GameQuestContext
@@ -35,21 +47,52 @@ type SaveFileContext interface {
 }
 
 type GameDialogContext interface {
+	WorldInfoContext
+	WorldEffectContext
+}
+
+type GameQuestContext interface {
+	WorldEffectContext
+}
+
+type WorldInfoContext interface {
 	GetCurrentGameTime() clock.GameTime
 	GetMapID() MapID
 	GetActiveMapDef() MapDef
 	GetPlayerInfo() PlayerInfo
-	SetPlayerName(name string)
-	DialogCtxAddGold(amount int)
-	RemoveGold(amount int)
-
-	TransitionContext
 }
 
-type GameQuestContext interface {
-	AssignTaskToNPC(id CharacterDefID, taskDef TaskDef)
+// WorldEffect is an effect you can apply to the game world. They are generally intended to be used
+// by dialogs, quests, or other things that might give the player items, change his gold, or manipulate the in-game world in some way.
+type WorldEffect interface {
+	Apply(ctx WorldEffectContext)
+}
+
+// WorldEffectContext represents specific "effects" that can be applied to the world.
+// These are for specifically changing something, like adding items or gold to the player or altering the state of a map, etc.
+type WorldEffectContext interface {
+	// Map and world
+
 	QueueScenario(id ScenarioID)
 	UnlockMapLock(mapID MapID, lockID string)
+	GetCurrentGameTime() clock.GameTime // needed for scheduling future effects
+	EventContext
+
+	// Player specific
+
+	AddGold(amount int)
+	RemoveGold(amount int)
+	AddItem(itemID ItemID, quantity int)
+	AddRole(roleID RoleID)
+	RemoveRole(roleID RoleID)
+
+	// NPCs
+
+	AssignTaskToNPC(id CharacterDefID, taskDef TaskDef, requireListener bool)
+}
+
+type EventContext interface {
+	BroadcastEvent(event Event)
 }
 
 // GameScreenContext isn't actually directly used anywhere; we just have it here to keep these functions organized by intended use,
@@ -62,8 +105,6 @@ type GameScreenContext interface {
 	// NOTE: not ideal that we ref clock in here, but clock doesn't import anything so it works.
 	// we could consider moving types like GameTime into defs, but just gonna leave things as they are for now.
 	InitializeGameWorld(initTime clock.GameTime)
-	GetCurrentGameTime() clock.GameTime
-	SetGameTime(clock.GameTime)
 
 	// starts a time lapse. could take an extra update loop or two if the simulation loop is actively doing something; time lapse doesn't occur
 	// until the simulation loop is successfully paused.
@@ -74,11 +115,14 @@ type GameScreenContext interface {
 	SetGameStage(stage GameStage)
 
 	TransitionContext
+
+	SaveFileContext
+
+	WorldInfoContext
 }
 
 type ActiveMapContext interface {
 	StartDialogSession(dialogProfileID DialogProfileID, npcID string)
-	StartTradeSession(shopkeeperID ShopID)
 	TogglePlayerMenu()
 
 	ShowMiscScreen(scrID ScreenID)

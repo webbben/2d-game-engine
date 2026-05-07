@@ -42,14 +42,17 @@ type QuestDef struct {
 
 ```go
 type QuestStageDef struct {
-    ID          QuestStageID
-    Title       string                    // Optional stage title
-    Objective   string                    // What player sees
-    Description string                    // Narrative context
-    OnEnter     []QuestAction            // Fires on stage entry
-    Reactions   []QuestReactionDef        // Event-based responses
+    ID             QuestStageID
+    Title          string                    // Optional stage title
+    Objective      string                    // What player sees
+    Description    string                    // Narrative context
+    OnEnter        []QuestAction            // Fires on stage entry
+    Reactions      []QuestReactionDef        // Event-based responses
+    TerminalStatus QuestTerminalStatus     // Ends quest (complete/fail). No reactions needed.
 }
 ```
+
+**Terminal Status:** When set, this stage ends the quest with the specified outcome. Terminal stages should not have reactions - the quest ends when this stage is reached.
 
 ### QuestReactionDef
 
@@ -59,10 +62,10 @@ type QuestReactionDef struct {
     Conditions     []QuestConditionDef   // When to react
     Actions        []QuestAction         // What to do
     NextStage      QuestStageID           // Progress to this stage
-    TerminalStatus QuestTerminalStatus   // Complete/Fail
-    Text           string                 // Message displayed when reaction triggers (used for quest endings)
 }
 ```
+
+**Note:** Quest reactions no longer directly end quests. To complete or fail a quest, set `TerminalStatus` on the next stage that `NextStage` points to.
 
 ### QuestStartTrigger
 
@@ -147,7 +150,7 @@ Common condition types (implemented in quest.go):
 
 ## Terminal Status
 
-Quest reactions can end a quest using `TerminalStatus`. When set, the quest will terminate with the specified outcome instead of transitioning to a new stage.
+Quest stages can now have a `TerminalStatus` that ends the quest. Instead of setting the terminal status in a reaction, you set a `NextStage` in the reaction that points to a terminal stage.
 
 ### Status Types
 
@@ -161,76 +164,91 @@ const (
 
 ### Usage
 
-Set `TerminalStatus` instead of `NextStage` to end the quest. Do not set both.
+Create a terminal stage with `TerminalStatus` set. Reactions in other stages should point to this stage via `NextStage`.
 
 ```go
-QuestReactionDef{
-    SubscribeEvent: "dragon_defeated",
-    Actions: []defs.QuestAction{
-        quest.UnlockAction{...},
-    },
-    TerminalStatus: quest.TerminalStatusComplete,  // Quest ends successfully
-    // NextStage: ""  // Do not set this when using TerminalStatus
-}
-```
+// Terminal stage for success
+"stage_complete": {
+    ID:             "stage_complete",
+    TerminalStatus: defs.QuestTerminalStatusComplete,  // Quest ends successfully
+    // No Reactions needed - this is a terminal stage
+    // No Objective needed - quest is over
+},
 
-### Rules
-
-- `TerminalStatusNone` + `NextStage` → Transition to next stage
-- `TerminalStatusComplete` → End quest as success (ignore `NextStage`)
-- `TerminalStatusFail` → End quest as failure (ignore `NextStage`)
-
-### Complete Example
-
-```go
+// Reaction in a previous stage points to the terminal stage
 "stage_return_to_elder": {
     Objective: "Return to the elder with the pelts.",
     Reactions: []defs.QuestReactionDef{
         {
             SubscribeEvent: "talked_to_elder",
-            TerminalStatus: quest.TerminalStatusComplete,  // Success ending
+            NextStage:      "stage_complete",  // Move to terminal stage
             Actions: []defs.QuestAction{
                 quest.UnlockAction{...},  // Reward: unlock treasure room
             },
         },
     },
 },
+```
+
+### Rules
+
+- Stages with `TerminalStatus` set should NOT have reactions
+- Stages with reactions should NOT have `TerminalStatus` set
+- `TerminalStatusNone` (0) means the stage is not terminal - it continues the quest
+- `TerminalStatusComplete` → End quest as success
+- `TerminalStatusFail` → End quest as failure
+
+### Complete Example
+
+```go
+// In your quest definition:
+
+// Success terminal stage
+"stage_quest_complete": {
+    ID:             "stage_quest_complete",
+    TerminalStatus: defs.QuestTerminalStatusComplete,
+    // No Objective - quest is over
+    // No Reactions - terminal stage doesn't react to events
+},
+
+// Failure terminal stage  
+"stage_quest_failed": {
+    ID:             "stage_quest_failed",
+    TerminalStatus: defs.QuestTerminalStatusFail,
+},
+
+// Regular stage that can lead to terminal stages
+"stage_return_to_elder": {
+    Objective: "Return to the elder with the pelts.",
+    Reactions: []defs.QuestReactionDef{
+        {
+            SubscribeEvent: "talked_to_elder",
+            NextStage:      "stage_quest_complete",  // Success path
+            Actions: []defs.QuestAction{
+                quest.UnlockAction{...},
+            },
+        },
+    },
+},
+
 "stage_caught_stealing": {
     Objective: "You were caught!",
     Reactions: []defs.QuestReactionDef{
         {
             SubscribeEvent: "caught_by_guard",
-            TerminalStatus: quest.TerminalStatusFail,  // Failure ending
+            NextStage:      "stage_quest_failed",  // Failure path
         },
     },
 },
 ```
 
-### Quest Ending Text
-
-Use the `Text` field to display a conclusion message to the player when the quest ends. This appears when `TerminalStatus` is set.
-
-```go
-QuestReactionDef{
-    SubscribeEvent: "talked_to_elder",
-    TerminalStatus: quest.TerminalStatusComplete,
-    Text: "The elder is pleased with your work. The village is safe once more.",
-}
-```
-
-**Tips for good ending text:**
-- Explain what happened or what was accomplished
-- Provide narrative closure
-- Can hint at future consequences or follow-up quests
-- Keep it concise but satisfying
-
 ### Best Practices
 
-1. **Always provide a dummy event** for terminal stages so the status actually fires
+1. **Create separate terminal stages** - Don't mix terminal status with reactions
 2. **Use success for positive outcomes** - quest objectives met, rewards earned
 3. **Use failure for negative outcomes** - player failed, time expired, died
-4. **Grant rewards in Actions** before `TerminalStatus` executes
-5. **Include ending text** - give players narrative closure on terminal stages
+4. **Grant rewards in Actions** - Put reward actions in the stage that transitions to the terminal stage
+5. **Name terminal stages clearly** - Use names like `stage_complete`, `stage_failed` for clarity
 
 ---
 
@@ -276,25 +294,21 @@ questDef := quest.QuestDef{
             Reactions: []defs.QuestReactionDef{
                 {
                     SubscribeEvent: "package_delivered",
-                    NextStage:      "complete",
+                    NextStage:      "complete", // Points to terminal stage
                 },
             },
         },
         "complete": {
-            ID:        "complete",
-            Objective: "Quest complete!",
-            Reactions: []defs.QuestReactionDef{
-                {
-                    SubscribeEvent: "dummy_event", // Always fires
-                    Actions: []defs.QuestAction{
-                        quest.UnlockAction{
-                            MapLock: defs.MapLock{
-                                MapID:  "dungeon_1",
-                                LockID: "cell_door",
-                            },
-                        },
+            ID:             "complete",
+            TerminalStatus:  defs.QuestTerminalStatusComplete, // Terminal stage
+            // No Objective needed - quest is over
+            // No Reactions needed - terminal stage
+            OnEnter: []defs.QuestAction{ // Rewards are given when stage is entered
+                quest.UnlockAction{
+                    MapLock: defs.MapLock{
+                        MapID:  "dungeon_1",
+                        LockID: "cell_door",
                     },
-                    TerminalStatus: defs.QuestTerminalSuccess,
                 },
             },
         },
@@ -343,6 +357,15 @@ A quest that progresses by talking to NPCs:
         },
     },
 },
+
+// Terminal stage: Quest complete
+"stage_quest_complete": {
+    ID:             "stage_quest_complete",
+    TerminalStatus: defs.QuestTerminalStatusComplete,
+    OnEnter: []defs.QuestAction{
+        // Grant rewards here
+    },
+},
 ```
 
 ### Branching Quest Example
@@ -372,6 +395,21 @@ Stages: map[defs.QuestStageID]defs.QuestStageDef{
                 },
                 NextStage: "stage_combat",
             },
+        },
+    },
+    // Terminal stages for each path
+    "stage_diplomatic_success": {
+        ID:             "stage_diplomatic_success",
+        TerminalStatus:  defs.QuestTerminalStatusComplete,
+        OnEnter: []defs.QuestAction{
+            // Diplomatic rewards
+        },
+    },
+    "stage_combat_success": {
+        ID:             "stage_combat_success",
+        TerminalStatus:  defs.QuestTerminalStatusComplete,
+        OnEnter: []defs.QuestAction{
+            // Combat rewards
         },
     },
 }
@@ -414,21 +452,34 @@ Stages: map[defs.QuestStageID]defs.QuestStageDef{
             },
             {
                 SubscribeEvent: "player_died_in_battle",
-                NextStage:      "stage_retreat",
+                NextStage:      "stage_defeat",
             },
         },
     },
+    // Terminal stage: Victory
     "stage_victory": {
         Objective: "Return to claim your reward.",
         Reactions: []defs.QuestReactionDef{
             {
-                SubscribeEvent: "dummy_event",
+                SubscribeEvent: "returned_to_town",
+                NextStage:      "stage_quest_complete", // Points to terminal stage
                 Actions: []defs.QuestAction{
                     quest.UnlockAction{MapLock: defs.MapLock{MapID: "treasury", LockID: "dragon_hoard"}},
                 },
-                TerminalStatus: defs.QuestTerminalSuccess,
             },
         },
+    },
+    // Terminal stages
+    "stage_quest_complete": {
+        ID:             "stage_quest_complete",
+        TerminalStatus:  defs.QuestTerminalStatusComplete,
+        OnEnter: []defs.QuestAction{
+            // Any final rewards
+        },
+    },
+    "stage_quest_failed": {
+        ID:             "stage_quest_failed",
+        TerminalStatus:  defs.QuestTerminalStatusFail,
     },
 }
 ```
@@ -479,6 +530,9 @@ time_<period>                      // Time events
 5. **OnEnter for setup** - Use OnEnter for stage initialization
 6. **Event-driven only** - Don't check conditions in update loops
 7. **Clear objectives** - Player should always know what to do
+8. **Separate terminal stages** - Create dedicated stages for quest endings (complete/fail)
+9. **Put rewards in OnEnter** - Use terminal stage's OnEnter for final rewards
+10. **NextStage points to terminal** - Reactions should point to terminal stages, not have TerminalStatus directly
 
 ---
 

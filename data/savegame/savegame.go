@@ -18,6 +18,7 @@ import (
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/utils/files"
 )
@@ -56,6 +57,10 @@ type SaveFile struct {
 	MapStates           []state.MapState
 	ShopkeeperStates    []state.ShopkeeperState
 	Quests              QuestStates
+
+	// events state
+
+	FutureScheduledEvents map[clock.GameTimestamp][]defs.Event
 }
 
 func (sf SaveFile) validate() {
@@ -91,6 +96,7 @@ type QuestStates struct {
 func SaveGame(
 	dataman *datamanager.DataManager,
 	questMgr *quest.QuestManager,
+	eventBus *pubsub.EventBus,
 	gameTime clock.GameTime,
 	mapID defs.MapID,
 	mapCoords model.Coords,
@@ -115,6 +121,8 @@ func SaveGame(
 	uniqueID := sf.PlayerCharacterDef.UniquePlayerID
 	characterstate.ValidateUniquePlayerID(uniqueID)
 
+	// CHARACTER, DIALOG, MAPS, SHOPKEEPER STATES
+
 	for _, st := range dataman.CharacterStates {
 		if st.Temp {
 			// skip temporary character states, since they shouldn't be saved. (e.g. character states from scenarios)
@@ -132,19 +140,29 @@ func SaveGame(
 		sf.ShopkeeperStates = append(sf.ShopkeeperStates, *st)
 	}
 
+	// QUEST STATES
+
 	active, comp, fail := questMgr.GetAllQuestStates()
 	sf.Quests.Active = active
 	sf.Quests.Completed = comp
 	sf.Quests.Failed = fail
+
+	// FUTURE EVENT SCHEDULE
+
+	sf.FutureScheduledEvents = make(map[clock.GameTimestamp][]defs.Event)
+	for k, v := range eventBus.GetFutureEventSchedule() {
+		sf.FutureScheduledEvents[k.GetTimestamp()] = v
+	}
+
+	// Done: Prepare to Save
+
+	sf.validate()
 
 	timestamp := time.Now().Format(TimestampLayout)
 	filename := fmt.Sprintf("%s.json", timestamp)
 
 	config.EnsurePlayerSaveDirExists(uniqueID)
 	saveFilePath = config.ResolveSaveFilePath(uniqueID, filename)
-
-	// ensure this save file has no validation errors
-	sf.validate()
 
 	err := files.WriteToJSON(sf, saveFilePath)
 	if err != nil {
@@ -164,12 +182,15 @@ type LoadedWorldInfo struct {
 
 // LoadSave loads the data from a save file. You must pass data and quest managers that already have all of their defs loaded into them.
 // The various states will be loaded into these managers.
-func LoadSave(saveFilePath string, dataman *datamanager.DataManager, questMgr *quest.QuestManager) (LoadedWorldInfo, error) {
+func LoadSave(saveFilePath string, dataman *datamanager.DataManager, questMgr *quest.QuestManager, eventBus *pubsub.EventBus) (LoadedWorldInfo, error) {
 	if dataman == nil {
 		panic("dataman was nil")
 	}
 	if questMgr == nil {
 		panic("questMgr was nil")
+	}
+	if eventBus == nil {
+		panic("eventBus was nil")
 	}
 
 	info := LoadedWorldInfo{}
@@ -217,6 +238,14 @@ func LoadSave(saveFilePath string, dataman *datamanager.DataManager, questMgr *q
 	}
 
 	questMgr.CreateEventTypeIndices()
+
+	// future events schedule
+	for k, v := range sf.FutureScheduledEvents {
+		gt := clock.TimestampToGameTime(k)
+		for _, e := range v {
+			eventBus.ScheduleFutureEvent(e, gt)
+		}
+	}
 
 	return info, nil
 }

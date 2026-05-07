@@ -135,6 +135,9 @@ func NewGame() *Game {
 		ScreenManager: screen.NewScreenManager(),
 	}
 
+	// Passing Game instead of World since World hasn't been created at this step.
+	// TODO: I guess there's no real reason to pass the World ref directly since Game will need to implement all of the
+	// same WorldEffectContext functions, since all of those funnel into the overarching GameContext anyway... right?
 	g.QuestManager = quest.NewQuestManager(g.EventBus, &g)
 
 	return &g

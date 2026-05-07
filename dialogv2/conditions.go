@@ -5,6 +5,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/quest"
 )
 
 type ConditionDialogMemory struct {
@@ -140,20 +141,20 @@ type ConditionQuestStage struct {
 }
 
 func (c ConditionQuestStage) IsMet(ctx defs.ConditionContext) bool {
-	started, comp, fail, sid := ctx.GetQuestStage(c.QuestID)
+	stg, status := ctx.GetQuestStage(c.QuestID)
 	if c.NotStarted {
-		return !started
+		return status == quest.NotStarted
 	}
 	if c.Completed {
-		return comp
+		return status == quest.Completed
 	}
 	if c.Failed {
-		return fail
+		return status == quest.Failed
 	}
-	if sid == "" {
+	if c.StageID == "" {
 		panic("stageID wasn't set, but neither were the other flags")
 	}
-	return sid == c.StageID
+	return stg.ID == c.StageID
 }
 
 type ConditionItemEquipped struct {

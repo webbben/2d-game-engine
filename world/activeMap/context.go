@@ -86,10 +86,6 @@ func (mi ActiveMap) FindObjectsAtPosition(c model.Coords) []*object.Object {
 	return objs
 }
 
-func (mi *ActiveMap) StartTradeSession(shopkeeperID defs.ShopID) {
-	mi.gameCtx.StartTradeSession(shopkeeperID)
-}
-
 func (mi *ActiveMap) TogglePlayerMenu() {
 	mi.gameCtx.TogglePlayerMenu()
 }
@@ -103,17 +99,6 @@ func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID str
 		TextFont:      config.DefaultFont,
 	}
 	ds := dialogv2.NewDialogSession(params, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx, mi.questman, mi.audioman)
-	mi.dialogSession = &ds
-}
-
-func (mi *ActiveMap) StartAdHocDialog(dr defs.DialogResponse) {
-	params := dialogv2.DialogSessionParams{
-		NPCID:         "ad-hoc dialog",
-		BoxTilesetSrc: "boxes/boxes.tsj",
-		BoxOriginID:   16,
-		TextFont:      config.DefaultFont,
-	}
-	ds := dialogv2.NewAdhocDialogSession(params, dr, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx, mi.questman)
 	mi.dialogSession = &ds
 }
 

@@ -3,88 +3,8 @@ package game
 import (
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/defs"
-	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/pubsub"
 )
-
-func (g *Game) DialogCtxAddGold(amount int) {
-	characterstate.EarnMoney(&g.World.Player.CharacterStateRef.StandardInventory, amount, g.Dataman)
-}
-
-func (g *Game) RemoveGold(amount int) {
-	characterstate.SpendMoney(&g.World.Player.CharacterStateRef.StandardInventory, amount, g.Dataman)
-}
-
-func (g *Game) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef) {
-	// confirm this is the ID of a unique characterDef
-	charDef := g.Dataman.GetCharacterDef(id)
-	if !charDef.Unique {
-		logz.Panicln("AssignTaskToNPC", "characterDef of ID given is not unique; can only assign tasks to specific characters if they are unique.")
-	}
-
-	// send an event to the NPC, assuming he exists...
-	g.EventBus.Publish(pubsub.NPCAssignTask(string(id), taskDef))
-}
-
-func (g *Game) QueueScenario(id defs.ScenarioID) {
-	if g.World == nil {
-		panic("world was nil! you can't use this context function if the world doesn't exist yet...")
-	}
-	scenarioDef := g.Dataman.GetScenarioDef(id)
-
-	mapID := scenarioDef.MapID
-	if mapID == "" {
-		panic("mapID was empty")
-	}
-
-	g.World.EnsureMapStateExists(mapID)
-
-	mapState := g.Dataman.GetMapState(mapID)
-
-	// ensure this scenario is not already queued up
-	for _, scenarioID := range mapState.QueuedScenarios {
-		if scenarioID == id {
-			logz.Panicln("QueueScenario", "tried to queue a scenario, but its ID was already in the scenario queue for this map:", id)
-		}
-	}
-
-	mapState.QueuedScenarios = append(mapState.QueuedScenarios, id)
-
-	logz.Println("Scenario Queued", "queued", id, "in map", mapID)
-}
-
-func (g *Game) UnlockMapLock(mapID defs.MapID, lockID string) {
-	if g.World == nil {
-		panic("world was nil! you can't use this context function if the world doesn't exist yet...")
-	}
-	g.World.EnsureMapStateExists(mapID)
-
-	mapState := g.Dataman.GetMapState(mapID)
-	lockState, exists := mapState.MapLocks[lockID]
-	if !exists {
-		logz.Panicln("UnlockMapLock", "given lock ID was not found in map. mapID:", mapID, "lockID:", lockID)
-	}
-	lockState.Unlocked = true
-	mapState.MapLocks[lockID] = lockState
-}
-
-// EnterMap adds the player to a map. creates the active map too, in the process.
-// Used in the NewGame flow to actually put the player in a map once his character has been created.
-func (g *Game) EnterMap(mapID defs.MapID, spawnIndex int, doTransition bool) {
-	if g.World == nil {
-		panic("world was nil! you can't use this context function if the world doesn't exist yet...")
-	}
-	g.World.EnterMap(mapID, spawnIndex, doTransition)
-
-	// TODO: We need to convert these to Screens, so I'm gonna comment this out until that's been done.
-	// we can probably create some kind of "in-game screen" that these can be set into to cause them to appear.
-	//
-	// g.PlayerMenu = setup.GetPlayerMenu(g.Player, g.Dataman)
-	// g.TradeScreen = setup.GetTradeScreen(g.Player, g.Dataman)
-	//
-	// g.PlayerMenu.InventoryPage.LoadPlayerItemsIn()
-}
 
 // PlacePlayerInMap is the same as EnterMap, but for putting the player at a specific position (instead of just at a spawn point).
 // Used by the LoadGame flow, since you will be appearing not at a spawn point, but at the position you were in last when the game was saved.
@@ -93,13 +13,6 @@ func (g *Game) PlacePlayerInMap(mapID defs.MapID, x, y float64, doTransition boo
 		panic("world was nil! you can't use this context function if the world doesn't exist yet...")
 	}
 	g.World.EnterMapAtPosition(mapID, x, y, doTransition)
-}
-
-func (g *Game) SetPlayerName(name string) {
-	if g.World == nil {
-		panic("world was nil! you can't use this context function if the world doesn't exist yet...")
-	}
-	g.World.SetPlayerName(name)
 }
 
 func (g *Game) GetPlayerInfo() defs.PlayerInfo {
@@ -115,6 +28,7 @@ func (g *Game) StartTradeSession(shopkeeperID defs.ShopID) {
 	// shopkeeperState := g.Dataman.GetShopkeeperState(shopkeeperID)
 	// g.TradeScreen.SetupTradeSession(*shopkeeperDef, shopkeeperState)
 	// g.ShowTradeScreen = true
+	logz.TODO("StartTradeSession", "is this used? everything in it is commented out")
 }
 
 // StartDialogSession starts a dialog session with the given dialog profile ID
@@ -132,12 +46,16 @@ func (g *Game) StartDialogSession(dialogProfileID defs.DialogProfileID, npcID st
 	g.World.ActiveMap.StartDialog(dialogProfileID, npcID)
 }
 
+// TODO: why do we have this and broadcast event??
+// we should probably delete this one, and consolidate any references into BroadcastEvent
 func (g *Game) PublishEvent(event defs.Event) {
 	g.EventBus.Publish(event)
 }
 
-func (g Game) GetCurrentGameTime() clock.GameTime {
-	return g.World.Clock.GetCurrentGameTime()
+func (g *Game) BroadcastEvent(e defs.Event) {
+	// TODO: this is technically part of WorldEffectContext... should we use the World function?
+	// Technically events could be used outside of the world, so no real reason to limit it to only being a world effect.
+	g.EventBus.Publish(e)
 }
 
 func (g *Game) SetGameTime(gt clock.GameTime) {

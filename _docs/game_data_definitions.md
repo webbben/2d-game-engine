@@ -331,12 +331,13 @@ type QuestDef struct {
 }
 
 type QuestStageDef struct {
-    ID          QuestStageID
-    Title       string              // optional stage title
-    Objective   string              // shown to player
-    Description string              // narrative context
-    OnEnter     []QuestAction       // fires on stage entry
-    Reactions   []QuestReactionDef  // event responses
+    ID             QuestStageID
+    Title          string              // optional stage title
+    Objective      string              // shown to player
+    Description    string              // narrative context
+    OnEnter        []QuestAction       // fires on stage entry
+    Reactions      []QuestReactionDef  // event responses
+    TerminalStatus QuestTerminalStatus // ends quest (complete/fail). No reactions needed.
 }
 
 type QuestReactionDef struct {
@@ -344,7 +345,6 @@ type QuestReactionDef struct {
     Conditions     []QuestConditionDef
     Actions        []QuestAction
     NextStage      QuestStageID
-    TerminalStatus QuestTerminalStatus
 }
 ```
 

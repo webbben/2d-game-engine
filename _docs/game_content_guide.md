@@ -248,15 +248,22 @@ quest.QuestDef{
         },
         "complete": {
             ID:        "complete",
-            Objective: "Quest complete!",
             Reactions: []defs.QuestReactionDef{
                 {
-                    SubscribeEvent: "dummy_event",
+                    SubscribeEvent: "returned_to_herbalist",
+                    NextStage:      "quest_complete",
                     Actions: []defs.QuestAction{
                         // Unlock something, give bonus, etc.
                     },
-                    TerminalStatus: defs.QuestTerminalSuccess,
                 },
+            },
+        },
+        // Terminal stage
+        "quest_complete": {
+            ID:             "quest_complete",
+            TerminalStatus:  defs.QuestTerminalStatusComplete,
+            OnEnter: []defs.QuestAction{
+                // Final rewards here
             },
         },
     },
@@ -323,7 +330,7 @@ Before publishing content, verify:
 - [ ] All referenced items exist
 - [ ] All referenced dialog profiles exist
 - [ ] Quest stages have reactions (or will be stuck)
-- [ ] Terminal quests have `TerminalStatus` not `NextStage`
+- [ ] Terminal stages have `TerminalStatus` set and no reactions
 - [ ] `Once` responses have IDs
 - [ ] Items with durability are not groupable
 - [ ] Visible equipment has `BodyPartDef`

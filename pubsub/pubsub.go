@@ -40,6 +40,10 @@ type EventBus struct {
 	queue chan defs.Event
 }
 
+func (eb EventBus) GetFutureEventSchedule() map[clock.GameTime][]defs.Event {
+	return eb.futureEventSchedule
+}
+
 func NewEventBus() *EventBus {
 	logz.Warnln("EVENT BUS", "New event bus created! any previous subscriptions are no longer active.")
 	return &EventBus{
@@ -136,12 +140,19 @@ func (eb *EventBus) dispatch(e defs.Event) {
 		}
 		eb.FireScheduledEvents(gameTime)
 	}
+	// track if a (non-all) subscriber was listening for this event
+	subFound := false
 	for _, sub := range eb.subscribers[e.Type] {
 		sub.fn(e)
+		subFound = true
 	}
 	// broadcast every published event to the "subscribe all" list
 	for _, fn := range eb.subscribeAll {
 		fn(e)
+	}
+
+	if e.RequireSubscriber && !subFound {
+		logz.Panicln("EVENT BUS", "Event requires subscribers, but no (non-all) subscribers were listening.", e.Type, e.Data)
 	}
 }
 

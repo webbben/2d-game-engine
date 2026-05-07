@@ -3,12 +3,10 @@ package dialogv2
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/ui/button"
-	"github.com/webbben/2d-game-engine/ui/modal"
 	"github.com/webbben/2d-game-engine/ui/text"
 )
 
@@ -32,17 +30,6 @@ func (ds *DialogSession) updateDialogResponse() {
 	case dialogResponseActionInProg:
 		// action is ongoing; allow it to update, but don't let the rest of the response progress
 		switch ds.currentResponse.Action.Type {
-		case ActionTypeGetUserInput:
-			if ds.userInputModal == nil {
-				panic("user input modal is nil during input action")
-			}
-			resp := ds.userInputModal.Update()
-			if resp.Done {
-				ds.handleUserInputActionResp(resp, *ds.currentResponse.Action)
-				ds.continueApplyResponse()
-				return
-			}
-			return
 		case ActionTypeShowScreen:
 			if ds.screenViewer == nil {
 				panic("screen viewer was nil during show screen action")
@@ -162,24 +149,6 @@ func (ds *DialogSession) updateDialogResponse() {
 				return
 			}
 		}
-	}
-}
-
-func (ds *DialogSession) handleUserInputActionResp(resp modal.TextModalResponse, action defs.DialogAction) {
-	if action.Type != ActionTypeGetUserInput {
-		panic("handling user input action, but given action wasn't correct type")
-	}
-
-	switch action.Scope {
-	case ActionScopePlayerName:
-		// set player name to returned text
-		userInput := resp.InputText
-		if userInput == "" {
-			panic("user input was empty")
-		}
-		ds.Ctx.GameState.SetPlayerName(userInput)
-	default:
-		logz.Panicln("handleUserInputActionResp", "action scope not recognized:", action.Scope)
 	}
 }
 
@@ -321,11 +290,5 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 		for i, b := range ds.topicButtons {
 			b.Draw(screen, optionBoxX+int(tileSize/2), optionBoxY+(i*buttonHeight)+(int(tileSize/2)))
 		}
-	}
-
-	// if an action has triggered a modal, draw it:
-
-	if ds.currentResponse.Action != nil && ds.responseStatus == dialogResponseActionInProg {
-		ds.userInputModal.Draw(screen, 100, 100)
 	}
 }

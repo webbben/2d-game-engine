@@ -385,6 +385,32 @@ func (w *World) OnEvent(e defs.Event) {
 		} else {
 			logz.Panicln("WORLD", "SysEventChangeMapOccupancy:", "didn't find params in data.", e.Data)
 		}
+	case pubsub.SysScheduledWorldEffect:
+		effectType, ok := e.Data["type"]
+		if !ok {
+			logz.Panicln("SysScheduledWorldEffect", "event data was missing effect type.", e.Data)
+		}
+		effectData, ok := e.Data["effect"]
+		if !ok {
+			logz.Panicln("SysScheduledWorldEffect", "event data was missing effect.", e.Data)
+		}
+
+		var worldEffect defs.WorldEffect
+
+		switch effectType {
+		case "RemoveRoleEffect":
+			removeRoleEffect, ok := effectData.(RemoveRoleEffect)
+			if !ok {
+				logz.Panicln("SysScheduledWorldEffect", "effect is supposed to be removeRole, but failed to type assert.", effectType, effectData)
+			}
+			worldEffect = removeRoleEffect
+		}
+
+		if worldEffect == nil {
+			logz.Panicln("SysScheduledWorldEffect", "worldEffect was nil")
+		}
+
+		worldEffect.Apply(w)
 	}
 }
 
