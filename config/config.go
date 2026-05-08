@@ -28,6 +28,8 @@ var (
 	// the HUD refers to things like the clock or player's health bar which are shown on top of the game world (but not part of it)
 	HUDScale float64 = 4
 
+	PlayerHoverDistanceThreshold = TileSize * 2.5
+
 	// debug options
 
 	DrawGridLines       = false

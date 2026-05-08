@@ -126,6 +126,8 @@ type ActiveMapContext interface {
 	TogglePlayerMenu()
 
 	ShowMiscScreen(scrID ScreenID)
+
+	GetHoverTargetInfo() (*NPCInfo, *ObjectInfo)
 }
 
 type TransitionContext interface {

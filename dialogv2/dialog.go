@@ -402,32 +402,36 @@ func (ds *DialogSession) setupReplyOptions() {
 }
 
 func (ds *DialogSession) GetTopicOptions() []defs.DialogTopic {
-	// use a map at first to ensure de-duplication
-	topics := make(map[defs.TopicID]defs.DialogTopic)
+	seenTopics := make(map[defs.TopicID]bool) // ensure no duplicates
 	topicOptions := []defs.DialogTopic{}
 
 	// first, get them from the profile
 	for _, topicID := range ds.ProfileDef.TopicsIDs {
+		if seenTopics[topicID] {
+			continue
+		}
+		seenTopics[topicID] = true
+
 		topic := ds.dataman.GetDialogTopic(topicID)
 		if ConditionsMet(topic.Conditions, ds.Ctx) {
-			topics[topicID] = *topic
+			topicOptions = append(topicOptions, *topic)
 		}
 	}
 
 	// next, get knowledge topics that both player and NPC have access to
 	for _, topicID := range ds.Ctx.GetKnowledgeTopics() {
+		if seenTopics[topicID] {
+			continue
+		}
+		seenTopics[topicID] = true
+
 		topic := ds.dataman.GetDialogTopic(topicID)
 		// TODO: I wonder if we should find a way to avoid checking conditions everytime.
 		// one idea is to cache the result, and only recalculate whenever any effect happens, since that's probably the only
 		// time conditions could be affected.
 		if ConditionsMet(topic.Conditions, ds.Ctx) {
-			topics[topicID] = *topic
+			topicOptions = append(topicOptions, *topic)
 		}
-	}
-
-	// convert map to slice
-	for _, topic := range topics {
-		topicOptions = append(topicOptions, topic)
 	}
 
 	return topicOptions

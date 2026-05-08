@@ -9,9 +9,9 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/mouse"
-	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	internaltext "github.com/webbben/2d-game-engine/ui/text"
 	"golang.org/x/image/font"
 )
@@ -151,6 +151,10 @@ func (t *TextField) Update() {
 		t.Focus()
 	} else if t.mouseBehavior.LeftClickOutside.ClickReleased {
 		t.Blur()
+	}
+
+	if t.mouseBehavior.IsHovering {
+		mouse.SetCursorShape(mouse.TextShape)
 	}
 
 	if !t.isFocused {

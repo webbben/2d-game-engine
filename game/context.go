@@ -46,12 +46,6 @@ func (g *Game) StartDialogSession(dialogProfileID defs.DialogProfileID, npcID st
 	g.World.ActiveMap.StartDialog(dialogProfileID, npcID)
 }
 
-// TODO: why do we have this and broadcast event??
-// we should probably delete this one, and consolidate any references into BroadcastEvent
-func (g *Game) PublishEvent(event defs.Event) {
-	g.EventBus.Publish(event)
-}
-
 func (g *Game) BroadcastEvent(e defs.Event) {
 	// TODO: this is technically part of WorldEffectContext... should we use the World function?
 	// Technically events could be used outside of the world, so no real reason to limit it to only being a world effect.
@@ -107,4 +101,18 @@ func (g *Game) ShowMiscScreen(scrID defs.ScreenID) {
 	scr := g.ScreenManager.GetScreen(scrID)
 
 	g.World.ShowMiscScreen(scr)
+}
+
+func (g *Game) GetHoverTargetInfo() (*defs.NPCInfo, *defs.ObjectInfo) {
+	n, obj := g.World.ActiveMap.GetHoverTarget()
+	if n != nil {
+		info := n.GetInfo()
+		return &info, nil
+	}
+	if obj != nil {
+		info := obj.GetInfo()
+		return nil, &info
+	}
+
+	return nil, nil
 }

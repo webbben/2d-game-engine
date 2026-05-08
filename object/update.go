@@ -11,7 +11,6 @@ import (
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
-	"github.com/webbben/2d-game-engine/utils"
 )
 
 type ObjectUpdateResult struct {
@@ -25,22 +24,14 @@ type ObjectUpdateResult struct {
 }
 
 // Update : blockChanges is just to make sure that no actual changes occur; but, animation changes and stuff can continue.
-func (obj *Object) Update(blockChanges bool) ObjectUpdateResult {
-	drawRect := obj.GetDrawRect()
-	obj.MouseBehavior.Update(int(drawRect.X), int(drawRect.Y), int(drawRect.W), int(drawRect.H), false)
-
+func (obj *Object) Update(blockChanges bool, hovering bool) ObjectUpdateResult {
 	if len(obj.tileData.Frames) > 1 {
 		obj.tileData.UpdateFrame()
 	}
 
-	// handle hovering
-	if obj.IsHoverable() {
-		obj.PlayerHovering = false
-		if obj.MouseBehavior.IsHovering {
-			if utils.EuclideanDistCenter(obj.World.GetPlayerRect(), obj.GetRect()) < config.TileSize*2 {
-				obj.PlayerHovering = true
-			}
-		}
+	obj.PlayerHovering = hovering
+	if obj.PlayerHovering && !obj.IsHoverable() {
+		logz.Panicln("Object", "object is set to PlayerHovering, but is apparently not hoverable...", obj.ID, obj.Name)
 	}
 
 	switch obj.Type {

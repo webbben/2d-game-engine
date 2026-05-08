@@ -2,6 +2,7 @@
 package object
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -12,29 +13,27 @@ import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/mouse"
 	"github.com/webbben/2d-game-engine/tiled"
 )
 
-type ObjectType string
-
 const (
-	TypeDoor       ObjectType = "DOOR" // a door/portal to another map
-	TypeGate       ObjectType = "GATE" // a "gate" is a openable/closable barrier (e.g. a physical door, or gate) in a map
-	TypeSpawnPoint ObjectType = "SPAWN_POINT"
-	TypeLight      ObjectType = "LIGHT"     // lights can be embedded in objects too
-	TypeContainer  ObjectType = "CONTAINER" // TODO
-	TypeMisc       ObjectType = "MISC"      // general purpose; just takes up space
+	TypeDoor       defs.ObjectType = "DOOR" // a door/portal to another map
+	TypeGate       defs.ObjectType = "GATE" // a "gate" is a openable/closable barrier (e.g. a physical door, or gate) in a map
+	TypeSpawnPoint defs.ObjectType = "SPAWN_POINT"
+	TypeLight      defs.ObjectType = "LIGHT"     // lights can be embedded in objects too
+	TypeContainer  defs.ObjectType = "CONTAINER" // TODO
+	TypeMisc       defs.ObjectType = "MISC"      // general purpose; just takes up space
 
-	TypeItem  ObjectType = "ITEM"
-	TypeBed   ObjectType = "BED"
-	TypeChair ObjectType = "CHAIR"
+	TypeItem  defs.ObjectType = "ITEM"
+	TypeBed   defs.ObjectType = "BED"
+	TypeChair defs.ObjectType = "CHAIR"
 
-	TypeTaskArea ObjectType = "TASK_AREA"
+	TypeTaskArea defs.ObjectType = "TASK_AREA"
 
 	// Types that aren't actually supported here (specific cases)
 
-	TypeEntity ObjectType = "ENTITY" // This shouldn't be used for actual objects - just for static entities in maps that are defined by objects.
+	// TODO: is this even used?
+	TypeEntity defs.ObjectType = "ENTITY" // This shouldn't be used for actual objects - just for static entities in maps that are defined by objects.
 )
 
 const (
@@ -49,16 +48,18 @@ const (
 // But, not gonna tackle this right now, because I don't want to get diverted on yet another big refactor lol.
 
 type Object struct {
-	Name string // TODO: I don't think most objects actually have Names; the name property in Tiled is usually left empty.
+	Name string // TODO: I don't think most objects actually have Names; the name property in Tiled is usually left empty. should we just delete this?
+
+	DisplayName string // Not implemented; create a property in Tiled for this (Name won't work, since you can't give names to tiles in tilesets)
 
 	targetedByNPC id.CharacterStateID // if set, this means an NPC is currently trying to come and activate this object.
 
 	mapID defs.MapID // used for knowing which map state to check
 
-	ID         int        // the ID property from Tiled; just a counter I believe.
-	Type       ObjectType // NOT from Tiled; set by our code in Load
-	xPos, yPos float64    // logical position in the map
-	zOffset    int        // for influencing render order
+	ID         int             // the ID property from Tiled; just a counter I believe.
+	Type       defs.ObjectType // NOT from Tiled; set by our code in Load
+	xPos, yPos float64         // logical position in the map
+	zOffset    int             // for influencing render order
 
 	// Ownership and roles - determines who can use objects such as beds and chairs.
 
@@ -87,8 +88,6 @@ type Object struct {
 	animSpeedMs    int
 	animLastUpdate time.Time
 
-	MouseBehavior mouse.MouseBehavior
-
 	// object-specific data
 
 	TaskArea   TaskArea
@@ -105,6 +104,73 @@ type Object struct {
 
 	AudioMgr *audio.AudioManager
 	dataman  *datamanager.DataManager
+}
+
+func (obj Object) GetDisplayName() string {
+	if obj.DisplayName != "" {
+		return obj.DisplayName
+	}
+
+	switch obj.Type {
+	case TypeChair:
+		return "Chair"
+	case TypeBed:
+		return "Bed"
+	case TypeGate:
+		return "Gate"
+	}
+
+	return ""
+}
+
+func (obj Object) GetInfo() defs.ObjectInfo {
+	return defs.ObjectInfo{
+		ID:           obj.ID,
+		DisplayName:  obj.GetDisplayName(),
+		Type:         obj.Type,
+		Activatable:  obj.IsActivatable(),
+		ActivateText: obj.GetActivateText(),
+	}
+}
+
+func (obj Object) GetActivateText() string {
+	if !obj.IsActivatable() {
+		return ""
+	}
+
+	// TODO: add custom activation text property in tiled
+
+	switch obj.Type {
+	case TypeBed:
+		return "Sleep"
+	case TypeChair:
+		return "Sit"
+	case TypeGate:
+		if obj.Gate.IsOpen() {
+			return "Close"
+		}
+		return "Open"
+	case TypeDoor:
+		return "Enter"
+	case TypeContainer:
+		return "Open"
+	case TypeItem:
+		return "Pick up"
+	case TypeLight:
+		if obj.Light.On {
+			return "Put out"
+		}
+		return "Light"
+	}
+
+	return ""
+}
+
+func (obj Object) IsHovering(x, y int) bool {
+	if !obj.IsHoverable() {
+		return false
+	}
+	return obj.GetDrawRect().Within(x, y)
 }
 
 func (obj *Object) SetTargetingNPC(id id.CharacterStateID) {
@@ -181,9 +247,11 @@ func (obj Object) IsActivatable() bool {
 	}
 }
 
+// IsHoverable determines if an object can be "hovered" on by the mouse.
+// If an object is hoverable, then it can be targeted by the player in a map (at least in terms of getting its info)
 func (obj Object) IsHoverable() bool {
 	switch obj.Type {
-	case TypeGate, TypeLight, TypeContainer, TypeChair:
+	case TypeGate, TypeLight, TypeContainer, TypeChair, TypeBed, TypeDoor, TypeItem:
 		return true
 	default:
 		return false
@@ -372,6 +440,8 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 			o.addDefaultCollision()
 		}
 		o.loadDoorObject(allProps)
+		mapDef := dataman.GetMapDef(o.Door.TargetMapID)
+		o.DisplayName = fmt.Sprintf("Door to %s", mapDef.DisplayName)
 	case TypeSpawnPoint:
 		o.loadSpawnObject(allProps)
 	case TypeGate:
@@ -397,6 +467,13 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		o.loadChairObject(allProps)
 	case TypeTaskArea:
 		o.loadTaskAreaObject(allProps)
+	case TypeItem:
+		itemID, found := tiled.GetStringProperty("item_id", allProps)
+		if !found {
+			logz.Panic("item didn't have item_id")
+		}
+		itemDef := dataman.GetItemDef(defs.ItemID(itemID))
+		o.DisplayName = itemDef.GetName()
 	}
 
 	o.loadGlobal(allProps)
@@ -509,7 +586,7 @@ func (obj *Object) loadSpawnObject(props []tiled.Property) {
 	}
 }
 
-func GetObjectType(allObjProperties []tiled.Property) (ObjectType, bool) {
+func GetObjectType(allObjProperties []tiled.Property) (defs.ObjectType, bool) {
 	objType, found := tiled.GetStringProperty("TYPE", allObjProperties)
 	if !found {
 		return "", false
@@ -518,8 +595,8 @@ func GetObjectType(allObjProperties []tiled.Property) (ObjectType, bool) {
 	return resolveObjectType(objType), true
 }
 
-func resolveObjectType(objType string) ObjectType {
-	switch ObjectType(objType) {
+func resolveObjectType(objType string) defs.ObjectType {
+	switch defs.ObjectType(objType) {
 	case TypeDoor:
 		return TypeDoor
 	case TypeSpawnPoint:

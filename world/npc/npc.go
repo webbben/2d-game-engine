@@ -70,6 +70,18 @@ type NPC struct {
 	eventBus *pubsub.EventBus
 }
 
+func (n NPC) GetInfo() defs.NPCInfo {
+	return defs.NPCInfo{
+		CharID:       n.CharacterStateRef.ID,
+		DisplayName:  n.DisplayName(),
+		ActivateText: "Talk",
+	}
+}
+
+func (n NPC) IsHovering(x, y int) bool {
+	return n.Entity.GetDrawRect().Within(x, y)
+}
+
 func (n NPC) WhoAmI() string {
 	return fmt.Sprintf("%s [%s] (currentMap: %s)", n.DisplayName(), n.ID(), n.CharacterStateRef.CurrentMap)
 }

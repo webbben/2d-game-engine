@@ -3,6 +3,9 @@ package activemap
 import (
 	"sort"
 	"time"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/logz"
 )
 
 func (m *ActiveMap) Update(blockPlayerChanges bool) {
@@ -14,6 +17,10 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 	// }
 
 	if m.dialogSession != nil {
+		// clear hover targets when in dialog
+		m.hoveredObject = nil
+		m.hoveredNPC = nil
+
 		m.dialogSession.Update()
 		if m.dialogSession.Exit {
 			m.dialogSession = nil
@@ -28,20 +35,44 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 
 	m.Map.Update()
 
-	for i := range m.Objects {
-		result := m.Objects[i].Update(blockPlayerChanges)
+	// detect which objects and NPCs are being hovered over by the mouse
+	mouseX, mouseY := ebiten.CursorPosition()
+	m.hoveredObject = nil
+
+	// get the hover target (from last update loop) and convey that to the objects on this loop
+	// TODO: should NPC's have any visual effect when player is hovering? I guess not?
+	_, hoverObj := m.GetHoverTarget()
+
+	for _, obj := range m.Objects {
+		hovering := hoverObj != nil && hoverObj.ID == obj.ID
+		result := obj.Update(blockPlayerChanges, hovering)
+
+		if m.hoveredObject == nil && obj.IsHovering(mouseX, mouseY) {
+			m.hoveredObject = obj
+		}
+
 		// only handle object update reactions if player is not blocked
 		// we do this to prevent accidentally handling map doors twice in a row, when walking on a map door.
+		// TODO: why don't we use HandleObjectUpdate here?
+		// I guess the only reason we check for object updates here is because door objects with step activation will detect if the player is standing on them,
+		// and report a map change.
 		if result.UpdateOccurred && !blockPlayerChanges {
 			if result.ChangeMapID != "" {
 				m.worldCtx.HandleMapDoor(result)
 				return
+			} else {
+				logz.Panicln("Update Map", "an object update apparently occurred, but we didn't handle it.", result)
 			}
 		}
 	}
 
+	m.hoveredNPC = nil
+
 	for _, n := range m.NPCs {
 		n.Update()
+		if m.hoveredNPC == nil && n.IsHovering(mouseX, mouseY) {
+			m.hoveredNPC = n
+		}
 	}
 
 	// sort all sortable renderable things on the map

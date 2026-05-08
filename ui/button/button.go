@@ -155,6 +155,10 @@ func (b *Button) Update() ButtonUpdateResult {
 
 	b.mouseBehavior.Update(b.x, b.y, b.Width, b.Height, false)
 
+	if b.mouseBehavior.IsHovering {
+		mouse.SetCursorShape(mouse.PointerShape)
+	}
+
 	if b.mouseBehavior.LeftClick.ClickReleased {
 		if b.clickSfx != "" {
 			b.audioman.PlaySFX(b.clickSfx, 0.5)

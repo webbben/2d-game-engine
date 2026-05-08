@@ -67,6 +67,9 @@ type ActiveMap struct {
 	PlayerRef   *player.Player
 	Objects     []*object.Object
 
+	hoveredObject *object.Object
+	hoveredNPC    *npc.NPC
+
 	Camera     camera.Camera
 	worldScene *ebiten.Image
 
@@ -78,6 +81,27 @@ type ActiveMap struct {
 	daylightFader lights.LightFader
 
 	NPCManager
+}
+
+func (m ActiveMap) GetHoverTarget() (*npc.NPC, *object.Object) {
+	distThreshold := float64(config.PlayerHoverDistanceThreshold)
+
+	if m.hoveredNPC != nil {
+		if utils.EuclideanDistCenter(m.PlayerRef.Entity.CollisionRect(), m.hoveredNPC.Entity.CollisionRect()) <= distThreshold {
+			return m.hoveredNPC, nil
+		}
+	}
+
+	if m.hoveredObject != nil {
+		if !m.hoveredObject.IsHoverable() {
+			panic("non-hoverable object was selected")
+		}
+		if utils.EuclideanDistCenter(m.PlayerRef.Entity.CollisionRect(), m.hoveredObject.GetRect()) <= distThreshold {
+			return nil, m.hoveredObject
+		}
+	}
+
+	return nil, nil
 }
 
 // IsDialogActive tells you if a dialog is currently active
@@ -696,45 +720,6 @@ func (mi *ActiveMap) ActivateArea(r model.Rect, originX, originY float64) bool {
 	if closestNPC != nil {
 		closestNPC.Activate()
 		return true
-	}
-
-	return false
-}
-
-// HandleMouseClick handles a player's click in the game world; for non-ui clicks, such as clicking objects or entities in a map.
-// if a click event occurs, true will be returned.
-func (mi *ActiveMap) HandleMouseClick(mouseX, mouseY int) bool {
-	distThreshold := float64(config.TileSize * 2)
-	// check for object clicks
-	for _, obj := range mi.Objects {
-		if !obj.IsActivatable() {
-			continue
-		}
-		if obj.GetDrawRect().Within(mouseX, mouseY) {
-			if utils.EuclideanDistCenter(mi.GetPlayerRect(), obj.GetRect()) <= distThreshold {
-				fmt.Println("object clicked")
-				x, y := mi.PlayerRef.Entity.X, mi.PlayerRef.Entity.Y
-				activateParams := object.ObjectActivationParams{
-					ActivatorID: mi.PlayerRef.CharacterStateRef.ID,
-					LockIDs:     characterstate.GetLockIDs(*mi.PlayerRef.CharacterStateRef),
-				}
-				result := obj.Activate(x, y, activateParams)
-				if result.UpdateOccurred {
-					mi.HandleObjectUpdate(result, obj)
-				}
-				return true
-			}
-		}
-	}
-
-	// check for NPC clicks
-	for _, n := range mi.NPCs {
-		if n.Entity.GetDrawRect().Within(mouseX, mouseY) {
-			if utils.EuclideanDistCenter(mi.GetPlayerRect(), n.Entity.CollisionRect()) <= distThreshold {
-				n.Activate()
-				return true
-			}
-		}
 	}
 
 	return false
