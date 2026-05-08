@@ -4,9 +4,9 @@ package slider
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/mouse"
-	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/tiled"
 )
 
@@ -142,6 +142,10 @@ func (s *Slider) Update() {
 	} else {
 		s.clickStarted = false
 	}
+
+	if s.IsHovering {
+		mouse.SetCursorShape(mouse.PointerShape)
+	}
 }
 
 func (s *Slider) SetValue(val int) {
@@ -174,5 +178,12 @@ func (s *Slider) Draw(screen *ebiten.Image, x, y float64) {
 	s.y = int(y)
 
 	rendering.DrawImage(screen, s.sliderImg, x, y, 0)
-	rendering.DrawImage(screen, s.ballImg, x+float64(s.ballX), y, 0)
+
+	ballX := x + float64(s.ballX)
+
+	op := ebiten.DrawImageOptions{}
+	if s.IsHovering {
+		op.ColorScale.Scale(1.1, 1.1, 1.1, 1)
+	}
+	rendering.DrawImageWithOps(screen, s.ballImg, ballX, y, 0, &op)
 }

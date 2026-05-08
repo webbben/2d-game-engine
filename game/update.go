@@ -4,9 +4,14 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/mouse"
 )
 
 func (g *Game) Update() error {
+	// initially set cursor to default shape at the start of each update loop, and let other places
+	// in the update logic (UI components, etc) decide if it should be something else.
+	mouse.SetCursorShape(mouse.DefaultShape)
+
 	if g.GlobalKeyBindings != nil {
 		g.handleGlobalKeyBindings()
 	}
@@ -66,6 +71,9 @@ func (g *Game) Update() error {
 	if config.TrackMemoryUsage {
 		debug.UpdatePerformanceMetrics()
 	}
+
+	// do final check if we should change cursor shape
+	mouse.UpdateCursorShape()
 
 	return nil
 }

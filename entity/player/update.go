@@ -9,8 +9,10 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/object"
 )
 
 // MovementMechanics keep track of variables or state related to managing movement mechanics
@@ -200,9 +202,24 @@ func (p *Player) handleActions() bool {
 				p.Entity.LeaveChair()
 				return true
 			}
-			mouseX, mouseY := ebiten.CursorPosition()
-			p.World.HandleMouseClick(mouseX, mouseY)
-			return true
+
+			n, obj := p.World.GetHoverTarget()
+			if n != nil {
+				// prefer NPCs over objects
+				n.Activate()
+				return true
+			} else if obj != nil {
+				x, y := p.Entity.X, p.Entity.Y
+				activateParams := object.ObjectActivationParams{
+					ActivatorID: p.CharacterStateRef.ID,
+					LockIDs:     characterstate.GetLockIDs(*p.CharacterStateRef),
+				}
+				result := obj.Activate(x, y, activateParams)
+				if result.UpdateOccurred {
+					p.World.HandleObjectUpdate(result, obj)
+					return true
+				}
+			}
 		}
 	}
 

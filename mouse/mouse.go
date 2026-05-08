@@ -6,6 +6,8 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/logz"
 )
 
 type MouseBehavior struct {
@@ -112,5 +114,107 @@ func (c *ClickBehavior) detectClick(mouseButton ebiten.MouseButton, prev ClickBe
 			// last tick was not a mouse click; left click is officially completely done
 			c.ClickReleased = false
 		}
+	}
+}
+
+type CursorShape int
+
+const (
+	DefaultShape CursorShape = iota
+	TextShape
+	PointerShape
+	CrosshairShape
+
+	// we don't support resize cursor shapes for now, since I don't think we'll need them in-game.
+)
+
+var (
+	CurrentShape CursorShape = DefaultShape
+	NextShape    CursorShape = DefaultShape
+
+	// if these are set, they will be drawn (and system cursor will be hidden)
+
+	DefaultShapeCustomImg   *ebiten.Image
+	TextShapeCustomImg      *ebiten.Image
+	PointerShapeCustomImg   *ebiten.Image
+	CrosshairShapeCustomImg *ebiten.Image
+)
+
+// SetCursorShape basically signals what next cursor shape should be applied. Then, the main update loop actually calls
+// ChangeCursorShape, which handles really changing things. It's good to use this function during update logic just so we aren't
+// spamming ebiten.SetCursorMode/SetCursorShape as much.
+func SetCursorShape(shape CursorShape) {
+	NextShape = shape
+}
+
+// UpdateCursorShape is used in the actual game update loop to apply a cursor change.
+// This is called at the end of the update loop, so that we aren't constantly switching from default to another shape on every loop.
+// Update logic can set a "next shape", and then at the end of the entire update loop, we will check if the "next shape" is different from the current shape,
+// and if so, actually apply a change.
+//
+// I don't think constantly changing the cursor shape on each update loop has any performance impact, but I just don't like the idea of spamming functions
+// that make actual changes unnecessarily.
+func UpdateCursorShape() {
+	if NextShape == CurrentShape {
+		return
+	}
+
+	logz.Println("UpdateCursorShape", NextShape)
+
+	CurrentShape = NextShape
+	ebiten.SetCursorMode(ebiten.CursorModeVisible)
+
+	// check if the shape has an image override, and if so, hide the default system cursor
+	switch NextShape {
+	case DefaultShape:
+		if DefaultShapeCustomImg != nil {
+			ebiten.SetCursorMode(ebiten.CursorModeHidden)
+		} else {
+			ebiten.SetCursorShape(ebiten.CursorShapeDefault)
+		}
+	case TextShape:
+		if TextShapeCustomImg != nil {
+			ebiten.SetCursorMode(ebiten.CursorModeHidden)
+		} else {
+			ebiten.SetCursorShape(ebiten.CursorShapeText)
+		}
+	case PointerShape:
+		if PointerShapeCustomImg != nil {
+			ebiten.SetCursorMode(ebiten.CursorModeHidden)
+		} else {
+			ebiten.SetCursorShape(ebiten.CursorShapePointer)
+		}
+	case CrosshairShape:
+		if CrosshairShapeCustomImg != nil {
+			ebiten.SetCursorMode(ebiten.CursorModeHidden)
+		} else {
+			ebiten.SetCursorShape(ebiten.CursorShapeCrosshair)
+		}
+	default:
+		logz.Panicln("SetCursorShape", "cursor shape not recognized:", NextShape)
+	}
+}
+
+func DrawCursor(screen *ebiten.Image) {
+	x, y := ebiten.CursorPosition()
+	switch CurrentShape {
+	case DefaultShape:
+		if DefaultShapeCustomImg != nil {
+			rendering.DrawImage(screen, DefaultShapeCustomImg, float64(x), float64(y), 0)
+		}
+	case TextShape:
+		if TextShapeCustomImg != nil {
+			rendering.DrawImage(screen, TextShapeCustomImg, float64(x), float64(y), 0)
+		}
+	case PointerShape:
+		if PointerShapeCustomImg != nil {
+			rendering.DrawImage(screen, PointerShapeCustomImg, float64(x), float64(y), 0)
+		}
+	case CrosshairShape:
+		if CrosshairShapeCustomImg != nil {
+			rendering.DrawImage(screen, CrosshairShapeCustomImg, float64(x), float64(y), 0)
+		}
+	default:
+		logz.Panicln("DrawCursor", "cursor shape not recognized:", CurrentShape)
 	}
 }

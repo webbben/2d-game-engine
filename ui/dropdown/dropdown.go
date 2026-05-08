@@ -196,6 +196,10 @@ func (os *OptionSelect) Update() {
 	}
 	os.hideBarText = os.inputEnabled && os.optionWindowOpen
 
+	if os.topBarMouseBehavior.IsHovering {
+		mouse.SetCursorShape(mouse.PointerShape)
+	}
+
 	// detect button clicks
 	if os.optionWindowOpen {
 		if os.dropDownWindow == nil {

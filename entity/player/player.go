@@ -10,6 +10,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/world/npc"
 )
 
@@ -29,7 +30,8 @@ type WorldContext interface {
 	TogglePlayerMenu()
 	GetNearbyNPCs(x, y, radius float64) []*npc.NPC
 	ActivateArea(r model.Rect, originX, originY float64) bool
-	HandleMouseClick(mouseX, mouseY int) bool
+	HandleObjectUpdate(result object.ObjectUpdateResult, obj *object.Object)
+	GetHoverTarget() (*npc.NPC, *object.Object)
 }
 
 // Y is needed for sorting renderables
