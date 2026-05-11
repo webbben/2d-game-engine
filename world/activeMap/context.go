@@ -13,6 +13,7 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/world/npc"
 )
@@ -118,10 +119,11 @@ func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMa
 	if toMap == m.MapID {
 		logz.Panicln("RemoveNPCFromActiveMap", "toMap matches active map ID!", toMap)
 	}
+	logz.Println("RemoveNPCFromActiveMap", "npc char state id:", charStateID, "to map:", toMap)
 
 	for i, n := range m.NPCs {
 		if n.CharacterStateRef.ID == charStateID {
-			n.Entity.ResetActiveMapRuntimeState()
+			n.PrepareLeaveActiveMap()
 			// move to the new map's occupancy
 			m.worldCtx.ChangeMapOccupancy(charStateID, m.MapID, toMap, -1)
 			// remove from active map
@@ -134,4 +136,8 @@ func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMa
 
 func (m ActiveMap) PublishEvent(e defs.Event) {
 	m.eventBus.Publish(e)
+}
+
+func (m ActiveMap) GetOverlayManager() *overlay.OverlayManager {
+	return m.om
 }

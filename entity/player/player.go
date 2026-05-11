@@ -11,6 +11,7 @@ import (
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/world/npc"
 )
 
@@ -27,6 +28,7 @@ type Player struct {
 }
 
 type WorldContext interface {
+	GetOverlayManager() *overlay.OverlayManager
 	TogglePlayerMenu()
 	GetNearbyNPCs(x, y, radius float64) []*npc.NPC
 	ActivateArea(r model.Rect, originX, originY float64) bool

@@ -27,6 +27,7 @@ import (
 	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/world/npc"
 	"github.com/webbben/2d-game-engine/world/worldgraph"
@@ -57,6 +58,7 @@ type ActiveMap struct {
 	eventBus  *pubsub.EventBus
 	screenman *screen.ScreenManager
 	questman  *quest.QuestManager
+	om        *overlay.OverlayManager
 
 	DisplayName string // the name of the map shown to the player
 	Loaded      bool   // flag indicating if this map has been loaded
@@ -115,6 +117,7 @@ func NewActiveMap(
 	eventbus *pubsub.EventBus,
 	screenman *screen.ScreenManager,
 	questman *quest.QuestManager,
+	om *overlay.OverlayManager,
 	gameCtx defs.GameContext,
 	worldCtx WorldContext,
 	mapID defs.MapID,
@@ -135,6 +138,7 @@ func NewActiveMap(
 		eventBus:    eventbus,
 		screenman:   screenman,
 		questman:    questman,
+		om:          om,
 		gameCtx:     gameCtx,
 		worldCtx:    worldCtx,
 		Map:         tiledMap,
@@ -322,10 +326,14 @@ func (mi *ActiveMap) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	if mi.IsTileCollision(startPos) {
 		logz.Panicln("AddNPCToMap", "NPC added to map on colliding tile.", "mapID:", mi.MapID, "npcID:", n.ID(), "startPos:", startPos)
 	}
+
+	// subscribe speech bubble reaction functions to events
+	n.SetupSpeechBubbleReactions(mi.gameCtx)
+
 	n.Entity.World = mi
 	n.ActiveMapCtx = mi // NPC has its own world context it needs, that isn't relevant to entity
 	n.Entity.SetPosition(startPos)
-	n.Priority = mi.getNextNPCPriority()
+	n.Priority = mi.getNextNPCPriority() // TODO: not really sure if priority is still used, since there is no collision between entities
 	mi.NPCs = append(mi.NPCs, n)
 }
 
@@ -350,7 +358,8 @@ func (m ActiveMap) IsTileEntityCollision(c model.Coords, excludeEntID string) bo
 		W: config.TileSize,
 		H: config.TileSize,
 	}
-	return m.CollidesWithEntity(r, excludeEntID)
+	collides, _ := m.CollidesWithEntity(r, excludeEntID)
+	return collides
 }
 
 func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
@@ -364,12 +373,14 @@ func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
 // CollidesWithEntity checks if the rect collides with an entity. This is meant for detecting if an entity
 // collides with another entity, and should therefore move slower or not. For "hard" collisions, use Collides instead.
 // TODO: at some point, when combat is more developed, we will want to make combatant entities not able to be walked through.
-func (m ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) bool {
+func (m ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) (collides bool, dist float64) {
 	if m.PlayerRef != nil {
 		if string(m.PlayerRef.Entity.ID()) != excludeEntID && !m.PlayerRef.Entity.DisableCollisions {
-			cr := checkCornerCollision(r, m.PlayerRef.Entity.CollisionRect())
+			playerR := m.PlayerRef.Entity.CollisionRect()
+			cr := checkCornerCollision(r, playerR)
 			if cr.Collides() {
-				return true
+				dist := utils.EuclideanDistCenter(r, playerR)
+				return true, dist
 			}
 		}
 	}
@@ -382,10 +393,11 @@ func (m ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) bool {
 		}
 		cr := checkCornerCollision(r, n.Entity.CollisionRect())
 		if cr.Collides() {
-			return true
+			dist := utils.EuclideanDistCenter(r, n.Entity.CollisionRect())
+			return true, dist
 		}
 	}
-	return false
+	return false, -1
 }
 
 // Collides detects if the given rect collides in the map.

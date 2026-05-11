@@ -16,7 +16,7 @@ func (n *NPC) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 	if n.Entity == nil {
 		panic("tried to draw NPC that doesn't have an entity!")
 	}
-	n.Entity.Draw(screen, offsetX, offsetY)
+	n.Entity.Draw(screen, n.ActiveMapCtx.GetOverlayManager(), offsetX, offsetY)
 }
 
 func (n *NPC) Update() {

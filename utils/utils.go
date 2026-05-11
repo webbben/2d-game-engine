@@ -110,3 +110,14 @@ func CenterInScreen(dx, dy int) (x, y float64) {
 func DifferentSigns(a, b float64) bool {
 	return a != 0 && b != 0 && ((a < 0) != (b < 0))
 }
+
+func RoundDownToTile(v int, tilesize int) int {
+	return v - (v % tilesize)
+}
+
+func RoundUpToTile(v int, tilesize int) int {
+	if v%tilesize == 0 {
+		return v
+	}
+	return RoundDownToTile(v+tilesize, tilesize)
+}

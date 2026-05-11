@@ -92,7 +92,7 @@ func NewTextInputModal(params TextInputModalParams, audioman *audio.AudioManager
 	width := max(titleWidth, minWidth)
 
 	b := box.NewBox(params.BoxTilesetSrc, params.BoxOriginIndex)
-	m.windowBoxImg = b.BuildBoxImage(width, height)
+	m.windowBoxImg = b.BuildBoxImage(width, height, config.UIScale)
 
 	textFieldParams := textfield.TextFieldParams{
 		WidthPx:            150,

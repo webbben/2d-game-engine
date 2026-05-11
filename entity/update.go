@@ -3,12 +3,13 @@ package entity
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 )
 
-func (e *Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
+func (e *Entity) Draw(screen *ebiten.Image, om *overlay.OverlayManager, offsetX float64, offsetY float64) {
 	if !e.Loaded {
 		return
 	}
@@ -16,11 +17,20 @@ func (e *Entity) Draw(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	drawX, drawY := e.DrawPos(offsetX, offsetY)
 	// apparently, when drawing the body, gameScale isn't automatically factored in so we need to multiply it in here
 	// however, I see another place that relies on DrawPos, so I'm leaving this out of that function for now. (TODO?)
-	drawX *= config.GameScale
-	drawY *= config.GameScale
-	e.Body.Draw(screen, drawX, drawY, config.GameScale)
+	bodyX := drawX * config.GameScale
+	bodyY := drawY * config.GameScale
+	e.Body.Draw(screen, bodyX, bodyY, config.GameScale)
 	e.drawX = drawX
 	e.drawY = drawY
+
+	if e.speechBubble != nil {
+		if om == nil {
+			logz.Panic("overlay manager was empty")
+		}
+		sbX := (drawX + config.TileSize) * config.GameScale
+		sbY := (drawY - config.TileSize*2) * config.GameScale
+		e.speechBubble.DrawOverlay(om, sbX, sbY)
+	}
 }
 
 // DrawPos returns the actual absolute position where the entity will be drawn
@@ -42,6 +52,12 @@ func (e Entity) GetDrawRect() model.Rect {
 func (e *Entity) Update() {
 	if !e.Loaded {
 		panic("entity not loaded yet!")
+	}
+
+	if e.speechBubble != nil {
+		if e.speechBubble.Done() {
+			e.speechBubble = nil
+		}
 	}
 
 	e.SyncBodyToState()

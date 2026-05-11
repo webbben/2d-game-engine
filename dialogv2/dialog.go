@@ -222,7 +222,7 @@ func (ds *DialogSession) dialogSetup(boxTilesetSrc string, boxOrigin int, f font
 	b := box.NewBox(boxTilesetSrc, boxOrigin)
 	ds.boxSrc = b
 
-	ds.TextBoxImg = b.BuildBoxImage(textBoxWidth, textBoxHeight)
+	ds.TextBoxImg = b.BuildBoxImage(textBoxWidth, textBoxHeight, config.UIScale)
 	ds.buildTopicBox(textBoxHeight)
 
 	lwParams := text.LineWriterParams{
@@ -250,7 +250,7 @@ func (ds *DialogSession) buildTopicBox(height int) {
 
 	textBoxHeight := max(height, ds.topicBoxDefaultHeight)
 
-	ds.TopicBoxImg = ds.boxSrc.BuildBoxImage(int(topicBoxWidth), textBoxHeight)
+	ds.TopicBoxImg = ds.boxSrc.BuildBoxImage(int(topicBoxWidth), textBoxHeight, config.UIScale)
 }
 
 func (ds *DialogSession) setupTopicOptions() {
