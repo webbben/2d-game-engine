@@ -3,6 +3,7 @@ package npc
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/webbben/2d-game-engine/audio"
@@ -17,7 +18,9 @@ import (
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/world/worldgraph"
+	"golang.org/x/image/font"
 )
 
 type WorldContext interface {
@@ -27,6 +30,7 @@ type WorldContext interface {
 }
 
 type ActiveMapContext interface {
+	GetOverlayManager() *overlay.OverlayManager
 	RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMap defs.MapID)
 
 	FindNPCAtPosition(c model.Coords) (NPC, bool)
@@ -68,6 +72,25 @@ type NPC struct {
 	// === Both? ===
 
 	eventBus *pubsub.EventBus
+
+	speechBubbleCtx         defs.SpeechBubbleContext
+	speechBubbleTileset     string
+	speechBubbleOriginIndex int
+	speechBubbleFont        font.Face
+
+	activeMapSubscriptionIDs map[string]bool // subscription IDs for events only listened to when NPC is in active map
+}
+
+// PrepareLeaveActiveMap does all things necessary to prepare an NPC to leave the active map; undoes entity active state, unsubscribes
+// active map event subscriptions, etc.
+func (n *NPC) PrepareLeaveActiveMap() {
+	n.Entity.ResetActiveMapRuntimeState()
+
+	for subID := range n.activeMapSubscriptionIDs {
+		n.eventBus.Unsubscribe(subID)
+	}
+
+	n.activeMapSubscriptionIDs = make(map[string]bool)
 }
 
 func (n NPC) GetInfo() defs.NPCInfo {
@@ -112,7 +135,10 @@ func (n NPC) X() float64 {
 }
 
 type NPCParams struct {
-	CharStateID id.CharacterStateID
+	CharStateID             id.CharacterStateID
+	SpeechBubbleTileset     string
+	SpeechBubbleOriginIndex int
+	SpeechBubbleFont        font.Face
 }
 
 // NewNPC instantiates an NPC for use in a game world or scenario.
@@ -164,6 +190,10 @@ func NewNPC(params NPCParams, dataman *datamanager.DataManager, audioMgr *audio.
 			Schedule: scheduleDef,
 			dataman:  dataman,
 		},
+		speechBubbleTileset:      params.SpeechBubbleTileset,
+		speechBubbleOriginIndex:  params.SpeechBubbleOriginIndex,
+		speechBubbleFont:         params.SpeechBubbleFont,
+		activeMapSubscriptionIDs: make(map[string]bool),
 	}
 
 	n.eventBus.SubscribeToNPCEvents(n.ID(), n.ID(), n.OnEvent)
@@ -296,4 +326,48 @@ func (n NPC) getNearestOpenTile(c model.Coords, tileDistLimit int, allowEntityCo
 		}
 	}
 	return path_finding.FindNearestOpenPosition(c, tileDistLimit, costMap)
+}
+
+func (n *NPC) SetupSpeechBubbleReactions(speechBubbleCtx defs.SpeechBubbleContext) {
+	if n.eventBus == nil {
+		logz.Panic("event bus was nil")
+	}
+	if speechBubbleCtx == nil {
+		logz.Panic("speech bubble ctx is nil")
+	}
+
+	n.speechBubbleCtx = speechBubbleCtx
+
+	dialogProfileDef := n.dataman.GetDialogProfile(n.dialogProfileID)
+
+	i := 0
+	for _, speechBubbleReaction := range dialogProfileDef.SpeechBubbles {
+		for _, eventType := range speechBubbleReaction.SubscribeEvents {
+			subID := fmt.Sprintf("%s_speech_bubble_reaction_%v", n.ID(), i)
+			n.eventBus.Subscribe(subID, eventType, n.OnSpeechBubbleEvent)
+			if n.activeMapSubscriptionIDs[subID] {
+				logz.Panicln("NPC", "subscription is already mapped?", subID)
+			}
+			n.activeMapSubscriptionIDs[subID] = true
+			i++
+		}
+	}
+}
+
+func (n *NPC) OnSpeechBubbleEvent(e defs.Event) {
+	dialogProfileDef := n.dataman.GetDialogProfile(n.dialogProfileID)
+	for _, speechBubbleReaction := range dialogProfileDef.SpeechBubbles {
+		if slices.Contains(speechBubbleReaction.SubscribeEvents, e.Type) {
+			reactionString := speechBubbleReaction.Reaction.Reaction(e, n.speechBubbleCtx)
+			if reactionString != "" {
+				n.Entity.ShowSpeechBubble(reactionString, entity.SpeechBubbleParams{
+					Font:          n.speechBubbleFont,
+					BoxTileset:    n.speechBubbleTileset,
+					BoxTileOrigin: n.speechBubbleOriginIndex,
+					Duration:      time.Second * 5,
+				})
+				return
+			}
+		}
+	}
 }

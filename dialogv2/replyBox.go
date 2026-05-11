@@ -47,7 +47,7 @@ func (ds *DialogSession) setupReplyBox(maxReplyWidth int, replies []defs.DialogR
 
 	// create the big replies box
 	// we add the extra padding here since we want the reply box to be wider, but not the buttons themselves
-	ds.replyBox.replyBoxImage = ds.boxSrc.BuildBoxImage(boxWidth, totalHeight)
+	ds.replyBox.replyBoxImage = ds.boxSrc.BuildBoxImage(boxWidth, totalHeight, config.UIScale)
 }
 
 func (ds *DialogSession) updateReplyBox() {

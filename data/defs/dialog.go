@@ -19,6 +19,23 @@ type DialogProfileDef struct {
 	Greeting        []DialogResponse
 	TopicsIDs       []TopicID // default topics that the NPC can immediately discuss; doesn't require player knowledge
 	KnowledgeTopics []TopicID // topics that require player knowledge; if the player doesn't know about this topic yet, it won't be available
+
+	// Speech bubbles aren't part of actual dialog, but defined here since it's related to speech
+
+	SpeechBubbles []SpeechBubbleDef
+}
+
+type SpeechBubbleReaction interface {
+	Reaction(e Event, ctx SpeechBubbleContext) string
+}
+
+type SpeechBubbleDef struct {
+	SubscribeEvents []EventType // the events we subscribe to
+	Reaction        SpeechBubbleReaction
+}
+
+type SpeechBubbleContext interface {
+	WorldInfoContext
 }
 
 // DialogTopic defines a specific dialog topic, and all the various ways that NPCs may discuss this topic.

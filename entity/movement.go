@@ -487,9 +487,11 @@ func (e *Entity) updateMovement() updateMovementResult {
 	if res.Collides() {
 		logz.Panicf("[%s] updateMovement: current position is colliding!", e.DisplayName())
 	}
-	if e.CollidesWithEntity(e.CollisionRect()) {
+	if collides, dist := e.CollidesWithEntity(e.CollisionRect()); collides {
 		// currently colliding with entity; move slower
-		actualSpeed = e.Movement.Speed * 0.4
+		dist /= config.TileSize
+		// allow range between [0.4, 1]
+		actualSpeed = e.Movement.Speed * max(0.4, min(dist, 1))
 	}
 
 	pos := model.Vec2{X: e.X, Y: e.Y}

@@ -161,8 +161,10 @@ func (w *World) timeLapse(newTime clock.GameTime) {
 	// - remove all NPC's from active map
 	// - add in all the ones that are supposed to be there
 
+	// Note: I guess we don't call CloseMap here since we don't want to set it to nil;
+	// we just want to reset the NPC state
 	for _, n := range w.ActiveMap.NPCs {
-		n.Entity.ResetActiveMapRuntimeState()
+		n.PrepareLeaveActiveMap()
 	}
 	w.ActiveMap.NPCs = []*npc.NPC{}
 

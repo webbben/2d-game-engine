@@ -24,7 +24,7 @@ func (p Player) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 	if p.Entity == nil {
 		panic("tried to draw player that doesn't have entity")
 	}
-	p.Entity.Draw(screen, offsetX, offsetY)
+	p.Entity.Draw(screen, p.World.GetOverlayManager(), offsetX, offsetY)
 }
 
 func (p *Player) Update(blockPlayerChanges bool) {

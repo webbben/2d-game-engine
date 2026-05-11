@@ -163,7 +163,14 @@ func (w *World) populateNPCMap() {
 			// don't use temp char states, since those are just for scenarios
 			continue
 		}
-		n := npc.NewNPC(npc.NPCParams{CharStateID: charID}, w.Dataman, w.Audioman, w.EventBus, w)
+
+		npcParams := npc.NPCParams{
+			CharStateID:             charID,
+			SpeechBubbleTileset:     config.SpeechBubbleBox.TilesetSrc,
+			SpeechBubbleOriginIndex: config.SpeechBubbleBox.OriginIndex,
+			SpeechBubbleFont:        config.SpeechBubbleFont,
+		}
+		n := npc.NewNPC(npcParams, w.Dataman, w.Audioman, w.EventBus, w)
 		w.NPCs[charID] = n
 
 		currentMap := charState.CurrentMap
@@ -238,6 +245,7 @@ func (w *World) setupNewMap(mapID defs.MapID) {
 		w.EventBus,
 		w.Screenman,
 		w.Questman,
+		w.OverlayManager,
 		w.GameCtx,
 		w,
 		mapID,
@@ -302,8 +310,9 @@ func (w *World) loadRegularMapNPCs() {
 // CloseMap handles all work that should be done when an ActiveMap is left by the player.
 // All runtime data that could possibly persist between active maps should be reset, to prevent bugs or unexpected behavior.
 func (w *World) CloseMap() {
+	logz.Println("CloseMap", w.ActiveMap.MapID)
 	for _, n := range w.ActiveMap.NPCs {
-		n.Entity.ResetActiveMapRuntimeState()
+		n.PrepareLeaveActiveMap()
 	}
 	w.ActiveMap = nil
 }

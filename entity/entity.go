@@ -86,6 +86,12 @@ type Entity struct {
 	World WorldContext `json:"-"`
 
 	stunTicks int
+
+	speechBubble *SpeechBubble
+}
+
+func (e *Entity) ShowSpeechBubble(s string, params SpeechBubbleParams) {
+	e.speechBubble = NewSpeechBubble(s, params)
 }
 
 // ResetActiveMapRuntimeState resets any flags or fields that are set during runtime of an entity being in an active map.
@@ -614,7 +620,7 @@ func (e Entity) CollisionRect() model.Rect {
 
 type WorldContext interface {
 	Collides(r model.Rect) model.CollisionResult
-	CollidesWithEntity(r model.Rect, excludeEntID string) bool
+	CollidesWithEntity(r model.Rect, excludeEntID string) (collides bool, dist float64)
 	FindPath(start, goal model.Coords) ([]model.Coords, bool)
 	MapDimensions() (width int, height int)
 	GetGroundMaterial(tileX, tileY int) string
@@ -629,9 +635,9 @@ func (e Entity) Collides(r model.Rect) model.CollisionResult {
 	return e.World.Collides(r)
 }
 
-func (e Entity) CollidesWithEntity(r model.Rect) bool {
+func (e Entity) CollidesWithEntity(r model.Rect) (bool, float64) {
 	if e.DisableCollisions {
-		return false
+		return false, -1
 	}
 	return e.World.CollidesWithEntity(r, string(e.ID()))
 }

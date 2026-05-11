@@ -4,28 +4,13 @@ package box
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/tiled"
 )
 
 type Box struct {
-	tiles    []*ebiten.Image
-	Unscaled bool // if set to true, this box will not use the global UI scaling
-}
-
-// TileSize gets the real size of the tiles used in this box. applies any global scaling.
-func (b Box) TileSize() int {
-	if len(b.tiles) == 0 {
-		panic("called tilesize before tiles were created")
-	}
-
-	dx := b.tiles[0].Bounds().Dx()
-
-	if b.Unscaled {
-		return dx
-	}
-	return int(float64(dx) * config.UIScale)
+	tiles []*ebiten.Image
 }
 
 func NewBox(tilesetSource string, originTileIndex int) Box {
@@ -50,11 +35,15 @@ func NewBox(tilesetSource string, originTileIndex int) Box {
 	return box
 }
 
-func (b *Box) BuildBoxImage(widthPx, heightPx int) *ebiten.Image {
+func (b *Box) BuildBoxImage(widthPx, heightPx int, scale float64) *ebiten.Image {
 	if widthPx <= 0 || heightPx <= 0 {
 		logz.Panicf("box dimensions must be positive and greater than zero. dx: %v dy: %v", widthPx, heightPx)
 	}
-	tileSize := b.TileSize()
+	if scale <= 0 {
+		logz.Panic("scale was <= 0")
+	}
+
+	tileSize := int(config.TileSize * scale)
 
 	if widthPx < tileSize || heightPx < tileSize {
 		logz.Panicf("given dimensions are smaller than a single tile! w: %v h: %v tileSize: %v", widthPx, heightPx, tileSize)
@@ -106,7 +95,7 @@ func (b *Box) BuildBoxImage(widthPx, heightPx int) *ebiten.Image {
 			}
 			x := tileSize * col
 			y := tileSize * row
-			rendering.DrawImage(baseImg, img, float64(x), float64(y), config.UIScale)
+			rendering.DrawImage(baseImg, img, float64(x), float64(y), scale)
 			i++
 		}
 	}

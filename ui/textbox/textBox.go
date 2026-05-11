@@ -3,10 +3,10 @@ package textbox
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/mouse"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
-	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/mouse"
 	"github.com/webbben/2d-game-engine/ui/box"
+	"github.com/webbben/2d-game-engine/ui/text"
 	"golang.org/x/image/font"
 )
 
@@ -29,7 +29,6 @@ func (tb TextBox) Dimensions() (dx, dy int) {
 type TextBoxOptions struct {
 	HighlightOnHover bool // if set, box will highlight when mouse is hovering over it
 	SetWidthPx       int  // if set, this specific width will be used instead of auto-calculating based on content
-
 }
 
 func NewTextBox(s string, tilesetSrc string, originIndex int, f font.Face, icon *ebiten.Image, ops *TextBoxOptions) TextBox {
@@ -68,7 +67,7 @@ func (tb *TextBox) SetText(s string) {
 		width = tb.options.SetWidthPx
 	}
 
-	tb.boxImage = tb.box.BuildBoxImage(width, height)
+	tb.boxImage = tb.box.BuildBoxImage(width, height, config.UIScale)
 
 	if tb.icon != nil {
 		rendering.DrawImage(tb.boxImage, tb.icon, float64(tileSize/2), float64(tileSize/2), config.UIScale)

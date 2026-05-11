@@ -7,7 +7,7 @@ const (
 
 	// General world
 
-	EventVisitMap           defs.EventType = "visit_map"                // player enters a map
+	EventVisitMap           defs.EventType = "visit_map"                // data: "MapID" (string), "MapDisplayName" (string)
 	EventTimePass           defs.EventType = "time_pass"                // event called on every hour; can be used for tracking time passage
 	EventMapOccupancyChange defs.EventType = "npc_map_occupancy_change" // called when an NPC changes maps
 

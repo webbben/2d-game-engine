@@ -138,7 +138,7 @@ func NewOptionSelect(params OptionSelectParams, popupMgr *popup.Manager, audioma
 
 	// drop down window for text options
 	dropDownBox := box.NewBox(params.DropDownBoxTilesetSrc, params.DropDownBoxOrigin)
-	os.dropDownBox = dropDownBox.BuildBoxImage(totalWidth, tileSize*len(params.Options))
+	os.dropDownBox = dropDownBox.BuildBoxImage(totalWidth, tileSize*len(params.Options), config.UIScale)
 
 	os.totalWidth = totalWidth
 	os.createOptionButtons(params.Options)

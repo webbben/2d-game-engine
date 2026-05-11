@@ -1,3 +1,91 @@
+# 2026-05-08
+
+A new thing I want to implement is speech bubbles that can appear next to NPCs even while the player is not in direct dialog with them.
+This is something that can bring the world a little more to life, since it will make the NPCs appear to be more aware of things around them, and give them
+reactions to certain things.
+
+For example, I envision that a shopkeeper NPC could show a speech bubble that says something like "Welcome!" when the player enters their shop.
+Or, if the player stole something, a nearby NPC might say something like "Stop, thief!".
+
+So, I need to work out the technical side of how this could work, and how these things can be defined for an NPC.
+
+## Use Events?
+
+My first idea is that I could map event types to specific strings. This could work, in theory, but I feel like this requires more logic
+than just simply mapping an event type to a string. For example, suppose there's an event like "player_enters_map".
+Should the shopkeeper always say "Welcome"? What if the shopkeeper isn't currently working, or is even in a different map than the shop?
+It feels like we would need some additional logic, like checking if the shopkeeper is currently working, if they are in the right map,
+and possibly more. I guess we could have some code running somewhere that checks these things, and then sends out a specific event type that tells this specific
+NPC to show the "welcome" speech bubble.
+
+### Make a "Speech bubble" event type?
+
+More or less continuing that line of thought, maybe a specific NPC can have custom logic that handles events, checks the event data, and decides if a speech bubble
+is necessary for the NPC. And, if so, it could broadcast a new "speech bubble" event directed at that NPC, which simply triggers that speech bubble to show.
+
+If we went this route, I guess each dialog profile definition would include an OnEvent function where I'd write in the logic.
+It's not the worst idea: functions could be re-used, especially for standard reaction sets, and then more specific speech bubble reactions could be made custom
+for certain NPCs. Maybe I could make an individual function for each speech bubble, which determines if the conditions are right for the speech bubble to show,
+and then when defining a given NPC, you just give it a slice of these functions. Then, on each event, those functions would be checked to see if any speech bubble
+should show.
+
+```go
+type DialogProfileDef struct {
+  // all the existing stuff ... 
+
+  // the first function to return a string has the returned string broadcast to the NPC to show the speech bubble
+  SpeechBubbleReactions []func(e defs.EventDef, ctx NPCContext)string
+}
+
+func SpeechBubbleWelcomeToShop(e defs.EventDef, ctx NPCContext) string {
+  if e.EventType != "player_enters_map" {
+    return ""
+  }
+  if ctx.CurrentMap() != ctx.GetNPCWorkMap() {
+    return ""
+  }
+  if ctx.NPCDistFromPlayer() > Tilesize*10 {
+    return ""
+  }
+  return "Welcome!"
+}
+```
+
+You know, I think this would work pretty well actually. I do now recall how other things in dialog work, like greetings for example,
+where you have a list of DialogResponse and the first one whose conditions evaluate true will be chosen. And those conditions are structs,
+but those structs have an `IsMet` function attached to them that checks dialog context and other things. So, this would be quite similar to that approach,
+just skipping the step of making a struct. If I wanted to make it match that pattern more, I could create something like this:
+
+```go
+type SpeechBubbleReaction interface {
+  Reaction(e defs.EventDef, ctx NPCContext) string 
+}
+```
+
+One issue with this current setup is there isn't any way to subscribe these functions to certain event types. It seems inefficient to have all NPCs
+in the active map listening to all events, and running all their speech bubble logic on each of those events. It would be better to follow the usual
+pattern of subscribing to specific events, and then running some logic once those specific events have been called.
+
+So, for each function, we also would need a way to define a slice of event types that it would be subscribing to.
+
+Maybe we could try something like this?
+
+```go
+type SpeechBubbleReaction struct {
+  SubscribeEvents []defs.EventType // the events we subscribe to
+  Reaction SpeechBubbleReaction // the interface we defined above
+}
+```
+
+I think I like this version of things the best. It follows the patterns of previous things, and everything is nicely packaged up into a struct.
+With things nicely packaged into structs, it makes it easier to reuse too, which will be crucial.
+
+I guess the last thing to consider is what `NPCContext` should be. I guess it will mainly rely on information about the NPC's surroundings in the map.
+Things like how close the NPC is to the player, maybe even things like if the NPC is facing in the direction of the player (e.g. "did the NPC see something happen?").
+I don't think it would ever need to know about more complex things, like quest state. It might make sense for it to know about dialog profile state, though.
+
+Ok, I think this is good enough for now. I'm going to go ahead and go with the above type definitions and see if I can get this implemented.
+
 # 2026-05-04
 
 One thing I need to work out is how exactly events should be used, versus other things like dialog effects.
