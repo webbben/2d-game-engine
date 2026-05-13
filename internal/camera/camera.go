@@ -6,11 +6,14 @@ import (
 
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/display"
+	"github.com/webbben/2d-game-engine/model"
 )
 
 // Camera is the user's viewport/camera in a map
 type Camera struct {
-	X, Y       float64 // camera position. I believe this is tile position, not absolute pixels.
+	// camera position. this is tile position, not absolute pixels.
+	// this is set to the position of the player.
+	X, Y       float64
 	MaxX, MaxY float64 // max positions the camera can go to. for keeping camera from going off edge of map.
 	MinX, MinY float64 // min positions the camera can go to.
 }
@@ -75,4 +78,13 @@ func (c *Camera) GetAbsPos() (float64, float64) {
 	offsetX := (float64(display.SCREEN_WIDTH) / config.GameScale) / 2
 	offsetY := (float64(display.SCREEN_HEIGHT) / config.GameScale) / 2
 	return (c.X * config.TileSize) - float64(offsetX), (c.Y * config.TileSize) - float64(offsetY)
+}
+
+func (c Camera) GetVisibleScreenRect() model.Rect {
+	cameraX := (c.X * config.TileSize) - float64(display.SCREEN_WIDTH)/config.GameScale/2
+	cameraY := (c.Y * config.TileSize) - float64(display.SCREEN_HEIGHT)/config.GameScale/2
+	w := float64(display.SCREEN_WIDTH) / config.GameScale
+	h := float64(display.SCREEN_HEIGHT) / config.GameScale
+
+	return model.NewRect(cameraX, cameraY, w, h)
 }

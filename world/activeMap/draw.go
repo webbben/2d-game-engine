@@ -3,7 +3,10 @@ package activemap
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/internal/camera"
 	"github.com/webbben/2d-game-engine/internal/lights"
+	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 )
 
@@ -45,18 +48,43 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 
 	// add lighting
 
-	objectLights := []*lights.Light{}
-	for _, lightObj := range m.LightObjects {
-		if lightObj.Light.On {
-			objectLights = append(objectLights, lightObj.Light.Light)
+	// make sure that there are only MaxLights number of lights
+	// we limit the number of lights for performance reasons, so we should only get lights that are close enough
+	// to the player to influence the currently visible area
+	drawLights := []*lights.Light{}
+	skippedLight := false
+
+	for _, l := range m.Lights {
+		if len(drawLights) == lights.MaxLights {
+			skippedLight = true
+			break
+		}
+		if isLightVisible(l, m.Camera) {
+			drawLights = append(drawLights, l)
 		}
 	}
+	for _, lightObj := range m.LightObjects {
+		if len(drawLights) == lights.MaxLights {
+			skippedLight = true
+			break
+		}
+		if !lightObj.Light.On {
+			continue
+		}
+		if isLightVisible(lightObj.Light.Light, m.Camera) {
+			drawLights = append(drawLights, lightObj.Light.Light)
+		}
+	}
+	if skippedLight {
+		logz.Warnln("Map Lights", "MaxLights reached; some lights were skipped")
+		logz.Println("", drawLights)
+	}
+
 	m.daylightFader.SetOverallFactor(float32(m.Map.DaylightFactor))
 	lights.DrawMapLighting(
 		screen,
 		m.worldScene,
-		m.Lights,
-		objectLights,
+		drawLights,
 		m.daylightFader.GetCurrentColor(),
 		m.daylightFader.GetDarknessFactor(),
 		offsetX,
@@ -70,4 +98,11 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 	// if m.cutsceneSession != nil {
 	// 	m.drawCutscene(screen)
 	// }
+}
+
+func isLightVisible(l *lights.Light, camera camera.Camera) bool {
+	screenRect := camera.GetVisibleScreenRect()
+	lightRect := model.NewRect(float64(l.X-l.MaxRadius), float64(l.Y-l.MaxRadius), float64(l.MaxRadius*2), float64(l.MaxRadius*2))
+
+	return lightRect.Intersects(screenRect)
 }
