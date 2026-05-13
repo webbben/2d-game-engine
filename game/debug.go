@@ -61,6 +61,7 @@ func (g Game) showGameDebugInfo(screen *ebiten.Image) {
 		camWidth := display.SCREEN_WIDTH / int(config.TileSize*config.GameScale)
 		camHeight := display.SCREEN_HEIGHT / int(config.TileSize*config.GameScale)
 		s.WriteString(fmt.Sprintf("\nCamera W: %v H: %v | X Range: [%.2f, %.2f] | Y Range: [%.2f, %.2f]", camWidth, camHeight, cam.MinX, cam.MaxX, cam.MinY, cam.MaxY))
+		s.WriteString(fmt.Sprintf("\nVisible screen: %s", cam.GetVisibleScreenRect()))
 		s.WriteString("\nSIMULATION STATUS")
 		s.WriteString(fmt.Sprintf("\nPaused: %v Pause Effected: %v", g.World.SimPaused.Load(), g.World.SimPauseEffected.Load()))
 	}

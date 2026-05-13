@@ -1,9 +1,9 @@
+// Package lights has logic for drawing lights in the map
 package lights
 
 import (
 	_ "embed"
 	"fmt"
-	"image/color"
 	"math/rand"
 	"time"
 
@@ -17,8 +17,10 @@ import (
 //go:embed shaders/light.kage
 var lightShaderSrc []byte
 
-var lightShader *ebiten.Shader
-var lightShaderInit bool // if this shader has been loaded
+var (
+	lightShader     *ebiten.Shader
+	lightShaderInit bool // if this shader has been loaded
+)
 
 func LoadShaders() error {
 	fmt.Println("Loading shaders...")
@@ -39,7 +41,7 @@ func LightShader() *ebiten.Shader {
 	return lightShader
 }
 
-// instead of using [0, 255] RGB values, we use [0, 1] values.
+// LightColor defines a light color used in the shader code. Instead of using [0, 255] RGB values, we use [0, 1] values.
 // mainly because that's what's used in the shader, but also easier to conceptualize as percentages.
 type LightColor [3]float32
 
@@ -123,20 +125,9 @@ func (l *LightFader) Update() {
 	l.currentDarknessFactor += (l.TargetDarknessFactor - l.currentDarknessFactor) * l.changeFactor
 }
 
-var (
-	// light colors (for cutting through darkness as a light source)
+// light colors (for cutting through darkness as a light source)
 
-	LIGHT_TORCH  = LightColor{1.0, 0.8, 0.8}
-	LIGHT_CANDLE = color.RGBA{255, 220, 180, 0}
-	LIGHT_FIRE   = color.RGBA{255, 240, 200, 0}
-
-	// darkness colors (for the general overlay)
-
-	DARK_NIGHTSKY = LightColor{0.15, 0.25, 1.0}
-	DARK_CAVE     = color.RGBA{30, 30, 30, 0}
-	DARK_MAGICAL  = color.RGBA{20, 0, 40, 0}
-	DARK_DUSK     = color.RGBA{40, 30, 60, 0}
-)
+var LightTorch = LightColor{1.0, 0.8, 0.8}
 
 type Light struct {
 	X, Y                 float32
@@ -162,11 +153,15 @@ type Light struct {
 	currentRadius   float32
 }
 
+func (l Light) String() string {
+	return fmt.Sprintf("pos=(%.2f, %.2f) radius=(%v, %v)", l.X, l.Y, l.MinRadius, l.MaxRadius)
+}
+
 func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Light {
-	lightColor := LIGHT_TORCH
+	lightColor := LightTorch
 	if lightProp.ColorPreset == "torch" {
 		// TODO setup some color presets
-		lightColor = LIGHT_TORCH
+		lightColor = LightTorch
 	}
 	// if a custom light is defined, use it
 	if customLight != nil {
@@ -232,15 +227,19 @@ func (l *Light) calculateNextRadius() {
 	l.currentRadius = ((maxRadius - minRadius) * float32(flickerPercent)) + minRadius
 }
 
-func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, objLights []*Light, daylight LightColor, nightFx float32, offsetX, offsetY float64) {
-	maxLights := 16
+const MaxLights = 16
 
-	lightPositions := make([]float32, maxLights*2)        // X, Y
-	lightRadii := make([]float32, maxLights)              // radius
-	lightInnerRadiusFactors := make([]float32, maxLights) // inner radius factors
-	lightCoreRadiusFactors := make([]float32, maxLights)  // core radius factors
-	lightMaxBrightness := make([]float32, maxLights)      // max brightness at center of light
-	lightColors := make([]float32, maxLights*3)           // R, G, B
+func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight LightColor, nightFx float32, offsetX, offsetY float64) {
+	if len(lights) > MaxLights {
+		logz.Panicln("DrawMapLighting", "number of lights exceeded max light count! max lights:", MaxLights, "num lights:", len(lights))
+	}
+
+	lightPositions := make([]float32, MaxLights*2)        // X, Y
+	lightRadii := make([]float32, MaxLights)              // radius
+	lightInnerRadiusFactors := make([]float32, MaxLights) // inner radius factors
+	lightCoreRadiusFactors := make([]float32, MaxLights)  // core radius factors
+	lightMaxBrightness := make([]float32, MaxLights)      // max brightness at center of light
+	lightColors := make([]float32, MaxLights*3)           // R, G, B
 
 	i := 0
 	for range lights {
@@ -267,32 +266,6 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, objLights []*
 		i++
 	}
 
-	j := 0
-	for range objLights {
-		objLights[i].calculateNextRadius()
-		l := objLights[j]
-
-		// light position
-		lightPositions[i*2] = (l.X - float32(offsetX)) * float32(config.GameScale)
-		lightPositions[i*2+1] = (l.Y - float32(offsetY)) * float32(config.GameScale)
-
-		// light radius
-		lightRadii[i] = l.currentRadius
-		lightInnerRadiusFactors[i] = l.innerRadiusFactor
-		lightCoreRadiusFactors[i] = l.coreRadiusFactor
-
-		// brightness
-		lightMaxBrightness[i] = l.maxBrightness
-
-		// light color
-		lightColors[i*3] = l.LightColor[0]
-		lightColors[i*3+1] = l.LightColor[1]
-		lightColors[i*3+2] = l.LightColor[2]
-
-		i++
-		j++ // for iterating object lights array
-	}
-
 	maxBrightness := 0.5 + (0.5 * (1 - min(1, nightFx)))
 
 	if maxBrightness == 0 {
@@ -301,7 +274,7 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, objLights []*
 
 	op := &ebiten.DrawRectShaderOptions{}
 	op.Images[0] = scene
-	op.Uniforms = map[string]interface{}{
+	op.Uniforms = map[string]any{
 		"LightPositions":          lightPositions,
 		"LightRadii":              lightRadii,
 		"LightInnerRadiusFactors": lightInnerRadiusFactors,
@@ -384,9 +357,4 @@ func CalculateDaylight(hour int) (LightColor, float32) {
 	default:
 		panic("unknown hour")
 	}
-}
-
-func shaderColorScale(c color.Color) LightColor {
-	r, g, b, _ := c.RGBA()
-	return LightColor{float32(r) / 0xffff, float32(g) / 0xffff, float32(b) / 0xffff}
 }
