@@ -13,6 +13,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/tiled"
 )
 
@@ -21,8 +22,10 @@ const (
 	TypeGate       defs.ObjectType = "GATE" // a "gate" is a openable/closable barrier (e.g. a physical door, or gate) in a map
 	TypeSpawnPoint defs.ObjectType = "SPAWN_POINT"
 	TypeLight      defs.ObjectType = "LIGHT"     // lights can be embedded in objects too
-	TypeContainer  defs.ObjectType = "CONTAINER" // TODO
+	TypeContainer  defs.ObjectType = "CONTAINER" // a container is essentially an inventory that you can open and move items to/from
 	TypeMisc       defs.ObjectType = "MISC"      // general purpose; just takes up space
+
+	TypeSign defs.ObjectType = "SIGN" // a sign that you can read (opens a BookDef)
 
 	TypeItem  defs.ObjectType = "ITEM"
 	TypeBed   defs.ObjectType = "BED"
@@ -40,6 +43,9 @@ const (
 	PropOnObjID     = "on_obj_id" // if set, this object should render on top of another object
 	PropOwnerCharID = "owner_id"  // if set, a unique character of the given ID owns this object. note that this doesn't work for non-unique characters.
 	PropRoleID      = "role_id"   // if set, characters with this role can use this object or effective assume "ownership" (in the absense of a specific owner character.)
+
+	PropContainerDefID = "container_def_id"
+	PropContainerGenID = "container_gen_id"
 )
 
 // TODO: *Sigh* this probably could use some refactoring. I've been avoiding admitting it, but it would most likely work cleaner as an interface.
@@ -48,6 +54,9 @@ const (
 // But, not gonna tackle this right now, because I don't want to get diverted on yet another big refactor lol.
 
 type Object struct {
+	eventBus *pubsub.EventBus
+	subIDs   []string
+
 	Name string // TODO: I don't think most objects actually have Names; the name property in Tiled is usually left empty. should we just delete this?
 
 	DisplayName string // Not implemented; create a property in Tiled for this (Name won't work, since you can't give names to tiles in tilesets)
@@ -93,6 +102,8 @@ type Object struct {
 	TaskArea   TaskArea
 	Door       Door
 	Gate       Gate
+	Container  Container
+	Sign       Sign
 	Light      Light
 	Bed        Bed
 	Chair      Chair
@@ -104,6 +115,12 @@ type Object struct {
 
 	AudioMgr *audio.AudioManager
 	dataman  *datamanager.DataManager
+}
+
+func (obj Object) OnMapClose() {
+	for _, subID := range obj.subIDs {
+		obj.eventBus.Unsubscribe(subID)
+	}
 }
 
 func (obj Object) GetDisplayName() string {
@@ -161,6 +178,8 @@ func (obj Object) GetActivateText() string {
 			return "Put out"
 		}
 		return "Light"
+	case TypeSign:
+		return "Read"
 	}
 
 	return ""
@@ -242,6 +261,8 @@ func (obj Object) IsActivatable() bool {
 		return true
 	case TypeChair:
 		return true
+	case TypeSign:
+		return true
 	default:
 		return false
 	}
@@ -251,7 +272,7 @@ func (obj Object) IsActivatable() bool {
 // If an object is hoverable, then it can be targeted by the player in a map (at least in terms of getting its info)
 func (obj Object) IsHoverable() bool {
 	switch obj.Type {
-	case TypeGate, TypeLight, TypeContainer, TypeChair, TypeBed, TypeDoor, TypeItem:
+	case TypeGate, TypeLight, TypeContainer, TypeChair, TypeBed, TypeDoor, TypeItem, TypeSign:
 		return true
 	default:
 		return false
@@ -295,8 +316,6 @@ type WorldContext interface {
 	// TODO: should we have this? also, it seems possible that NPCs will need to be able to activate objects (like doors, to open them)
 	GetPlayerRect() model.Rect
 
-	PublishEvent(e defs.Event)
-
 	// Used for checking if an object like a gate has other entities colliding with it
 	RectCollidesWithOthers(r model.Rect, excludeEntID string, excludeObjID int) bool
 }
@@ -305,7 +324,7 @@ type SpawnPoint struct {
 	SpawnIndex int
 }
 
-func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dataman *datamanager.DataManager, mapID defs.MapID, world WorldContext) *Object {
+func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dataman *datamanager.DataManager, eventBus *pubsub.EventBus, mapID defs.MapID, world WorldContext) *Object {
 	if dataman == nil {
 		panic("dataman was nil")
 	}
@@ -315,7 +334,11 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	if world == nil {
 		panic("world context was nil")
 	}
+	if obj.Ellipse {
+		panic("object was an ellipse; these aren't used in the actual active map, just for planning.")
+	}
 	o := Object{
+		eventBus: eventBus,
 		AudioMgr: audioMgr,
 		dataman:  dataman,
 		Name:     obj.Name,
@@ -354,7 +377,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		// workaround is to subtract the height from the y position when an image is embedded
 		o.yPos -= float64(o.Height)
 		if o.yPos < 0 {
-			panic("object y is negative! is this related to the image object y position bug?")
+			logz.Warnln("Object", "object y is negative! is this related to the image object y position bug? ID:", o.ID, "yPos:", o.yPos)
 		}
 
 		var tileProps []tiled.Property
@@ -375,6 +398,11 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		logz.Panicln("Object", "no object type property found. ID:", obj.ID, "obj coords:", obj.X, obj.Y)
 	}
 	o.Type = objType
+
+	// display name
+	if displayName, found := tiled.GetStringProperty("displayName", allProps); found {
+		o.DisplayName = displayName
+	}
 
 	// check if there's a lock
 	lockID, found := tiled.GetStringProperty("lock_id", allProps)
@@ -441,7 +469,9 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		}
 		o.loadDoorObject(allProps)
 		mapDef := dataman.GetMapDef(o.Door.TargetMapID)
-		o.DisplayName = fmt.Sprintf("Door to %s", mapDef.DisplayName)
+		if o.DisplayName == "" {
+			o.DisplayName = fmt.Sprintf("Door to %s", mapDef.DisplayName)
+		}
 	case TypeSpawnPoint:
 		o.loadSpawnObject(allProps)
 	case TypeGate:
@@ -456,6 +486,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		if !noCollision {
 			o.addDefaultCollision()
 		}
+		o.loadContainerObject(allProps)
 	case TypeMisc:
 		if !noCollision {
 			o.addDefaultCollision()
@@ -474,6 +505,8 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		}
 		itemDef := dataman.GetItemDef(defs.ItemID(itemID))
 		o.DisplayName = itemDef.GetName()
+	case TypeSign:
+		o.loadSignObject(allProps)
 	}
 
 	o.loadGlobal(allProps)
@@ -617,6 +650,8 @@ func resolveObjectType(objType string) defs.ObjectType {
 		return TypeChair
 	case TypeTaskArea:
 		return TypeTaskArea
+	case TypeSign:
+		return TypeSign
 	default:
 		panic("object type doesn't exist: " + objType)
 	}

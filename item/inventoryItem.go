@@ -33,7 +33,7 @@ func DrawInventoryItem(screen *ebiten.Image, invItem defs.InventoryItem, x, y fl
 func RemoveItemFromStandardInventory(inv *defs.StandardInventory, itemToRemove defs.InventoryItem) (bool, defs.InventoryItem) {
 	itemToRemove.Validate()
 
-	if itemToRemove.Def.IsCurrencyItem() && len(inv.CoinPurse) > 0 {
+	if (itemToRemove.Def.GetItemType() == defs.TypeCurrency) && len(inv.CoinPurse) > 0 {
 		// first try the coin purse
 		success, remaining := RemoveItemFromInventory(itemToRemove, inv.CoinPurse)
 		if success {
@@ -112,7 +112,7 @@ func AddItemToStandardInventory(inv *defs.StandardInventory, invItem defs.Invent
 
 	// if currency, first try to place it in the coin purse
 	if len(inv.CoinPurse) > 0 {
-		if invItem.Def.IsCurrencyItem() {
+		if invItem.Def.GetItemType() == defs.TypeCurrency {
 			success, remaining := AddItemToInventory(invItem, inv.CoinPurse)
 			if success {
 				return true, defs.InventoryItem{}

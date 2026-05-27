@@ -309,10 +309,18 @@ func (w *World) loadRegularMapNPCs() {
 
 // CloseMap handles all work that should be done when an ActiveMap is left by the player.
 // All runtime data that could possibly persist between active maps should be reset, to prevent bugs or unexpected behavior.
+//
+// Especially things like:
+//   - event subscriptions for objects, NPCs, or anything else that is tied to this active map (to prevent future possible duplicate subscriptions)
+//   - Player, NPC or other entity activity states, like sitting, sleeping, etc. (could affect NPC tasks, for example)
 func (w *World) CloseMap() {
 	logz.Println("CloseMap", w.ActiveMap.MapID)
 	for _, n := range w.ActiveMap.NPCs {
 		n.PrepareLeaveActiveMap()
+	}
+
+	for _, obj := range w.ActiveMap.Objects {
+		obj.OnMapClose()
 	}
 	w.ActiveMap = nil
 }
@@ -420,6 +428,18 @@ func (w *World) OnEvent(e defs.Event) {
 		}
 
 		worldEffect.Apply(w)
+	case pubsub.SysShowScreen:
+		if w.ActiveMap == nil {
+			logz.Panicln("SysShowScreen", "received show screen event, but active map is nil!")
+		}
+		screenID, ok := e.Data["screen_id"].(defs.ScreenID)
+		if !ok {
+			logz.Panicln("SysShowScreen", "screen_id data not found.", e.Data)
+		}
+		screenParams := e.Data["params"]
+
+		scr := w.Screenman.GetScreen(screenID)
+		w.ShowMiscScreen(scr, screenParams)
 	}
 }
 
@@ -552,7 +572,7 @@ func (w *World) TogglePlayerMenu() {
 	w.showPlayerMenu = !w.showPlayerMenu
 }
 
-func (w *World) ShowMiscScreen(scr screen.Screen) {
+func (w *World) ShowMiscScreen(scr screen.Screen, params any) {
 	if scr == nil {
 		logz.Panic("screen was nil!")
 	}
@@ -568,7 +588,7 @@ func (w *World) ShowMiscScreen(scr screen.Screen) {
 		w.Audioman,
 		w.Questman,
 		w.GameCtx,
-		nil)
+		params)
 	w.showMiscScreen = true
 
 	if w.miscScreenViewer.IsDone() {

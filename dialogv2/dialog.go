@@ -225,7 +225,7 @@ func (ds *DialogSession) dialogSetup(boxTilesetSrc string, boxOrigin int, f font
 	ds.TextBoxImg = b.BuildBoxImage(textBoxWidth, textBoxHeight, config.UIScale)
 	ds.buildTopicBox(textBoxHeight)
 
-	lwParams := text.LineWriterParams{
+	lwParams := config.LineWriterParams{
 		LineWidthPx:           textBoxWidth - tileSize,
 		MaxHeightPx:           textBoxHeight - tileSize,
 		FontFace:              f,
@@ -636,6 +636,9 @@ func (ds *DialogSession) ApplyReply(dr defs.DialogReply) {
 	ds.replyBox = nil
 
 	for _, effect := range dr.Effects {
+		effect.Apply(&ds.Ctx)
+	}
+	for _, effect := range dr.WorldEffects {
 		effect.Apply(&ds.Ctx)
 	}
 

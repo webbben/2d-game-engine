@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"slices"
 
+	"github.com/webbben/2d-game-engine/book"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
@@ -92,15 +93,30 @@ func (mi *ActiveMap) TogglePlayerMenu() {
 }
 
 func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID string) {
+	if mi.dialogSession != nil {
+		logz.Panicln("StartDialog", "a dialog session was already active. make sure the previous dialog session was closed (made nil) before starting a new one.")
+	}
+
 	params := dialogv2.DialogSessionParams{
 		NPCID:         npcID,
 		ProfileID:     dialogProfileID,
-		BoxTilesetSrc: "boxes/boxes.tsj",
+		BoxTilesetSrc: "boxes/boxes.tsj", // TODO: move this to some params that are passed in? shouldn't be defined here in the engine
 		BoxOriginID:   16,
 		TextFont:      config.DefaultFont,
 	}
 	ds := dialogv2.NewDialogSession(params, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx, mi.questman, mi.audioman)
 	mi.dialogSession = &ds
+}
+
+func (m *ActiveMap) StartBookSession(bookID defs.BookID, params config.BookSessionParams) {
+	if m.bookSession != nil {
+		logz.Panicln("StartBookSession", "a book session was already active. make sure the previous book was closed before starting a new book session.")
+	}
+	if bookID == "" {
+		logz.Panic("bookID was empty!")
+	}
+
+	m.bookSession = book.NewBookSession(bookID, m.dataman, m.audioman, params)
 }
 
 func (m ActiveMap) GetAllObjects() []*object.Object {
@@ -132,10 +148,6 @@ func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMa
 		}
 	}
 	logz.Panicln("RemoveNPCFromActiveMap", "NPC not found in active map:", charStateID)
-}
-
-func (m ActiveMap) PublishEvent(e defs.Event) {
-	m.eventBus.Publish(e)
 }
 
 func (m ActiveMap) GetOverlayManager() *overlay.OverlayManager {

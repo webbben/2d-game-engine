@@ -92,6 +92,9 @@ func (eb *EventBus) SubscribeAll(subscriberID string, fn func(defs.Event)) {
 }
 
 // SubscribeToNPCEvents subscribes to all events related to a specific NPC
+// TODO: are we unsubscribing from these? or do we need to? I guess we'd only need to unsubscribe if:
+// A) the task is for activeMap only (so, when an NPC leaves active map)
+// B) the NPC died
 func (eb *EventBus) SubscribeToNPCEvents(subscriberID string, npcID string, fn func(defs.Event)) {
 	if npcID == "" {
 		panic("npcID is empty")

@@ -177,3 +177,11 @@ func (sv *ScreenViewer) Draw(screen *ebiten.Image) {
 	sv.popupMgr.Draw(screen)
 	sv.om.Draw(screen)
 }
+
+// Param types for some built-in screen hooks
+
+type OpenContainerScreenParams struct {
+	MapID       defs.MapID
+	ContainerID int
+	DisplayName string
+}

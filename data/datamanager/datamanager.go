@@ -12,8 +12,11 @@ import (
 )
 
 type DataManager struct {
-	MapDefs   map[defs.MapID]defs.MapDef
-	MapStates map[defs.MapID]*state.MapState
+	MapDefs             map[defs.MapID]defs.MapDef
+	MapStates           map[defs.MapID]*state.MapState
+	ContainerDefs       map[string]defs.ContainerDef
+	ContainerGenerators map[string]defs.ContainerGenerator
+	BookDefs            map[defs.BookID]defs.BookDef
 
 	ScenarioDef map[defs.ScenarioID]defs.ScenarioDef
 
@@ -44,8 +47,11 @@ type DataManager struct {
 func NewDataManager() *DataManager {
 	dataman := DataManager{
 		ItemDefs:            make(map[defs.ItemID]defs.ItemDef),
+		BookDefs:            make(map[defs.BookID]defs.BookDef),
 		MapDefs:             make(map[defs.MapID]defs.MapDef),
 		MapStates:           make(map[defs.MapID]*state.MapState),
+		ContainerDefs:       make(map[string]defs.ContainerDef),
+		ContainerGenerators: make(map[string]defs.ContainerGenerator),
 		ScenarioDef:         make(map[defs.ScenarioID]defs.ScenarioDef),
 		ShopkeeperDefs:      make(map[defs.ShopID]*defs.ShopkeeperDef),
 		ShopkeeperStates:    make(map[defs.ShopID]*state.ShopkeeperState),
@@ -65,6 +71,67 @@ func NewDataManager() *DataManager {
 		ClassDefs:           make(map[defs.ClassDefID]defs.ClassDef),
 	}
 	return &dataman
+}
+
+func (dataman *DataManager) LoadBookDef(def defs.BookDef) {
+	if def.ID == "" {
+		logz.Panicln("DataManager", "book def ID was empty")
+	}
+
+	if _, exists := dataman.BookDefs[def.ID]; exists {
+		logz.Panicln("DataManager", "book def already exists:", def.ID)
+	}
+
+	dataman.BookDefs[def.ID] = def
+}
+
+func (dataman *DataManager) GetBookDef(id defs.BookID) defs.BookDef {
+	if id == "" {
+		logz.Panic("id was empty")
+	}
+
+	def, exists := dataman.BookDefs[id]
+	if !exists {
+		logz.Panicln("DataManager", "book def doesn't exist:", id)
+	}
+
+	return def
+}
+
+func (dataman *DataManager) LoadContainerGenerator(gen defs.ContainerGenerator) {
+	if gen.ID() == "" {
+		logz.Panic("ID was empty")
+	}
+	if _, exists := dataman.ContainerDefs[gen.ID()]; exists {
+		logz.Panicln("DataManager", "container def already exists:", gen.ID())
+	}
+	dataman.ContainerGenerators[gen.ID()] = gen
+}
+
+func (dataman *DataManager) GetContainerGenerator(id string) defs.ContainerGenerator {
+	gen, exists := dataman.ContainerGenerators[id]
+	if !exists {
+		logz.Panicln("DataManager", "container generator doesn't exist:", id)
+	}
+	return gen
+}
+
+func (dataman *DataManager) LoadContainerDef(def defs.ContainerDef) {
+	if def.ID == "" {
+		logz.Panic("def ID was empty")
+	}
+	if _, exists := dataman.ContainerDefs[def.ID]; exists {
+		logz.Panicln("DataManager", "container def already exists:", def.ID)
+	}
+	dataman.ContainerDefs[def.ID] = def
+}
+
+func (dataman *DataManager) GetContainerDef(id string) defs.ContainerDef {
+	def, exists := dataman.ContainerDefs[id]
+	if !exists {
+		logz.Panicln("DataManager", "container def doesn't exist:", id)
+	}
+	return def
 }
 
 func (dataman *DataManager) LoadCharacterGenerator(chargen defs.CharacterGenerator) {

@@ -32,6 +32,9 @@ type MapState struct {
 	// bed objects are tracked here, and are mapped by the integer object ID as found in the Tiled map.
 	// beds are linked to a single character, and the character will go to this bed when sleeping.
 	MapBeds map[int]BedState
+
+	// container objects have their state tracked here. key is the integer object ID as found in the Tiled map.
+	MapContainers map[int]*ContainerState
 }
 
 type MapItemState struct {
@@ -50,4 +53,8 @@ type LockState struct {
 type BedState struct {
 	MapObjID int                 // ID (in Tiled) of the object that represents this bed
 	OwnerID  id.CharacterStateID // ID of the character (state) that owns this bed
+}
+
+type ContainerState struct {
+	Inventory []*defs.InventoryItem // slots / items in this container
 }

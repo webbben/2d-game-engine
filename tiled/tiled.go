@@ -80,7 +80,8 @@ func (td *TileData) UpdateFrame() {
 	td.CurrentFrame = td.Frames[td.frameIndex].Image
 
 	if td.CurrentFrame == nil {
-		panic("failed to get tile image")
+		// logz.Panicln("UpdateFrame", "failed to get tile image (current frame is nil) frameIndex:", td.frameIndex, "tileID:", td.ID)
+		// TODO: this can happen if a frame of an animation has no pixel data. planning to ignore it, but is that safe?
 	}
 }
 
@@ -140,15 +141,15 @@ func (l Layer) Validate() {
 	switch l.Type {
 	case LayerTypeTile:
 		if len(l.Data) == 0 {
-			panic("tile layer has no tile data")
+			logz.Panicln("Tile Layer", "tile layer has no tile data.", l.ID)
 		}
 	case LayerTypeObject:
 		if len(l.Objects) == 0 {
-			panic("object layer has no objects")
+			logz.Panicln("Object Layer", "object layer has no objects.", l.ID)
 		}
 	case LayerTypeGroup:
 		if len(l.Layers) == 0 {
-			panic("group layer has no sub-layers in it")
+			logz.Panicln("Group Layer", "group layer has no sub layers.", l.ID)
 		}
 	}
 }

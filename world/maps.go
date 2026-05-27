@@ -1,6 +1,7 @@
 package world
 
 import (
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
@@ -33,9 +34,10 @@ func (w *World) CreateNewMapState(mapID defs.MapID) {
 	}
 
 	mapState := state.MapState{
-		ID:       mapID,
-		MapLocks: make(map[string]state.LockState),
-		MapBeds:  make(map[int]state.BedState),
+		ID:            mapID,
+		MapLocks:      make(map[string]state.LockState),
+		MapBeds:       make(map[int]state.BedState),
+		MapContainers: make(map[int]*state.ContainerState),
 	}
 
 	// look through Tiled map data to initialize state for things like pre-defined item placements, door locks, etc.
@@ -46,6 +48,11 @@ func (w *World) CreateNewMapState(mapID defs.MapID) {
 	// Get initial items
 	for _, layer := range objLayers {
 		for _, obj := range layer.Objects {
+			if obj.Ellipse {
+				// TODO: ellipses are ignored since they are just used for planning
+				continue
+			}
+
 			objectInfo := m.GetObjectPropsAndTile(obj)
 			objType, found := object.GetObjectType(objectInfo.AllProps)
 			if !found {
@@ -130,6 +137,23 @@ func (w *World) CreateNewMapState(mapID defs.MapID) {
 					MapObjID: obj.ID,
 					OwnerID:  charStateID,
 				}
+			case object.TypeContainer:
+				containerState := state.ContainerState{}
+				// find out if this is a predefined container inventory, or if we should generate one
+				// check for container_def_id
+				if containerDefID, found := tiled.GetStringProperty(object.PropContainerDefID, objectInfo.AllProps); found {
+					containerDef := w.Dataman.GetContainerDef(containerDefID)
+					containerState.Inventory = containerDef.Inventory
+				} else if containerGenID, found := tiled.GetStringProperty(object.PropContainerGenID, objectInfo.AllProps); found {
+					containerGen := w.Dataman.GetContainerGenerator(containerGenID)
+					containerState.Inventory = containerGen.GenerateItems(w.GameCtx)
+				} else {
+					// no def or gen; use default generator
+					containerGen := w.Dataman.GetContainerGenerator(config.DefaultContainerGeneratorID)
+					containerState.Inventory = containerGen.GenerateItems(w.GameCtx)
+				}
+
+				mapState.MapContainers[obj.ID] = &containerState
 			}
 		}
 	}

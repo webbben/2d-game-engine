@@ -7,6 +7,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/audio"
+	"github.com/webbben/2d-game-engine/book"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -49,6 +50,7 @@ type ActiveMap struct {
 	InScenario bool // if set, this active map is part of a scenario. changes behavior about things like hourly task schedules.
 
 	dialogSession *dialogv2.DialogSession
+	bookSession   *book.BookSession
 
 	gameCtx  defs.GameContext
 	worldCtx WorldContext
@@ -218,6 +220,11 @@ func (m *ActiveMap) OnHourChange(hour int, skipFade bool) {
 func (m *ActiveMap) addAllObjectsToMap(layer tiled.Layer) {
 	allObjs := tiled.GetAllObjectsFromLayer(layer)
 	for _, obj := range allObjs {
+		if obj.Ellipse {
+			// we only use elipses for planning things in maps, so just skip em
+			logz.TODO("Ellipse Object", "ellipse object found in map (skipped it though). Should we delete this ellipse?")
+			continue
+		}
 		m.AddObjectToMap(obj, *m.mapRef)
 	}
 
@@ -363,7 +370,7 @@ func (m ActiveMap) IsTileEntityCollision(c model.Coords, excludeEntID string) bo
 }
 
 func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
-	o := object.LoadObject(obj, m, mi.audioman, mi.dataman, mi.MapID, mi)
+	o := object.LoadObject(obj, m, mi.audioman, mi.dataman, mi.eventBus, mi.MapID, mi)
 	mi.Objects = append(mi.Objects, o)
 	if o.Light.On {
 		mi.LightObjects = append(mi.LightObjects, o)
@@ -764,6 +771,12 @@ func (mi *ActiveMap) HandleObjectUpdate(result object.ObjectUpdateResult, obj *o
 			panic("trying to activate an object while sitting. this should be prevented by player input logic.")
 		}
 		mi.PlayerRef.Entity.SitInChair(obj)
+	case object.TypeSign:
+		// show bookSession for this sign's text
+		if result.SignBookID == "" {
+			panic("signBookID was empty!")
+		}
+		mi.StartBookSession(result.SignBookID, config.DefaultBookSessionParams)
 	}
 }
 

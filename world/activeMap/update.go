@@ -11,11 +11,6 @@ import (
 func (m *ActiveMap) Update(blockPlayerChanges bool) {
 	m.daylightFader.Update()
 
-	// if m.cutsceneSession != nil {
-	// 	m.updateCutscene()
-	// 	blockPlayerChanges = true
-	// }
-
 	if m.dialogSession != nil {
 		// clear hover targets when in dialog
 		m.hoveredObject = nil
@@ -29,6 +24,22 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 		m.PlayerRef.LastUserInput = time.Now()
 		// in dialog, so don't allow NPC updates
 		return
+	}
+
+	if m.bookSession != nil {
+		// clear hover targets when in book sesh
+		m.hoveredObject = nil
+		m.hoveredNPC = nil
+
+		m.bookSession.Update()
+		if m.bookSession.IsDone() {
+			m.bookSession = nil
+		}
+		// set last player update to now, so that the time hud doesn't immediately display
+		m.PlayerRef.LastUserInput = time.Now()
+		// in book sesh, so don't allow NPC updates
+		return
+
 	}
 
 	m.Camera.MoveCamera(m.PlayerRef.Entity.X, m.PlayerRef.Entity.Y)

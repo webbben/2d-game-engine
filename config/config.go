@@ -66,7 +66,17 @@ var (
 
 	CharacterDefsDirectory string = "" // this is required to be set in order to load entity data.
 
+	// screens
+
 	DefaultLoadingScreen defs.ScreenID = "" // this needs to be set if you want load screens to show while maps are loading.
+
+	OpenContainerScreen defs.ScreenID = "" // screen to show when opening a container
+
+	DefaultContainerGeneratorID string = ""
+
+	// TODO: move other screens here too? I guess trade is just a screen shown during dialog, but maybe player menu can go here?
+
+	DefaultBookSessionParams BookSessionParams
 )
 
 const (

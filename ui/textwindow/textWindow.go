@@ -192,7 +192,7 @@ func newTextWindow(title, bodyText string, params TextWindowParams) textWindow {
 
 	textWindow.box.buildWindowImage(windowWidth, windowHeight)
 
-	lwParams := text.LineWriterParams{
+	lwParams := config.LineWriterParams{
 		LineWidthPx:      lineWidth,
 		MaxHeightPx:      bodyTextHeight + tileSize,
 		FontFace:         params.BodyFont,

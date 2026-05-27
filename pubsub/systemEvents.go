@@ -1,6 +1,8 @@
 package pubsub
 
 import (
+	"fmt"
+
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 )
@@ -21,10 +23,21 @@ const (
 	//
 	// "time": clock.GameTime
 	SysTimeLapse defs.EventType = "SYS_TIME_LAPSE"
+
+	// fires when a screen should be shown while in an active map (e.g. when a container is opened).
+	// Not used for things like screens that show during dialog (e.g. trade screens); those use the dialog action instead.
+	//
+	// Event Data:
+	// 	- "screen_id" (string) ScreenID
+	// 	- "params" (any) the params to pass to the screen
+	SysShowScreen defs.EventType = "SYS_SHOW_SCREEN"
 )
 
 func (eb *EventBus) SubscribeToWorldEvents(subscriberID string, fn func(defs.Event)) {
-	eb.Subscribe(subscriberID, SysEventChangeMapOccupancy, fn)
+	events := []defs.EventType{SysEventChangeMapOccupancy, SysScheduledWorldEffect, SysShowScreen}
+	for _, eventType := range events {
+		eb.Subscribe(fmt.Sprintf("%s_%s", subscriberID, eventType), eventType, fn)
+	}
 }
 
 type SysEventChangeMapOccupancyParams struct {

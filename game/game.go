@@ -38,9 +38,6 @@ type Game struct {
 	// just set here so it can be passed into World
 	PlayerMenuScreenID defs.ScreenID
 
-	// TODO: should I move these screens to World? seems like it makes more sense to be there, since these screens
-	// only appear in the game world
-
 	TransitionManager TransitionManager
 
 	World *world.World

@@ -7,6 +7,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/audio"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
@@ -96,27 +97,12 @@ func (lw LineWriter) CurrentDimensions() (dx, dy int) {
 	return lw.maxLineWidth, lw.cursorY
 }
 
-type LineWriterParams struct {
-	LineWidthPx, MaxHeightPx int
-	FontFace                 font.Face
-	SupportSpecialSymbols    bool // if true, special symbols (like underscore, square brackets) will produce text formatting effects
-
-	UseShadow            bool // if true, text will draw a shadow behind it using the BgColor
-	WriteImmediately     bool // if true, text will write immediately on first update
-	TextBlipSfx          defs.SoundID
-	TextBlipTickInterval int
-
-	FgColor   color.Color // color used for text foreground. defaults to black.
-	BgColor   color.Color // color used for shadow behind text, or for de-emphasized/aside text (text inside underscores). defaults to light gray.
-	LinkColor color.Color // color used for link text (text inside square brackets). defaults to blue.
-}
-
 // NewLineWriter creates a new LineWriter.
 // fg and bg colors can be left nil, in which case they assume the normal defaults (fg = black, bg = gray).
 // set useShadow to true if you want the shadow effect to be used when drawing text.
 //
 // Audioman is optional; only needed if you set TextBlipSfx.
-func NewLineWriter(audioman *audio.AudioManager, params LineWriterParams) LineWriter {
+func NewLineWriter(audioman *audio.AudioManager, params config.LineWriterParams) LineWriter {
 	// NOTE: audioman may be nil if linewriter is used by a place that doesn't expect to use sound effects. sound effects are mainly used by dialog.
 
 	if params.FontFace == nil {

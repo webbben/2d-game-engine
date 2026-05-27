@@ -96,20 +96,29 @@ func (m *Map) load(regenerateImages bool) error {
 	for i, l := range m.Layers {
 		m.findTilePropertiesInLayer(l)
 
-		// set layer properties
-		drawOnTop, found := GetBoolProperty("TOP", l.Properties)
-		if found {
-			m.Layers[i].DrawOnTop = drawOnTop
-		}
+		m.Layers[i].firstTimeLoad()
 
-		// validate layer, just to be sure nothing is corrupted or has weird data
-		l.Validate()
+		m.Layers[i].Validate()
 	}
 
 	m.CalculateCostMap()
 
 	m.Loaded = true
 	return nil
+}
+
+func (l *Layer) firstTimeLoad() {
+	if l.Type == LayerTypeGroup {
+		for i := range l.Layers {
+			l.Layers[i].firstTimeLoad()
+		}
+		return
+	}
+
+	drawOnTop, found := GetBoolProperty("TOP", l.Properties)
+	if found {
+		l.DrawOnTop = drawOnTop
+	}
 }
 
 // find all information embedded in tile properties in layers:
@@ -216,11 +225,7 @@ func (m Map) DrawGroundLayers(screen *ebiten.Image, offsetX float64, offsetY flo
 	}
 
 	for _, layer := range m.Layers {
-		if layer.DrawOnTop {
-			continue
-		}
-
-		m.drawTileLayer(screen, offsetX, offsetY, layer)
+		m.drawTileLayer(screen, offsetX, offsetY, layer, false)
 	}
 }
 
@@ -233,23 +238,25 @@ func (m Map) DrawRooftopLayer(screen *ebiten.Image, offsetX, offsetY float64) {
 	}
 
 	for _, layer := range m.Layers {
-		if layer.DrawOnTop {
-			m.drawTileLayer(screen, offsetX, offsetY, layer)
-		}
+		m.drawTileLayer(screen, offsetX, offsetY, layer, true)
 	}
 }
 
-func (m Map) drawTileLayer(screen *ebiten.Image, offsetX, offsetY float64, layer Layer) {
+func (m Map) drawTileLayer(screen *ebiten.Image, offsetX, offsetY float64, layer Layer, drawTop bool) {
 	if layer.Type == LayerTypeGroup {
 		if len(layer.Layers) == 0 {
 			logz.Panicln("drawTileLayer", "group layer has no layers within:", layer.Name, layer.ID)
 		}
 		for _, l := range layer.Layers {
-			m.drawTileLayer(screen, offsetX, offsetY, l)
+			m.drawTileLayer(screen, offsetX, offsetY, l, drawTop)
 		}
 		return
 	}
 	if layer.Type != LayerTypeTile {
+		return
+	}
+	if drawTop != layer.DrawOnTop {
+		// only draw top (or ground) layers
 		return
 	}
 

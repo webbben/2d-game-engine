@@ -166,3 +166,14 @@ type UnlockEffect struct {
 func (a UnlockEffect) Apply(ctx defs.WorldEffectContext) {
 	ctx.UnlockMapLock(a.MapLock.MapID, a.MapLock.LockID)
 }
+
+type TravelToMapEffect struct {
+	MapID        defs.MapID
+	ToSpawnIndex int
+	Hours        int
+}
+
+func (e TravelToMapEffect) Apply(ctx defs.WorldEffectContext) {
+	logz.Println("world effect", "travel to map:", e.MapID, e.ToSpawnIndex)
+	ctx.TravelToMap(e.MapID, e.ToSpawnIndex, e.Hours)
+}

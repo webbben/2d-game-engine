@@ -73,6 +73,10 @@ type WorldEffect interface {
 type WorldEffectContext interface {
 	// Map and world
 
+	// moves the player to a new map, with the option of time passage too.
+	// Note: if hours is set, then this function calls a TimeLapse which is async; you will need to listen for the SysTimeLapse event to know
+	// when the time lapse is done.
+	TravelToMap(mapID MapID, spawnIndex int, hours int)
 	QueueScenario(id ScenarioID)
 	UnlockMapLock(mapID MapID, lockID string)
 	GetCurrentGameTime() clock.GameTime // needed for scheduling future effects
@@ -125,7 +129,7 @@ type ActiveMapContext interface {
 	StartDialogSession(dialogProfileID DialogProfileID, npcID string)
 	TogglePlayerMenu()
 
-	ShowMiscScreen(scrID ScreenID)
+	ShowMiscScreen(scrID ScreenID, params any)
 
 	GetHoverTargetInfo() (*NPCInfo, *ObjectInfo)
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/ui/overlay"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 func (m *ActiveMap) drawWorldScene(screen *ebiten.Image, offsetX, offsetY float64) {
@@ -95,9 +96,11 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 		m.dialogSession.Draw(screen)
 	}
 
-	// if m.cutsceneSession != nil {
-	// 	m.drawCutscene(screen)
-	// }
+	if m.bookSession != nil {
+		bdx, bdy := m.bookSession.Dimensions()
+		bsx, bsy := utils.CenterInScreen(bdx, bdy)
+		m.bookSession.Draw(screen, bsx, bsy)
+	}
 }
 
 func isLightVisible(l *lights.Light, camera camera.Camera) bool {

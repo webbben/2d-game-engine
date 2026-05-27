@@ -84,7 +84,7 @@ func SpendMoney(inv *defs.StandardInventory, value int, dataman *datamanager.Dat
 		if coin == nil {
 			continue
 		}
-		if coin.Def.IsCurrencyItem() {
+		if coin.Def.GetItemType() == defs.TypeCurrency {
 			val := coin.Def.GetValue()
 			_, exists := wallet[val]
 			if !exists {
@@ -260,7 +260,7 @@ func EquipItem(cs *state.CharacterState, i defs.InventoryItem) (success bool) {
 	}
 
 	switch i.Def.GetItemType() {
-	case item.TypeHeadwear:
+	case defs.TypeHeadwear:
 		if cs.Equipment.EquipedHeadwear != nil {
 			// already equiped; remove it and put it in a regular inventory slot
 			succ, _ := AddItemToInventory(cs, *cs.Equipment.EquipedHeadwear)
@@ -269,14 +269,14 @@ func EquipItem(cs *state.CharacterState, i defs.InventoryItem) (success bool) {
 			}
 		}
 		cs.Equipment.EquipedHeadwear = &i
-	case item.TypeFootwear:
+	case defs.TypeFootwear:
 		if cs.Equipment.EquipedFootwear != nil {
 			succ, _ := AddItemToInventory(cs, *cs.Equipment.EquipedFootwear)
 			if !succ {
 				return false
 			}
 		}
-	case item.TypeBodywear:
+	case defs.TypeBodywear:
 		if cs.Equipment.EquipedBodywear != nil {
 			// already equiped; remove it and put it in a regular inventory slot
 			succ, _ := AddItemToInventory(cs, *cs.Equipment.EquipedBodywear)
@@ -284,14 +284,14 @@ func EquipItem(cs *state.CharacterState, i defs.InventoryItem) (success bool) {
 				return false
 			}
 		}
-	case item.TypeWeapon:
+	case defs.TypeWeapon:
 		if cs.Equipment.EquipedWeapon != nil {
 			succ, _ := AddItemToInventory(cs, *cs.Equipment.EquipedWeapon)
 			if !succ {
 				return false
 			}
 		}
-	case item.TypeAuxiliary:
+	case defs.TypeAuxiliary:
 		if cs.Equipment.EquipedAuxiliary != nil {
 			// already equiped; remove it and put it in a regular inventory slot
 			succ, _ := AddItemToInventory(cs, *cs.Equipment.EquipedAuxiliary)
@@ -350,7 +350,7 @@ func GetLockIDs(charState state.CharacterState) []string {
 		if inv == nil {
 			continue
 		}
-		if inv.Def.GetItemType() == item.TypeKey {
+		if inv.Def.GetItemType() == defs.TypeKey {
 			asKeyDef, ok := inv.Def.(*item.KeyDef)
 			if !ok {
 				logz.Panicln("GetLockIDs", "failed to convert itemDef to KeyDef, even though itemType was Key")

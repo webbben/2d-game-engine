@@ -47,3 +47,13 @@ type MapLock struct {
 	MapID  MapID
 	LockID string
 }
+
+type ContainerDef struct {
+	ID        string
+	Inventory []*InventoryItem
+}
+
+type ContainerGenerator interface {
+	ID() string
+	GenerateItems(ctx GameContext) []*InventoryItem
+}
