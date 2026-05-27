@@ -4,6 +4,7 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/display"
 	"golang.org/x/image/font"
 )
@@ -15,7 +16,7 @@ import (
 type Multiline struct {
 	lw       LineWriter
 	params   MultilineParams
-	lwParams LineWriterParams
+	lwParams config.LineWriterParams
 	txt      string
 }
 
@@ -34,7 +35,7 @@ func NewMultiline(textToWrite string, lineWidthPx int, f font.Face, params Multi
 	if f == nil {
 		panic("font was nil")
 	}
-	lwParams := LineWriterParams{
+	lwParams := config.LineWriterParams{
 		FontFace:         f,
 		FgColor:          params.Fg,
 		BgColor:          params.Bg,

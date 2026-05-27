@@ -12,6 +12,28 @@ type (
 	ItemID   string
 )
 
+const (
+	TypeWeapon     ItemType = "WEAPON"
+	TypeBodywear   ItemType = "BODYWEAR"
+	TypeHeadwear   ItemType = "HEADWEAR"
+	TypeFootwear   ItemType = "FOOTWEAR"
+	TypeAmulet     ItemType = "AMULET"
+	TypeRing       ItemType = "RING"
+	TypeAmmunition ItemType = "AMMUNITION"
+	TypeAuxiliary  ItemType = "AUXILIARY"
+	TypeConsumable ItemType = "CONSUMABLE"
+	TypeMisc       ItemType = "MISC"
+	TypeCurrency   ItemType = "CURRENCY"
+	TypeKey        ItemType = "KEY"
+)
+
+// ItemDef represents an item.
+// TODO: I'm kind of wondering if this should actually be an interface...
+// It seems like interfaces are useful when something needs to be able to handle different structs that may have different implementations
+// for different methods, or if you want to be able to group a diverse group of structs by ensuring they have some degree of shared functionality.
+// But, for items... well, it feels like all of these functions could just be fields, right? None of these are going to have unique implementations, will they?
+// The more I think about it, the more sure I am. I guess I will need to bite the bullet soon and change this into a struct.
+// I mean, we basically already have that struct: ItemBase.
 type ItemDef interface {
 	GetID() ItemID          // the internal ID of this item.
 	GetName() string        // the display name of this item.
@@ -29,29 +51,8 @@ type ItemDef interface {
 	// if true, item can be grouped together with other same items in inventories
 	// this tends to be true for items that don't have durability, like potions or arrows, but not for weapons and armor.
 	IsGroupable() bool
-	// if true, this item is treated as an equipable weapon that is held
-	IsWeapon() bool
-	// if true, this item is treated as an equipable piece of armor that is worn
-	IsHeadwear() bool
-	// if true, this item is equipable on the body
-	IsBodywear() bool
-	// if true, this item is equipable on the feet
-	IsFootwear() bool
-	// if true, this item is an amulet
-	IsAmulet() bool
-	// if true, this item is a ring
-	IsRing() bool
-	// if true, this item is treated as an equipable ammunition type (arrows, etc)
-	IsAmmunition() bool
-	// if true, this item is an "auxiliary" item which is held in the left hand (torches, shields, etc)
-	IsAuxiliary() bool
-	// if true, this item is treated as an item that can be consumed (food, potions, etc)
-	IsConsumable() bool
-	// if true, this item has no specific use or utility; it just exists in your inventory and may have value or weight
-	IsMiscItem() bool
-	// if true, this item is a piece of currency (gold, coins, etc) used in transactions
-	IsCurrencyItem() bool
-	// determines if this item can be equiped
+
+	// if true, this item can be equipped
 	IsEquipable() bool
 
 	GetItemType() ItemType // returns the item type; to simply confirm a single item type, use the specific Is<itemType> functions instead.
@@ -114,7 +115,7 @@ func (inv StandardInventory) CountMoney() int {
 		if coinItem == nil {
 			continue
 		}
-		if coinItem.Def.IsCurrencyItem() {
+		if coinItem.Def.GetItemType() == TypeCurrency {
 			sum += coinItem.Def.GetValue() * coinItem.Quantity
 		}
 	}
@@ -124,7 +125,7 @@ func (inv StandardInventory) CountMoney() int {
 		if coinItem == nil {
 			continue
 		}
-		if coinItem.Def.IsCurrencyItem() {
+		if coinItem.Def.GetItemType() == TypeCurrency {
 			sum += coinItem.Def.GetValue() * coinItem.Quantity
 		}
 	}
@@ -140,7 +141,7 @@ func (inv *StandardInventory) SetCoinPurseItems(invItems []*InventoryItem) {
 			inv.CoinPurse = append(inv.CoinPurse, nil)
 			continue
 		}
-		if !newItem.Def.IsCurrencyItem() {
+		if newItem.Def.GetItemType() != TypeCurrency {
 			logz.Panicln("SetCoinPurseItems", "tried to add item to coin purse that is not a currency item:", newItem)
 		}
 
@@ -156,6 +157,8 @@ func (inv *StandardInventory) SetCoinPurseItems(invItems []*InventoryItem) {
 func (inv *StandardInventory) SetInventoryItems(invItems []*InventoryItem) {
 	inv.InventoryItems = make([]*InventoryItem, 0)
 
+	// TODO: is this looping and stuff actually necessary?  I guess the point is to ensure that things are dereferenced, but I notice
+	// that both here and GetInventoryItems does this same loop thing.
 	for _, newItem := range invItems {
 		if newItem == nil {
 			inv.InventoryItems = append(inv.InventoryItems, nil)

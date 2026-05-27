@@ -1,6 +1,8 @@
 package world
 
 import (
+	"time"
+
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
@@ -142,4 +144,26 @@ func (w *World) UnlockMapLock(mapID defs.MapID, lockID string) {
 			"lockID": lockID,
 		},
 	})
+}
+
+func (w *World) TravelToMap(mapID defs.MapID, spawnIndex int, hours int) {
+	// Basically, we just do an EnterMap followed by a timelapse.
+	// Timelapse expects the player to be in a map, and handles changing the time and picking the correct NPCs to initialize in the map.
+
+	loadFunc := func(ctx defs.GameContext) {
+		w.EnterMap(mapID, spawnIndex, false)
+		if hours > 0 {
+			newTime := w.GetCurrentGameTime()
+			newTime.AddTime(hours)
+			w.TimeLapse(newTime)
+		}
+		time.Sleep(time.Second) // since the time lapse might need to wait for background loop to pause, wait a second before ending the loading screen
+	}
+
+	// pause the simulation while loading
+	w.SimPaused.Store(true)
+
+	// block player changes so they can't accidentally enter the same map twice
+	w.BlockPlayerChanges = true
+	w.GameCtx.StartLoadScreen(loadFunc)
 }

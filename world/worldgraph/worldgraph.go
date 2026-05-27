@@ -92,6 +92,11 @@ func BuildWorldGraph(dataman *datamanager.DataManager) *WorldGraph {
 
 		// look for "edges" (door objects)
 		for _, obj := range allObjs {
+			if obj.Ellipse {
+				// ellipse objects are just used for planning
+				continue
+			}
+
 			objectInfo := m.GetObjectPropsAndTile(obj)
 			objType, found := object.GetObjectType(objectInfo.AllProps)
 			if !found {

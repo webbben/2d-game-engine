@@ -71,3 +71,8 @@ func (g *Game) RemoveRole(roleID defs.RoleID) {
 	g.requireWorld()
 	g.World.RemoveRole(roleID)
 }
+
+func (g *Game) TravelToMap(mapID defs.MapID, spawnIndex int, hours int) {
+	g.requireWorld()
+	g.World.TravelToMap(mapID, spawnIndex, hours)
+}

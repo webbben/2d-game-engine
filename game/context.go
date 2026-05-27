@@ -93,14 +93,14 @@ func (g *Game) StartTimeLapse(newTime clock.GameTime) {
 	g.World.TimeLapse(newTime)
 }
 
-func (g *Game) ShowMiscScreen(scrID defs.ScreenID) {
+func (g *Game) ShowMiscScreen(scrID defs.ScreenID, params any) {
 	if g.World == nil {
 		panic("world was nil")
 	}
 
 	scr := g.ScreenManager.GetScreen(scrID)
 
-	g.World.ShowMiscScreen(scr)
+	g.World.ShowMiscScreen(scr, params)
 }
 
 func (g *Game) GetHoverTargetInfo() (*defs.NPCInfo, *defs.ObjectInfo) {

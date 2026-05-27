@@ -14,13 +14,18 @@ import (
 )
 
 type ObjectUpdateResult struct {
+	UpdateOccurred bool // if true, an update happened to the object
+
 	ChangeMapID         defs.MapID // if set, change to this map
 	ChangeMapSpawnIndex int        // spawn point index to send player to
-	UpdateOccurred      bool       // if true, an update happened to the object
 
 	// For beds or other "usable" objects
 
 	AlreadyInUse bool // if set, the object is being used by someone else already
+
+	// Signs
+
+	SignBookID defs.BookID // if set, a sign was activated; this is the ID that should show in the book session
 }
 
 // Update : blockChanges is just to make sure that no actual changes occur; but, animation changes and stuff can continue.
@@ -42,6 +47,8 @@ func (obj *Object) Update(blockChanges bool, hovering bool) ObjectUpdateResult {
 		}
 	case TypeGate:
 		return obj.updateGate()
+	case TypeContainer:
+		return obj.updateContainer()
 	}
 	return ObjectUpdateResult{}
 }
@@ -75,7 +82,7 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 		}
 	}
 
-	obj.World.PublishEvent(defs.Event{
+	obj.eventBus.Publish(defs.Event{
 		Type: pubsub.EventObjectActivated,
 		Data: map[string]any{
 			pubsub.DataKey: pubsub.EventObjectActivatedData{
@@ -96,6 +103,10 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 		return obj.activateBed(params)
 	case TypeChair:
 		return obj.activateChair(params)
+	case TypeContainer:
+		return obj.activateContainer()
+	case TypeSign:
+		return obj.activateSign()
 	}
 	return ObjectUpdateResult{}
 }
@@ -104,11 +115,19 @@ func (obj Object) collidesWithEntityOrObject() bool {
 	return obj.World.RectCollidesWithOthers(obj.GetRect(), "", obj.ID)
 }
 
+// nextFrame handles moving to the next animation frame.
+// returns true if the end of the animation has been reached.
+// if no animation exists, then this returns true without doing anything.
 func (obj *Object) nextFrame(forwards bool) (done bool) {
 	if time.Since(obj.animLastUpdate) < time.Millisecond*time.Duration(obj.animSpeedMs) {
 		return false
 	}
 	obj.animLastUpdate = time.Now()
+
+	if len(obj.imgFrames) == 0 {
+		// no animation? just quit then
+		return true
+	}
 
 	if forwards {
 		if obj.imgFrameIndex == len(obj.imgFrames)-1 {

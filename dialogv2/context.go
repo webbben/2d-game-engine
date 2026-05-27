@@ -251,3 +251,7 @@ func (ctx DialogContext) QueueScenario(scnID defs.ScenarioID) {
 func (ctx DialogContext) UnlockMapLock(mapID defs.MapID, lockID string) {
 	ctx.GameState.UnlockMapLock(mapID, lockID)
 }
+
+func (ctx DialogContext) TravelToMap(mapID defs.MapID, spawnIndex int, hours int) {
+	ctx.GameState.TravelToMap(mapID, spawnIndex, hours)
+}

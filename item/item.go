@@ -10,21 +10,6 @@ import (
 	"github.com/webbben/2d-game-engine/tiled"
 )
 
-const (
-	TypeWeapon     defs.ItemType = "WEAPON"
-	TypeBodywear   defs.ItemType = "BODYWEAR"
-	TypeHeadwear   defs.ItemType = "HEADWEAR"
-	TypeFootwear   defs.ItemType = "FOOTWEAR"
-	TypeAmulet     defs.ItemType = "AMULET"
-	TypeRing       defs.ItemType = "RING"
-	TypeAmmunition defs.ItemType = "AMMUNITION"
-	TypeAuxiliary  defs.ItemType = "AUXILIARY"
-	TypeConsumable defs.ItemType = "CONSUMABLE"
-	TypeMisc       defs.ItemType = "MISC"
-	TypeCurrency   defs.ItemType = "CURRENCY"
-	TypeKey        defs.ItemType = "KEY"
-)
-
 // ItemBase includes the basic functions required for an item to implement the ItemDef interface.
 // embed into a struct to make it effectively an item type.
 type ItemBase struct {
@@ -110,21 +95,21 @@ func (ib ItemBase) Validate() {
 	if ib.Type == "" {
 		ib.panic("item has no type")
 	}
-	if ib.Type == TypeBodywear || ib.Type == TypeHeadwear || ib.Type == TypeFootwear || ib.Type == TypeAuxiliary || ib.Type == TypeWeapon {
+	if ib.Type == defs.TypeBodywear || ib.Type == defs.TypeHeadwear || ib.Type == defs.TypeFootwear || ib.Type == defs.TypeAuxiliary || ib.Type == defs.TypeWeapon {
 		if ib.BodyPartDef == nil {
 			ib.panic("item is a visible equipable item, but no bodyPartDef is set")
 		}
 	} else if ib.BodyPartDef != nil {
 		ib.panic("item is not a visible equipable item, but it has a defined bodyPartDef")
 	}
-	if ib.IsBodywear() {
+	if ib.GetItemType() == defs.TypeBodywear {
 		if ib.BodyPartDef == nil {
 			ib.panic("bodywear must have a body part def")
 		}
 		if ib.LegsPartDef == nil {
 			ib.panic("bodywear must have a legs part")
 		}
-	} else if ib.IsHeadwear() {
+	} else if ib.GetItemType() == defs.TypeHeadwear {
 		if ib.BodyPartDef == nil {
 			ib.panic("headwear must have a body part def")
 		}
@@ -170,53 +155,9 @@ func (ib ItemBase) IsGroupable() bool {
 	return ib.Groupable
 }
 
-func (ib ItemBase) IsWeapon() bool {
-	return ib.Type == TypeWeapon
-}
-
-func (ib ItemBase) IsBodywear() bool {
-	return ib.Type == TypeBodywear
-}
-
-func (ib ItemBase) IsHeadwear() bool {
-	return ib.Type == TypeHeadwear
-}
-
-func (ib ItemBase) IsFootwear() bool {
-	return ib.Type == TypeFootwear
-}
-
-func (ib ItemBase) IsAmulet() bool {
-	return ib.Type == TypeAmulet
-}
-
-func (ib ItemBase) IsRing() bool {
-	return ib.Type == TypeRing
-}
-
-func (ib ItemBase) IsAmmunition() bool {
-	return ib.Type == TypeAmmunition
-}
-
-func (ib ItemBase) IsAuxiliary() bool {
-	return ib.Type == TypeAuxiliary
-}
-
-func (ib ItemBase) IsConsumable() bool {
-	return ib.Type == TypeConsumable
-}
-
-func (ib ItemBase) IsMiscItem() bool {
-	return ib.Type == TypeMisc
-}
-
-func (ib ItemBase) IsCurrencyItem() bool {
-	return ib.Type == TypeCurrency
-}
-
 func (ib ItemBase) IsEquipable() bool {
 	switch ib.Type {
-	case TypeBodywear, TypeHeadwear, TypeFootwear, TypeWeapon, TypeAmulet, TypeRing, TypeAmmunition, TypeAuxiliary:
+	case defs.TypeBodywear, defs.TypeHeadwear, defs.TypeFootwear, defs.TypeWeapon, defs.TypeAmulet, defs.TypeRing, defs.TypeAmmunition, defs.TypeAuxiliary:
 		return true
 	default:
 		return false
