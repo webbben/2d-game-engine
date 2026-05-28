@@ -550,17 +550,6 @@ func (ds *DialogSession) continueApplyResponse() {
 		panic("continueApplyResponse: currentResponse is nil")
 	}
 
-	// there are two types of DialogResponse:
-	// 1. a regular one, that has text, and acts as a proper dialog node.
-	// 2. a "grouper" which only has conditions and linked next responses. a grouper does not have text, and instead jumps to the next valid response.
-
-	if ds.currentResponse.Text == "" {
-		ds.handleResponseGrouper()
-		return
-	}
-
-	ds.setResponseText(ds.currentResponse.Text)
-
 	for _, topicID := range ds.currentResponse.NextTopics {
 		ds.Ctx.RecordTopicUnlocked(topicID)
 	}
@@ -572,18 +561,28 @@ func (ds *DialogSession) continueApplyResponse() {
 		effect.Apply(&ds.Ctx)
 	}
 
+	if ds.currentResponse.Exit {
+		ds.Exit = true
+		return
+	}
+
+	// If there is no text, check if this is a grouper;
+	// even if it isn't a grouper, that's okay - just let the dialog be empty.
+	if ds.currentResponse.Text == "" {
+		ds.handleResponseGrouper()
+		return
+	}
+
+	ds.setResponseText(ds.currentResponse.Text)
+
 	// reply handling is done once text is finished
 
 	ds.responseStatus = dialogResponseStarted
 }
 
 func (ds *DialogSession) handleResponseGrouper() {
-	if ds.currentResponse.NextResponse == nil && len(ds.currentResponse.NextResponseOptions) == 0 {
-		ds.panicln("dialog response has no text or next responses. if this is a grouper, it must have next responses set.")
-	}
-
 	if ds.currentResponse.Goodbye {
-		ds.panicln("response grouper was set to Goodbye")
+		ds.panicln("response grouper was set to Goodbye. Goodbye should only be used after specific text has been shown, so a 'goodbye' reply can show")
 	}
 
 	// find the appropriate response option
@@ -591,8 +590,12 @@ func (ds *DialogSession) handleResponseGrouper() {
 		ds.ApplyResponse(*ds.currentResponse.NextResponse)
 		return
 	}
-	resp := chooseResponse(ds.currentResponse.NextResponseOptions, ds.Ctx)
-	ds.ApplyResponse(resp)
+
+	if len(ds.currentResponse.NextResponseOptions) > 0 {
+		resp := chooseResponse(ds.currentResponse.NextResponseOptions, ds.Ctx)
+		ds.ApplyResponse(resp)
+		return
+	}
 }
 
 func (ds *DialogSession) setResponseText(s string) {

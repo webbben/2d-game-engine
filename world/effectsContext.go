@@ -40,7 +40,7 @@ func (w *World) AddItem(itemID defs.ItemID, quantity int) {
 
 func (w *World) AddGold(amount int) {
 	if amount == 0 {
-		logz.Panic("amount was 0")
+		return
 	}
 	characterstate.EarnMoney(&w.Player.CharacterStateRef.StandardInventory, amount, w.Dataman)
 	w.EventBus.Publish(defs.Event{
@@ -53,7 +53,7 @@ func (w *World) AddGold(amount int) {
 
 func (w *World) RemoveGold(amount int) {
 	if amount == 0 {
-		logz.Panic("amount was 0")
+		return
 	}
 	characterstate.SpendMoney(&w.Player.CharacterStateRef.StandardInventory, amount, w.Dataman)
 	w.EventBus.Publish(defs.Event{
