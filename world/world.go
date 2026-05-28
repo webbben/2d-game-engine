@@ -24,7 +24,7 @@ import (
 	"github.com/webbben/2d-game-engine/utils"
 	activemap "github.com/webbben/2d-game-engine/world/activeMap"
 	"github.com/webbben/2d-game-engine/world/npc"
-	"github.com/webbben/2d-game-engine/world/worldgraph"
+	"github.com/webbben/2d-game-engine/worldgraph"
 )
 
 // The World represents the overall game world (or "universe" as I sometimes call it).
@@ -123,7 +123,12 @@ func NewWorld(
 
 	// this ensures all map states exist, and also effectively that all NPC states exist, since everytime it encounters a bed for an NPC it ensures that NPC's state
 	// has been created too.
-	for id := range w.Dataman.MapDefs {
+	// Note: this does NOT handle map generators; those are built as they are found during the world graph building process (below).
+	for id, def := range w.Dataman.MapDefs {
+		if def.IsMapGenTemplate {
+			// don't initialize a map state for template map defs; they aren't directly representing a specific map
+			continue
+		}
 		w.EnsureMapStateExists(id)
 	}
 
@@ -133,7 +138,7 @@ func NewWorld(
 		}
 	}
 
-	w.WorldGraph = worldgraph.BuildWorldGraph(w.Dataman)
+	w.BuildWorldGraph()
 	if w.WorldGraph == nil {
 		panic("world graph was nil")
 	}

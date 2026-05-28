@@ -1,6 +1,8 @@
 package object
 
 import (
+	"fmt"
+
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
@@ -8,10 +10,11 @@ import (
 )
 
 const (
-	PropDoorTo         string = "door_to"
-	PropDoorSpawnIndex string = "door_spawn_index"
-	PropDoorActivate   string = "door_activate"
-	PropDoorSFX        string = "SFX"
+	PropDoorTo             string = "door_to"
+	PropDoorSpawnIndex     string = "door_spawn_index"
+	PropDoorActivate       string = "door_activate"
+	PropDoorSFX            string = "SFX"
+	PropDoorMapGeneratorID string = "map_generator_id"
 )
 
 type Door struct {
@@ -22,12 +25,15 @@ type Door struct {
 }
 
 func (obj *Object) loadDoorObject(props []tiled.Property) {
+	doorTo := ""
+	var toSpawn int
+
 	for _, prop := range props {
 		switch prop.Name {
 		case PropDoorTo:
-			obj.Door.TargetMapID = defs.MapID(prop.GetStringValue())
+			doorTo = prop.GetStringValue()
 		case PropDoorSpawnIndex:
-			obj.Door.TargetSpawnIndex = prop.GetIntValue()
+			toSpawn = prop.GetIntValue()
 		case PropDoorActivate:
 			obj.Door.activateType = prop.GetStringValue()
 		case PropDoorSFX:
@@ -37,6 +43,12 @@ func (obj *Object) loadDoorObject(props []tiled.Property) {
 			}
 			obj.Door.openSoundID = defs.SoundID(doorSound)
 		}
+	}
+
+	// if the door info is set in the props, then set it here. otherwise, it must be a generated map target,
+	// in which case this data is added after LoadObject is done.
+	if doorTo != "" {
+		obj.SetDoorTarget(defs.MapID(doorTo), &toSpawn)
 	}
 }
 
@@ -105,4 +117,22 @@ func (obj *Object) updateDoor() ObjectUpdateResult {
 		panic("invalid activation type for door")
 	}
 	return ObjectUpdateResult{}
+}
+
+// SetDoorTarget handles setting the display name of the door too; also used for overriding door target after loading.
+func (obj *Object) SetDoorTarget(targetMapID defs.MapID, targetSpawn *int) {
+	if targetMapID == "" {
+		panic("targetMapId was empty")
+	}
+	obj.Door.TargetMapID = targetMapID
+
+	// Sometimes we only want to set the target Map ID, so making this nullable
+	if targetSpawn != nil {
+		obj.Door.TargetSpawnIndex = *targetSpawn
+	}
+
+	if obj.DisplayName == "" {
+		mapInfo, _, _ := obj.dataman.GetAllMapData(obj.Door.TargetMapID)
+		obj.DisplayName = fmt.Sprintf("Door to %s", mapInfo.DisplayName)
+	}
 }

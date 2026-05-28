@@ -5,7 +5,7 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
-	"github.com/webbben/2d-game-engine/world/worldgraph"
+	"github.com/webbben/2d-game-engine/worldgraph"
 )
 
 // RouteTask is a task that sends an NPC to a new map. For simply moving to a new position on the same map, use the Goto task.

@@ -27,6 +27,11 @@ type MapDef struct {
 	ID          MapID
 	Region      RegionID // the overall location you are in, such as which city, or which forest, etc.
 	DisplayName string
+
+	// if true, this map def will be considered as just a template for map generators; so, it won't directly be built into the world as a unique map.
+	// "templates" are just map defs that represent a generic map, not a specific, unique map.
+	// To use this mapDef with a map generator, you MUST set this to true.
+	IsMapGenTemplate bool
 }
 
 func (md MapDef) Validate() {
@@ -56,4 +61,42 @@ type ContainerDef struct {
 type ContainerGenerator interface {
 	ID() string
 	GenerateItems(ctx GameContext) []*InventoryItem
+}
+
+// A MapGenerator is for generating an instance of a MapDef while customizing details, enabling maps to be reused.
+// You'd use a MapGenerator for creating homes of generic NPCs, like an insignificant villager or something like that.
+// It could be used for more complex maps too, but ideally it shouldn't be overused since these maps will ultimately just be
+// "filler" in a game. But, better to use a MapGenerator than to make 20 individual identical maps for a bunch of generic villagers.
+type MapGenerator struct {
+	ID       string
+	MapDefID MapID // the map def to use
+
+	// Overrides: the following are for overriding fields from MapDef
+	OverrideDisplayName string
+	OverrideRegion      RegionID
+
+	// The following defines how NPCs can be given a home/generated in this map
+	// If more characters (in either slice) are defined than there are beds in the map, it panics.
+	// both slices are not used at the same time; only one is used, with character defs getting priority
+	// if both slices are defined, it panics
+
+	// Character Defs are given priority; if any are defined, only these will be assigned to beds
+	// Warning: CharacterDefs should represent unique NPCs; to reuse a character def, use/make a character generator for it.
+	// (assignment is just based on the order in which bed objects are found)
+	InhabitantCharacterDefs []CharacterDefID
+
+	// If no character defs are defined, then any character gens defined here will get assigned to beds.
+	InhabitantCharacterGens []string
+}
+
+func (mg MapGenerator) Validate() {
+	if mg.ID == "" {
+		logz.Panic("ID was empty")
+	}
+	if mg.MapDefID == "" {
+		logz.Panicln("Validate", "map def ID was empty")
+	}
+	if len(mg.InhabitantCharacterDefs) > 0 && len(mg.InhabitantCharacterGens) > 0 {
+		logz.Panicln("Validate", "both character defs and character gens are defined; that's not allowed, since only one or the other will get used (the others would be ignored)")
+	}
 }

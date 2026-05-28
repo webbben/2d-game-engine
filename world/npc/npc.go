@@ -19,7 +19,7 @@ import (
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/ui/overlay"
-	"github.com/webbben/2d-game-engine/world/worldgraph"
+	"github.com/webbben/2d-game-engine/worldgraph"
 	"golang.org/x/image/font"
 )
 
