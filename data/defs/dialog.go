@@ -76,6 +76,7 @@ type DialogResponse struct {
 	NextTopics   []TopicID         // IDs to unlock/emphasize
 	Once         bool              // if set, this response will only be possible to show once. after that, it is no longer eligible.
 	Goodbye      bool              // if set, this response will only have a 'Goodbye' reply available, which ends the conversation.
+	Exit         bool              // if set,  the dialog will exit immediately, without any 'Goodbye' reply prompt or anything
 
 	Replies []DialogReply // if the response should pose possibly replies by the player, set them here.
 
