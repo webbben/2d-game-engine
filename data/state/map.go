@@ -9,6 +9,15 @@ import (
 type MapState struct {
 	ID defs.MapID
 
+	DisplayName string        // override from map def
+	RegionID    defs.RegionID // override from map def
+
+	// if set, this map state was generated from a map generator.
+	// This means the ID of this map state does NOT match the map def (likely has a random UUID appended), since it's potentially not unique.
+	// Generated maps use the GeneratedMapDefID field to point to their map def.
+	IsGenerated       bool
+	GeneratedMapDefID defs.MapID // (generated maps only) ID of the MapDef used to make this map state.
+
 	// scenarios that have been queued to run in this map. when this map loads, it will run the scenario at the top of this slice,
 	// if any scenario exists. otherwise, it would run it's default behavior.
 	QueuedScenarios []defs.ScenarioID
@@ -35,6 +44,9 @@ type MapState struct {
 
 	// container objects have their state tracked here. key is the integer object ID as found in the Tiled map.
 	MapContainers map[int]*ContainerState
+
+	// if a door has an override (e.g. goes to a generated map), it'll be defined here
+	DoorOverrides map[int]DoorState
 }
 
 type MapItemState struct {
@@ -57,4 +69,10 @@ type BedState struct {
 
 type ContainerState struct {
 	Inventory []*defs.InventoryItem // slots / items in this container
+}
+
+type DoorState struct {
+	// If this door goes to a generated map, then this value will be set (since generated maps don't know their true map (state) IDs until runtime)
+	OverrideDestinationMap   defs.MapID
+	OverrideDestinationSpawn *int
 }

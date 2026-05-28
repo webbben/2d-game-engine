@@ -121,3 +121,9 @@ func RoundUpToTile(v int, tilesize int) int {
 	}
 	return RoundDownToTile(v+tilesize, tilesize)
 }
+
+func PanicAssert(assertTrue bool, failMsg string) {
+	if !assertTrue {
+		logz.Panicln("Assert", failMsg)
+	}
+}

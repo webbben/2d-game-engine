@@ -17,8 +17,9 @@ import (
 
 // LoadMap handles loading a Tiled Map. Handles everything from identifying the right .tmj file, unmarshalling the JSON data,
 // generating the tile images, etc.
-func LoadMap(mapID defs.MapID, regenImages bool) *Map {
-	mapSource := config.ResolveMapPath(mapID)
+// NOTE: This function takes the Map DEF ID, not the map state. Map states for generated maps don't match the map def, since they aren't unique.
+func LoadMap(mapDefID defs.MapID, regenImages bool) *Map {
+	mapSource := config.ResolveMapPath(mapDefID)
 	fmt.Println("map source:", mapSource)
 
 	// load and setup the map

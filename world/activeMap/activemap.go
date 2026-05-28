@@ -31,7 +31,7 @@ import (
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/world/npc"
-	"github.com/webbben/2d-game-engine/world/worldgraph"
+	"github.com/webbben/2d-game-engine/worldgraph"
 )
 
 type WorldContext interface {
@@ -128,13 +128,15 @@ func NewActiveMap(
 	debug.StartTimer("NewActiveMap")
 
 	logz.Println("ActiveMap", "Creating new active map:", mapID)
-	mapDef := dataman.GetMapDef(mapID)
+
+	mapInfo, mapDef, _ := dataman.GetAllMapData(mapID)
+
 	// load and setup the map
-	tiledMap := tiled.LoadMap(mapID, regenImages)
+	tiledMap := tiled.LoadMap(mapDef.ID, regenImages)
 
 	m := &ActiveMap{
 		MapID:       mapID,
-		DisplayName: mapDef.DisplayName,
+		DisplayName: mapInfo.DisplayName,
 		dataman:     dataman,
 		audioman:    audioman,
 		eventBus:    eventbus,
@@ -371,6 +373,19 @@ func (m ActiveMap) IsTileEntityCollision(c model.Coords, excludeEntID string) bo
 
 func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
 	o := object.LoadObject(obj, m, mi.audioman, mi.dataman, mi.eventBus, mi.MapID, mi)
+
+	// check if object is a door and has overrides; if so, we need to edit the door properties
+	if o.Type == object.TypeDoor {
+		mapState := mi.dataman.GetMapState(mi.MapID)
+		doorOverride, exists := mapState.DoorOverrides[o.ID]
+		if exists {
+			o.SetDoorTarget(doorOverride.OverrideDestinationMap, doorOverride.OverrideDestinationSpawn)
+		}
+	}
+
+	// validate here, so that door stuff has been resolved
+	o.Validate()
+
 	mi.Objects = append(mi.Objects, o)
 	if o.Light.On {
 		mi.LightObjects = append(mi.LightObjects, o)

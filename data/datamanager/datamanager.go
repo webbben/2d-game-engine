@@ -14,6 +14,7 @@ import (
 type DataManager struct {
 	MapDefs             map[defs.MapID]defs.MapDef
 	MapStates           map[defs.MapID]*state.MapState
+	MapGenerators       map[string]defs.MapGenerator
 	ContainerDefs       map[string]defs.ContainerDef
 	ContainerGenerators map[string]defs.ContainerGenerator
 	BookDefs            map[defs.BookID]defs.BookDef
@@ -50,6 +51,7 @@ func NewDataManager() *DataManager {
 		BookDefs:            make(map[defs.BookID]defs.BookDef),
 		MapDefs:             make(map[defs.MapID]defs.MapDef),
 		MapStates:           make(map[defs.MapID]*state.MapState),
+		MapGenerators:       make(map[string]defs.MapGenerator),
 		ContainerDefs:       make(map[string]defs.ContainerDef),
 		ContainerGenerators: make(map[string]defs.ContainerGenerator),
 		ScenarioDef:         make(map[defs.ScenarioID]defs.ScenarioDef),
@@ -71,6 +73,31 @@ func NewDataManager() *DataManager {
 		ClassDefs:           make(map[defs.ClassDefID]defs.ClassDef),
 	}
 	return &dataman
+}
+
+func (dataman *DataManager) LoadMapGenerator(gen defs.MapGenerator) {
+	if gen.ID == "" {
+		logz.Panicln("DataManager", "book def ID was empty")
+	}
+
+	if _, exists := dataman.MapGenerators[gen.ID]; exists {
+		logz.Panicln("DataManager", "map generator already exists:", gen.ID)
+	}
+
+	dataman.MapGenerators[gen.ID] = gen
+}
+
+func (dataman *DataManager) GetMapGenerator(genID string) defs.MapGenerator {
+	if genID == "" {
+		logz.Panic("id was empty")
+	}
+
+	def, exists := dataman.MapGenerators[genID]
+	if !exists {
+		logz.Panicln("DataManager", "MapGenerator doesn't exist:", genID)
+	}
+
+	return def
 }
 
 func (dataman *DataManager) LoadBookDef(def defs.BookDef) {

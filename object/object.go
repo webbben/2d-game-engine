@@ -2,7 +2,6 @@
 package object
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -468,10 +467,6 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 			o.addDefaultCollision()
 		}
 		o.loadDoorObject(allProps)
-		mapDef := dataman.GetMapDef(o.Door.TargetMapID)
-		if o.DisplayName == "" {
-			o.DisplayName = fmt.Sprintf("Door to %s", mapDef.DisplayName)
-		}
 	case TypeSpawnPoint:
 		o.loadSpawnObject(allProps)
 	case TypeGate:
@@ -511,14 +506,16 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 
 	o.loadGlobal(allProps)
 
-	switch o.Type {
-	case TypeDoor:
-		o.validateDoorObject()
-	case TypeGate:
-		o.validateGateObject()
-	}
-
 	return &o
+}
+
+func (obj Object) Validate() {
+	switch obj.Type {
+	case TypeDoor:
+		obj.validateDoorObject()
+	case TypeGate:
+		obj.validateGateObject()
+	}
 }
 
 func (obj *Object) loadGlobal(props []tiled.Property) {

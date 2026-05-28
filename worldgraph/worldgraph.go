@@ -1,18 +1,13 @@
-// Package worldgraph contains a graph representation of the world and its maps, and handles finding routes between maps
 package worldgraph
 
 import (
 	"fmt"
 	"slices"
 
-	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
-	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/utils"
 )
@@ -51,185 +46,6 @@ type WorldGraph struct {
 	// a cache of all map data. mainly used for access to cost maps, so we can calculate local paths.
 	// we purposely remove data like tile image data, since we don't use image data for path finding.
 	MapDataCache map[defs.MapID]*tiled.Map
-}
-
-func BuildWorldGraph(dataman *datamanager.DataManager) *WorldGraph {
-	debug.StartTimer("BuildWorldGraph")
-	logz.Println("WORLD", "Building World Graph...")
-
-	wg := WorldGraph{
-		Nodes:        make(map[defs.MapID]*MapNode),
-		MapDataCache: make(map[defs.MapID]*tiled.Map),
-	}
-
-	for mapID := range dataman.MapDefs {
-		node := MapNode{
-			ID:          mapID,
-			SpawnPoints: make(map[int]model.Coords),
-		}
-
-		// load each map and find all "edges" ("doors" as we call the objects)
-		m, exists := wg.MapDataCache[mapID]
-		if exists {
-			// not sure why this would ever happen... we aren't doing a search, we are just going through the list of map IDs, so no two IDs should ever be the same, right?
-			// I guess we can panic here to ensure there are no duplicates
-			logz.Panicln("WORLD", "BuildWorldGraph found map data was already cached for a mapID, but this shouldn't happen unless there are two maps with the same ID... mapID:", mapID)
-		}
-		if !exists {
-			m = tiled.LoadMap(mapID, false)
-		}
-		if m == nil {
-			panic("failed to get map data... did LoadMap return nil?")
-		}
-
-		allObjs := []tiled.Object{}
-		for _, l := range m.Layers {
-			allObjs = append(allObjs, tiled.GetAllObjectsFromLayer(l)...)
-		}
-
-		// a little validation; make sure spawn point 0 is found
-		foundSpawn0 := false
-
-		// look for "edges" (door objects)
-		for _, obj := range allObjs {
-			if obj.Ellipse {
-				// ellipse objects are just used for planning
-				continue
-			}
-
-			objectInfo := m.GetObjectPropsAndTile(obj)
-			objType, found := object.GetObjectType(objectInfo.AllProps)
-			if !found {
-				logz.Panicln("CreateNewMapState", "object didn't have a TYPE property:", obj.Name, obj.ID, "mapID:", mapID)
-			}
-
-			if objType == object.TypeSpawnPoint {
-				// record spawn point location
-				spawnID, found := tiled.GetIntProperty(object.PropSpawnIndex, obj.Properties)
-				if !found {
-					logz.Panicln("BuildWorldGraph", "Tried to get spawn index of spawn point, but property wasn't found. mapID:", mapID, "objID:", obj.ID)
-				}
-				if spawnID == 0 {
-					foundSpawn0 = true
-				}
-				spawnCoords := model.ConvertPxToTilePos((obj.X), (obj.Y))
-				node.SpawnPoints[spawnID] = spawnCoords
-				continue
-			}
-
-			if objType != object.TypeDoor {
-				continue
-			}
-
-			// found a door/edge; record where it goes
-			doorTo, found := tiled.GetStringProperty(object.PropDoorTo, objectInfo.AllProps)
-			if !found {
-				panic("door object didn't have door_to prop!")
-			}
-			toSpawn, found := tiled.GetIntProperty(object.PropDoorSpawnIndex, objectInfo.AllProps)
-			if !found {
-				panic("door object didn't have spawn index prop!")
-			}
-			// TODO: these coordinates are probably a bit wrong; it'll point to the top left, but we would actually want to know the position right next to the door,
-			// where a character would actually be standing when using the door.
-			x := obj.X
-			y := obj.Y
-			if obj.Height > config.TileSize {
-				// doors are usually 2 tiles tall, so make sure we have the bottom tile
-				y = (y + obj.Height) - config.TileSize
-			}
-			edgeCoords := model.ConvertPxToTilePos(x, y)
-			// TODO: should we go through the trouble here of actually finding the "right" position to go to in order to access the door?
-			// lots of doors will be on buildings, and therefore their positions will be blocked.
-			// I also wonder if path finding when the goal tile is blocked takes a performance hit at all, since it probably leads to excess searching (even if a little)
-
-			node.Edges = append(node.Edges, MapEdge{
-				To:           defs.MapID(doorTo),
-				ToSpawn:      toSpawn,
-				EdgeCoords:   edgeCoords,
-				EdgeObjectID: obj.ID,
-			})
-		}
-
-		if !foundSpawn0 {
-			logz.Panicln("BuildWorldGraph", "map doesn't have spawn point index 0! this is required for all maps. mapID:", mapID)
-		}
-
-		m.TileImageMap = nil // delete this stuff, since it could take up extra memory; we don't need tile images here.
-		wg.MapDataCache[mapID] = m
-
-		wg.Nodes[mapID] = &node
-	}
-
-	debug.StopTimer("BuildWorldGraph")
-	return &wg
-}
-
-// A PathStep represents one map's segment of travel in a WorldPath. Each PathStep assumes you spawn in at a certain point,
-// and are heading towards another edge. The first step will not have a spawn point (since the character is, of course, already in that map)
-// and the last step will not have an edge (since the character will have arrived at the destination map).
-type PathStep struct {
-	SpawnCoords model.Coords // the coords of the spawn point where the character arrives in this map/path step
-	MapID       defs.MapID
-	NextEdge    *MapEdge // the edge this step heads to, if going to a new map
-	MapPath     []model.Coords
-}
-
-func (ps PathStep) String() string {
-	s := fmt.Sprintf("mapID: %s\n", ps.MapID)
-	s += fmt.Sprintf("spawnCoords: %s\n", ps.SpawnCoords)
-	s += fmt.Sprintf("nextEdge: %v\n", ps.NextEdge)
-	s += fmt.Sprintf("mapPath: %s", ps.MapPath)
-	return s
-}
-
-type WorldPath struct {
-	FromMapID defs.MapID
-	ToMapID   defs.MapID
-	Path      []PathStep
-}
-
-func (wp WorldPath) Validate() {
-	if wp.FromMapID == "" {
-		panic("from map is empty")
-	}
-	if wp.ToMapID == "" {
-		panic("to map is empty")
-	}
-	if len(wp.Path) == 0 {
-		panic("Path is empty")
-	}
-	if wp.Path[0].MapID != wp.FromMapID {
-		panic("first path mapID doesn't match FromMapID")
-	}
-	if wp.Path[len(wp.Path)-1].NextEdge.To != wp.ToMapID {
-		panic("last path segment's edge to map ID doesn't match ToMapID")
-	}
-
-	for i, ps := range wp.Path {
-		if ps.MapID == "" {
-			panic("mapID was empty")
-		}
-		if ps.NextEdge == nil {
-			panic("next edge was nil")
-		}
-		if i == 0 {
-			// first step
-			if !ps.SpawnCoords.Equals(model.Coords{X: 0, Y: 0}) {
-				panic("first path step had spawn coords defined, but it's not supposed to")
-			}
-			if len(ps.MapPath) > 0 {
-				panic("first step had a map path defined, but that shouldn't happen since findPath doesn't know the starting coordinates")
-			}
-		} else {
-			if ps.SpawnCoords.Equals(model.Coords{X: 0, Y: 0}) {
-				panic("middle step didn't have a spawn defined")
-			}
-			if len(ps.MapPath) == 0 {
-				panic("map path was empty")
-			}
-		}
-	}
 }
 
 func (wg *WorldGraph) FindPath(from, to defs.MapID) (pathToGoal WorldPath, foundPath bool) {
@@ -349,4 +165,71 @@ func (wg *WorldGraph) reconstructPath(prev map[defs.MapID]defs.MapID, prevEdge m
 	slices.Reverse(path)
 
 	return path
+}
+
+type WorldPath struct {
+	FromMapID defs.MapID
+	ToMapID   defs.MapID
+	Path      []PathStep
+}
+
+func (wp WorldPath) Validate() {
+	if wp.FromMapID == "" {
+		panic("from map is empty")
+	}
+	if wp.ToMapID == "" {
+		panic("to map is empty")
+	}
+	if len(wp.Path) == 0 {
+		panic("Path is empty")
+	}
+	if wp.Path[0].MapID != wp.FromMapID {
+		panic("first path mapID doesn't match FromMapID")
+	}
+	if wp.Path[len(wp.Path)-1].NextEdge.To != wp.ToMapID {
+		panic("last path segment's edge to map ID doesn't match ToMapID")
+	}
+
+	for i, ps := range wp.Path {
+		if ps.MapID == "" {
+			panic("mapID was empty")
+		}
+		if ps.NextEdge == nil {
+			panic("next edge was nil")
+		}
+		if i == 0 {
+			// first step
+			if !ps.SpawnCoords.Equals(model.Coords{X: 0, Y: 0}) {
+				panic("first path step had spawn coords defined, but it's not supposed to")
+			}
+			if len(ps.MapPath) > 0 {
+				panic("first step had a map path defined, but that shouldn't happen since findPath doesn't know the starting coordinates")
+			}
+		} else {
+			if ps.SpawnCoords.Equals(model.Coords{X: 0, Y: 0}) {
+				panic("middle step didn't have a spawn defined")
+			}
+			if len(ps.MapPath) == 0 {
+				panic("map path was empty")
+			}
+		}
+	}
+}
+
+// A PathStep represents one map's segment of travel in a WorldPath. Each PathStep assumes you spawn in at a certain point,
+// and are heading towards another edge. The first step will not have a spawn point (since the character is, of course, already in that map)
+// and the last step will not have an edge (since the character will have arrived at the destination map).
+type PathStep struct {
+	SpawnCoords model.Coords // the coords of the spawn point where the character arrives in this map/path step
+	MapID       defs.MapID
+	NextEdge    *MapEdge // the edge this step heads to, if going to a new map
+	MapPath     []model.Coords
+}
+
+func (ps PathStep) String() string {
+	s := fmt.Sprintf("mapID: %s\n", ps.MapID)
+	s += fmt.Sprintf("spawnCoords: %s\n", ps.SpawnCoords)
+	s += fmt.Sprintf("nextEdge: %v\n", ps.NextEdge)
+	s += fmt.Sprintf("mapPath: %s", ps.MapPath)
+	return s
 }

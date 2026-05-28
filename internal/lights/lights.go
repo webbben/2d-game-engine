@@ -127,7 +127,10 @@ func (l *LightFader) Update() {
 
 // light colors (for cutting through darkness as a light source)
 
-var LightTorch = LightColor{1.0, 0.8, 0.8}
+var (
+	LightTorch   = LightColor{1.0, 0.7, 0.7}
+	LightLantern = LightColor{1.0, 0.6, 0.6}
+)
 
 type Light struct {
 	X, Y                 float32
@@ -158,10 +161,12 @@ func (l Light) String() string {
 }
 
 func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Light {
-	lightColor := LightTorch
-	if lightProp.ColorPreset == "torch" {
-		// TODO setup some color presets
+	var lightColor LightColor
+	switch lightProp.ColorPreset {
+	case "torch":
 		lightColor = LightTorch
+	case "lantern":
+		lightColor = LightLantern
 	}
 	// if a custom light is defined, use it
 	if customLight != nil {
