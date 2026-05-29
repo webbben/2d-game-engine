@@ -106,8 +106,7 @@ func (ctx *DialogContext) RecordTopicUnlocked(topicID defs.TopicID) {
 	if topicID == "" {
 		panic("topicID was empty")
 	}
-	playerCharState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
-	playerCharState.Knowledge[topicID] = true
+	characterstate.AddKnowledge(topicID, ctx.dataman, ctx.eventBus)
 
 	// if the NPC also knows this topic, add it to this session's available knowledge topics
 	if slices.Contains(ctx.ProfileDef.KnowledgeTopics, topicID) {

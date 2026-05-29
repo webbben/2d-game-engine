@@ -1,3 +1,73 @@
+# 2026-05-28
+
+Wow, it's been 20 days since I last wrote. I whoooole lot has happened in these past 20 days, and I think because I've been so busy making changes
+I was too distracted to sit down here and officially record my progress. Let's review what's happened:
+
+## New Storyline
+
+That's right - I think by this point I've probably changed the storyline a couple times now... lol. But this time, I feel quite confident
+that I can stick with this new storyline. I was a bit unsure about the previous storylines, and so I spent some time just brainstorming
+this game and the original purpose for why I started making it anyway. It was helpful in reminding me of those reasons, but I realized
+that those reasons were mainly revolving around mechanics and features in the game - not the game's storyline. And because of this, I had
+before just been focused on finding a storyline that is "good enough" to justify a game.
+
+Well, I realized that if I want to make an RPG, I'm gonna need a decent storyline. But I also wanted to make sure the player wouldn't feel
+railroaded into the storyline against their will. I went with a pretty "Morrowind" style approach where you start the game, and feel intrigued to
+proceed with the main storyline. But you are not forced to, and from the moment you start the game you can ultimately decide where you go and what
+you do. That's also good, because it means the storyline needs to be captivating and exciting; mysterious and making you feel some urgency to 
+continue. Ultimately, after some brainstorming, I came up with a new storyline idea that feels quite satisfactory to me compared to the previous
+concepts, and also allows for some room in what direction I ultimately want to take it, once I have time to really dive into the deeper parts of the lore,
+background to characters, and end game scenarios, etc. But, to give a hint, it will be more or less based on Augustus' succession.
+This changes the setting of the game too: We are no longer at 9 AD, but 12~13 (ish) AD. The final years of Augustus' reign.
+It also drags the center of gravity south to Rome, rather than where it previously was in Aquileia. In hindsight, it now seems kind of obvious 
+that I should've made Rome the central city of this game. I mean... it's a game set in ancient Rome. Am I _not_ going to have _Rome_ in it??
+
+So, the new storyline feels both a lot more compelling, and it improves the setting too which is great. I'm a lot more optimistic now about
+where it's headed.
+
+## Redoing the maps and creating Rome
+
+Since the setting and storyline changed, that means I needed to pretty much start from scratch again with the maps. But this wasn't too bad,
+because I actually had already spent a lot of time sketching out maps of Rome earlier this year, since I always intended to make Rome anyway.
+So I was able to dig up those plans and go from there, and have put together a good outline of what Rome will be like. I've also been building Ostia,
+which will be the city the player starts in (still going with the "arriving in a boat" starting scene).
+
+Building Rome will of course be a massive part of the game, but luckily my previous work on maps like Aquileia have been great learning experiences,
+and I think it's improved both my art and my overall "level design" (city design?). So the new maps in Rome are looking a lot better anyway, since it benefits
+from my previous trial and error. Plus, I got to reorganize my tilesets since I was scrapping my previous maps, so now my tiles are much more organized and 
+can be reused to make lots of new buildings, and they look a bit better too.
+
+## New Features
+
+I've implemented a few new code features I think, but most of the time has been spent on the above two sections. Notable new features include the following:
+
+1. Speech bubbles (I guess I already discussed this last time, but it's implemented now)
+
+2. Fast travel: from dialog, the player can now be transported to new maps, causing a time lapse at the same time. It works really well actually,
+so I've very excited about it.
+
+3. "Map Generators" / Map Templates: I realized that some maps could be generic and reusable, like little shacks and unimportant buildings for generic NPCs to live in.
+So I created the concept of "Map Generators" which let me instantiate new maps using a "template map", and customize which NPCs live in them, etc.
+For now, I started by using this with "taxi" NPCs (the NPCs that can perform fast travel for the player, like boats and stage coaches).
+
+4. Not sure if this was present before, but recently I also implemented containers (chests, barrels, etc).
+
+5. Almost forgot - I also implemented a basic version of "books". "books" is just a general term for a body of text that you can read;
+Book items (not yet implemented) is one of the main use cases, but for now it's implemented for things like signs that you can read in a town, on a road, etc.
+
+## Next Up
+
+Next, I plan to focus on the following things. I'm actually hitting a little "sprint" since I'll be on vacation in a couple weeks, and likely showing off
+my game as a demo. So the pressure is on.
+
+1. Get the first quest or two of the main quest line built. Storyline changed, so the first couple quests from before will need to be rewritten or modified a bit.
+
+2. Continue building out Rome and Ostia; adding buildings, NPCs, shops, civilians, etc.
+
+3. Start work on a merchants guild? or Thieves guild? some kind of guild.
+
+Soon I'll add some pictures, since it's been a long time. Maybe in the next day or so. Until next time.
+
 # 2026-05-08
 
 A new thing I want to implement is speech bubbles that can appear next to NPCs even while the player is not in direct dialog with them.

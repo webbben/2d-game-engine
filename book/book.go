@@ -7,8 +7,11 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/ui/box"
 	"github.com/webbben/2d-game-engine/ui/button"
 	"github.com/webbben/2d-game-engine/ui/text"
@@ -42,7 +45,7 @@ func (bs BookSession) Dimensions() (dx, dy int) {
 	return bs.boxImage.Bounds().Dx(), bs.boxImage.Bounds().Dy()
 }
 
-func NewBookSession(bookID defs.BookID, dataman *datamanager.DataManager, audioman *audio.AudioManager, params config.BookSessionParams) *BookSession {
+func NewBookSession(bookID defs.BookID, dataman *datamanager.DataManager, audioman *audio.AudioManager, eventBus *pubsub.EventBus, params config.BookSessionParams) *BookSession {
 	if dataman == nil {
 		panic("dataman was nil")
 	}
@@ -91,6 +94,15 @@ func NewBookSession(bookID defs.BookID, dataman *datamanager.DataManager, audiom
 	}
 
 	sesh.closeBtn = button.NewButton("Close", config.DefaultFont, 0, 0, audioman)
+
+	// if the book def has knowledge topics, apply it to the player's character state
+	if len(sesh.bookDef.KnowledgeTopics) > 0 {
+		charState := dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+		for _, topic := range sesh.bookDef.KnowledgeTopics {
+			charState.Knowledge[topic] = true
+			characterstate.AddKnowledge(topic, dataman, eventBus)
+		}
+	}
 
 	return sesh
 }
