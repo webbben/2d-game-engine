@@ -3,8 +3,9 @@ package inventory
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/datamanager"
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/ui/textwindow"
@@ -35,17 +36,13 @@ func (inv Inventory) GetItemSlots() []*ItemSlot {
 	return inv.itemSlots
 }
 
-func (inv Inventory) GetInventoryItems() []*defs.InventoryItem {
-	invItems := []*defs.InventoryItem{}
+func (inv Inventory) GetInventoryItems() []*state.ItemState {
+	invItems := []*state.ItemState{}
 	for _, slot := range inv.itemSlots {
 		if slot.Item == nil {
 			invItems = append(invItems, nil)
 		} else {
-			invItems = append(invItems, &defs.InventoryItem{
-				Instance: slot.Item.Instance,
-				Def:      slot.Item.Def,
-				Quantity: slot.Item.Quantity,
-			})
+			invItems = append(invItems, slot.Item)
 		}
 	}
 	return invItems
@@ -75,7 +72,7 @@ type InventoryParams struct {
 
 func NewInventory(dataman *datamanager.DataManager, params InventoryParams) Inventory {
 	inv := Inventory{
-		dataman:                   dataman,
+		dataman:                  dataman,
 		itemSlotTilesetSource:    params.ItemSlotTilesetSource,
 		slotEnabledTileID:        params.SlotEnabledTileID,
 		slotDisabledTileID:       params.SlotDisabledTileID,
@@ -128,7 +125,7 @@ func NewInventory(dataman *datamanager.DataManager, params InventoryParams) Inve
 
 // SetItemSlots sets all item slots; a nil spot represents an empty item slot.
 // items can be less than the actual total slots number, since some slots may be disabled.
-func (inv *Inventory) SetItemSlots(items []*defs.InventoryItem) {
+func (inv *Inventory) SetItemSlots(items []*state.ItemState) {
 	if len(items) > len(inv.itemSlots) {
 		logz.Panicf("trying to set more items than there are item slots. slots: %v items: %v", len(inv.itemSlots), len(items))
 	}
@@ -141,17 +138,18 @@ func (inv *Inventory) SetItemSlots(items []*defs.InventoryItem) {
 		} else {
 			invItem.Validate()
 			if invItem.Quantity == 0 {
-				logz.Println(string(invItem.Instance.DefID))
+				logz.Println(string(invItem.DefID))
 				panic("trying to set an item that has 0 quantity")
 			}
-			inv.itemSlots[i].SetContent(&invItem.Instance, invItem.Def, invItem.Quantity)
+			itemDef := inv.dataman.GetItemDef(invItem.DefID)
+			inv.itemSlots[i].SetContent(invItem, itemDef)
 		}
 	}
 }
 
 // AddItems adds items to an inventory and returns the items that failed to be added (due to inventory being too full)
-func (inv *Inventory) AddItems(items []defs.InventoryItem) []defs.InventoryItem {
-	failedToAdd := []defs.InventoryItem{}
+func (inv *Inventory) AddItems(items []state.ItemState) []state.ItemState {
+	failedToAdd := []state.ItemState{}
 
 	// find matching item that can merge
 	for _, newItem := range items {
@@ -160,8 +158,8 @@ func (inv *Inventory) AddItems(items []defs.InventoryItem) []defs.InventoryItem 
 			if itemSlot.Item == nil {
 				continue
 			}
-			if newItem.Instance.DefID == itemSlot.Item.Instance.DefID {
-				if newItem.Def.IsGroupable() {
+			if newItem.DefID == itemSlot.Item.DefID {
+				if itemSlot.ItemDef.Groupable {
 					itemSlot.Item.Quantity += newItem.Quantity
 					placed = true
 					break
@@ -176,7 +174,8 @@ func (inv *Inventory) AddItems(items []defs.InventoryItem) []defs.InventoryItem 
 		// find an empty slot if one exists
 		for _, itemSlot := range inv.itemSlots {
 			if itemSlot.Item == nil {
-				itemSlot.SetContent(&newItem.Instance, newItem.Def, newItem.Quantity)
+				itemDef := inv.dataman.GetItemDef(newItem.DefID)
+				itemSlot.SetContent(&newItem, itemDef)
 				placed = true
 				break
 			}
@@ -239,7 +238,7 @@ func (inv *Inventory) TotalWeight() int {
 		if itemSlot.Item == nil {
 			continue
 		}
-		total += itemSlot.Item.Def.GetWeight() * float64(itemSlot.Item.Quantity)
+		total += itemSlot.ItemDef.Weight * float64(itemSlot.Item.Quantity)
 	}
 	return int(total)
 }

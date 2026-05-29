@@ -410,54 +410,39 @@ func (eb *EntityBodySet) ReloadArms() {
 }
 
 func (eb *EntityBodySet) EquipBodyItem(i defs.ItemDef) {
-	if i == nil {
-		logz.Panicln("EquipBodyItem", "item was nil")
+	if i.Type != defs.TypeBodywear {
+		logz.Panicln("EquipBodyItem", "item is not bodywear:", i.ID)
 	}
-	if i.GetItemType() != defs.TypeBodywear {
-		logz.Panicln("EquipBodyItem", "item is not bodywear:", i.GetID())
-	}
-	eb.SetEquipBody(*i.GetBodyPartDef(), *i.GetLegsPartDef())
+	eb.SetEquipBody(*i.BodyPartDef, *i.LegsPartDef)
 }
 
 func (eb *EntityBodySet) EquipHeadItem(i defs.ItemDef) {
-	if i == nil {
-		logz.Panicln("EquipHeadItem", "item was nil")
+	if i.Type != defs.TypeHeadwear {
+		logz.Panicln("EquipHeadItem", "item is not headwear:", i.ID)
 	}
-	if i.GetItemType() != defs.TypeHeadwear {
-		logz.Panicln("EquipHeadItem", "item is not headwear:", i.GetID())
-	}
-	eb.SetEquipHead(*i.GetBodyPartDef())
+	eb.SetEquipHead(*i.BodyPartDef)
 }
 
 func (eb *EntityBodySet) EquipAuxItem(i defs.ItemDef) {
-	if i == nil {
-		logz.Panicln("EquipAuxItem", "item was nil")
+	if i.Type != defs.TypeAuxiliary {
+		logz.Panicln("EquipAuxItem", "item is not aux:", i.ID)
 	}
-	if i.GetItemType() != defs.TypeAuxiliary {
-		logz.Panicln("EquipAuxItem", "item is not aux:", i.GetID())
-	}
-	eb.SetAuxiliary(*i.GetBodyPartDef())
+	eb.SetAuxiliary(*i.BodyPartDef)
 }
 
 func (eb *EntityBodySet) EquipWeaponItem(i defs.ItemDef) {
-	if i == nil {
-		logz.Panicln("EquipWeaponItem", "item was nil")
-	}
-	if i.GetItemType() != defs.TypeWeapon {
-		logz.Panicln("EquipWeaponItem", "item is not weapon:", i.GetID())
+	if i.Type != defs.TypeWeapon {
+		logz.Panicln("EquipWeaponItem", "item is not weapon:", i.ID)
 	}
 	weaponPart, fxPart := item.GetWeaponParts(i)
 	eb.SetWeapon(weaponPart, fxPart)
 }
 
 func (eb *EntityBodySet) EquipFootItem(i defs.ItemDef) {
-	if i == nil {
-		logz.Panicln("EquipFootItem", "item was nil")
+	if i.Type != defs.TypeFootwear {
+		logz.Panicln("EquipFootItem", "item is not footwear:", i.ID)
 	}
-	if i.GetItemType() != defs.TypeFootwear {
-		logz.Panicln("EquipFootItem", "item is not footwear:", i.GetID())
-	}
-	eb.SetEquipFeet(*i.GetBodyPartDef())
+	eb.SetEquipFeet(*i.BodyPartDef)
 }
 
 func (eb *EntityBodySet) SetEquipBody(bodyDef, legsDef defs.SelectedPartDef) {

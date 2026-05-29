@@ -2,7 +2,7 @@ package inventory
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
 )
 
 // ItemTransfer is for moving items from one inventory to another.
@@ -23,11 +23,11 @@ func NewItemTransfer(playerInv []*ItemSlot, otherInv []*ItemSlot) ItemTransfer {
 }
 
 type ItemTransferResult struct {
-	TransferedItem          defs.InventoryItem // item that was transfered
-	ToPlayerInv             bool               // if true, was transfered to player inventory. otherwise, was transfered to other inventory
-	TransferedTo            *ItemSlot          // slot item was transfered to
-	Success                 bool               // if true, item was successfully transfered
-	TransferAttemptOccurred bool               // if true, a transfer attempt occurred
+	TransferedItem          state.ItemState // item that was transfered
+	ToPlayerInv             bool            // if true, was transfered to player inventory. otherwise, was transfered to other inventory
+	TransferedTo            *ItemSlot       // slot item was transfered to
+	Success                 bool            // if true, item was successfully transfered
+	TransferAttemptOccurred bool            // if true, a transfer attempt occurred
 }
 
 func (it *ItemTransfer) Update() ItemTransferResult {
@@ -97,19 +97,16 @@ func transferItem(from []*ItemSlot, fromIndex int, quantity int, to []*ItemSlot)
 	if quantity == 0 {
 		panic("no quantity set for item transfer")
 	}
-	itemToMove := defs.InventoryItem{
-		Instance: from[fromIndex].Item.Instance,
-		Def:      from[fromIndex].Item.Def,
-		Quantity: quantity,
-	}
+	itemToMove := *from[fromIndex].Item
+	itemDef := from[fromIndex].ItemDef
 
 	// if groupable, find a matching slot
-	if itemToMove.Def.IsGroupable() {
+	if itemDef.Groupable {
 		for _, slot := range to {
 			if slot.Item == nil {
 				continue
 			}
-			if slot.Item.Instance.DefID == itemToMove.Instance.DefID {
+			if slot.Item.DefID == itemToMove.DefID {
 				slot.Item.Quantity += quantity
 				from[fromIndex].Item.Quantity -= quantity
 				if from[fromIndex].Item.Quantity == 0 {
@@ -127,7 +124,7 @@ func transferItem(from []*ItemSlot, fromIndex int, quantity int, to []*ItemSlot)
 	// otherwise, find an empty slot
 	for _, slot := range to {
 		if slot.Item == nil {
-			slot.SetContent(&itemToMove.Instance, itemToMove.Def, itemToMove.Quantity)
+			slot.SetContent(&itemToMove, itemDef)
 			from[fromIndex].Item.Quantity -= quantity
 			if from[fromIndex].Item.Quantity == 0 {
 				from[fromIndex].Clear()

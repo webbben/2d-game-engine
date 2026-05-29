@@ -3,7 +3,6 @@ package entity
 import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/entity/body"
-	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 )
@@ -180,7 +179,7 @@ func (e Entity) IsStunned() bool {
 func (e Entity) IsWeaponEquiped() bool {
 	// ensure that weapon set matches equiped weapon
 	partIsNone := e.Body.WeaponSet.PartSrc.None
-	weaponIsNil := e.characterStateRef.Equipment.EquipedWeapon == nil
+	weaponIsNil := e.characterStateRef.EquipedWeapon == nil
 	if weaponIsNil == partIsNone {
 		return !weaponIsNil
 	}
@@ -190,10 +189,8 @@ func (e Entity) IsWeaponEquiped() bool {
 }
 
 func (e Entity) IsShieldEquiped() bool {
-	if e.characterStateRef.Equipment.EquipedAuxiliary != nil {
-		if item.IsArmor(e.characterStateRef.Equipment.EquipedAuxiliary.Def) {
-			return true
-		}
+	if e.characterStateRef.EquipedAuxiliary != nil {
+		return e.equipedAuxiliary.Protection > 0
 	}
 	return false
 }

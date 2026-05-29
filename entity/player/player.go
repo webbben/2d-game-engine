@@ -8,7 +8,6 @@ import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
-	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/ui/overlay"
@@ -57,14 +56,4 @@ func NewPlayer(dataman *datamanager.DataManager, ent *entity.Entity) Player {
 		dataman:           dataman,
 		Entity:            ent,
 	}
-}
-
-// TODO: delete? just use the entity one since there is no difference now
-func (p *Player) AddItemToInventory(invItem defs.InventoryItem) (bool, defs.InventoryItem) {
-	return characterstate.AddItemToInventory(p.CharacterStateRef, invItem)
-}
-
-// TODO: delete?
-func (p *Player) RemoveItemFromInventory(itemToRemove defs.InventoryItem) (bool, defs.InventoryItem) {
-	return characterstate.RemoveItemFromInventory(p.CharacterStateRef, itemToRemove)
 }

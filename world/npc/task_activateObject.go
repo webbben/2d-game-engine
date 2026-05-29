@@ -114,7 +114,7 @@ func (t *ActivateObjectTask) Update() {
 	t.targetObj.ClearTargetingNPC()
 	res := t.targetObj.Activate(t.Owner.Entity.X, t.Owner.Entity.Y, object.ObjectActivationParams{
 		ActivatorID: id.CharacterStateID(t.Owner.ID()),
-		LockIDs:     characterstate.GetLockIDs(charState),
+		LockIDs:     characterstate.GetLockIDs(charState, t.Owner.dataman),
 	})
 	if res.UpdateOccurred {
 		t.Owner.handleObjectUpdate(t.targetObj, res)

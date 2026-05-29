@@ -4,207 +4,15 @@ package item
 import (
 	"time"
 
-	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/tiled"
 )
 
-// ItemBase includes the basic functions required for an item to implement the ItemDef interface.
-// embed into a struct to make it effectively an item type.
-type ItemBase struct {
-	init          bool // flag to indicate if item has been loaded yet
-	ID            defs.ItemID
-	Name          string
-	Description   string
-	Type          defs.ItemType
-	Value         int
-	Weight        float64
-	MaxDurability int
-	Groupable     bool
-
-	TileImgTilesetSrc       string // tileset where tile image is found
-	TileImgIndex            int    // index of tile image in tileset
-	TileImg                 *ebiten.Image
-	OriginIndexEquipedTiles int // index of origin where equiped tiles are in tileset
-	EquipedTiles            []*ebiten.Image
-
-	// wearable item properties
-
-	BodyPartDef *defs.SelectedPartDef // made it a pointer so it can be nil-able
-	LegsPartDef *defs.SelectedPartDef // bodywear has a legs component that moves separately from the body component
-}
-
-// panic is a helper for quickly throwing a panic based on this item, and giving helpful contextual info at the same time.
-func (ib ItemBase) panic(s string) {
-	logz.Panicf("[%s/%s] %s", ib.Name, ib.ID, s)
-}
-
-type ItemBaseParams struct {
-	ID                   defs.ItemID
-	Name, Description    string
-	Type                 defs.ItemType
-	Weight               float64
-	Value, MaxDurability int
-	TileImgTilesetSrc    string
-	TileImgIndex         int
-	Groupable            bool
-	BodyPartDef          *defs.SelectedPartDef
-	LegsPartDef          *defs.SelectedPartDef
-}
-
-func NewItemBase(params ItemBaseParams) *ItemBase {
-	ib := ItemBase{
-		ID:                params.ID,
-		Name:              params.Name,
-		Description:       params.Description,
-		Type:              params.Type,
-		Value:             params.Value,
-		Weight:            params.Weight,
-		MaxDurability:     params.MaxDurability,
-		TileImgTilesetSrc: params.TileImgTilesetSrc,
-		TileImgIndex:      params.TileImgIndex,
-		Groupable:         params.Groupable,
-		BodyPartDef:       params.BodyPartDef,
-		LegsPartDef:       params.LegsPartDef,
-	}
-
-	ib.Validate()
-	return &ib
-}
-
-func (ib ItemBase) Validate() {
-	if ib.Name == "" {
-		panic("item has no name")
-	}
-	if ib.ID == "" {
-		logz.Panicf("[%s] item has no ID", ib.Name)
-	}
-	if ib.Value < 0 {
-		ib.panic("value is less than 0")
-	}
-	if ib.Description == "" {
-		ib.panic("item has no description")
-	}
-	if ib.TileImgTilesetSrc == "" {
-		ib.panic("item has no tileset source for tile image")
-	}
-	if ib.MaxDurability != 0 && ib.Groupable {
-		ib.panic("items with durability cannot be groupable")
-	}
-	if ib.Type == "" {
-		ib.panic("item has no type")
-	}
-	if ib.Type == defs.TypeBodywear || ib.Type == defs.TypeHeadwear || ib.Type == defs.TypeFootwear || ib.Type == defs.TypeAuxiliary || ib.Type == defs.TypeWeapon {
-		if ib.BodyPartDef == nil {
-			ib.panic("item is a visible equipable item, but no bodyPartDef is set")
-		}
-	} else if ib.BodyPartDef != nil {
-		ib.panic("item is not a visible equipable item, but it has a defined bodyPartDef")
-	}
-	if ib.GetItemType() == defs.TypeBodywear {
-		if ib.BodyPartDef == nil {
-			ib.panic("bodywear must have a body part def")
-		}
-		if ib.LegsPartDef == nil {
-			ib.panic("bodywear must have a legs part")
-		}
-	} else if ib.GetItemType() == defs.TypeHeadwear {
-		if ib.BodyPartDef == nil {
-			ib.panic("headwear must have a body part def")
-		}
-		if ib.LegsPartDef != nil {
-			ib.panic("headwear must NOT have a legs component. that is only for bodywear.")
-		}
-	}
-}
-
-func (ib ItemBase) GetID() defs.ItemID {
-	return ib.ID
-}
-
-func (ib ItemBase) GetName() string {
-	return ib.Name
-}
-
-func (ib ItemBase) GetDescription() string {
-	return ib.Description
-}
-
-func (ib ItemBase) GetValue() int {
-	return ib.Value
-}
-
-func (ib ItemBase) GetWeight() float64 {
-	return ib.Weight
-}
-
-func (ib ItemBase) GetMaxDurability() int {
-	return ib.MaxDurability
-}
-
-func (ib ItemBase) GetTileImg() *ebiten.Image {
-	return ib.TileImg
-}
-
-func (ib ItemBase) GetEquipedTiles() []*ebiten.Image {
-	return ib.EquipedTiles
-}
-
-func (ib ItemBase) IsGroupable() bool {
-	return ib.Groupable
-}
-
-func (ib ItemBase) IsEquipable() bool {
-	switch ib.Type {
-	case defs.TypeBodywear, defs.TypeHeadwear, defs.TypeFootwear, defs.TypeWeapon, defs.TypeAmulet, defs.TypeRing, defs.TypeAmmunition, defs.TypeAuxiliary:
-		return true
-	default:
-		return false
-	}
-}
-
-func (ib ItemBase) GetItemType() defs.ItemType {
-	return ib.Type
-}
-
-// GetBodyPartDef gets the body part def for equiping this item visibly on the body.
-func (ib ItemBase) GetBodyPartDef() *defs.SelectedPartDef {
-	return ib.BodyPartDef
-}
-
-// GetLegsPartDef gets the legs part def for equiping this (bodywear) item. Should only exist for bodywear items.
-func (ib ItemBase) GetLegsPartDef() *defs.SelectedPartDef {
-	return ib.LegsPartDef
-}
-
-func (ib *ItemBase) Load() {
-	if ib.TileImgTilesetSrc == "" {
-		panic("no tileset source defined for item tile image")
-	}
-
-	// load tile image
-	tileset, err := tiled.LoadTileset(ib.TileImgTilesetSrc)
-	if err != nil {
-		logz.Panicf("error while loading tileset for item tile image: %s", err)
-	}
-	img, err := tileset.GetTileImage(ib.TileImgIndex, true)
-	if err != nil {
-		logz.Panicf("error while getting item tile image: %s", err)
-	}
-	ib.TileImg = img
-
-	ib.init = true
-}
-
-func CompilerCheck() {
-	_ = append([]defs.ItemDef{}, &WeaponDef{}, &PotionDef{}, &ArmorDef{})
-}
-
 type WeaponDef struct {
-	ItemBase
-	Damage        int     // damage per attack
-	HitsPerSecond float64 // speed of attacks, in terms of number of attacks possible per second
+	// ItemBase
+	Damage int // damage per attack
 
 	FxPartDef *defs.SelectedPartDef // only defined for weapon items
 }
@@ -212,17 +20,13 @@ type WeaponDef struct {
 // GetWeaponParts gets the two bodyPartDefs for a weapon: the actual weapon, and the fx.
 // Panics if given item is not a weaponDef, or if either part is not found.
 func GetWeaponParts(i defs.ItemDef) (weaponPart defs.SelectedPartDef, fxPart defs.SelectedPartDef) {
-	part := i.GetBodyPartDef()
+	part := i.BodyPartDef
 	if part == nil {
-		logz.Panicln("GetWeaponParts", "weapon part is nil:", i.GetID())
+		logz.Panicln("GetWeaponParts", "weapon part is nil:", i.ID)
 	}
-	weaponDef, ok := i.(*WeaponDef)
-	if !ok {
-		logz.Panicln("GetWeaponParts", "failed to assert as weapon:", i.GetID())
-	}
-	fx := weaponDef.FxPartDef
+	fx := i.FxPartDef
 	if fx == nil {
-		logz.Panicln("GetWeaponParts", "fx part is nil:", i.GetID())
+		logz.Panicln("GetWeaponParts", "fx part is nil:", i.ID)
 	}
 
 	if part.None {
@@ -235,26 +39,51 @@ func GetWeaponParts(i defs.ItemDef) (weaponPart defs.SelectedPartDef, fxPart def
 	return *part, *fx
 }
 
-type ArmorDef struct {
-	ItemBase
-	Protection int // amount of protection this piece of armor gives
-}
-
-// IsArmor determines if the given ItemDef is an instance of ArmorDef (i.e. is assertable to ArmorDef)
-func IsArmor(i defs.ItemDef) bool {
-	_, ok := i.(*ArmorDef)
-	return ok
-}
-
 type PotionDef struct {
-	ItemBase
 	EffectDuration time.Duration
 	// TODO: add an Effect concept, which will encompass potion effects and enchantments on weapons or items
 	// for now, just going to make a "heal amount" value.
 	HealAmount int // how much health will be healed per second
 }
 
-type KeyDef struct {
-	ItemBase
-	LockIDs []string // the lockIDs that this key can unlock
+func CountMoney(inv state.StandardInventory, dataman *datamanager.DataManager) int {
+	sum := 0
+	for _, coinItem := range inv.CoinPurse {
+		if coinItem == nil {
+			continue
+		}
+		itemDef := dataman.GetItemDef(coinItem.DefID)
+		if itemDef.Type == defs.TypeCurrency {
+			sum += itemDef.Value * coinItem.Quantity
+		}
+	}
+
+	// also check for coins not in coin purse
+	for _, coinItem := range inv.InventoryItems {
+		if coinItem == nil {
+			continue
+		}
+		itemDef := dataman.GetItemDef(coinItem.DefID)
+		if itemDef.Type == defs.TypeCurrency {
+			sum += itemDef.Value * coinItem.Quantity
+		}
+	}
+
+	return sum
+}
+
+func ConvertInitialItemStateDefs(initialItemDefs []*defs.ItemInitialStateDef) []*state.ItemState {
+	inv := []*state.ItemState{}
+	for _, invItem := range initialItemDefs {
+		if invItem == nil {
+			inv = append(inv, nil)
+			continue
+		}
+		inv = append(inv, &state.ItemState{
+			DefID:      invItem.DefID,
+			Durability: invItem.Durability,
+			Quantity:   invItem.Quantity,
+		})
+	}
+	return inv
 }

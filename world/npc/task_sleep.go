@@ -169,7 +169,7 @@ func (t *SleepTask) SetupActiveState() {
 
 	params := object.ObjectActivationParams{
 		ActivatorID: t.Owner.Entity.ID(),
-		LockIDs:     characterstate.GetLockIDs(*t.Owner.CharacterStateRef),
+		LockIDs:     characterstate.GetLockIDs(*t.Owner.CharacterStateRef, t.Owner.dataman),
 	}
 	x, y := t.bedObj.Pos()
 	res := t.bedObj.Activate(x, y, params)

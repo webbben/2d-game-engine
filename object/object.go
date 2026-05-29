@@ -499,7 +499,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 			logz.Panic("item didn't have item_id")
 		}
 		itemDef := dataman.GetItemDef(defs.ItemID(itemID))
-		o.DisplayName = itemDef.GetName()
+		o.DisplayName = itemDef.Name
 	case TypeSign:
 		o.loadSignObject(allProps)
 	}

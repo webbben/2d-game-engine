@@ -38,7 +38,7 @@ type CharacterState struct {
 	// Note: as of now, we are not doing the "top level scrollable items row" concept that you see in Minecraft or SDV.
 	// Could implement that later, but for now there are just specific slots for equipped items, and then an array of items for the rest of your inventory.
 
-	defs.StandardInventory
+	StandardInventory
 
 	// Attributes, Skills
 
@@ -83,55 +83,58 @@ func (cd CharacterState) Validate() {
 }
 
 // SetInventoryItems sets all the inventory items of an entity
-func (cd *CharacterState) SetInventoryItems(invItems []*defs.InventoryItem) {
+// TODO: should we move these two functions to characterstate or something?
+// they don't benefit by being here because we can't use the datamanager to confirm types are correct
+
+func (cd *CharacterState) SetInventoryItems(invItems []*ItemState) {
 	cd.StandardInventory.SetInventoryItems(invItems)
 }
 
-func (cd *CharacterState) SetCoinPurseItems(invItems []*defs.InventoryItem) {
+func (cd *CharacterState) SetCoinPurseItems(invItems []*ItemState) {
 	cd.StandardInventory.SetCoinPurseItems(invItems)
 }
 
-func (cd CharacterState) CountMoney() int {
-	return cd.StandardInventory.CountMoney()
-}
+// func (cd CharacterState) CountMoney() int {
+// 	return cd.StandardInventory.CountMoney()
+// }
 
 func (cd *CharacterState) UnequipHeadwear() {
-	if cd.Equipment.EquipedHeadwear == nil {
+	if cd.EquipedHeadwear == nil {
 		logz.Panicln(cd.DisplayName, "tried to unequip headwear, but equiped headwear is nil")
 	}
 
-	cd.Equipment.EquipedHeadwear = nil
+	cd.EquipedHeadwear = nil
 }
 
 func (cd *CharacterState) UnequipFootwear() {
-	if cd.Equipment.EquipedFootwear == nil {
+	if cd.EquipedFootwear == nil {
 		logz.Panicln(cd.DisplayName, "tried to unequip footwear, but equiped footwear is nil")
 	}
 
-	cd.Equipment.EquipedFootwear = nil
+	cd.EquipedFootwear = nil
 }
 
 func (cd *CharacterState) UnequipBodywear() {
-	if cd.Equipment.EquipedBodywear == nil {
+	if cd.EquipedBodywear == nil {
 		logz.Panicln(cd.DisplayName, "tried to unequip bodywear, but equiped bodywear is nil")
 	}
 
-	cd.Equipment.EquipedBodywear = nil
+	cd.EquipedBodywear = nil
 }
 
 func (cd *CharacterState) UnequipAuxiliary() {
-	if cd.Equipment.EquipedAuxiliary == nil {
+	if cd.EquipedAuxiliary == nil {
 		logz.Panicln(cd.DisplayName, "tried to unequip auxiliary, but equiped auxiliary is nil")
 	}
 
-	cd.Equipment.EquipedAuxiliary = nil
+	cd.EquipedAuxiliary = nil
 }
 
 func (cd *CharacterState) UnequipWeapon() {
-	if cd.Equipment.EquipedWeapon == nil {
+	if cd.EquipedWeapon == nil {
 		logz.Panicln(cd.DisplayName, "tried to unequip weapon, but equiped weapon is nil")
 	}
 
-	cd.Equipment.EquipedWeapon = nil
+	cd.EquipedWeapon = nil
 	// cd.Body.RemoveWeapon()
 }

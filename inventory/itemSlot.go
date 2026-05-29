@@ -2,15 +2,16 @@ package inventory
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/mouse"
-	"github.com/webbben/2d-game-engine/ui/overlay"
-	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/ui/textwindow"
-	"github.com/webbben/2d-game-engine/item"
 )
 
 type ItemSlot struct {
@@ -24,7 +25,9 @@ type ItemSlot struct {
 
 	selectedBorderFader rendering.BounceFader
 
-	Item *defs.InventoryItem
+	Item     *state.ItemState
+	ItemDef  defs.ItemDef
+	ItemIcon item.ItemIcon
 
 	Enabled    bool
 	IsSelected bool
@@ -34,6 +37,15 @@ type ItemSlot struct {
 	hoverTooltip textwindow.HoverTooltip
 
 	allowedItemTypes []defs.ItemType // each item type in this array will be allowed; if nothing is set here, all items are allowed
+}
+
+// InventoryItem is the UI component/runtime of an item in an inventory created when opening an inventory UI.
+// All it really gives you is the tile's image, and any other inventory runtime/UI stuff you need.
+// also def data, for ease of access.
+type InventoryItem struct {
+	TileImage *ebiten.Image
+
+	ItemDef defs.ItemDef
 }
 
 type ItemSlotParams struct {
@@ -91,31 +103,26 @@ func (is ItemSlot) CanTakeItemType(itemType defs.ItemType) bool {
 	return false
 }
 
-func (is *ItemSlot) SetContent(itemInstance *defs.ItemInstance, itemInfo defs.ItemDef, quantity int) {
-	if itemInfo == nil {
-		panic("item info is nil")
+func (is *ItemSlot) SetContent(itemState *state.ItemState, itemDef defs.ItemDef) {
+	if itemState == nil {
+		panic("item state is nil")
 	}
-	if itemInstance == nil {
-		panic("item instance is nil")
-	}
-	if quantity <= 0 {
+	if itemState.Quantity <= 0 {
 		panic("quantity is an invalid value. must be 1 or greater.")
 	}
-	if quantity > 1 && !itemInfo.IsGroupable() {
+	if itemState.Quantity > 1 && !itemDef.Groupable {
 		panic("tried to add multiple of a non-groupable item to an item slot")
 	}
-	if !is.CanTakeItemType(itemInfo.GetItemType()) {
+	if !is.CanTakeItemType(itemDef.Type) {
 		panic("item slot can't take this item")
 	}
-	is.Item = &defs.InventoryItem{
-		Instance: *itemInstance,
-		Def:      itemInfo,
-		Quantity: quantity,
-	}
+	is.Item = itemState
+	is.ItemDef = itemDef
+	is.ItemIcon = item.NewItemIcon(itemDef)
 
 	// when an item is set, calculate the hover window
 	// we have to do this on setting the item, since the text content may determine the actual size of the hover window.
-	is.hoverWindow = textwindow.NewHoverWindow(itemInfo.GetName(), itemInfo.GetDescription(), is.hoverWindowParams)
+	is.hoverWindow = textwindow.NewHoverWindow(itemDef.Name, itemDef.Description, is.hoverWindowParams)
 }
 
 func (is *ItemSlot) Clear() {
@@ -160,7 +167,7 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 			rendering.DrawImage(screen, is.itemSlotTiles.EquipedTile, x, y, config.UIScale)
 		}
 
-		item.DrawInventoryItem(screen, *is.Item, x, y)
+		is.ItemIcon.Draw(screen, x, y, is.Item.Quantity)
 
 		if is.IsSelected {
 			ops := ebiten.DrawImageOptions{}

@@ -11,6 +11,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
+	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
@@ -162,7 +163,7 @@ func (ctx DialogContext) GetCharacterDef(id defs.CharacterDefID) defs.CharacterD
 
 func (ctx DialogContext) GetPlayerGold() int {
 	playerState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
-	return playerState.CountMoney()
+	return item.CountMoney(playerState.StandardInventory, ctx.dataman)
 }
 
 func (ctx DialogContext) GetNPCDialogProfileID() defs.DialogProfileID {

@@ -40,13 +40,15 @@ func GetDefaultRunSpeed() float64 {
 // An Entity makes a character exist in the world. The entity itself mainly handles logic for runtime stuff, like showing a body on a screen
 // and doing animations. However, it links to the underlying state of a character too.
 type Entity struct {
+	dataman *datamanager.DataManager
 	// State and Definitions
 
 	// Note: we don't keep a pointer to the CharacterDef here, since we don't need that data during runtime - just for instantiating or loading a character state.
 	// The only thing the actual Entity needs from that is the BodyDef, which tells it which body parts to load.
 
-	// records the last known equiped item ID for each spot; if a change is noticed, we should immediately update the body to match
-	equipedBodywear, equipedHeadwear, equipedFootwear, equipedWeapon, equipedAuxiliary defs.ItemID
+	// records the last known equiped item (def) for each spot; if a change is noticed, we should immediately update the body to match
+	// technically we just need the ID to detect changes, but we store the def since we also will want that info too.
+	equipedBodywear, equipedHeadwear, equipedFootwear, equipedWeapon, equipedAuxiliary defs.ItemDef
 
 	// Character state is only used in an entity in the following ways:
 	//
@@ -241,9 +243,6 @@ func (e Entity) IsPlayer() bool {
 func LoadCharacterStateIntoEntity(charStateID id.CharacterStateID, dataman *datamanager.DataManager, audioMgr *audio.AudioManager) *Entity {
 	charState := dataman.GetCharacterState(charStateID)
 
-	// ensure that item defs have been loaded. these would be nil if you are loading a game, since the character state would have been loaded from JSON.
-	item.LoadStandardInventoryItemDefs(&charState.StandardInventory, dataman)
-
 	charState.Validate()
 
 	// load body def from charDef
@@ -254,7 +253,8 @@ func LoadCharacterStateIntoEntity(charStateID id.CharacterStateID, dataman *data
 	sfxDef := dataman.GetFootstepSFXDef(charDef.FootstepSFXDefID)
 
 	ent := Entity{
-		Body: skin,
+		dataman: dataman,
+		Body:    skin,
 		Movement: Movement{
 			WalkAnimationTickInterval: defaultWalkAnimationTickInterval,
 			RunAnimationTickInterval:  defaultRunAnimationTickInterval,
@@ -387,12 +387,43 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		HomeMapID:    params.HomeMapID,
 		HomeMapBedID: params.HomeMapBedID,
 
-		StandardInventory: charDef.InitialInventory,
+		// StandardInventory: charDef.InitialInventory,
 
 		BaseAttributes: charDef.BaseAttributes,
 		BaseSkills:     charDef.BaseSkills,
 		Traits:         charDef.InitialTraits,
 	}
+
+	// helper function for equiping the initial state defs
+	equip := func(v *defs.ItemInitialStateDef) *state.ItemState {
+		if v == nil {
+			return nil
+		}
+
+		return &state.ItemState{
+			DefID:      v.DefID,
+			Durability: v.Durability,
+			Quantity:   v.Quantity,
+		}
+	}
+
+	// convert initial inventory into item states
+	for _, v := range charDef.InitialInventory.CoinPurse {
+		charState.CoinPurse = append(charState.CoinPurse, equip(v))
+	}
+	for _, v := range charDef.InitialInventory.InventoryItems {
+		charState.InventoryItems = append(charState.InventoryItems, equip(v))
+	}
+
+	charState.EquipedHeadwear = equip(charDef.InitialInventory.EquipedHeadwear)
+	charState.EquipedBodywear = equip(charDef.InitialInventory.EquipedBodywear)
+	charState.EquipedFootwear = equip(charDef.InitialInventory.EquipedFootwear)
+	charState.EquipedAmulet = equip(charDef.InitialInventory.EquipedAmulet)
+	charState.EquipedRing1 = equip(charDef.InitialInventory.EquipedRing1)
+	charState.EquipedRing2 = equip(charDef.InitialInventory.EquipedRing2)
+	charState.EquipedAuxiliary = equip(charDef.InitialInventory.EquipedAuxiliary)
+	charState.EquipedWeapon = equip(charDef.InitialInventory.EquipedWeapon)
+	charState.EquipedAmmo = equip(charDef.InitialInventory.EquipedAmmo)
 
 	// add roles and knowledge
 	for _, roleID := range charDef.InitialRoles {
@@ -422,8 +453,6 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 	if params.OverrideScheduleID != "" {
 		charState.OverrideScheduleID = params.OverrideScheduleID
 	}
-
-	item.LoadStandardInventoryItemDefs(&charState.StandardInventory, dataman)
 
 	charState.Validate()
 
@@ -478,67 +507,76 @@ func (e *Entity) SyncBodyToState() {
 	var actualBodywearID, actualHeadwearID, actualFootwearID, actualAuxID, actualWeaponID defs.ItemID
 	change := false
 
-	equipment := e.characterStateRef.Equipment
-	if equipment.EquipedBodywear != nil {
-		actualBodywearID = equipment.EquipedBodywear.Instance.DefID
+	if e.characterStateRef.EquipedBodywear != nil {
+		actualBodywearID = e.characterStateRef.EquipedBodywear.DefID
 	}
-	if equipment.EquipedHeadwear != nil {
-		actualHeadwearID = equipment.EquipedHeadwear.Instance.DefID
+	if e.characterStateRef.EquipedHeadwear != nil {
+		actualHeadwearID = e.characterStateRef.EquipedHeadwear.DefID
 	}
-	if equipment.EquipedFootwear != nil {
-		actualFootwearID = equipment.EquipedFootwear.Instance.DefID
+	if e.characterStateRef.EquipedFootwear != nil {
+		actualFootwearID = e.characterStateRef.EquipedFootwear.DefID
 	}
-	if equipment.EquipedAuxiliary != nil {
-		actualAuxID = equipment.EquipedAuxiliary.Instance.DefID
+	if e.characterStateRef.EquipedAuxiliary != nil {
+		actualAuxID = e.characterStateRef.EquipedAuxiliary.DefID
 	}
-	if equipment.EquipedWeapon != nil {
-		actualWeaponID = equipment.EquipedWeapon.Instance.DefID
+	if e.characterStateRef.EquipedWeapon != nil {
+		actualWeaponID = e.characterStateRef.EquipedWeapon.DefID
 	}
 
-	if actualBodywearID != e.equipedBodywear {
+	if actualBodywearID != e.equipedBodywear.ID {
 		change = true
+		var itemDef defs.ItemDef
 		if actualBodywearID == "" {
 			e.Body.RemoveBodywear()
 		} else {
-			e.Body.EquipBodyItem(equipment.EquipedBodywear.Def)
+			itemDef = e.dataman.GetItemDef(actualBodywearID)
+			e.Body.EquipBodyItem(itemDef)
 		}
-		e.equipedBodywear = actualBodywearID
+		e.equipedBodywear = itemDef
 	}
-	if actualHeadwearID != e.equipedHeadwear {
+	if actualHeadwearID != e.equipedHeadwear.ID {
 		change = true
+		var itemDef defs.ItemDef
 		if actualHeadwearID == "" {
 			e.Body.RemoveHeadwear()
 		} else {
-			e.Body.EquipHeadItem(equipment.EquipedHeadwear.Def)
+			itemDef = e.dataman.GetItemDef(actualHeadwearID)
+			e.Body.EquipHeadItem(itemDef)
 		}
-		e.equipedHeadwear = actualHeadwearID
+		e.equipedHeadwear = itemDef
 	}
-	if actualFootwearID != e.equipedFootwear {
+	if actualFootwearID != e.equipedFootwear.ID {
 		change = true
+		var itemDef defs.ItemDef
 		if actualFootwearID == "" {
 			e.Body.RemoveFootwear()
 		} else {
-			e.Body.EquipFootItem(equipment.EquipedFootwear.Def)
+			itemDef = e.dataman.GetItemDef(actualFootwearID)
+			e.Body.EquipFootItem(itemDef)
 		}
-		e.equipedFootwear = actualFootwearID
+		e.equipedFootwear = itemDef
 	}
-	if actualAuxID != e.equipedAuxiliary {
+	if actualAuxID != e.equipedAuxiliary.ID {
 		change = true
+		var itemDef defs.ItemDef
 		if actualAuxID == "" {
 			e.Body.RemoveAuxiliary()
 		} else {
-			e.Body.EquipAuxItem(equipment.EquipedAuxiliary.Def)
+			itemDef = e.dataman.GetItemDef(actualAuxID)
+			e.Body.EquipAuxItem(itemDef)
 		}
-		e.equipedAuxiliary = actualAuxID
+		e.equipedAuxiliary = itemDef
 	}
-	if actualWeaponID != e.equipedWeapon {
+	if actualWeaponID != e.equipedWeapon.ID {
 		change = true
+		var itemDef defs.ItemDef
 		if actualWeaponID == "" {
 			e.Body.RemoveWeapon()
 		} else {
-			e.Body.EquipWeaponItem(equipment.EquipedWeapon.Def)
+			itemDef = e.dataman.GetItemDef(actualWeaponID)
+			e.Body.EquipWeaponItem(itemDef)
 		}
-		e.equipedWeapon = actualWeaponID
+		e.equipedWeapon = itemDef
 	}
 
 	// if we changed a body part, let's do a full validation to confirm that all body parts match their equiped items
@@ -550,7 +588,7 @@ func (e *Entity) SyncBodyToState() {
 
 func (e Entity) validateEquipment() {
 	// ensure equiped items match the set body part def
-	validateEquipment := func(equipedItem *defs.InventoryItem, bodyPart body.BodyPartSet) {
+	validateEquipment := func(equipedItem *state.ItemState, bodyPart body.BodyPartSet) {
 		if equipedItem == nil {
 			if !bodyPart.PartSrc.None {
 				logz.Panicln(e.DisplayName(), "equipment is nil, but body part is not set to None")
@@ -559,10 +597,8 @@ func (e Entity) validateEquipment() {
 			if bodyPart.PartSrc.None {
 				logz.Panicln(e.DisplayName(), "equipment is not nil, but body part is set to none")
 			}
-			if equipedItem.Def == nil {
-				logz.Panicln(e.DisplayName(), "equipment item def was found to be nil")
-			}
-			equiped := equipedItem.Def.GetBodyPartDef()
+			itemDef := e.dataman.GetItemDef(equipedItem.DefID)
+			equiped := itemDef.BodyPartDef
 			if equiped == nil {
 				logz.Panicln(e.DisplayName(), "equipment body part def was found to be nil")
 			}
@@ -572,17 +608,15 @@ func (e Entity) validateEquipment() {
 		}
 	}
 
-	equipment := e.characterStateRef.Equipment
-
-	validateEquipment(equipment.EquipedHeadwear, e.Body.EquipHeadSet)
-	validateEquipment(equipment.EquipedBodywear, e.Body.EquipBodySet)
+	validateEquipment(e.characterStateRef.EquipedHeadwear, e.Body.EquipHeadSet)
+	validateEquipment(e.characterStateRef.EquipedBodywear, e.Body.EquipBodySet)
 	// the validation function checks the bodyPartDef, but for legs we want to check the LegsPartDef... so just handle it here separately
-	if equipment.EquipedBodywear == nil {
+	if e.characterStateRef.EquipedBodywear == nil {
 		if !e.Body.EquipLegsSet.PartSrc.None {
 			logz.Panicln(e.DisplayName(), "equiped bodywear is nil, but equiped legs part is not none")
 		}
 	} else {
-		equipedLegsPart := equipment.EquipedBodywear.Def.GetLegsPartDef()
+		equipedLegsPart := e.equipedBodywear.LegsPartDef
 		if equipedLegsPart == nil {
 			logz.Panicln(e.DisplayName(), "bodywear set, but equiped legs part seems to be nil")
 		}
@@ -590,15 +624,15 @@ func (e Entity) validateEquipment() {
 			logz.Panicln(e.DisplayName(), "equiped legs dont appear to match actual item legs equipment")
 		}
 	}
-	validateEquipment(equipment.EquipedAuxiliary, e.Body.AuxItemSet)
-	validateEquipment(equipment.EquipedWeapon, e.Body.WeaponSet)
+	validateEquipment(e.characterStateRef.EquipedAuxiliary, e.Body.AuxItemSet)
+	validateEquipment(e.characterStateRef.EquipedWeapon, e.Body.WeaponSet)
 	// handle weapon fx separately since we get that part with a specific function
-	if equipment.EquipedWeapon == nil {
+	if e.characterStateRef.EquipedWeapon == nil {
 		if !e.Body.WeaponFxSet.PartSrc.None {
 			logz.Panicln(e.DisplayName(), "equiped weapon is nil, but weapon fx part is not none")
 		}
 	} else {
-		_, fxPart := item.GetWeaponParts(equipment.EquipedWeapon.Def)
+		_, fxPart := item.GetWeaponParts(e.equipedWeapon)
 		if !fxPart.IsEqual(e.Body.WeaponFxSet.PartSrc) {
 			logz.Panicln(e.DisplayName(), "equiped weapon fx doesn't appear to match actual fx part")
 		}

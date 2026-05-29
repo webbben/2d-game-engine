@@ -3,6 +3,7 @@ package game
 import (
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
@@ -78,7 +79,7 @@ func (g Game) GetActiveMapDef() defs.MapDef {
 	return mapDef
 }
 
-func (g Game) GetPlayerInventoryRef() *defs.StandardInventory {
+func (g Game) GetPlayerInventoryRef() *state.StandardInventory {
 	if g.World == nil {
 		panic("world was nil")
 	}

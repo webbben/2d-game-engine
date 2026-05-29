@@ -1,9 +1,6 @@
 package defs
 
 import (
-	"fmt"
-
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
@@ -27,209 +24,117 @@ const (
 	TypeKey        ItemType = "KEY"
 )
 
-// ItemDef represents an item.
-// TODO: I'm kind of wondering if this should actually be an interface...
-// It seems like interfaces are useful when something needs to be able to handle different structs that may have different implementations
-// for different methods, or if you want to be able to group a diverse group of structs by ensuring they have some degree of shared functionality.
-// But, for items... well, it feels like all of these functions could just be fields, right? None of these are going to have unique implementations, will they?
-// The more I think about it, the more sure I am. I guess I will need to bite the bullet soon and change this into a struct.
-// I mean, we basically already have that struct: ItemBase.
-type ItemDef interface {
-	GetID() ItemID          // the internal ID of this item.
-	GetName() string        // the display name of this item.
-	GetDescription() string // the description of the item
-	GetValue() int          // the full value of this item, if it were sold at maximum price.
-	GetWeight() float64     // the weight of this item, which factors into the player's inventory weight.
-	GetMaxDurability() int  // the full durability of this item. a higher value means it takes longer to break.
+type ItemDef struct {
+	ID            ItemID
+	Name          string
+	Description   string
+	Type          ItemType
+	Value         int
+	Weight        float64
+	MaxDurability float64
+	Groupable     bool
 
-	GetTileImg() *ebiten.Image        // gets the "tile image", i.e. the image used in places like the inventory slots
-	GetEquipedTiles() []*ebiten.Image // gets the tiles for the equiped view of this item (if equipable)
+	TileImgTilesetSrc string // tileset where tile image is found
+	TileImgIndex      int    // index of tile image in tileset
 
-	GetBodyPartDef() *SelectedPartDef // gets the body part set for wearing when this item is equiped, if it exists. Only exists for visible equipable items.
-	GetLegsPartDef() *SelectedPartDef // gets a legs body part set, if it exists (should only exist for bodywear items)
+	// wearable item properties
+	// Note: SelectedPartDef has ID, but purposely not using a central datamanager since only body parts (not items) are stored there.
+	// I guess this works out since this is an item def, and so it serves as a central place to define something.
 
-	// if true, item can be grouped together with other same items in inventories
-	// this tends to be true for items that don't have durability, like potions or arrows, but not for weapons and armor.
-	IsGroupable() bool
+	BodyPartDef *SelectedPartDef // made it a pointer so it can be nil-able
+	LegsPartDef *SelectedPartDef // bodywear has a legs component that moves separately from the body component
 
-	// if true, this item can be equipped
-	IsEquipable() bool
+	// Item-type specific fields
 
-	GetItemType() ItemType // returns the item type; to simply confirm a single item type, use the specific Is<itemType> functions instead.
+	// Key
 
-	Load() // load things like images
+	LockIDs []string // the lockIDs that this key can unlock
 
-	Validate() // checks if item def is properly defined
+	// Weapon
+
+	Damage    int
+	FxPartDef *SelectedPartDef
+
+	// Armor (body/head/footwear, shield auxes, etc)
+
+	Protection int // amount of protection this piece of armor gives
 }
 
-type ItemInstance struct {
-	DefID      ItemID // ID of the ItemDef that defines this item
-	Durability int    // the current condition of this item
-}
-
-type InventoryItem struct {
-	Instance ItemInstance
-	Def      ItemDef `json:"-"` // since this interface can't be properly loaded from JSON, lets exclude it from JSONs
-	Quantity int
-}
-
-type StandardInventory struct {
-	CoinPurse      []*InventoryItem
-	InventoryItems []*InventoryItem
-	Equipment      EquipedItems
-}
-
-func (inv StandardInventory) Validate() {
-	for _, i := range inv.CoinPurse {
-		if i != nil {
-			i.Validate()
+func (id ItemDef) Validate() {
+	if id.Name == "" {
+		panic("item has no name")
+	}
+	if id.ID == "" {
+		logz.Panicf("[%s] item has no ID", id.Name)
+	}
+	if id.Value < 0 {
+		logz.Panic("value is less than 0" + "(" + string(id.ID) + ")")
+	}
+	if id.Description == "" {
+		logz.Panic("item has no description" + "(" + string(id.ID) + ")")
+	}
+	if id.TileImgTilesetSrc == "" {
+		logz.Panic("item has no tileset source for tile image" + "(" + string(id.ID) + ")")
+	}
+	if id.MaxDurability != 0 && id.Groupable {
+		logz.Panic("items with durability cannot be groupable" + "(" + string(id.ID) + ")")
+	}
+	if id.Type == "" {
+		logz.Panic("item has no type" + "(" + string(id.ID) + ")")
+	}
+	if id.Type == TypeBodywear || id.Type == TypeHeadwear || id.Type == TypeFootwear || id.Type == TypeAuxiliary || id.Type == TypeWeapon {
+		if id.BodyPartDef == nil {
+			logz.Panic("item is a visible equipable item, but no bodyPartDef is set" + "(" + string(id.ID) + ")")
+		}
+	} else if id.BodyPartDef != nil {
+		logz.Panic("item is not a visible equipable item, but it has a defined bodyPartDef" + "(" + string(id.ID) + ")")
+	}
+	if id.Type == TypeBodywear {
+		if id.BodyPartDef == nil {
+			logz.Panic("bodywear must have a body part def" + "(" + string(id.ID) + ")")
+		}
+		if id.LegsPartDef == nil {
+			logz.Panic("bodywear must have a legs part" + "(" + string(id.ID) + ")")
+		}
+	} else if id.Type == TypeHeadwear {
+		if id.BodyPartDef == nil {
+			logz.Panic("headwear must have a body part def" + "(" + string(id.ID) + ")")
+		}
+		if id.LegsPartDef != nil {
+			logz.Panic("headwear must NOT have a legs component. that is only for bodywear." + "(" + string(id.ID) + ")")
 		}
 	}
-	for _, i := range inv.InventoryItems {
-		if i != nil {
-			i.Validate()
-		}
-	}
+}
 
-	allEquipment := []*InventoryItem{}
-	allEquipment = append(allEquipment, inv.Equipment.EquipedBodywear)
-	allEquipment = append(allEquipment, inv.Equipment.EquipedHeadwear)
-	allEquipment = append(allEquipment, inv.Equipment.EquipedFootwear)
-	allEquipment = append(allEquipment, inv.Equipment.EquipedAuxiliary)
-	allEquipment = append(allEquipment, inv.Equipment.EquipedWeapon)
-	allEquipment = append(allEquipment, inv.Equipment.EquipedRing1)
-	allEquipment = append(allEquipment, inv.Equipment.EquipedRing2)
-	allEquipment = append(allEquipment, inv.Equipment.EquipedAmulet)
-	allEquipment = append(allEquipment, inv.Equipment.EquipedAmmo)
-
-	for _, i := range allEquipment {
-		if i != nil {
-			i.Validate()
-		}
+func (def ItemDef) IsEquipable() bool {
+	switch def.Type {
+	case TypeBodywear, TypeHeadwear, TypeFootwear, TypeWeapon, TypeAmulet, TypeRing, TypeAmmunition, TypeAuxiliary:
+		return true
+	default:
+		return false
 	}
 }
 
-func (inv StandardInventory) CountMoney() int {
-	sum := 0
-	for _, coinItem := range inv.CoinPurse {
-		if coinItem == nil {
-			continue
-		}
-		if coinItem.Def.GetItemType() == TypeCurrency {
-			sum += coinItem.Def.GetValue() * coinItem.Quantity
-		}
-	}
-
-	// also check for coins not in coin purse
-	for _, coinItem := range inv.InventoryItems {
-		if coinItem == nil {
-			continue
-		}
-		if coinItem.Def.GetItemType() == TypeCurrency {
-			sum += coinItem.Def.GetValue() * coinItem.Quantity
-		}
-	}
-
-	return sum
+// ItemInitialStateDef is for defining an initial state for an item, for places such as chests or NPC inventories.
+type ItemInitialStateDef struct {
+	DefID      ItemID
+	Quantity   int
+	Durability float64
 }
 
-func (inv *StandardInventory) SetCoinPurseItems(invItems []*InventoryItem) {
-	inv.CoinPurse = make([]*InventoryItem, 0)
+// InitialStandardInventoryDef is for defining the initial state for a character's inventory; what their inventory is when they first spawn
+// into the game on starting a new game.
+type InitialStandardInventoryDef struct {
+	CoinPurse      []*ItemInitialStateDef
+	InventoryItems []*ItemInitialStateDef
 
-	for _, newItem := range invItems {
-		if newItem == nil {
-			inv.CoinPurse = append(inv.CoinPurse, nil)
-			continue
-		}
-		if newItem.Def.GetItemType() != TypeCurrency {
-			logz.Panicln("SetCoinPurseItems", "tried to add item to coin purse that is not a currency item:", newItem)
-		}
-
-		newItem.Validate()
-		inv.CoinPurse = append(inv.CoinPurse, &InventoryItem{
-			Instance: newItem.Instance,
-			Def:      newItem.Def,
-			Quantity: newItem.Quantity,
-		})
-	}
-}
-
-func (inv *StandardInventory) SetInventoryItems(invItems []*InventoryItem) {
-	inv.InventoryItems = make([]*InventoryItem, 0)
-
-	// TODO: is this looping and stuff actually necessary?  I guess the point is to ensure that things are dereferenced, but I notice
-	// that both here and GetInventoryItems does this same loop thing.
-	for _, newItem := range invItems {
-		if newItem == nil {
-			inv.InventoryItems = append(inv.InventoryItems, nil)
-			continue
-		}
-		newItem.Validate()
-		inv.InventoryItems = append(inv.InventoryItems, &InventoryItem{
-			Instance: newItem.Instance,
-			Def:      newItem.Def,
-			Quantity: newItem.Quantity,
-		})
-	}
-}
-
-func (invItem *InventoryItem) String() string {
-	return fmt.Sprintf("{DefID: %s, Name: %s, Quant: %v}", invItem.Instance.DefID, invItem.Def.GetName(), invItem.Quantity)
-}
-
-// NewInventoryItem puts the pieces of an inventoryItem together; use the one in definitionManager to actually get an inventory item from the game state.
-func NewInventoryItem(def ItemDef, quantity int) InventoryItem {
-	if def == nil {
-		panic("def is nil")
-	}
-	invItem := InventoryItem{
-		Instance: ItemInstance{
-			DefID:      def.GetID(),
-			Durability: def.GetMaxDurability(),
-		},
-		Def:      def,
-		Quantity: quantity,
-	}
-
-	invItem.Validate()
-	return invItem
-}
-
-func InventoryToString(inv []*InventoryItem) string {
-	s := ""
-	for _, invItem := range inv {
-		if invItem == nil {
-			continue
-		}
-		s += invItem.String() + ", "
-	}
-	return s
-}
-
-func (invItem InventoryItem) Validate() {
-	if invItem.Def == nil {
-		logz.Panicln("Validate Inventory Item", "item def is nil.", invItem.Instance.DefID)
-	}
-	if invItem.Instance.DefID == "" {
-		panic("item instance has no def ID")
-	}
-	if invItem.Quantity <= 0 {
-		panic("item quantity is less than or equal to 0. all items must have a quantity of at least 1")
-	}
-	if invItem.Def.GetID() != invItem.Instance.DefID {
-		panic("def.GetID() does not match instance.defID")
-	}
-	invItem.Def.Validate()
-}
-
-type EquipedItems struct {
-	EquipedHeadwear  *InventoryItem
-	EquipedBodywear  *InventoryItem
-	EquipedFootwear  *InventoryItem
-	EquipedAmulet    *InventoryItem
-	EquipedRing1     *InventoryItem
-	EquipedRing2     *InventoryItem
-	EquipedAmmo      *InventoryItem
-	EquipedAuxiliary *InventoryItem
-	EquipedWeapon    *InventoryItem
+	EquipedHeadwear  *ItemInitialStateDef
+	EquipedBodywear  *ItemInitialStateDef
+	EquipedFootwear  *ItemInitialStateDef
+	EquipedAmulet    *ItemInitialStateDef
+	EquipedRing1     *ItemInitialStateDef
+	EquipedRing2     *ItemInitialStateDef
+	EquipedAmmo      *ItemInitialStateDef
+	EquipedAuxiliary *ItemInitialStateDef
+	EquipedWeapon    *ItemInitialStateDef
 }

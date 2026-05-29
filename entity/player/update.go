@@ -212,7 +212,7 @@ func (p *Player) handleActions() bool {
 				x, y := p.Entity.X, p.Entity.Y
 				activateParams := object.ObjectActivationParams{
 					ActivatorID: p.CharacterStateRef.ID,
-					LockIDs:     characterstate.GetLockIDs(*p.CharacterStateRef),
+					LockIDs:     characterstate.GetLockIDs(*p.CharacterStateRef, p.dataman),
 				}
 				result := obj.Activate(x, y, activateParams)
 				if result.UpdateOccurred {
