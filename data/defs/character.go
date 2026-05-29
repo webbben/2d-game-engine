@@ -46,7 +46,7 @@ type CharacterDef struct {
 	ClassName        string
 	ClassDefID       ClassDefID // the actual class def
 	CultureID        CultureID
-	InitialInventory StandardInventory
+	InitialInventory InitialStandardInventoryDef
 
 	SocialRank SocialRank
 

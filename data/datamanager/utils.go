@@ -1,14 +1,19 @@
 package datamanager
 
-import "github.com/webbben/2d-game-engine/data/defs"
+import (
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/state"
+)
 
-func (dm *DataManager) EnsureItemDefs(invItems []*defs.InventoryItem) {
-	for _, invItem := range invItems {
-		if invItem == nil {
-			continue
-		}
-		if invItem.Def == nil {
-			invItem.Def = dm.GetItemDef(invItem.Instance.DefID)
-		}
+func (dataman *DataManager) NewItemState(itemID defs.ItemID, quantity int) *state.ItemState {
+	if quantity <= 0 {
+		panic("quantity <= 0")
 	}
+	itemDef := dataman.GetItemDef(itemID)
+	is := state.ItemState{
+		DefID:      itemID,
+		Durability: itemDef.MaxDurability,
+		Quantity:   quantity,
+	}
+	return &is
 }

@@ -726,7 +726,7 @@ func (mi *ActiveMap) ActivateArea(r model.Rect, originX, originY float64) bool {
 	if closestObject != nil {
 		activateParams := object.ObjectActivationParams{
 			ActivatorID: mi.PlayerRef.CharacterStateRef.ID,
-			LockIDs:     characterstate.GetLockIDs(*mi.PlayerRef.CharacterStateRef),
+			LockIDs:     characterstate.GetLockIDs(*mi.PlayerRef.CharacterStateRef, mi.dataman),
 		}
 		result := closestObject.Activate(originX, originY, activateParams)
 		logz.Println("Activate Area", closestObject.Type, "Activating...")

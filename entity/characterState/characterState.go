@@ -65,29 +65,31 @@ func GetNetTraitModifiers(traits []defs.TraitID, dataman *datamanager.DataManage
 	return skillMods, attrMods
 }
 
-func AddItemToInventory(cs *state.CharacterState, invItem defs.InventoryItem) (bool, defs.InventoryItem) {
-	succ, remaining := item.AddItemToStandardInventory(&cs.StandardInventory, invItem)
+func AddItemToInventory(cs *state.CharacterState, invItem state.ItemState, dataman *datamanager.DataManager) (bool, state.ItemState) {
+	succ, remaining := item.AddItemToStandardInventory(&cs.StandardInventory, invItem, dataman)
 	cs.Validate()
 	return succ, remaining
 }
 
-func RemoveItemFromInventory(cs *state.CharacterState, itemToRemove defs.InventoryItem) (bool, defs.InventoryItem) {
-	return item.RemoveItemFromStandardInventory(&cs.StandardInventory, itemToRemove)
+func RemoveItemFromInventory(cs *state.CharacterState, itemToRemove state.ItemState, dataman *datamanager.DataManager) (bool, state.ItemState) {
+	return item.RemoveItemFromStandardInventory(&cs.StandardInventory, itemToRemove, dataman)
 }
 
 // SpendMoney spends the given amount of money from the entity's coin purse and/or inventory
-func SpendMoney(inv *defs.StandardInventory, value int, dataman *datamanager.DataManager) {
+func SpendMoney(inv *state.StandardInventory, value int, dataman *datamanager.DataManager) {
 	if dataman == nil {
 		logz.Panicln("SpendMoney", "dataman passed was nil")
 	}
 	// first, calculate our wallet
+	// TODO: shouldn't we use CountMoney here??
 	wallet := map[int]int{}
 	for _, coin := range append(inv.CoinPurse, inv.InventoryItems...) {
 		if coin == nil {
 			continue
 		}
-		if coin.Def.GetItemType() == defs.TypeCurrency {
-			val := coin.Def.GetValue()
+		itemDef := dataman.GetItemDef(coin.DefID)
+		if itemDef.Type == defs.TypeCurrency {
+			val := itemDef.Value
 			_, exists := wallet[val]
 			if !exists {
 				wallet[val] = 0
@@ -121,8 +123,8 @@ func SpendMoney(inv *defs.StandardInventory, value int, dataman *datamanager.Dat
 			continue
 		}
 		itemID := fmt.Sprintf("currency_value_%v", denom)
-		coinsToRemove := dataman.NewInventoryItem(defs.ItemID(itemID), numCoins)
-		success, remaining := item.RemoveItemFromStandardInventory(inv, coinsToRemove)
+		coinsToRemove := dataman.NewItemState(defs.ItemID(itemID), numCoins)
+		success, remaining := item.RemoveItemFromStandardInventory(inv, *coinsToRemove, dataman)
 		if !success || remaining.Quantity != 0 {
 			logz.Panicf("failed to pay all coins. remaining unpaid coins: %s", remaining.String())
 		}
@@ -136,7 +138,8 @@ func SpendMoney(inv *defs.StandardInventory, value int, dataman *datamanager.Dat
 				continue
 			}
 			itemID := fmt.Sprintf("currency_value_%v", denom)
-			success, _ := item.AddItemToStandardInventory(inv, dataman.NewInventoryItem(defs.ItemID(itemID), numCoins))
+			coinItem := dataman.NewItemState(defs.ItemID(itemID), numCoins)
+			success, _ := item.AddItemToStandardInventory(inv, *coinItem, dataman)
 			if !success {
 				fmt.Println("failed to add coin to inventory")
 			}
@@ -144,14 +147,15 @@ func SpendMoney(inv *defs.StandardInventory, value int, dataman *datamanager.Dat
 	}
 }
 
-func EarnMoney(inv *defs.StandardInventory, value int, dataman *datamanager.DataManager) {
+func EarnMoney(inv *state.StandardInventory, value int, dataman *datamanager.DataManager) {
 	coins := CalculateCoins(value)
 	for denom, numCoins := range coins {
 		if numCoins == 0 {
 			continue
 		}
 		itemID := fmt.Sprintf("currency_value_%v", denom)
-		success, _ := item.AddItemToStandardInventory(inv, dataman.NewInventoryItem(defs.ItemID(itemID), numCoins))
+		coinItem := dataman.NewItemState(defs.ItemID(itemID), numCoins)
+		success, _ := item.AddItemToStandardInventory(inv, *coinItem, dataman)
 		if !success {
 			fmt.Println("failed to add coin to inventory")
 		}
@@ -255,57 +259,67 @@ func CalculateCoins(value int) map[int]int {
 }
 
 // EquipItem equips a weapon, body armor, clothes, or other equipable items that go onto the entity's body or equipment slots
-func EquipItem(cs *state.CharacterState, i defs.InventoryItem) (success bool) {
+// TODO: I don't think this is used anywhere... should we delete?
+func EquipItem(cs *state.CharacterState, i *state.ItemState, dataman *datamanager.DataManager) (success bool) {
+	if i == nil {
+		panic("item state was nil")
+	}
 	i.Validate()
-	if !i.Def.IsEquipable() {
-		logz.Panicln(cs.DisplayName, "tried to equip an inequipable item:", i.Def.GetID())
+
+	itemDef := dataman.GetItemDef(i.DefID)
+
+	if !itemDef.IsEquipable() {
+		logz.Panicln(cs.DisplayName, "tried to equip an inequipable item:", i.DefID)
 	}
 
-	switch i.Def.GetItemType() {
+	switch itemDef.Type {
 	case defs.TypeHeadwear:
-		if cs.Equipment.EquipedHeadwear != nil {
+		if cs.EquipedHeadwear != nil {
 			// already equiped; remove it and put it in a regular inventory slot
-			succ, _ := AddItemToInventory(cs, *cs.Equipment.EquipedHeadwear)
+			succ, _ := AddItemToInventory(cs, *cs.EquipedHeadwear, dataman)
 			if !succ {
 				return false
 			}
 		}
-		cs.Equipment.EquipedHeadwear = &i
+		cs.EquipedHeadwear = i
 	case defs.TypeFootwear:
-		if cs.Equipment.EquipedFootwear != nil {
-			succ, _ := AddItemToInventory(cs, *cs.Equipment.EquipedFootwear)
+		if cs.EquipedFootwear != nil {
+			succ, _ := AddItemToInventory(cs, *cs.EquipedFootwear, dataman)
 			if !succ {
 				return false
 			}
 		}
+		cs.EquipedFootwear = i
 	case defs.TypeBodywear:
-		if cs.Equipment.EquipedBodywear != nil {
+		if cs.EquipedBodywear != nil {
 			// already equiped; remove it and put it in a regular inventory slot
-			succ, _ := AddItemToInventory(cs, *cs.Equipment.EquipedBodywear)
+			succ, _ := AddItemToInventory(cs, *cs.EquipedBodywear, dataman)
 			if !succ {
 				return false
 			}
 		}
+		cs.EquipedBodywear = i
 	case defs.TypeWeapon:
-		if cs.Equipment.EquipedWeapon != nil {
-			succ, _ := AddItemToInventory(cs, *cs.Equipment.EquipedWeapon)
+		if cs.EquipedWeapon != nil {
+			succ, _ := AddItemToInventory(cs, *cs.EquipedWeapon, dataman)
 			if !succ {
 				return false
 			}
 		}
+		cs.EquipedWeapon = i
 	case defs.TypeAuxiliary:
-		if cs.Equipment.EquipedAuxiliary != nil {
+		if cs.EquipedAuxiliary != nil {
 			// already equiped; remove it and put it in a regular inventory slot
-			succ, _ := AddItemToInventory(cs, *cs.Equipment.EquipedAuxiliary)
+			succ, _ := AddItemToInventory(cs, *cs.EquipedAuxiliary, dataman)
 			if !succ {
 				return false
 			}
 		}
+		cs.EquipedAuxiliary = i
 	default:
 		logz.Panicln(cs.DisplayName, "tried to equip item, but it's type didn't match in the switch statement... (this probably should be caught by the IsEquipable check)")
 	}
 
-	// cd.Validate()
 	return true
 }
 
@@ -313,62 +327,61 @@ func IsItemEquipped(itemID defs.ItemID, charState state.CharacterState) bool {
 	if itemID == "" {
 		panic("itemID was empty")
 	}
-	equipment := charState.Equipment
-	if equipment.EquipedHeadwear.Def.GetID() == itemID {
+
+	if charState.EquipedHeadwear != nil && charState.EquipedHeadwear.DefID == itemID {
 		return true
 	}
-	if equipment.EquipedBodywear.Def.GetID() == itemID {
+	if charState.EquipedBodywear != nil && charState.EquipedBodywear.DefID == itemID {
 		return true
 	}
-	if equipment.EquipedFootwear.Def.GetID() == itemID {
+	if charState.EquipedFootwear != nil && charState.EquipedFootwear.DefID == itemID {
 		return true
 	}
-	if equipment.EquipedWeapon.Def.GetID() == itemID {
+	if charState.EquipedWeapon != nil && charState.EquipedWeapon.DefID == itemID {
 		return true
 	}
-	if equipment.EquipedAuxiliary.Def.GetID() == itemID {
+	if charState.EquipedAuxiliary != nil && charState.EquipedAuxiliary.DefID == itemID {
 		return true
 	}
-	if equipment.EquipedAmmo.Def.GetID() == itemID {
+	if charState.EquipedAmmo != nil && charState.EquipedAmmo.DefID == itemID {
 		return true
 	}
-	if equipment.EquipedRing1.Def.GetID() == itemID {
+	if charState.EquipedRing1 != nil && charState.EquipedRing1.DefID == itemID {
 		return true
 	}
-	if equipment.EquipedRing2.Def.GetID() == itemID {
+	if charState.EquipedRing2 != nil && charState.EquipedRing2.DefID == itemID {
 		return true
 	}
-	if equipment.EquipedAmulet.Def.GetID() == itemID {
+	if charState.EquipedAmulet != nil && charState.EquipedAmulet.DefID == itemID {
 		return true
 	}
 	return false
 }
 
-func GetLockIDs(charState state.CharacterState) []string {
+func GetLockIDs(charState state.CharacterState, dataman *datamanager.DataManager) []string {
 	// make a map, since there could be multiple keys that have the same lock IDs in them.
-	lockIDs := map[string]bool{}
+	seen := map[string]bool{}
+	lockIDs := []string{}
 
-	for _, inv := range charState.InventoryItems {
-		if inv == nil {
+	for _, is := range charState.InventoryItems {
+		if is == nil {
 			continue
 		}
-		if inv.Def.GetItemType() == defs.TypeKey {
-			asKeyDef, ok := inv.Def.(*item.KeyDef)
-			if !ok {
-				logz.Panicln("GetLockIDs", "failed to convert itemDef to KeyDef, even though itemType was Key")
-			}
-			for _, id := range asKeyDef.LockIDs {
-				lockIDs[id] = true
+
+		itemDef := dataman.GetItemDef(is.DefID)
+
+		if itemDef.Type == defs.TypeKey {
+			for _, id := range itemDef.LockIDs {
+				if seen[id] {
+					continue
+				}
+				seen[id] = true
+				lockIDs = append(lockIDs, id)
 			}
 		}
 	}
 
-	array := []string{}
-	for id := range lockIDs {
-		array = append(array, id)
-	}
-
-	return array
+	return lockIDs
 }
 
 func AddKnowledge(topicID defs.TopicID, dataman *datamanager.DataManager, eventBus *pubsub.EventBus) {

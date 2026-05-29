@@ -6,18 +6,21 @@ type ShopID string
 type ShopkeeperDef struct {
 	ID            ShopID
 	ShopName      string
-	BaseInventory []InventoryItem
+	BaseInventory []ItemInitialStateDef
 	BaseGold      int
 }
 
 func (sk ShopkeeperDef) Validate() {
+	if sk.ID == "" {
+		panic("shop has no ID")
+	}
 	if len(sk.BaseInventory) == 0 {
 		panic("base inventory is empty")
 	}
-	if len(sk.BaseInventory) == 0 {
-		panic("shop inventory has no size")
+	if sk.ShopName == "" {
+		panic("shop has no name")
 	}
-	for _, invItem := range sk.BaseInventory {
-		invItem.Validate()
+	if sk.BaseGold < 0 {
+		panic("shop has negative gold")
 	}
 }

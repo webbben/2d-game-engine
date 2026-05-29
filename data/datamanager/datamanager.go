@@ -522,8 +522,7 @@ func (dataman DataManager) GetBodyPartDef(id defs.BodyPartID) defs.SelectedPartD
 func (dataman *DataManager) LoadItemDefs(itemDefs []defs.ItemDef) {
 	for _, itemDef := range itemDefs {
 		itemDef.Validate()
-		id := itemDef.GetID()
-		itemDef.Load()
+		id := itemDef.ID
 		if _, exists := dataman.ItemDefs[id]; exists {
 			logz.Panicln("DataManager", "tried to load item def, but item with same idea already existed:", id)
 		}
@@ -537,18 +536,6 @@ func (dataman *DataManager) GetItemDef(defID defs.ItemID) defs.ItemDef {
 		logz.Panicln("DataManager", "item def not found:", defID)
 	}
 	return itemDef
-}
-
-func (dataman *DataManager) NewInventoryItem(defID defs.ItemID, quantity int) defs.InventoryItem {
-	if quantity <= 0 {
-		panic("quantity must be a positive number")
-	}
-	itemDef := dataman.GetItemDef(defID)
-	if itemDef == nil {
-		panic("item def is nil")
-	}
-
-	return defs.NewInventoryItem(itemDef, quantity)
 }
 
 func (dataman *DataManager) LoadShopkeeperDef(sk defs.ShopkeeperDef) {

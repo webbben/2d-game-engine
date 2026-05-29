@@ -144,7 +144,7 @@ func (t *LoungeTask) SetupActiveState() {
 		// now, actually activate the chair and put the NPC in it.
 		params := object.ObjectActivationParams{
 			ActivatorID: t.Owner.Entity.ID(),
-			LockIDs:     characterstate.GetLockIDs(*t.Owner.CharacterStateRef),
+			LockIDs:     characterstate.GetLockIDs(*t.Owner.CharacterStateRef, t.Owner.dataman),
 		}
 		x, y := closestChair.Pos()
 		res := closestChair.Activate(x, y, params)

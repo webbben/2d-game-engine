@@ -102,7 +102,10 @@ type EventContext interface {
 // GameScreenContext isn't actually directly used anywhere; we just have it here to keep these functions organized by intended use,
 // and to prevent the other contexts from using them. Screens just have direct access to GameContext.
 type GameScreenContext interface {
-	GetPlayerInventoryRef() *StandardInventory
+	// TODO: StandardInventory was moved to state, so can't access it here.
+	// do we need a "stateContext" for game or something like that?
+	//
+	// GetPlayerInventoryRef() *StandardInventory
 	EnterMap(mapID MapID, spawnIndex int, doTransition bool)
 	PlacePlayerInMap(mapID MapID, x, y float64, doTransition bool)
 

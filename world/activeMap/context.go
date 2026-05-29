@@ -26,7 +26,7 @@ func (m ActiveMap) GetValidMapPosition(n npc.NPC) model.Coords {
 	// get the cost map (which includes NPC and object collisions), and then factor in other stuff like locked gates.
 	costmap := m.CostMap()
 
-	lockIDs := characterstate.GetLockIDs(*n.CharacterStateRef)
+	lockIDs := characterstate.GetLockIDs(*n.CharacterStateRef, m.dataman)
 
 	// TODO: at some point, if we have sufficiently big maps, should we make a separate slice for gate objects?
 	// that way we aren't always looking through possibly hundreds of random objects, light objects, etc to find gates to check.
@@ -116,7 +116,7 @@ func (m *ActiveMap) StartBookSession(bookID defs.BookID, params config.BookSessi
 		logz.Panic("bookID was empty!")
 	}
 
-	m.bookSession = book.NewBookSession(bookID, m.dataman, m.audioman, params)
+	m.bookSession = book.NewBookSession(bookID, m.dataman, m.audioman, m.eventBus, params)
 }
 
 func (m ActiveMap) GetAllObjects() []*object.Object {

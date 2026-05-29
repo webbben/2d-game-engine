@@ -27,13 +27,14 @@ func (w *World) AddItem(itemID defs.ItemID, quantity int) {
 		panic("item quantity was <= 0")
 	}
 	playerCharState := w.Dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
-	itemDef := w.Dataman.GetItemDef(itemID)
-	characterstate.AddItemToInventory(playerCharState, defs.NewInventoryItem(itemDef, quantity))
+	itemToAdd := w.Dataman.NewItemState(itemID, quantity)
+	characterstate.AddItemToInventory(playerCharState, *itemToAdd, w.Dataman)
 
 	w.EventBus.Publish(defs.Event{
 		Type: pubsub.EventAddItem,
 		Data: map[string]any{
-			"itemID": itemID,
+			"itemID":   itemToAdd.DefID,
+			"quantity": itemToAdd.Quantity,
 		},
 	})
 }

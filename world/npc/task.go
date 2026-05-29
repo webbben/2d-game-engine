@@ -355,7 +355,7 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 				if !obj.IsCurrentlyActivating() {
 					x, y := t.Owner.Entity.X, t.Owner.Entity.Y
 					activateParams := object.ObjectActivationParams{
-						LockIDs: characterstate.GetLockIDs(*t.Owner.CharacterStateRef),
+						LockIDs: characterstate.GetLockIDs(*t.Owner.CharacterStateRef, t.Owner.dataman),
 					}
 					obj.Activate(x, y, activateParams)
 					// TODO: it looks like we don't check the result. if we don't have the lock for the gate, then we will need to handle that situation.

@@ -55,12 +55,12 @@ type MapLock struct {
 
 type ContainerDef struct {
 	ID        string
-	Inventory []*InventoryItem
+	Inventory []*ItemInitialStateDef
 }
 
 type ContainerGenerator interface {
 	ID() string
-	GenerateItems(ctx GameContext) []*InventoryItem
+	GenerateItems(ctx GameContext) []*ItemInitialStateDef
 }
 
 // A MapGenerator is for generating an instance of a MapDef while customizing details, enabling maps to be reused.

@@ -50,10 +50,9 @@ type MapState struct {
 }
 
 type MapItemState struct {
-	ItemInstance defs.ItemInstance
-	Quantity     int
-	X, Y         float64
-	ExpiresAt    *clock.GameTime // if set, this item will expire and disappear from the map at the set game time
+	ItemState ItemState
+	X, Y      float64
+	ExpiresAt *clock.GameTime // if set, this item will expire and disappear from the map at the set game time
 }
 
 type LockState struct {
@@ -68,7 +67,7 @@ type BedState struct {
 }
 
 type ContainerState struct {
-	Inventory []*defs.InventoryItem // slots / items in this container
+	Inventory []*ItemState // slots / items in this container
 }
 
 type DoorState struct {
