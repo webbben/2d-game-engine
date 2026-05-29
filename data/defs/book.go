@@ -12,4 +12,6 @@ type BookDef struct {
 	Title string
 	Text  string
 	Font  font.Face
+
+	KnowledgeTopics []TopicID
 }

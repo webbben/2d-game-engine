@@ -8,9 +8,11 @@ import (
 
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/utils"
 )
 
@@ -367,4 +369,24 @@ func GetLockIDs(charState state.CharacterState) []string {
 	}
 
 	return array
+}
+
+func AddKnowledge(topicID defs.TopicID, dataman *datamanager.DataManager, eventBus *pubsub.EventBus) {
+	playerState := dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	if _, exists := playerState.Knowledge[topicID]; exists {
+		// knowledge already exists, so do nothing
+		return
+	}
+
+	playerState.Knowledge[topicID] = true
+
+	topicDef := dataman.GetDialogTopic(topicID)
+
+	eventBus.Publish(defs.Event{
+		Type: pubsub.EventNewKnowledgeTopic,
+		Data: map[string]any{
+			"topicID":          topicID,
+			"topicDisplayName": topicDef.Prompt,
+		},
+	})
 }

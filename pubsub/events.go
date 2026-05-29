@@ -19,10 +19,12 @@ const (
 
 	EventQuestStarted defs.EventType = "quest_started" // a quest is started by the player
 
-	// Dialog
+	// Dialog & Topics
 
 	EventDialogStarted defs.EventType = "dialog_started"
 	EventDialogEnded   defs.EventType = "dialog_ended"
+
+	EventNewKnowledgeTopic defs.EventType = "new_knowledge_topic" // data: "topicID" (string), "topicDisplayName" (string)
 
 	// Objects
 
