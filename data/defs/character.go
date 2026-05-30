@@ -19,11 +19,16 @@ const (
 const (
 	// This is used to identify the player's state and def. It is the only CharacterDefID that should be defined in the engine.
 	PlayerID CharacterDefID = "player"
+
+	// Whenever a breaking change is made to CharacterDef, increment this version number
+	CharacterDefVersion int = 1
 )
 
 // CharacterDef represents a definition of a single character, and how that character starts off in the world when first introduced.
 // Note: it is NOT Character State
 type CharacterDef struct {
+	Version int // for ensuring old character defs dont slip by unnoticed. use the version const when creating new character def JSONs.
+
 	// used for identifying the character within places like the DataManager.
 	ID CharacterDefID
 	// A unique ID for this player, that is unique across playthroughs. allows a specific player's save files to be correctly identified.

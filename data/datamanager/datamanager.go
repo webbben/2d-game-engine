@@ -319,6 +319,10 @@ func (dataman *DataManager) LoadCharacterDef(charDef defs.CharacterDef) {
 		panic("id was empty")
 	}
 
+	if charDef.Version != defs.CharacterDefVersion {
+		logz.Panicln("LoadCharacterDef", "Character def is wrong version! current version:", defs.CharacterDefVersion, "def version:", charDef.Version)
+	}
+
 	if _, exists := dataman.CharacterDefs[charDef.ID]; exists {
 		logz.Panicln("DataManager", "tried to load character def, but ID already exists:", charDef.ID)
 	}

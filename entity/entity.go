@@ -387,7 +387,7 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		HomeMapID:    params.HomeMapID,
 		HomeMapBedID: params.HomeMapBedID,
 
-		// StandardInventory: charDef.InitialInventory,
+		StandardInventory: *item.ConvertInitialInventoryDef(charDef.InitialInventory),
 
 		BaseAttributes: charDef.BaseAttributes,
 		BaseSkills:     charDef.BaseSkills,
@@ -405,14 +405,6 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 			Durability: v.Durability,
 			Quantity:   v.Quantity,
 		}
-	}
-
-	// convert initial inventory into item states
-	for _, v := range charDef.InitialInventory.CoinPurse {
-		charState.CoinPurse = append(charState.CoinPurse, equip(v))
-	}
-	for _, v := range charDef.InitialInventory.InventoryItems {
-		charState.InventoryItems = append(charState.InventoryItems, equip(v))
 	}
 
 	charState.EquipedHeadwear = equip(charDef.InitialInventory.EquipedHeadwear)

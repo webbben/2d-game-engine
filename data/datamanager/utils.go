@@ -17,3 +17,12 @@ func (dataman *DataManager) NewItemState(itemID defs.ItemID, quantity int) *stat
 	}
 	return &is
 }
+
+func (dataman *DataManager) GetInitialStateDef(itemID defs.ItemID, quantity int) defs.ItemInitialStateDef {
+	itemDef := dataman.GetItemDef(itemID)
+	return defs.ItemInitialStateDef{
+		DefID:      itemID,
+		Quantity:   quantity,
+		Durability: itemDef.MaxDurability,
+	}
+}

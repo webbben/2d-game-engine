@@ -32,12 +32,17 @@ type GameStage string
 type GameContext interface {
 	SaveFileContext
 	EventContext
+	DataContext // for when you don't have a datamanager
 
 	GameDialogContext
 	GameQuestContext
 	GameScreenContext
 
 	ActiveMapContext
+}
+
+type DataContext interface {
+	GetItemDef(itemID ItemID) ItemDef
 }
 
 type SaveFileContext interface {
