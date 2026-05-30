@@ -8,6 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/utils"
 	"golang.org/x/image/font"
 )
 
@@ -132,10 +133,6 @@ type TextWindowParams struct {
 
 	TitleFont font.Face // if nil, will use config default title font
 	BodyFont  font.Face // if nil, will use config default body font
-
-	// if set (not 0), will try to split lines based on this value in pixels.
-	// if not set (= 0), a suitable width will be calculated
-	LineWidthPx int
 }
 
 func newTextWindow(title, bodyText string, params TextWindowParams) textWindow {
@@ -162,33 +159,34 @@ func newTextWindow(title, bodyText string, params TextWindowParams) textWindow {
 
 	textWindow.box = newTextWindowBox(params.TilesetSource, params.OriginTileIndex)
 
-	// determine window size based on source text
-	// title = 3 tiles tall
-	tileSize := textWindow.box.TileSize()
-	minWidth := tileSize * 5
-	lineWidth := tileSize * 3
-	windowHeight := tileSize * 2
+	tileSize := int(config.GetScaledTilesize())
 
-	// determine window width by text options
-	windowWidth := params.LineWidthPx + (tileSize * 2)
-	if windowWidth <= minWidth {
-		windowWidth = minWidth
-		titleWidth, _, _ := text.GetStringSize(title, params.TitleFont)
-		titleWidth += tileSize
-		// ensure width is big enough to fit title at least
-		if windowWidth < titleWidth {
-			windowWidth = titleWidth + tileSize
-			windowWidth -= windowWidth % tileSize
-		}
+	lineWidth := tileSize * 4 // default line width
+	titleWidth, _, _ := text.GetStringSize(title, params.TitleFont)
+	titleWidth = utils.RoundUpToTile(titleWidth, tileSize)
+	lineWidth = max(lineWidth, titleWidth)
 
-		lineWidth = windowWidth - (tileSize * 2)
-		lineWidth -= lineWidth % tileSize
+	// get full height of body text, and also confirm that no lines ended up larger than the line width.
+	// that could happen if a single word in a line is longer than the lineWidth param.
+	bodylines := text.ConvertStringToLines(bodyText, params.BodyFont, lineWidth)
+	bodyTextHeight := 0
+	longestLineDx := 0
+	for _, line := range bodylines {
+		dx, dy, _ := text.GetStringSize(line, params.BodyFont)
+		bodyTextHeight += dy
+		longestLineDx = max(longestLineDx, dx)
 	}
 
-	bodyTextHeight := text.GetStringLinesHeight(bodyText, params.BodyFont, lineWidth)
+	if longestLineDx > lineWidth {
+		lineWidth = utils.RoundUpToTile(longestLineDx, tileSize)
+	}
 
-	windowHeight += bodyTextHeight + (tileSize)
-	windowHeight -= windowHeight % tileSize
+	bodyTextHeight = utils.RoundUpToTile(bodyTextHeight, tileSize)
+
+	// title takes 2 tile height, and the border below the body gets 1 tile height
+	windowHeight := tileSize*3 + bodyTextHeight
+	// border tiles on both sides of text
+	windowWidth := lineWidth + tileSize*2
 
 	textWindow.box.buildWindowImage(windowWidth, windowHeight)
 

@@ -2,12 +2,14 @@
 package item
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type WeaponDef struct {
@@ -72,6 +74,17 @@ func CountMoney(inv state.StandardInventory, dataman *datamanager.DataManager) i
 	return sum
 }
 
+func convertInitialItemDef(initialItemDef *defs.ItemInitialStateDef) *state.ItemState {
+	if initialItemDef == nil {
+		return nil
+	}
+	return &state.ItemState{
+		DefID:      initialItemDef.DefID,
+		Durability: initialItemDef.Durability,
+		Quantity:   initialItemDef.Quantity,
+	}
+}
+
 func ConvertInitialItemStateDefs(initialItemDefs []*defs.ItemInitialStateDef) []*state.ItemState {
 	inv := []*state.ItemState{}
 	for _, invItem := range initialItemDefs {
@@ -79,11 +92,31 @@ func ConvertInitialItemStateDefs(initialItemDefs []*defs.ItemInitialStateDef) []
 			inv = append(inv, nil)
 			continue
 		}
-		inv = append(inv, &state.ItemState{
-			DefID:      invItem.DefID,
-			Durability: invItem.Durability,
-			Quantity:   invItem.Quantity,
-		})
+		inv = append(inv, convertInitialItemDef(invItem))
 	}
 	return inv
+}
+
+func ConvertInitialInventoryDef(initialInventory defs.InitialStandardInventoryDef) *state.StandardInventory {
+	si := state.StandardInventory{
+		CoinPurse:      ConvertInitialItemStateDefs(initialInventory.CoinPurse),
+		InventoryItems: ConvertInitialItemStateDefs(initialInventory.InventoryItems),
+
+		EquipedHeadwear:  convertInitialItemDef(initialInventory.EquipedHeadwear),
+		EquipedBodywear:  convertInitialItemDef(initialInventory.EquipedBodywear),
+		EquipedFootwear:  convertInitialItemDef(initialInventory.EquipedFootwear),
+		EquipedRing1:     convertInitialItemDef(initialInventory.EquipedRing1),
+		EquipedRing2:     convertInitialItemDef(initialInventory.EquipedRing2),
+		EquipedAmulet:    convertInitialItemDef(initialInventory.EquipedAmulet),
+		EquipedAuxiliary: convertInitialItemDef(initialInventory.EquipedAuxiliary),
+		EquipedWeapon:    convertInitialItemDef(initialInventory.EquipedWeapon),
+		EquipedAmmo:      convertInitialItemDef(initialInventory.EquipedAmmo),
+	}
+
+	utils.PanicAssert(len(si.CoinPurse) == len(initialInventory.CoinPurse),
+		"coin purse sizes didn't match: "+fmt.Sprintf("%v %v", len(si.CoinPurse), len(initialInventory.CoinPurse)))
+	utils.PanicAssert(len(si.InventoryItems) == len(initialInventory.InventoryItems),
+		"inventory sizes didn't match: "+fmt.Sprintf("%v %v", len(si.InventoryItems), len(initialInventory.InventoryItems)))
+
+	return &si
 }

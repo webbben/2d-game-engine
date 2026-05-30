@@ -117,3 +117,7 @@ func (g *Game) GetHoverTargetInfo() (*defs.NPCInfo, *defs.ObjectInfo) {
 
 	return nil, nil
 }
+
+func (g *Game) GetItemDef(itemID defs.ItemID) defs.ItemDef {
+	return g.Dataman.GetItemDef(itemID)
+}

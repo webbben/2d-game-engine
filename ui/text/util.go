@@ -60,7 +60,12 @@ func ConvertStringToLines(s string, f font.Face, lineWidthPx int) []string {
 	for _, line := range lines {
 		dx, _, _ := GetStringSize(line, f)
 		if dx > lineWidthPx {
-			logz.Panicln("ConvertStringToLines", "a line was bigger than the max line width!")
+			fmt.Println("line:", line)
+			if len(strings.Fields(line)) > 1 {
+				// only panic if this line has more than one word; if there is just a really long single word, then there's nothing we could've done.
+				logz.Panicln("ConvertStringToLines", "a line was bigger than the max line width! line dx:", dx, "maxLineWidth:", lineWidthPx)
+			}
+			logz.Warnln("ConvertStringToLines", "a line with a single word in it was too long for the max line width. Just FYI; line width for this use case may need to be bigger.")
 		}
 	}
 
