@@ -1,9 +1,13 @@
 package game
 
 import (
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
@@ -120,4 +124,30 @@ func (g *Game) GetHoverTargetInfo() (*defs.NPCInfo, *defs.ObjectInfo) {
 
 func (g *Game) GetItemDef(itemID defs.ItemID) defs.ItemDef {
 	return g.Dataman.GetItemDef(itemID)
+}
+
+func (g *Game) GetEntityAvatar(charStateID id.CharacterStateID, direction byte) *ebiten.Image {
+	tilesize := config.TileSize
+	entityAvatar := ebiten.NewImage(tilesize, tilesize*2)
+	if charStateID == id.CharacterStateID(defs.PlayerID) {
+		// in case the game is in an inventory menu and entity updates aren't processing, sync the body to state
+		g.World.Player.Entity.SyncBodyToState()
+		entBody := g.World.Player.Entity.Body
+		entBody.SetDirection(direction)
+		entBody.SetAnimation(body.AnimIdle, body.SetAnimationOps{Force: true})
+		entBody.Update()
+		entBody.Draw(entityAvatar, 0, 0, 1)
+	} else {
+		npcRef := g.World.NPCs[charStateID]
+		if npcRef == nil {
+			logz.Panicln("GetEntityAvatar", "NPC didn't exist:", charStateID)
+		}
+		entBody := npcRef.Entity.Body
+		entBody.SetDirection(direction)
+		entBody.SetAnimation(body.AnimIdle, body.SetAnimationOps{Force: true})
+		entBody.Update()
+		entBody.Draw(entityAvatar, 0, 0, 1)
+	}
+
+	return entityAvatar
 }

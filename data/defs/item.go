@@ -22,6 +22,7 @@ const (
 	TypeMisc       ItemType = "MISC"
 	TypeCurrency   ItemType = "CURRENCY"
 	TypeKey        ItemType = "KEY"
+	TypeBook       ItemType = "BOOK"
 )
 
 type ItemDef struct {
@@ -58,6 +59,11 @@ type ItemDef struct {
 	// Armor (body/head/footwear, shield auxes, etc)
 
 	Protection int // amount of protection this piece of armor gives
+
+	// Book
+
+	// when a book item is read, the player learns these knowledge topics
+	KnowledgeTopicIDs []TopicID
 }
 
 func (id ItemDef) Validate() {
