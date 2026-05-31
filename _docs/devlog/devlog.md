@@ -1,3 +1,66 @@
+# 2026-05-30
+
+I want to brainstorm about the player inventory screen real quick. 
+
+I need to figure out how activating items should work. What does this mean? I'm glad you asked.
+
+## Activating Items 
+
+Activating an item means, basically, using/consuming an item. If you have a potion in your inventory, you need some way to use it, right?
+Well, you "activate" it. The same goes for books, when you want to read the book. I'm sure there will be other items that will need activation,
+such as special items that trigger some kind of unique event or something.
+
+Anyway, I need to decide how the inventory UI should support "activation" of items. If there's a book in my inventory, how do I activate it,
+as opposed to just picking it up and carrying it to a new item slot?
+
+## Inventory Controls 
+
+As of now, the only control that exists is the left click; if you left click an item, it gets picked up and you can carry it to a new item slot.
+That's it.
+
+Let's think about some other games and how their controls systems work.
+
+### Minecraft
+
+In Minecraft, if you want to consume an item, you have to get the item into one of the active item slots that you can toggle to (the top row of item slots?).
+Anyway, I'm talking about the ones that you can see even when you're not in the inventory screen.
+
+When you have that item slot selected, you right click I think. And that causes you to drink the potion, eat the food, etc.
+
+This doesn't work for us as of now, since we don't have that persistent top-level items row that is visible outside of the inventory menu.
+
+### Morrowind 
+
+In Morrowind, I believe you would click an item to pick it up, and if it's a consumable (like a book, or a potion, etc) you drag it to the player's avatar
+and drop it on the player avatar. This could work actually, because I've had a player avatar in the menu in previous iterations, and probably plan to 
+bring it back into the inventory menu (temporarily removed it due to some random issue).
+
+But, I also think that's a bit cumbersome. I mean, it's okay if we support that method, but I'd rather if there was another more straight-forward way 
+of activating items. 
+
+## Other ideas
+
+What about a right click? I guess that could bring up a little menu/option select thingy. And, based on the item type, there could be different options,
+and for items that support activation, that could be the main option. That means, for any item that you want to use, you have to right click -> Activate.
+
+Another idea is double click? I think that would work too. Maybe, the right click menu can be for getting access to all actions, but the main action would
+be to activate the item, and the double click does that automatically.
+
+There are other control ideas, like shift+click, but I plan to use that for automatically moving items. For example, if you are opening a chest, you can
+shift+click items to automatically transfer them to your inventory.
+
+I think for now, I'm just going to go with the right click menu idea, and probably implement a double click too.
+
+> Although, now that I think about it, double click in Minecraft was for gathering all instances of an item together.
+> This was useful if you had lots of the same item in different slots, and you wanted to stack them all together. That could be useful too?
+
+I think I'm just going to mimic how it works in Morrowind, but add in some Minecraft parts too:
+
+- left click: picks up an item
+- shift click: auto-moves an item to its most reasonable slot, like a matching equipment slot (if open) or to the chest you have open.
+- click on player avatar while holding activatable item: activates item 
+- right click on item: opens menu (which lets you pick up or activate, etc)
+
 # 2026-05-28
 
 Wow, it's been 20 days since I last wrote. I whoooole lot has happened in these past 20 days, and I think because I've been so busy making changes

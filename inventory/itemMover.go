@@ -1,6 +1,8 @@
 package inventory
 
 import (
+	"slices"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -15,15 +17,29 @@ type ItemMover struct {
 	carryItemDef  defs.ItemDef
 	dropableSlots []*ItemSlot   // item slots that an item can be dropped into
 	itemImg       *ebiten.Image // image of the item as its being carried
+
+	possibleTransfers map[string][]string
 }
 
 func NewItemMover(itemSlots []*ItemSlot) ItemMover {
 	return ItemMover{
-		dropableSlots: itemSlots,
+		dropableSlots:     itemSlots,
+		possibleTransfers: make(map[string][]string),
 	}
 }
 
-func (im *ItemMover) pickupItem(itemToCarry *state.ItemState, itemDef defs.ItemDef, amount int) bool {
+func (im *ItemMover) AddPossibleGroupTransfer(fromGroupID string, toGroupID string) {
+	transferDests := im.possibleTransfers[fromGroupID]
+
+	if slices.Contains(transferDests, toGroupID) {
+		return
+	}
+
+	transferDests = append(transferDests, toGroupID)
+	im.possibleTransfers[fromGroupID] = transferDests
+}
+
+func (im *ItemMover) pickupItem(itemToCarry *state.ItemState, itemDef defs.ItemDef) bool {
 	if im.carryItem != nil {
 		// already carrying an item
 		return false
@@ -64,17 +80,22 @@ func (im *ItemMover) Draw(om *overlay.OverlayManager) {
 func (im *ItemMover) Update() {
 	if im.carryItem == nil {
 		// check for clicks on item slots - for picking up items
-		for _, slot := range im.dropableSlots {
+		for i, slot := range im.dropableSlots {
 			if slot.Item == nil {
 				continue
 			}
 			if slot.mouseBehavior.LeftClick.ClickReleased {
 				// the slot has been clicked!
-				if im.pickupItem(slot.Item, slot.ItemDef, slot.Item.Quantity) {
+				if im.pickupItem(slot.Item, slot.ItemDef) {
 					// item was successfully picked up
 					// clear item slot of its item
 					slot.Clear()
-					break
+
+					// (SHIFT+LEFT-CLICK) transfer the item to an appropriate slot
+					if ebiten.IsKeyPressed(ebiten.KeyShift) {
+						im.attemptGroupTransfer(i)
+					}
+					return
 				}
 			} else if slot.mouseBehavior.RightClick.ClickReleased {
 				// right click = pick up half
@@ -83,7 +104,10 @@ func (im *ItemMover) Update() {
 					amount /= 2
 				}
 				remaining := slot.Item.Quantity - amount
-				if im.pickupItem(slot.Item, slot.ItemDef, amount) {
+				pickupItem := *slot.Item
+				pickupItem.Quantity = amount
+				slot.Item.Quantity = remaining
+				if im.pickupItem(&pickupItem, slot.ItemDef) {
 					if remaining > 0 {
 						newItemState := *slot.Item
 						newItemState.Quantity = remaining
@@ -91,7 +115,7 @@ func (im *ItemMover) Update() {
 					} else {
 						slot.Clear()
 					}
-					break
+					return
 				}
 			}
 		}
@@ -99,6 +123,82 @@ func (im *ItemMover) Update() {
 		// item is already being carried; check for item placement
 		im.handleItemPlacement()
 	}
+}
+
+// attemptGroupTransfer attempts to transfer the carried item to a valid new item slot.
+//
+// rules:
+//   - item cannot move into a new slot of the same group ID
+//   - item will first try to group up with another slot of the same item def (if item is groupable)
+//   - item will then look for valid slots that list its type as an allowed type (prefers matching to item type match)
+//   - if no item type match exists, it will go to the first valid slot found according to the group possible transfers map
+func (im *ItemMover) attemptGroupTransfer(originIndex int) {
+	if im.carryItem == nil {
+		panic("no carry item")
+	}
+
+	originSlot := im.dropableSlots[originIndex]
+
+	if im.carryItemDef.Groupable {
+		// first, check if there is a slot that accepts only specifically this item type
+		for i, slot := range im.dropableSlots {
+			if i == originIndex {
+				// can't place in the origin slot
+				continue
+			}
+
+			if slot.Item == nil {
+				continue
+			}
+
+			// if there is an item in this slot, see if its the same item def and we can group i t
+			if slot.Item.DefID == im.carryItemDef.ID {
+				// found the same item, and its groupable
+				slot.Item.Quantity += im.carryItem.Quantity
+				im.carryItem = nil
+				return
+			}
+		}
+	}
+
+	// check if there is a slot that accepts only specifically this item type
+	for i, slot := range im.dropableSlots {
+		if i == originIndex {
+			// can't place in the origin slot
+			continue
+		}
+
+		if slot.Item != nil {
+			continue
+		}
+
+		// check if the slot has an allow type match
+		if slices.Contains(slot.allowedItemTypes, im.carryItemDef.Type) {
+			slot.SetContent(im.carryItem, im.carryItemDef)
+			im.carryItem = nil
+			return
+		}
+	}
+
+	// finally, if nothing else, then try to move according to the possibleTransfers map
+	possibleTransfers := im.possibleTransfers[originSlot.groupID]
+
+	for _, slot := range im.dropableSlots {
+		if slot.Item != nil {
+			continue
+		}
+
+		if slices.Contains(possibleTransfers, slot.groupID) {
+			slot.SetContent(im.carryItem, im.carryItemDef)
+			im.carryItem = nil
+			return
+		}
+	}
+
+	// if we got here, then the item failed to be transfered
+	// put the carry item back in its origin slot
+	originSlot.SetContent(im.carryItem, im.carryItemDef)
+	im.carryItem = nil
 }
 
 func (im *ItemMover) handleItemPlacement() {

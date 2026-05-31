@@ -68,6 +68,8 @@ type InventoryParams struct {
 	HoverWindowParams textwindow.TextWindowParams
 
 	AllowedItemTypes []defs.ItemType // if set, all slots in this inventory will only allow items in this list of item IDs
+
+	GroupID string // groupID to apply to the item slots in this inventory
 }
 
 func NewInventory(dataman *datamanager.DataManager, params InventoryParams) Inventory {
@@ -109,6 +111,7 @@ func NewInventory(dataman *datamanager.DataManager, params InventoryParams) Inve
 			ItemSlotTiles:    itemSlotTiles,
 			Enabled:          i < inv.EnabledSlotsCount,
 			AllowedItemTypes: params.AllowedItemTypes,
+			GroupID:          params.GroupID,
 		}, inv.hoverWindowParams)
 
 		inv.itemSlots = append(inv.itemSlots, itemSlot)

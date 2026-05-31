@@ -403,3 +403,16 @@ func AddKnowledge(topicID defs.TopicID, dataman *datamanager.DataManager, eventB
 		},
 	})
 }
+
+func ActivateItem(itemState *state.ItemState, dataman *datamanager.DataManager, eventBus *pubsub.EventBus) {
+	itemDef := dataman.GetItemDef(itemState.DefID)
+
+	switch itemDef.Type {
+	case defs.TypeBook:
+		for _, topic := range itemDef.KnowledgeTopicIDs {
+			AddKnowledge(topic, dataman, eventBus)
+		}
+	default:
+		logz.Warnln("ActivateItem", "item was activated, but no logic is assigned to its type. item ID:", itemState.DefID, "item type:", itemDef.Type)
+	}
+}

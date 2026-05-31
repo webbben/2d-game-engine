@@ -1,6 +1,8 @@
 package inventory
 
 import (
+	"slices"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -37,6 +39,8 @@ type ItemSlot struct {
 	hoverTooltip textwindow.HoverTooltip
 
 	allowedItemTypes []defs.ItemType // each item type in this array will be allowed; if nothing is set here, all items are allowed
+
+	groupID string // ID of the "group" this item slot belongs to; groups are used for auto-moving items to specific slots
 }
 
 // InventoryItem is the UI component/runtime of an item in an inventory created when opening an inventory UI.
@@ -53,6 +57,7 @@ type ItemSlotParams struct {
 	Enabled          bool
 	Tooltip          string
 	AllowedItemTypes []defs.ItemType // each item type in this array will be allowed; if nothing is set here, all items are allowed
+	GroupID          string
 }
 
 func NewItemSlot(params ItemSlotParams, hoverWindowParams textwindow.TextWindowParams) *ItemSlot {
@@ -73,6 +78,7 @@ func NewItemSlot(params ItemSlotParams, hoverWindowParams textwindow.TextWindowP
 	}
 
 	itemSlot := ItemSlot{
+		groupID:             params.GroupID,
 		init:                true,
 		itemSlotTiles:       params.ItemSlotTiles,
 		Enabled:             params.Enabled,
@@ -95,12 +101,8 @@ func (is ItemSlot) CanTakeItemType(itemType defs.ItemType) bool {
 	if len(is.allowedItemTypes) == 0 {
 		return true
 	}
-	for _, allowedType := range is.allowedItemTypes {
-		if itemType == allowedType {
-			return true
-		}
-	}
-	return false
+
+	return slices.Contains(is.allowedItemTypes, itemType)
 }
 
 func (is *ItemSlot) SetContent(itemState *state.ItemState, itemDef defs.ItemDef) {

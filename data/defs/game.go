@@ -3,7 +3,9 @@ package defs
 import (
 	"time"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/data/id"
 )
 
 /*
@@ -107,10 +109,6 @@ type EventContext interface {
 // GameScreenContext isn't actually directly used anywhere; we just have it here to keep these functions organized by intended use,
 // and to prevent the other contexts from using them. Screens just have direct access to GameContext.
 type GameScreenContext interface {
-	// TODO: StandardInventory was moved to state, so can't access it here.
-	// do we need a "stateContext" for game or something like that?
-	//
-	// GetPlayerInventoryRef() *StandardInventory
 	EnterMap(mapID MapID, spawnIndex int, doTransition bool)
 	PlacePlayerInMap(mapID MapID, x, y float64, doTransition bool)
 
@@ -125,6 +123,9 @@ type GameScreenContext interface {
 	GetLoadingStatus() (complete bool, progress float64)
 	GetGameStage() GameStage
 	SetGameStage(stage GameStage)
+
+	// Gets the image of an entity. Each time this is called, a new ebiten image is created, so don't call this repeatedly in a loop.
+	GetEntityAvatar(charStateID id.CharacterStateID, direction byte) *ebiten.Image
 
 	TransitionContext
 
