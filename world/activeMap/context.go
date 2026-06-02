@@ -88,10 +88,6 @@ func (mi ActiveMap) FindObjectsAtPosition(c model.Coords) []*object.Object {
 	return objs
 }
 
-func (mi *ActiveMap) TogglePlayerMenu() {
-	mi.gameCtx.TogglePlayerMenu()
-}
-
 func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID string) {
 	if mi.dialogSession != nil {
 		logz.Panicln("StartDialog", "a dialog session was already active. make sure the previous dialog session was closed (made nil) before starting a new one.")
@@ -108,15 +104,15 @@ func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID str
 	mi.dialogSession = &ds
 }
 
-func (m *ActiveMap) StartBookSession(bookID defs.BookID, params config.BookSessionParams) {
+func (m *ActiveMap) StartBookSession(bookID defs.BookID, playerInfo defs.PlayerInfo, params config.BookSessionParams) {
 	if m.bookSession != nil {
-		logz.Panicln("StartBookSession", "a book session was already active. make sure the previous book was closed before starting a new book session.")
+		logz.Panicln("StartBookSession", "a book session was already active. make sure the previous book was closed before starting a new book session.", m.bookSession.GetBookID())
 	}
 	if bookID == "" {
 		logz.Panic("bookID was empty!")
 	}
 
-	m.bookSession = book.NewBookSession(bookID, m.dataman, m.audioman, m.eventBus, params)
+	m.bookSession = book.NewBookSession(bookID, m.dataman, m.audioman, m.eventBus, playerInfo, params)
 }
 
 func (m ActiveMap) GetAllObjects() []*object.Object {

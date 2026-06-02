@@ -4,27 +4,56 @@ import (
 	"slices"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/item"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/ui/overlay"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type ItemMover struct {
 	carryItem     *state.ItemState // the item that is currently being carried
 	carryItemDef  defs.ItemDef
+	originalSlot  *ItemSlot     // slot the carried item was originally in, so it can be replaced if needed
 	dropableSlots []*ItemSlot   // item slots that an item can be dropped into
 	itemImg       *ebiten.Image // image of the item as its being carried
 
 	possibleTransfers map[string][]string
+
+	playerAvatarRect *model.Rect
 }
 
 func NewItemMover(itemSlots []*ItemSlot) ItemMover {
 	return ItemMover{
 		dropableSlots:     itemSlots,
 		possibleTransfers: make(map[string][]string),
+	}
+}
+
+// AddPlayerAvatorZone lets you set a zone on the screen where the player avatar is.
+// If it is set, then the item mover can "drop" items onto the player, which can help with quickly using an item:
+//
+// - Consumables (potions, food, etc): consumes the item
+//
+// - Activatable items (books, etc): activates the item; reads the book, etc.
+//
+// - Equippable items (headwear, bodywear, footwear, etc): equips the item
+func (im *ItemMover) AddPlayerAvatorZone(x, y float64, dx, dy int) {
+	if dx <= 0 {
+		panic("dx <= 0")
+	}
+	if dy <= 0 {
+		panic("dy <= 0")
+	}
+	im.playerAvatarRect = &model.Rect{
+		X: x,
+		Y: y,
+		W: float64(dx),
+		H: float64(dy),
 	}
 }
 
@@ -39,15 +68,51 @@ func (im *ItemMover) AddPossibleGroupTransfer(fromGroupID string, toGroupID stri
 	im.possibleTransfers[fromGroupID] = transferDests
 }
 
-func (im *ItemMover) pickupItem(itemToCarry *state.ItemState, itemDef defs.ItemDef) bool {
+// if quantity is 0, we pick up all
+func (im *ItemMover) pickupItem(slot *ItemSlot, quantity int) bool {
 	if im.carryItem != nil {
 		// already carrying an item
 		return false
 	}
+	if slot.Item == nil {
+		logz.Panicln("ItemMover", "item slot was empty!")
+	}
+
+	if quantity < 0 {
+		logz.Panic("quantity was < 0")
+	}
+
+	slot.Validate()
+
+	if quantity == 0 {
+		// pick up all of the item
+		quantity = slot.Item.Quantity
+	}
+
+	utils.PanicAssert(quantity > 0, "quantity was <= 0")
+
+	deref := *slot.Item
+	itemToCarry := &deref
+	itemToCarry.Quantity = quantity
+	itemDef := slot.ItemDef
+
+	slot.Item.Quantity -= quantity
+	if slot.Item.Quantity < 0 {
+		logz.Panicln("ItemMover", "picked up more than existed in an item slot!", quantity)
+	}
+	if slot.Item.Quantity == 0 {
+		slot.Clear()
+	}
+
+	slot.Validate()
+
+	im.originalSlot = slot
 
 	im.carryItem = itemToCarry
 	im.carryItemDef = itemDef
 	im.MakeItemImage()
+
+	im.carryItem.Validate()
 
 	return true
 }
@@ -77,7 +142,12 @@ func (im *ItemMover) Draw(om *overlay.OverlayManager) {
 	om.AddOverlay(im.itemImg, float64(mouseX), float64(mouseY))
 }
 
-func (im *ItemMover) Update() {
+type ItemMoverUpdateResult struct {
+	OpenBook bool
+	BookID   defs.BookID
+}
+
+func (im *ItemMover) Update() ItemMoverUpdateResult {
 	if im.carryItem == nil {
 		// check for clicks on item slots - for picking up items
 		for i, slot := range im.dropableSlots {
@@ -86,16 +156,14 @@ func (im *ItemMover) Update() {
 			}
 			if slot.mouseBehavior.LeftClick.ClickReleased {
 				// the slot has been clicked!
-				if im.pickupItem(slot.Item, slot.ItemDef) {
+				if im.pickupItem(slot, 0) {
 					// item was successfully picked up
-					// clear item slot of its item
-					slot.Clear()
-
 					// (SHIFT+LEFT-CLICK) transfer the item to an appropriate slot
 					if ebiten.IsKeyPressed(ebiten.KeyShift) {
 						im.attemptGroupTransfer(i)
 					}
-					return
+					slot.Validate()
+					return ItemMoverUpdateResult{}
 				}
 			} else if slot.mouseBehavior.RightClick.ClickReleased {
 				// right click = pick up half
@@ -103,26 +171,17 @@ func (im *ItemMover) Update() {
 				if amount > 1 {
 					amount /= 2
 				}
-				remaining := slot.Item.Quantity - amount
-				pickupItem := *slot.Item
-				pickupItem.Quantity = amount
-				slot.Item.Quantity = remaining
-				if im.pickupItem(&pickupItem, slot.ItemDef) {
-					if remaining > 0 {
-						newItemState := *slot.Item
-						newItemState.Quantity = remaining
-						slot.SetContent(&newItemState, slot.ItemDef)
-					} else {
-						slot.Clear()
-					}
-					return
+				if im.pickupItem(slot, amount) {
+					return ItemMoverUpdateResult{}
 				}
 			}
 		}
 	} else {
 		// item is already being carried; check for item placement
-		im.handleItemPlacement()
+		return im.handleItemPlacement()
 	}
+
+	return ItemMoverUpdateResult{}
 }
 
 // attemptGroupTransfer attempts to transfer the carried item to a valid new item slot.
@@ -201,11 +260,42 @@ func (im *ItemMover) attemptGroupTransfer(originIndex int) {
 	im.carryItem = nil
 }
 
-func (im *ItemMover) handleItemPlacement() {
+func (im *ItemMover) putItemBack() {
+	logz.Println("", "puttin it back...")
+	if im.carryItem == nil {
+		logz.Panic("not carrying any item!")
+	}
+	if im.originalSlot == nil {
+		logz.Panic("original slot was nil!")
+	}
+	im.originalSlot.SetContent(im.carryItem, im.carryItemDef)
+	im.carryItem = nil
+}
+
+func (im *ItemMover) handleItemPlacement() ItemMoverUpdateResult {
 	if im.carryItem == nil {
 		panic("tried to place item but no carryItem exists")
 	}
 	mouseX, mouseY := ebiten.CursorPosition()
+
+	// first, check if the mouse is over the player avatar (if it exists)
+	if im.playerAvatarRect != nil {
+		if im.playerAvatarRect.Within(mouseX, mouseY) {
+			if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+				// attempting to place item onto the player avatar
+				switch im.carryItemDef.Type {
+				case defs.TypeBook:
+					bookID := im.carryItemDef.BookID
+					logz.Println("ItemMover", "you should read this book:", bookID)
+					im.putItemBack()
+					return ItemMoverUpdateResult{
+						OpenBook: true,
+						BookID:   bookID,
+					}
+				}
+			}
+		}
+	}
 
 	for _, slot := range im.dropableSlots {
 		w, h := slot.Dimensions()
@@ -218,7 +308,7 @@ func (im *ItemMover) handleItemPlacement() {
 			if slot.Item == nil && slot.mouseBehavior.LeftClick.DoubleClicked() {
 				// gather all of this item
 				im.gatherAllOfItem(im.carryItemDef)
-				return
+				return ItemMoverUpdateResult{}
 			}
 
 			// placing all of the item
@@ -228,7 +318,7 @@ func (im *ItemMover) handleItemPlacement() {
 					// slot is empty, we can put this item here
 					slot.SetContent(im.carryItem, im.carryItemDef)
 					im.carryItem = nil
-					return
+					return ItemMoverUpdateResult{}
 				}
 
 				// check if slot has the same item type (and is groupable)
@@ -239,7 +329,7 @@ func (im *ItemMover) handleItemPlacement() {
 						newItemState.Quantity += slot.Item.Quantity
 						slot.SetContent(&newItemState, im.carryItemDef)
 						im.carryItem = nil
-						return
+						return ItemMoverUpdateResult{}
 					}
 				}
 			}
@@ -256,7 +346,7 @@ func (im *ItemMover) handleItemPlacement() {
 					} else {
 						im.MakeItemImage()
 					}
-					return
+					return ItemMoverUpdateResult{}
 				}
 				// check if slot has the same item type (and is groupable)
 				if slot.ItemDef.ID == im.carryItem.DefID {
@@ -269,12 +359,14 @@ func (im *ItemMover) handleItemPlacement() {
 						if im.carryItem.Quantity == 0 {
 							im.carryItem = nil
 						}
-						return
+						return ItemMoverUpdateResult{}
 					}
 				}
 			}
 		}
 	}
+
+	return ItemMoverUpdateResult{}
 }
 
 func (im *ItemMover) gatherAllOfItem(def defs.ItemDef) {

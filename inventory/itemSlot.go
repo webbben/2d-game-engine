@@ -14,6 +14,7 @@ import (
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/ui/textwindow"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type ItemSlot struct {
@@ -118,17 +119,28 @@ func (is *ItemSlot) SetContent(itemState *state.ItemState, itemDef defs.ItemDef)
 	if !is.CanTakeItemType(itemDef.Type) {
 		panic("item slot can't take this item")
 	}
-	is.Item = itemState
+	deref := *itemState
+	is.Item = &deref
 	is.ItemDef = itemDef
 	is.ItemIcon = item.NewItemIcon(itemDef)
 
 	// when an item is set, calculate the hover window
 	// we have to do this on setting the item, since the text content may determine the actual size of the hover window.
 	is.hoverWindow = textwindow.NewHoverWindow(itemDef.Name, itemDef.Description, is.hoverWindowParams)
+
+	is.Validate()
 }
 
 func (is *ItemSlot) Clear() {
 	is.Item = nil
+}
+
+func (is ItemSlot) Validate() {
+	if is.Item != nil {
+		utils.PanicAssert(is.Item.DefID == is.ItemDef.ID, "itemID doesn't match def ID")
+		utils.PanicAssert(is.Item.Quantity > 0, "item quantity was <= 0")
+		is.Item.Validate()
+	}
 }
 
 func (is ItemSlot) Dimensions() (dx, dy int) {

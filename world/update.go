@@ -42,33 +42,23 @@ func (w *World) Update(showingLoadScreen bool) {
 		return
 	}
 
-	// if a screen is showing, don't do active map updates
-	if w.showPlayerMenu {
-		// set last player update to now, so that the time hud doesn't immediately display
-		w.Player.LastUserInput = time.Now()
-		w.playerMenuViewer.Update()
-		if w.playerMenuViewer.IsDone() {
-			w.showPlayerMenu = false
-		}
-		return
-	}
-	if w.showMiscScreen {
-		w.Player.LastUserInput = time.Now()
-		w.miscScreenViewer.Update()
-		if w.miscScreenViewer.IsDone() {
-			w.showMiscScreen = false
-		}
-		return
-	}
-
 	// Note: making this a separate variable since I don't want to control w.BlockPlayerChanges by dialog.
 	// other places handle setting that variable (transitions, for example) so shouldn't touch it here.
 	blockPlayerChanges := w.BlockPlayerChanges
 	if w.ActiveMap.IsDialogActive() {
 		blockPlayerChanges = true
 	}
-	w.Player.Update(blockPlayerChanges)
+
 	w.ActiveMap.Update(blockPlayerChanges)
+
+	// don't allow the player to do anything while map is showing screens.
+	// One major reason to block this is, we don't want the E key to trigger the player menu to close from outside the player menu logic.
+	// If that happens, then the screen doesn't save its changes.
+	if w.ActiveMap.IsScreenShowing() {
+		blockPlayerChanges = true
+	}
+
+	w.Player.Update(blockPlayerChanges)
 
 	if !blockPlayerChanges && !w.ActiveMap.InScenario {
 		// don't update time while player is in dialog or something where his in-map input is paused
@@ -84,12 +74,6 @@ func (w *World) Draw(screen *ebiten.Image) {
 	w.ActiveMap.Draw(screen, w.OverlayManager)
 
 	w.OverlayManager.Draw(screen)
-
-	if w.showPlayerMenu {
-		w.playerMenuViewer.Draw(screen)
-	} else if w.showMiscScreen {
-		w.miscScreenViewer.Draw(screen)
-	}
 }
 
 func (w *World) startNpcSimulation() {

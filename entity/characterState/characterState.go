@@ -388,8 +388,11 @@ func AddKnowledge(topicID defs.TopicID, dataman *datamanager.DataManager, eventB
 	playerState := dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
 	if _, exists := playerState.Knowledge[topicID]; exists {
 		// knowledge already exists, so do nothing
+		logz.Println("AddKnowledge", "topic already known:", topicID)
 		return
 	}
+
+	logz.Warnln("AddKnowledge", "New knowledge topic:", topicID)
 
 	playerState.Knowledge[topicID] = true
 
@@ -405,11 +408,18 @@ func AddKnowledge(topicID defs.TopicID, dataman *datamanager.DataManager, eventB
 }
 
 func ActivateItem(itemState *state.ItemState, dataman *datamanager.DataManager, eventBus *pubsub.EventBus) {
+	if itemState == nil {
+		logz.Panic("itemState was nil")
+	}
 	itemDef := dataman.GetItemDef(itemState.DefID)
 
 	switch itemDef.Type {
 	case defs.TypeBook:
-		for _, topic := range itemDef.KnowledgeTopicIDs {
+		if itemDef.BookID == "" {
+			logz.Panicln("ActivateItem", "book item didn't have a bookID:", itemState.DefID)
+		}
+		bookDef := dataman.GetBookDef(itemDef.BookID)
+		for _, topic := range bookDef.KnowledgeTopics {
 			AddKnowledge(topic, dataman, eventBus)
 		}
 	default:

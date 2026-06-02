@@ -136,6 +136,7 @@ type GameScreenContext interface {
 
 type ActiveMapContext interface {
 	StartDialogSession(dialogProfileID DialogProfileID, npcID string)
+	StartBookSession(bookID BookID)
 	TogglePlayerMenu()
 
 	ShowMiscScreen(scrID ScreenID, params any)

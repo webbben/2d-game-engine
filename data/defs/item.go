@@ -62,8 +62,7 @@ type ItemDef struct {
 
 	// Book
 
-	// when a book item is read, the player learns these knowledge topics
-	KnowledgeTopicIDs []TopicID
+	BookID BookID // if this is a book, set this to the book ID
 }
 
 func (id ItemDef) Validate() {

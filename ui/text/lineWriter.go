@@ -59,6 +59,7 @@ type LineWriter struct {
 	bgColor          color.Color // color of the text shadow. defaults to a semi-transparent gray.
 	linkColor        color.Color // color of links in text
 	shadow           bool        // if set, text is drawn with the shadow (bgColor) effect
+	currentShadow    bool        // we might temporarily turn off shadow, when drawing de-emphasized text for example
 
 	linesToWrite      []string         // source text broken down into their lines
 	pages             [][]string       // pages to write (linesToWrite broken down)
@@ -119,7 +120,7 @@ func NewLineWriter(audioman *audio.AudioManager, params config.LineWriterParams)
 		params.FgColor = color.Black
 	}
 	if params.BgColor == nil {
-		params.BgColor = color.RGBA{20, 20, 20, 75}
+		params.BgColor = color.RGBA{0, 0, 0, 70}
 	}
 	if params.LinkColor == nil {
 		params.LinkColor = color.RGBA{0, 0, 255, 255}
@@ -135,6 +136,7 @@ func NewLineWriter(audioman *audio.AudioManager, params config.LineWriterParams)
 		bgColor:          params.BgColor,
 		linkColor:        params.LinkColor,
 		shadow:           params.UseShadow,
+		currentShadow:    params.UseShadow,
 		writeImmediately: params.WriteImmediately,
 		audioman:         audioman,
 		specialSymbols:   params.SupportSpecialSymbols,
@@ -300,7 +302,7 @@ func (lw *LineWriter) drawRune(r, prev rune) {
 	kern := lw.fontFace.Kern(prev, r)
 	lw.cursorX += kern.Round()
 
-	if lw.shadow {
+	if lw.currentShadow {
 		DrawShadowText(lw.textImg, string(r), lw.fontFace, lw.cursorX, lw.cursorY, lw.currentFgColor, lw.bgColor, -2, -2)
 	} else {
 		DrawText(lw.textImg, string(r), lw.fontFace, lw.cursorX, lw.cursorY, lw.currentFgColor)
@@ -460,8 +462,10 @@ func (lw *LineWriter) handleDrawRune(next, prev rune) (skipThisRune bool) {
 		case '_':
 			if ColorsEqual(lw.currentFgColor, lw.bgColor) {
 				lw.currentFgColor = lw.fgColor
+				lw.currentShadow = lw.shadow
 			} else {
 				lw.currentFgColor = lw.bgColor
+				lw.currentShadow = false
 			}
 			skipThisRune = true
 		}

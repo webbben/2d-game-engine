@@ -11,6 +11,8 @@ import (
 func (m *ActiveMap) Update(blockPlayerChanges bool) {
 	m.daylightFader.Update()
 
+	blockMapUpdates := false
+
 	if m.dialogSession != nil {
 		// clear hover targets when in dialog
 		m.hoveredObject = nil
@@ -23,7 +25,7 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 		// set last player update to now, so that the time hud doesn't immediately display
 		m.PlayerRef.LastUserInput = time.Now()
 		// in dialog, so don't allow NPC updates
-		return
+		blockMapUpdates = true
 	}
 
 	if m.bookSession != nil {
@@ -37,12 +39,35 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 		}
 		// set last player update to now, so that the time hud doesn't immediately display
 		m.PlayerRef.LastUserInput = time.Now()
-		// in book sesh, so don't allow NPC updates
-		return
 
+		// in book sesh, so don't allow NPC updates
+		blockMapUpdates = true
+	}
+
+	if m.showPlayerMenu {
+		// set last player update to now, so that the time hud doesn't immediately display
+		m.PlayerRef.LastUserInput = time.Now()
+		m.playerMenuViewer.Update()
+		if m.playerMenuViewer.IsDone() {
+			logz.Println("", "player menu done")
+			m.showPlayerMenu = false
+		}
+		blockMapUpdates = true
+	}
+	if m.showMiscScreen {
+		m.PlayerRef.LastUserInput = time.Now()
+		m.miscScreenViewer.Update()
+		if m.miscScreenViewer.IsDone() {
+			m.showMiscScreen = false
+		}
+		blockMapUpdates = true
 	}
 
 	m.Camera.MoveCamera(m.PlayerRef.Entity.X, m.PlayerRef.Entity.Y)
+
+	if blockMapUpdates {
+		return
+	}
 
 	m.Map.Update()
 

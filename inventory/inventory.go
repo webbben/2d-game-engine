@@ -39,6 +39,7 @@ func (inv Inventory) GetItemSlots() []*ItemSlot {
 func (inv Inventory) GetInventoryItems() []*state.ItemState {
 	invItems := []*state.ItemState{}
 	for _, slot := range inv.itemSlots {
+		slot.Validate()
 		if slot.Item == nil {
 			invItems = append(invItems, nil)
 		} else {
@@ -140,10 +141,6 @@ func (inv *Inventory) SetItemSlots(items []*state.ItemState) {
 			inv.itemSlots[i].Clear()
 		} else {
 			invItem.Validate()
-			if invItem.Quantity == 0 {
-				logz.Println(string(invItem.DefID))
-				panic("trying to set an item that has 0 quantity")
-			}
 			itemDef := inv.dataman.GetItemDef(invItem.DefID)
 			inv.itemSlots[i].SetContent(invItem, itemDef)
 		}
