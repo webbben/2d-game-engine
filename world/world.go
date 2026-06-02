@@ -33,12 +33,8 @@ import (
 type World struct {
 	// Screens
 
-	showPlayerMenu   bool
-	playerMenu       screen.Screen
-	playerMenuViewer screen.ScreenViewer
-
-	showMiscScreen   bool
-	miscScreenViewer screen.ScreenViewer
+	// we just keep this here to pass to the active map. TODO: should we just keep screen ID instead?
+	playerMenu screen.Screen
 
 	// Data managers and contexts
 
@@ -102,8 +98,6 @@ func NewWorld(
 		playerMenu:     playerMenu,
 		OverlayManager: &overlay.OverlayManager{},
 	}
-
-	w.playerMenuViewer = screen.NewScreenViewer(playerMenu, w.Dataman, w.EventBus, w.Audioman, w.Questman, w.GameCtx, nil)
 
 	// no need to setup things like lighting or post events; active map doesn't exist yet,
 	// and those things are handled at the time of creating the active map.
@@ -254,6 +248,7 @@ func (w *World) setupNewMap(mapID defs.MapID) {
 		w.GameCtx,
 		w,
 		mapID,
+		w.playerMenu,
 		false,
 	)
 
@@ -574,29 +569,12 @@ func (w *World) TogglePlayerMenu() {
 	if w.playerMenu == nil {
 		panic("player menu was nil")
 	}
-	w.showPlayerMenu = !w.showPlayerMenu
+	w.ActiveMap.TogglePlayerMenu()
 }
 
 func (w *World) ShowMiscScreen(scr screen.Screen, params any) {
 	if scr == nil {
 		logz.Panic("screen was nil!")
 	}
-	if w.showMiscScreen {
-		logz.Panicln("ShowMiscScreen", "tried to show screen, but another one was already set (or at least the flag was set)")
-	}
-	logz.Println("ShowMiscScreen", "showing screen:", scr.GetID())
-
-	w.miscScreenViewer = screen.NewScreenViewer(
-		scr,
-		w.Dataman,
-		w.EventBus,
-		w.Audioman,
-		w.Questman,
-		w.GameCtx,
-		params)
-	w.showMiscScreen = true
-
-	if w.miscScreenViewer.IsDone() {
-		logz.Panic("screen is already done, but we just set it up!")
-	}
+	w.ActiveMap.ShowMiscScreen(scr, params)
 }

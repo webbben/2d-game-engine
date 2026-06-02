@@ -26,6 +26,14 @@ type Player struct {
 	LastUserInput time.Time // tracks when the user has last made some kind of input (movement, attack, etc)
 }
 
+func (p Player) GetPlayerInfo() defs.PlayerInfo {
+	charDef := p.dataman.GetCharacterDef(defs.PlayerID)
+	return defs.PlayerInfo{
+		PlayerName:    p.CharacterStateRef.DisplayName,
+		PlayerCulture: charDef.CultureID,
+	}
+}
+
 type WorldContext interface {
 	GetOverlayManager() *overlay.OverlayManager
 	TogglePlayerMenu()

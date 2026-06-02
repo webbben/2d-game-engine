@@ -32,7 +32,7 @@ const (
 
 	// Items
 
-	EventAddItem    defs.EventType = "add_item"    // data: "itemID" (string)
+	EventAddItem    defs.EventType = "add_item"    // data: "itemID" (string), "quantity" (int)
 	EventGoldChange defs.EventType = "gold_change" // data: "amount" (int, non-zero)
 
 	// Player

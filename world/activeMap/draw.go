@@ -96,6 +96,13 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 		m.dialogSession.Draw(screen)
 	}
 
+	if m.showPlayerMenu {
+		m.playerMenuViewer.Draw(screen)
+	}
+	if m.showMiscScreen {
+		m.miscScreenViewer.Draw(screen)
+	}
+
 	if m.bookSession != nil {
 		bdx, bdy := m.bookSession.Dimensions()
 		bsx, bsy := utils.CenterInScreen(bdx, bdy)

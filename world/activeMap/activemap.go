@@ -52,6 +52,12 @@ type ActiveMap struct {
 	dialogSession *dialogv2.DialogSession
 	bookSession   *book.BookSession
 
+	showPlayerMenu   bool
+	playerMenuViewer screen.ScreenViewer
+
+	showMiscScreen   bool
+	miscScreenViewer screen.ScreenViewer
+
 	gameCtx  defs.GameContext
 	worldCtx WorldContext
 
@@ -85,6 +91,39 @@ type ActiveMap struct {
 	daylightFader lights.LightFader
 
 	NPCManager
+}
+
+func (m ActiveMap) IsScreenShowing() bool {
+	return m.showPlayerMenu || m.showMiscScreen
+}
+
+func (m *ActiveMap) TogglePlayerMenu() {
+	m.showPlayerMenu = !m.showPlayerMenu
+	logz.Println("toggle menu", m.showPlayerMenu)
+}
+
+func (m *ActiveMap) ShowMiscScreen(scr screen.Screen, params any) {
+	if scr == nil {
+		logz.Panic("screen was nil!")
+	}
+	if m.showMiscScreen {
+		logz.Panicln("ShowMiscScreen", "tried to show screen, but another one was already set (or at least the flag was set)")
+	}
+	logz.Println("ShowMiscScreen", "showing screen:", scr.GetID())
+
+	m.miscScreenViewer = screen.NewScreenViewer(
+		scr,
+		m.dataman,
+		m.eventBus,
+		m.audioman,
+		m.questman,
+		m.gameCtx,
+		params)
+	m.showMiscScreen = true
+
+	if m.miscScreenViewer.IsDone() {
+		logz.Panic("screen is already done, but we just set it up!")
+	}
 }
 
 func (m ActiveMap) GetHoverTarget() (*npc.NPC, *object.Object) {
@@ -123,6 +162,7 @@ func NewActiveMap(
 	gameCtx defs.GameContext,
 	worldCtx WorldContext,
 	mapID defs.MapID,
+	playerMenu screen.Screen,
 	regenImages bool,
 ) *ActiveMap {
 	debug.StartTimer("NewActiveMap")
@@ -150,6 +190,8 @@ func NewActiveMap(
 			mapRef: tiledMap,
 		},
 	}
+
+	m.playerMenuViewer = screen.NewScreenViewer(playerMenu, m.dataman, m.eventBus, m.audioman, m.questman, m.gameCtx, nil)
 
 	m.Camera.SetMapLimits(tiledMap.Width, tiledMap.Height)
 
@@ -791,7 +833,7 @@ func (mi *ActiveMap) HandleObjectUpdate(result object.ObjectUpdateResult, obj *o
 		if result.SignBookID == "" {
 			panic("signBookID was empty!")
 		}
-		mi.StartBookSession(result.SignBookID, config.DefaultBookSessionParams)
+		mi.StartBookSession(result.SignBookID, mi.PlayerRef.GetPlayerInfo(), config.DefaultBookSessionParams)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/logz"
 )
 
 // ItemState represents the state of an individual item, or group of same item ID that have been grouped.
@@ -81,10 +82,10 @@ func (is ItemState) Validate() {
 		panic("item state has no def ID")
 	}
 	if is.Quantity <= 0 {
-		panic("item state is less than or equal to 0. all items must have a quantity of at least 1")
+		logz.Panicln(string(is.DefID), "item state quantity is less than or equal to 0. all items must have a quantity of at least 1.", is.Quantity)
 	}
 	if is.Durability < 0 {
-		panic("item state has durability < 0")
+		logz.Panicln(string(is.DefID), "item state has durability < 0")
 	}
 }
 
@@ -101,6 +102,8 @@ func (inv *StandardInventory) SetInventoryItems(invItems []*ItemState) {
 		dereffed := *newItem
 		inv.InventoryItems = append(inv.InventoryItems, &dereffed)
 	}
+
+	inv.Validate()
 }
 
 func (inv *StandardInventory) SetCoinPurseItems(invItems []*ItemState) {

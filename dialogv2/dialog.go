@@ -4,7 +4,6 @@ package dialogv2
 import (
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/audio"
@@ -605,22 +604,8 @@ func (ds *DialogSession) setResponseText(s string) {
 
 	ds.LineWriter.Clear()
 
-	// detect if there are any variables to fill in
-	if strings.Contains(s, "{") {
-		playerInfo := ds.Ctx.GameState.GetPlayerInfo()
-		for _, v := range AllDialogVariables {
-			insertString := ""
-			switch v {
-			case VarPlayerName:
-				insertString = playerInfo.PlayerName
-			case VarPlayerCulture:
-				cultureDef := ds.dataman.GetCultureDef(playerInfo.PlayerCulture)
-				insertString = cultureDef.DisplayName
-			}
-
-			s = strings.ReplaceAll(s, v, insertString)
-		}
-	}
+	// fill in any dialog variables
+	s = InsertDialogVariables(s, ds.Ctx.GameState.GetPlayerInfo(), ds.dataman)
 
 	ds.LineWriter.SetSourceText(s)
 }

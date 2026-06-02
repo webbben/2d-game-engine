@@ -21,11 +21,8 @@ func (g *Game) PlacePlayerInMap(mapID defs.MapID, x, y float64, doTransition boo
 }
 
 func (g *Game) GetPlayerInfo() defs.PlayerInfo {
-	charDef := g.Dataman.GetCharacterDef(g.World.Player.CharacterStateRef.DefID)
-	return defs.PlayerInfo{
-		PlayerName:    g.World.Player.CharacterStateRef.DisplayName,
-		PlayerCulture: charDef.CultureID,
-	}
+	g.requireWorld()
+	return g.World.Player.GetPlayerInfo()
 }
 
 func (g *Game) StartTradeSession(shopkeeperID defs.ShopID) {
@@ -127,6 +124,8 @@ func (g *Game) GetItemDef(itemID defs.ItemID) defs.ItemDef {
 }
 
 func (g *Game) GetEntityAvatar(charStateID id.CharacterStateID, direction byte) *ebiten.Image {
+	g.requireWorld()
+
 	tilesize := config.TileSize
 	entityAvatar := ebiten.NewImage(tilesize, tilesize*2)
 	if charStateID == id.CharacterStateID(defs.PlayerID) {
@@ -150,4 +149,9 @@ func (g *Game) GetEntityAvatar(charStateID id.CharacterStateID, direction byte) 
 	}
 
 	return entityAvatar
+}
+
+func (g *Game) StartBookSession(bookID defs.BookID) {
+	g.requireWorld()
+	g.World.ActiveMap.StartBookSession(bookID, g.GetPlayerInfo(), config.DefaultBookSessionParams)
 }

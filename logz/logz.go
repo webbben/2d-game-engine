@@ -14,6 +14,7 @@ var (
 	// PanicColor = color.RGB(0, 0, 0).Add(color.BgRed, color.Bold)
 	PanicColor = color.New(color.FgHiRed, color.Bold)
 	TodoColor  = color.RGB(0, 0, 0).Add(color.BgCyan)
+	InfoColor  = color.New(color.FgHiBlue)
 )
 
 func PrintFancy(s string) {
