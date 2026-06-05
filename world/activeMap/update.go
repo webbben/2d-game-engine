@@ -28,6 +28,8 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 		blockMapUpdates = true
 	}
 
+	// if we have a book session open while in inventory, pause inventory updates
+	pausePlayerMenuUpdates := false
 	if m.bookSession != nil {
 		// clear hover targets when in book sesh
 		m.hoveredObject = nil
@@ -42,15 +44,19 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 
 		// in book sesh, so don't allow NPC updates
 		blockMapUpdates = true
+		pausePlayerMenuUpdates = true
 	}
 
 	if m.showPlayerMenu {
 		// set last player update to now, so that the time hud doesn't immediately display
 		m.PlayerRef.LastUserInput = time.Now()
-		m.playerMenuViewer.Update()
-		if m.playerMenuViewer.IsDone() {
-			logz.Println("", "player menu done")
-			m.showPlayerMenu = false
+
+		if !pausePlayerMenuUpdates {
+			m.playerMenuViewer.Update()
+			if m.playerMenuViewer.IsDone() {
+				logz.Println("", "player menu done")
+				m.showPlayerMenu = false
+			}
 		}
 		blockMapUpdates = true
 	}
@@ -106,8 +112,10 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 
 	for _, n := range m.NPCs {
 		n.Update()
-		if m.hoveredNPC == nil && n.IsHovering(mouseX, mouseY) {
+		if n.IsHovering(mouseX, mouseY) {
+			logz.Println("NPC Hovering", n.DisplayName())
 			m.hoveredNPC = n
+			break
 		}
 	}
 

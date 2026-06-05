@@ -86,6 +86,7 @@ type WorldEffectContext interface {
 	TravelToMap(mapID MapID, spawnIndex int, hours int)
 	QueueScenario(id ScenarioID)
 	UnlockMapLock(mapID MapID, lockID string)
+	SetMapLock(mapID MapID, lockID string, lockLevel int)
 	GetCurrentGameTime() clock.GameTime // needed for scheduling future effects
 	EventContext
 

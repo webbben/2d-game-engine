@@ -2,7 +2,11 @@
 package defs
 
 import (
+	"fmt"
+	"regexp"
+
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/logz"
 )
 
 type (
@@ -97,6 +101,9 @@ func (dr DialogResponse) Validate() {
 	if dr.Text == "" {
 		// if text is empty, then this must be a grouper
 		if len(dr.Conditions) == 0 {
+			// the reason we don't allow a grouper with no conditions is, the logic flow would always go into it, even if the options below it were invalid.
+			// in such a case, it's possible for the logic flow to miss valid options that were outside of the first grouper is encountered, railroading the dialog into
+			// a bad direction.
 			panic("is this supposed to be a grouper? no text is set, but no conditions are set either.")
 		}
 		if dr.NextResponse == nil && len(dr.NextResponseOptions) == 0 {
@@ -124,6 +131,32 @@ func (dr DialogResponse) Validate() {
 			nr.Validate()
 		}
 	}
+	// next topics: next topics can be listed without corresponding '[...]' in the text, but all '[...]' in the text must have
+	// a corresponding next topic.
+	re := regexp.MustCompile(`\[([^\]]+)\]`)
+	count := len(re.FindAllStringSubmatch(dr.Text, -1))
+	if count > len(dr.NextTopics) {
+		logz.Panicln("DialogResponse", "number of square bracket pairs exceeds the number of NextTopics; for any square bracket pairs put into the dialog, there must be a NextTopic there to match with it. response text:", dr.Text)
+	}
+
+	for _, reply := range dr.Replies {
+		reply.Validate()
+	}
+}
+
+// ReplyDecoration defines a decoration type for dialog replies
+type ReplyDecoration string
+
+const (
+	ReplyDecoGood ReplyDecoration = "reply_deco_good" // a green border around the reply space
+	ReplyDecoBad  ReplyDecoration = "reply_deco_bad"  // red border around the reply space
+)
+
+// InfoTextGen generates info text for the InfoText field of a dialog reply.
+// Since many types of info won't be known until runtime, this has been made into an interface that takes condition context.
+// we use condition context since conditions that choose if a reply can show in the first place use that context, so seems good enough to me.
+type InfoTextGen interface {
+	GetInfoText(ctx ConditionContext) string
 }
 
 // DialogReply is a reply the player can give to a certain dialog response.
@@ -134,7 +167,43 @@ type DialogReply struct {
 	WorldEffects []WorldEffect  // effects that manipulate the game world outside of dialog
 	Goodbye      bool           // if set, this reply will cause dialog to end
 
-	NextResponse *DialogResponse // once this reply is chosen, this is how the NPC reacts. If nil, no response is given by the NPC.
+	Decoration ReplyDecoration // if set, this reply will have a decoration around it (like a colored border)
+	InfoText   InfoTextGen     // sub-text that shows below the main text, in a smaller font, that gives some context info about the reply.
+
+	// once this reply is chosen, this is how the NPC reacts. If nil, no response is given by the NPC.
+	NextResponse *DialogResponse
+
+	// if set, these are the possible responses the NPC can give to this reply (for when there are multiple different possible answers)
+	// this cannot be set at the same time as NextResponse
+	NextResponseOptions []DialogResponse
+}
+
+func (dr DialogReply) info() string {
+	return fmt.Sprintf("(DialogReply info: text=\"%s\")", dr.Text)
+}
+
+func (dr DialogReply) Validate() {
+	if dr.Text == "" {
+		panic("dialog replies must have text set")
+	}
+	if dr.Goodbye {
+		if dr.NextResponse != nil {
+			panic("goodbye reply has next response linked. " + dr.info())
+		}
+		if len(dr.NextResponseOptions) > 0 {
+			panic("goodbye response has next response options set. " + dr.info())
+		}
+	}
+	if dr.NextResponse != nil {
+		dr.NextResponse.Validate()
+		if len(dr.NextResponseOptions) > 0 {
+			panic("has next response, but also has next response options. " + dr.info())
+		}
+	} else {
+		for _, nr := range dr.NextResponseOptions {
+			nr.Validate()
+		}
+	}
 }
 
 type DialogCondition interface {
@@ -154,6 +223,9 @@ type ConditionContext interface {
 	GetNPCDialogProfileID() DialogProfileID
 	IsItemEquipped(itemID ItemID) bool
 	PlayerHasKnowledge(topicID TopicID) bool
+	PlayerHasItem(itemID ItemID) bool
+	GetPlayerSkillLevel(skillID SkillID) int
+	GetPlayerAttributeLevel(attrID AttributeID) int
 }
 
 type MemoryCondition struct {

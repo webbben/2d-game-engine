@@ -40,8 +40,6 @@ type Map struct {
 	// game engine data - not from Tiled
 	// Properties Ben adds in the Tiled map
 
-	DaylightFactor float64
-
 	TileImageMap   map[int]TileData  // a map of gid to tile image data
 	CostMap        [][]int           // each tile's cost (used for path finding and collisions)
 	CollisionRects [][]CollisionRect // collision rects that are embedded in maps (in tiles; using the COLLISION property)
@@ -429,6 +427,7 @@ func (m Map) GetObjectPropsAndTile(obj Object) ObjectInfo {
 			// still get the tileset based on the GID.
 			tileset, found = m.FindTilesetForGID(obj.GID)
 			if !found {
+				logz.Panicln("GetObjectPropsAndTile", "failed to find tileset for object's tile! GID:", obj.GID, "map path:", m.AbsSourcePath, "objID:", obj.ID)
 				panic("failed to find tileset for object's tile!")
 			}
 			info.Tileset = &tileset

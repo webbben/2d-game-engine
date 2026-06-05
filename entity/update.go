@@ -14,12 +14,8 @@ func (e *Entity) Draw(screen *ebiten.Image, om *overlay.OverlayManager, offsetX 
 		return
 	}
 
-	drawX, drawY := e.DrawPos(offsetX, offsetY)
-	// apparently, when drawing the body, gameScale isn't automatically factored in so we need to multiply it in here
-	// however, I see another place that relies on DrawPos, so I'm leaving this out of that function for now. (TODO?)
-	bodyX := drawX * config.GameScale
-	bodyY := drawY * config.GameScale
-	e.Body.Draw(screen, bodyX, bodyY, config.GameScale)
+	drawX, drawY := e.drawPos(offsetX, offsetY)
+	e.Body.Draw(screen, drawX, drawY, config.GameScale)
 	e.drawX = drawX
 	e.drawY = drawY
 
@@ -34,11 +30,13 @@ func (e *Entity) Draw(screen *ebiten.Image, om *overlay.OverlayManager, offsetX 
 }
 
 // DrawPos returns the actual absolute position where the entity will be drawn
-func (e Entity) DrawPos(offsetX, offsetY float64) (drawX, drawY float64) {
+func (e Entity) drawPos(offsetX, offsetY float64) (drawX, drawY float64) {
 	dx, dy := e.Body.Dimensions()
 	rect := model.NewRect(0, 0, float64(dx), float64(dy))
 	drawX, drawY = rendering.GetRectDrawPos(rect, e.X, e.Y, offsetX, offsetY)
 	drawY -= 6 // move up a little, since we want the entity to look like its standing in the middle of the tile
+	drawX *= config.GameScale
+	drawY *= config.GameScale
 	return drawX, drawY
 }
 

@@ -196,13 +196,27 @@ func (m Map) GetTileByGID(gid int) (Tile, Tileset, bool) {
 
 // FindTilesetForGID tries to find a tileset that has the correct ID range for the given GID
 func (m Map) FindTilesetForGID(gid int) (Tileset, bool) {
+	if len(m.Tilesets) == 0 {
+		panic("no tilesets found!")
+	}
 	for _, tileset := range m.Tilesets {
 		if !tileset.Loaded {
 			panic("tried to get tileset for GID before tileset was loaded!")
 		}
-		if tileset.FirstGID >= gid && gid < tileset.FirstGID+tileset.TileCount {
+		if tileset.FirstGID == 0 {
+			logz.Panicln("FindTilesetForGID", "tileset didn't have FirstGID!", tileset.Source)
+		}
+		if tileset.TileCount == 0 {
+			logz.Panicln("FindTilesetForGID", "tileset didn't have TileCount!", tileset.Source)
+		}
+		if tileset.FirstGID <= gid && gid < tileset.FirstGID+tileset.TileCount {
 			return tileset, true
 		}
+	}
+
+	logz.Warnln("FindTilesetForGID", "no tileset found...")
+	for _, tileset := range m.Tilesets {
+		fmt.Println(tileset.FirstGID, tileset.TileCount, tileset.Source)
 	}
 
 	return Tileset{}, false

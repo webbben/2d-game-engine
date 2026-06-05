@@ -87,6 +87,7 @@ func (t *LoungeTask) Update() {
 }
 
 func (t LoungeTask) findChair() *object.Object {
+	// find the closest chair, or a chair that has the right owner_id
 	var closestChair *object.Object
 	var closestDist float64
 	for _, obj := range t.Owner.ActiveMapCtx.GetAllObjects() {
@@ -103,6 +104,12 @@ func (t LoungeTask) findChair() *object.Object {
 				closestChair = obj
 				closestDist = dist
 			} else if dist < closestDist {
+				if closestChair.OwnerID != t.Owner.CharacterStateRef.ID || obj.OwnerID == t.Owner.CharacterStateRef.ID {
+					// only overwrite if we haven't chosen a chair by ownerID, or if this one also is owned by the NPC
+					closestChair = obj
+					closestDist = dist
+				}
+			} else if obj.OwnerID == t.Owner.CharacterStateRef.ID {
 				closestChair = obj
 				closestDist = dist
 			}

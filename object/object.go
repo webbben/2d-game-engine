@@ -2,6 +2,8 @@
 package object
 
 import (
+	"fmt"
+	"math"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -45,6 +47,9 @@ const (
 
 	PropContainerDefID = "container_def_id"
 	PropContainerGenID = "container_gen_id"
+
+	PropLockID    = "lock_id"
+	PropLockLevel = "lock_level"
 )
 
 // TODO: *Sigh* this probably could use some refactoring. I've been avoiding admitting it, but it would most likely work cleaner as an interface.
@@ -336,14 +341,17 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	if obj.Ellipse {
 		panic("object was an ellipse; these aren't used in the actual active map, just for planning.")
 	}
+	if obj.Text != nil {
+		panic("object was text; these should only be used for planning, and so they should be ignored")
+	}
 	o := Object{
 		eventBus: eventBus,
 		AudioMgr: audioMgr,
 		dataman:  dataman,
 		Name:     obj.Name,
 		ID:       obj.ID,
-		xPos:     obj.X,
-		yPos:     obj.Y,
+		xPos:     math.Round(obj.X), // round positions, because decimal positions can cause objects to "wiggle"
+		yPos:     math.Round(obj.Y),
 		Width:    int(obj.Width),
 		Height:   int(obj.Height),
 		rect: model.Rect{
@@ -403,11 +411,11 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		o.DisplayName = displayName
 	}
 
-	// check if there's a lock
-	lockID, found := tiled.GetStringProperty("lock_id", allProps)
-	if found {
-		if lockID == "" {
-			panic("lockID is empty")
+	// check if there's a lock; all locks have a lock level defined, but some don't come with lock IDs
+	if _, found = tiled.GetIntProperty(PropLockLevel, allProps); found {
+		lockID, found := tiled.GetStringProperty(PropLockID, allProps)
+		if !found {
+			lockID = GetDefaultLockID(o.ID)
 		}
 		// confirm that this lockID is in the map state
 		mapState := dataman.GetMapState(mapID)
@@ -476,6 +484,9 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		o.addDefaultCollision()
 		o.loadGateObject(allProps)
 	case TypeLight:
+		if !noCollision {
+			o.addDefaultCollision()
+		}
 		o.loadLightObject(allProps)
 	case TypeContainer:
 		if !noCollision {
@@ -501,6 +512,9 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		itemDef := dataman.GetItemDef(defs.ItemID(itemID))
 		o.DisplayName = itemDef.Name
 	case TypeSign:
+		if !noCollision {
+			o.addDefaultCollision()
+		}
 		o.loadSignObject(allProps)
 	}
 
@@ -652,4 +666,8 @@ func resolveObjectType(objType string) defs.ObjectType {
 	default:
 		panic("object type doesn't exist: " + objType)
 	}
+}
+
+func GetDefaultLockID(objID int) string {
+	return fmt.Sprintf("object:%v", objID)
 }

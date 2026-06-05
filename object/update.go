@@ -75,7 +75,10 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 			// check if the NPC/player activating the door has the key
 			if !slices.Contains(params.LockIDs, obj.lockID) {
 				// door is locked; cannot enter
-				// TODO: play a locked door sound effect
+				// only play it if the player is locked out, not NPCs
+				if config.LockedSfx != "" && params.ActivatorID == id.CharacterStateID(defs.PlayerID) {
+					obj.AudioMgr.PlaySFX(config.LockedSfx, 0.5)
+				}
 				return ObjectUpdateResult{}
 			}
 			// we have the key to the lock; so can proceed
@@ -96,7 +99,7 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 	case TypeDoor:
 		return obj.activateDoor(params)
 	case TypeGate:
-		return obj.activateGate(fromX, fromY)
+		return obj.activateGate()
 	case TypeLight:
 		return obj.activateLight()
 	case TypeBed:

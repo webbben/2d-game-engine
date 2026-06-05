@@ -147,6 +147,32 @@ func (w *World) UnlockMapLock(mapID defs.MapID, lockID string) {
 	})
 }
 
+func (w *World) SetMapLock(mapID defs.MapID, lockID string, lockLevel int) {
+	w.EnsureMapStateExists(mapID)
+
+	mapState := w.Dataman.GetMapState(mapID)
+	lockState, exists := mapState.MapLocks[lockID]
+	if !exists {
+		logz.Panicln("UnlockMapLock", "given lock ID was not found in map. mapID:", mapID, "lockID:", lockID)
+	}
+	// if lockLevel is 0, we just set the lock to the original value
+	if lockLevel == 0 {
+		lockLevel = lockState.OriginalLockLevel
+	}
+	lockState.LockLevel = lockLevel
+	lockState.Unlocked = false
+
+	mapState.MapLocks[lockID] = lockState
+
+	w.EventBus.Publish(defs.Event{
+		Type: pubsub.EventUnlock,
+		Data: map[string]any{
+			"mapID":  mapID,
+			"lockID": lockID,
+		},
+	})
+}
+
 func (w *World) TravelToMap(mapID defs.MapID, spawnIndex int, hours int) {
 	// Basically, we just do an EnterMap followed by a timelapse.
 	// Timelapse expects the player to be in a map, and handles changing the time and picking the correct NPCs to initialize in the map.

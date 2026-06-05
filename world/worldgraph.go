@@ -55,7 +55,7 @@ func (w *World) BuildWorldGraph() {
 
 		// look for "edges" (door objects)
 		for _, obj := range allObjs {
-			if obj.Ellipse {
+			if obj.Ellipse || obj.Text != nil {
 				// ellipse objects are just used for planning
 				continue
 			}

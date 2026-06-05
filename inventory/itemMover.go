@@ -143,11 +143,17 @@ func (im *ItemMover) Draw(om *overlay.OverlayManager) {
 }
 
 type ItemMoverUpdateResult struct {
-	OpenBook bool
-	BookID   defs.BookID
+	OpenBook     bool
+	BookID       defs.BookID
+	LastHeldItem defs.ItemID
 }
 
 func (im *ItemMover) Update() ItemMoverUpdateResult {
+	result := ItemMoverUpdateResult{}
+	if im.carryItem != nil {
+		result.LastHeldItem = im.carryItem.DefID
+	}
+
 	if im.carryItem == nil {
 		// check for clicks on item slots - for picking up items
 		for i, slot := range im.dropableSlots {
@@ -163,7 +169,7 @@ func (im *ItemMover) Update() ItemMoverUpdateResult {
 						im.attemptGroupTransfer(i)
 					}
 					slot.Validate()
-					return ItemMoverUpdateResult{}
+					return result
 				}
 			} else if slot.mouseBehavior.RightClick.ClickReleased {
 				// right click = pick up half
@@ -172,7 +178,7 @@ func (im *ItemMover) Update() ItemMoverUpdateResult {
 					amount /= 2
 				}
 				if im.pickupItem(slot, amount) {
-					return ItemMoverUpdateResult{}
+					return result
 				}
 			}
 		}
@@ -181,7 +187,7 @@ func (im *ItemMover) Update() ItemMoverUpdateResult {
 		return im.handleItemPlacement()
 	}
 
-	return ItemMoverUpdateResult{}
+	return result
 }
 
 // attemptGroupTransfer attempts to transfer the carried item to a valid new item slot.
@@ -276,6 +282,11 @@ func (im *ItemMover) handleItemPlacement() ItemMoverUpdateResult {
 	if im.carryItem == nil {
 		panic("tried to place item but no carryItem exists")
 	}
+
+	result := ItemMoverUpdateResult{
+		LastHeldItem: im.carryItem.DefID,
+	}
+
 	mouseX, mouseY := ebiten.CursorPosition()
 
 	// first, check if the mouse is over the player avatar (if it exists)
@@ -288,10 +299,10 @@ func (im *ItemMover) handleItemPlacement() ItemMoverUpdateResult {
 					bookID := im.carryItemDef.BookID
 					logz.Println("ItemMover", "you should read this book:", bookID)
 					im.putItemBack()
-					return ItemMoverUpdateResult{
-						OpenBook: true,
-						BookID:   bookID,
-					}
+
+					result.OpenBook = true
+					result.BookID = bookID
+					return result
 				}
 			}
 		}
@@ -308,7 +319,7 @@ func (im *ItemMover) handleItemPlacement() ItemMoverUpdateResult {
 			if slot.Item == nil && slot.mouseBehavior.LeftClick.DoubleClicked() {
 				// gather all of this item
 				im.gatherAllOfItem(im.carryItemDef)
-				return ItemMoverUpdateResult{}
+				return result
 			}
 
 			// placing all of the item
@@ -318,7 +329,7 @@ func (im *ItemMover) handleItemPlacement() ItemMoverUpdateResult {
 					// slot is empty, we can put this item here
 					slot.SetContent(im.carryItem, im.carryItemDef)
 					im.carryItem = nil
-					return ItemMoverUpdateResult{}
+					return result
 				}
 
 				// check if slot has the same item type (and is groupable)
@@ -329,7 +340,7 @@ func (im *ItemMover) handleItemPlacement() ItemMoverUpdateResult {
 						newItemState.Quantity += slot.Item.Quantity
 						slot.SetContent(&newItemState, im.carryItemDef)
 						im.carryItem = nil
-						return ItemMoverUpdateResult{}
+						return result
 					}
 				}
 			}
@@ -346,7 +357,7 @@ func (im *ItemMover) handleItemPlacement() ItemMoverUpdateResult {
 					} else {
 						im.MakeItemImage()
 					}
-					return ItemMoverUpdateResult{}
+					return result
 				}
 				// check if slot has the same item type (and is groupable)
 				if slot.ItemDef.ID == im.carryItem.DefID {
@@ -359,14 +370,14 @@ func (im *ItemMover) handleItemPlacement() ItemMoverUpdateResult {
 						if im.carryItem.Quantity == 0 {
 							im.carryItem = nil
 						}
-						return ItemMoverUpdateResult{}
+						return result
 					}
 				}
 			}
 		}
 	}
 
-	return ItemMoverUpdateResult{}
+	return result
 }
 
 func (im *ItemMover) gatherAllOfItem(def defs.ItemDef) {
