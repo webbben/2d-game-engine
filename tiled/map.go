@@ -5,22 +5,58 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 )
 
+var (
+	mapDefCache   = make(map[defs.MapID]*Map)
+	mapCacheMutex sync.RWMutex
+	useCache      bool = true
+)
+
+func ClearMapCache() {
+	mapCacheMutex.Lock()
+	mapDefCache = make(map[defs.MapID]*Map)
+	mapCacheMutex.Unlock()
+}
+
+func ClearCachedTileImageMaps() {
+	mapCacheMutex.Lock()
+	for _, m := range mapDefCache {
+		m.TileImageMap = nil
+	}
+	mapCacheMutex.Unlock()
+}
+
 // LoadMap handles loading a Tiled Map. Handles everything from identifying the right .tmj file, unmarshalling the JSON data,
 // generating the tile images, etc.
 // NOTE: This function takes the Map DEF ID, not the map state. Map states for generated maps don't match the map def, since they aren't unique.
+// NOTE: 2026-06-05: it looks like regenImages is always false; the only place that causes images to actually generate is tiled/map.go:66 which checks
+// if a tileset exists, and generates the tiles if not. So, technically, this param is unused, but leaving it here for now in case it becomes useful in the future.
 func LoadMap(mapDefID defs.MapID, regenImages bool) *Map {
+	if !regenImages && useCache {
+		mapCacheMutex.RLock()
+		cached, ok := mapDefCache[mapDefID]
+		mapCacheMutex.RUnlock()
+		if ok {
+			logz.Println("LoadMap", "Cache hit!")
+			return cached
+		}
+	}
+
+	debug.StartTimer("LoadMap")
+
 	mapSource := config.ResolveMapPath(mapDefID)
-	fmt.Println("map source:", mapSource)
+	logz.Println("LoadMap", "map source:", mapSource)
 
 	// load and setup the map
 	m, err := openMap(mapSource)
@@ -32,6 +68,12 @@ func LoadMap(mapDefID defs.MapID, regenImages bool) *Map {
 	if err != nil {
 		logz.Panicln("LoadMap", "error while loading map:", err)
 	}
+
+	mapCacheMutex.Lock()
+	mapDefCache[mapDefID] = &m
+	mapCacheMutex.Unlock()
+
+	debug.StopTimer("LoadMap")
 
 	return &m
 }
@@ -64,7 +106,6 @@ func (m *Map) load(regenerateImages bool) error {
 		}
 		// ensure tilesets are regenerated on game startup, just in case source image files were changed since last play
 		if regenerateImages || !TilesetExists(tileset.Name) {
-			logz.Warnln("TILED", "map is generating tile images.")
 			err = tileset.generateTiles()
 			if err != nil {
 				return err
@@ -73,10 +114,11 @@ func (m *Map) load(regenerateImages bool) error {
 		m.Tilesets[i] = tileset
 	}
 
-	err := m.loadTileImageMap()
-	if err != nil {
-		return err
-	}
+	// TODO: removed this to test.
+	// err := m.loadTileImageMap()
+	// if err != nil {
+	// 	return err
+	// }
 
 	m.CollisionRects = make([][]CollisionRect, m.Height)
 	for i := range m.Height {
@@ -157,12 +199,22 @@ func (m *Map) findTilePropertiesInLayer(layer Layer) {
 	}
 }
 
-func (m *Map) loadTileImageMap() error {
+func (m *Map) EnsureTileImageMap() {
+	if m.TileImageMap == nil {
+		m.loadTileImageMap()
+	}
+}
+
+func (m *Map) loadTileImageMap() {
+	logz.Warnln("Map", "loading tile image map.")
+	debug.StartTimer("loadTileImageMap")
+	defer debug.StopTimer("loadTileImageMap")
+
 	m.TileImageMap = make(map[int]TileData)
 
 	for _, tileset := range m.Tilesets {
 		if !TilesetExists(tileset.Name) {
-			return fmt.Errorf("tileset %s not found in tilesets data directory", tileset.Name)
+			logz.Panicln("loadTileImageMap", "tileset not found in tilesets data directory:", tileset.Name)
 		}
 
 		for i := 0; i < tileset.TileCount; i++ {
@@ -170,7 +222,7 @@ func (m *Map) loadTileImageMap() error {
 			tileData.ID = i
 			tileImg, err := tileset.GetTileImage(i, false) // don't panic on empty, since empty tiles exist in map tilesets
 			if err != nil {
-				return err
+				logz.Panicln("loadTileImageMap", err)
 			}
 			tileData.CurrentFrame = tileImg
 
@@ -185,7 +237,7 @@ func (m *Map) loadTileImageMap() error {
 					for _, animationFrame := range tile.Animation {
 						frameImg, err := tileset.GetTileImage(animationFrame.TileID, false)
 						if err != nil {
-							return err
+							logz.Panicln("loadTileImageMap", err)
 						}
 						tileData.Frames = append(tileData.Frames, tileAnimation{
 							DurationMs: animationFrame.Duration,
@@ -199,8 +251,6 @@ func (m *Map) loadTileImageMap() error {
 			m.TileImageMap[i+tileset.FirstGID] = tileData
 		}
 	}
-
-	return nil
 }
 
 func (m *Map) Update() {

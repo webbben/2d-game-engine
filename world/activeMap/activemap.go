@@ -175,7 +175,10 @@ func NewActiveMap(
 	mapInfo, mapDef, _ := dataman.GetAllMapData(mapID)
 
 	// load and setup the map
-	tiledMap := tiled.LoadMap(mapDef.ID, regenImages)
+	mapData := tiled.LoadMap(mapDef.ID, regenImages)
+	// deref so t hat tile image map doesn't end up in map data cache
+	tiledMap := *mapData
+	tiledMap.EnsureTileImageMap()
 
 	m := &ActiveMap{
 		MapID:          mapID,
@@ -190,9 +193,9 @@ func NewActiveMap(
 		om:             om,
 		gameCtx:        gameCtx,
 		worldCtx:       worldCtx,
-		Map:            tiledMap,
+		Map:            &tiledMap,
 		NPCManager: NPCManager{
-			mapRef: tiledMap,
+			mapRef: &tiledMap,
 		},
 	}
 

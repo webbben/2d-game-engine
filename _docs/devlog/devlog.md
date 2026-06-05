@@ -1,3 +1,132 @@
+# 2026-06-06
+
+Just wanted to take a moment to give myself a little pat on the back. Or maybe to give OpenCode one?
+
+I got load times for starting a new game down from ~30 seconds to just ~2 seconds! Pretty awesome.
+
+Here's the gist of the optimizations:
+
+## First, the problems
+
+The biggest bottlenecks before was that I was loading all maps that exist in the entire game at the game start.
+I'm still doing this actually, because this is how I do a couple crucial things:
+
+1. build the "world graph", which is used to allow NPCs to find paths between different maps
+2. to detect all NPCs that exist in the world; NPCs with a bed in some map, anywhere in the world, are officially "part of the world"
+and will be running task simulations in the background.
+
+So, I do need to explore all maps in the game universe and figure out the paths between them, the NPCs that exist, etc.
+
+But, the big problems were:
+
+1. Map data wasn't being cached
+
+It actually was being cached in a specific place, but only for the path finding algorithm. Obviously, I don't want to have to load map data 
+every single time an NPC tries to find a path between two maps.
+
+But, it wasn't being cached in a way that was accessible for all use cases of loading maps.
+
+2. During the initialization of the game world, we were loading all the tile images for all maps, even though that tile image data wouldn't be used
+until the map would actually be loaded by the player entering it.
+
+3. Ah another thing: we were regenerating all tile images on every new session start; "generating a tile image" means taking the tileset image and
+cutting it up into the individual tile images.
+
+## The Optimizations
+
+Well, I think it's a bit self-explanatory: using caches, and not loading data that we don't need to load.
+
+I think overall the biggest thing ended up being not doing extra image loading and prep in the initialization phase. But the caching definitely helped too,
+and brought the world graph building process down by 10 seconds.
+
+As for the last point, about not regenerating tile images on each new session, I made this a config parameter since sometimes I'll want to do this.
+Tilesets continue to change and get expanded upon, so I'll still need to rebuild them somewhat often. But of course, once the game is ready for production, that
+should be turned off.
+
+## The Numbers
+
+To give an idea of the improvements, here are some logs of the performance for various functions.
+
+### Pre Optimization 
+
+```
+2026/06/05 23:29:56 T 3164 [TIMER] == Record Report ==
+2026/06/05 23:29:56 T 3164 [NewActiveMap] Total calls: 1 Ave: 432.274792ms Total: 432.274792ms
+2026/06/05 23:29:56 T 3164 [NewActiveMap] Min: 432.274792ms Max: 432.274792ms
+2026/06/05 23:29:56 T 3164 [TIMER] == End of Report ==
+2026/06/05 23:29:56 T 3164 [TIMER] == Record Report ==
+2026/06/05 23:29:56 T 3164 [generateTiles] Total calls: 28 Ave: 178.471095ms Total: 4.997190668s
+2026/06/05 23:29:56 T 3164 [generateTiles] Min: 10.556875ms Max: 603.532375ms
+2026/06/05 23:29:56 T 3164 [TIMER] == End of Report ==
+2026/06/05 23:29:56 T 3164 [TIMER] == Record Report ==
+2026/06/05 23:29:56 T 3164 [InitializeGameWorld] Total calls: 1 Ave: 47.298979709s Total: 47.298979709s
+2026/06/05 23:29:56 T 3164 [InitializeGameWorld] Min: 47.298979709s Max: 47.298979709s
+2026/06/05 23:29:56 T 3164 [TIMER] == End of Report ==
+2026/06/05 23:29:56 T 3164 [TIMER] == Record Report ==
+2026/06/05 23:29:56 T 3164 [LoadMap] Total calls: 55 Ave: 855.089836ms Total: 47.029940999s
+2026/06/05 23:29:56 T 3164 [LoadMap] Min: 835.958µs Max: 4.690710791s
+2026/06/05 23:29:56 T 3164 [TIMER] == End of Report ==
+2026/06/05 23:29:56 T 3164 [TIMER] == Record Report ==
+2026/06/05 23:29:56 T 3164 [loadTileImageMap] Total calls: 55 Ave: 703.80494ms Total: 38.709271751s
+2026/06/05 23:29:56 T 3164 [loadTileImageMap] Min: 125ns Max: 4.201282459s
+2026/06/05 23:29:56 T 3164 [TIMER] == End of Report ==
+2026/06/05 23:29:56 T 3164 [TIMER] == Record Report ==
+2026/06/05 23:29:56 T 3164 [BuildWorldGraph] Total calls: 1 Ave: 19.278788083s Total: 19.278788083s
+2026/06/05 23:29:56 T 3164 [BuildWorldGraph] Min: 19.278788083s Max: 19.278788083s
+2026/06/05 23:29:56 T 3164 [TIMER] == End of Report ==
+2026/06/05 23:29:56 T 3164 [TIMER] == Record Report ==
+2026/06/05 23:29:56 T 3164 [setupNewMap] Total calls: 1 Ave: 721.36275ms Total: 721.36275ms
+2026/06/05 23:29:56 T 3164 [setupNewMap] Min: 721.36275ms Max: 721.36275ms
+2026/06/05 23:29:56 T 3164 [TIMER] == End of Report == 
+```
+
+> 47 seconds is on the high end - I think usually it was more like 30 seconds, but this one was a little bit of an outlier probably.
+> Notice how much time `loadTileImageMap` takes in total... But, `BuildWorldGraph`, which is only called once, is the most expensive overall function at 19 seconds.
+
+### Post Optimization 
+
+```
+2026/06/06 00:13:49 T 731 [TIMER] == Record Report ==
+2026/06/06 00:13:49 T 731 [loadTileImageMap] Total calls: 1 Ave: 599.564084ms Total: 599.564084ms
+2026/06/06 00:13:49 T 731 [loadTileImageMap] Min: 599.564084ms Max: 599.564084ms
+2026/06/06 00:13:49 T 731 [TIMER] == End of Report ==
+2026/06/06 00:13:49 T 731 [TIMER] == Record Report ==
+2026/06/06 00:13:49 T 731 [InitializeGameWorld] Total calls: 1 Ave: 2.831244959s Total: 2.831244959s
+2026/06/06 00:13:49 T 731 [InitializeGameWorld] Min: 2.831244959s Max: 2.831244959s
+2026/06/06 00:13:49 T 731 [TIMER] == End of Report ==
+2026/06/06 00:13:49 T 731 [TIMER] == Record Report ==
+2026/06/06 00:13:49 T 731 [LoadMap] Total calls: 26 Ave: 94.405096ms Total: 2.454532501s
+2026/06/06 00:13:49 T 731 [LoadMap] Min: 1.028292ms Max: 713.068375ms
+2026/06/06 00:13:49 T 731 [TIMER] == End of Report ==
+2026/06/06 00:13:49 T 731 [TIMER] == Record Report ==
+2026/06/06 00:13:49 T 731 [BuildWorldGraph] Total calls: 1 Ave: 5.922208ms Total: 5.922208ms
+2026/06/06 00:13:49 T 731 [BuildWorldGraph] Min: 5.922208ms Max: 5.922208ms
+2026/06/06 00:13:49 T 731 [TIMER] == End of Report ==
+2026/06/06 00:13:49 T 731 [TIMER] == Record Report ==
+2026/06/06 00:13:49 T 731 [setupNewMap] Total calls: 1 Ave: 789.808834ms Total: 789.808834ms
+2026/06/06 00:13:49 T 731 [setupNewMap] Min: 789.808834ms Max: 789.808834ms
+2026/06/06 00:13:49 T 731 [TIMER] == End of Report ==
+2026/06/06 00:13:49 T 731 [TIMER] == Record Report ==
+2026/06/06 00:13:49 T 731 [NewActiveMap] Total calls: 1 Ave: 616.039834ms Total: 616.039834ms
+2026/06/06 00:13:49 T 731 [NewActiveMap] Min: 616.039834ms Max: 616.039834ms
+2026/06/06 00:13:49 T 731 [TIMER] == End of Report == 
+```
+
+> `InitializeGameWorld` is down to 2 seconds! That's pretty awesome.
+> The biggest changes are that `loadTileImageMap` is only called once now, and `BuildWorldGraph` is down to just 6 seconds (down more than 10 seconds!)
+
+## Takeaways
+
+Like I said, OpenCode helped me identify the bottle necks. Partly because it's easier to tell the AI to pore over the code painstakingly than it is for me to,
+but I started just out of curiosity by asking it to look for performance bottlenecks. It found some things I found convincing, and then we argued over the correct code solutions
+and approaches for a good half hour or so. But in the end, it worked out well. I'm not using a super powerful AI model here - just the free "Big Pickle" model provided
+by OpenCode. But I find that it's really useful for searching through codebases and prototyping solutions. I can fire it off while I'm working on something else,
+see what it came up with, and consider what to do next. Unrelated to performance, but it's also really useful for investigating random bugs that normally would be quite tedious
+to track down.
+
+Still, the AI can make mistakes, so I can't blindly trust it. I pretty much always leave it in Plan mode, since sometimes it'll go rogue and start making changes I don't want.
+Since these optimizations touch super crucial code in the game engine, I just implemented the changes myself while consulting the AI.
+
 # 2026-06-03
 
 Another brainstorming session. I've been getting into dialog for quests, and a new thing I realize I want is to have some visual information
