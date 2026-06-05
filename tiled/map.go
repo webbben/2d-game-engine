@@ -56,14 +56,6 @@ func openMap(mapSource string) (Map, error) {
 
 // Load a map and all its tilesets or other pre-processable data
 func (m *Map) load(regenerateImages bool) error {
-	// load property data
-	daylightFactor, found := GetFloatProperty("DAYLIGHT", m.Properties)
-	if found {
-		m.DaylightFactor = daylightFactor
-	} else {
-		m.DaylightFactor = 1 // default to full daylight influence (outdoors)
-	}
-
 	// ensure all tilesets have been loaded and created
 	for i, tileset := range m.Tilesets {
 		err := tileset.LoadJSONData(m.AbsSourcePath)
@@ -72,6 +64,7 @@ func (m *Map) load(regenerateImages bool) error {
 		}
 		// ensure tilesets are regenerated on game startup, just in case source image files were changed since last play
 		if regenerateImages || !TilesetExists(tileset.Name) {
+			logz.Warnln("TILED", "map is generating tile images.")
 			err = tileset.generateTiles()
 			if err != nil {
 				return err

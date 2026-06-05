@@ -487,13 +487,71 @@ Associates sound IDs with different ground surfaces. The game selects appropriat
 
 # Maps
 
+## MapDef
+
 ```go
 type MapDef struct {
-    ID MapID
+    ID               MapID
+    Region           RegionID
+    DisplayName      string
+    IsMapGenTemplate bool
+    DaylightFactor   float64
 }
 ```
 
-Currently minimal. Map loading is primarily handled through Tiled map files. This provides a hook for map-specific metadata if needed.
+| Field | Description |
+|-------|-------------|
+| `ID` | Unique identifier matching the Tiled `.tmj` filename |
+| `Region` | Geographic region (city, forest, etc.) for world routing |
+| `DisplayName` | Player-facing name shown in UI |
+| `IsMapGenTemplate` | If true, this map is a template for map generators (not directly instantiated) |
+| `DaylightFactor` | How much outdoor daylight affects this map (0.0-1.0) |
+
+Map geometry and object data are defined in Tiled `.tmj` files. The `MapDef` provides the metadata that connects a Tiled file to the game systems (world graph, NPC routing, lighting).
+
+## MapGenerator
+
+```go
+type MapGenerator struct {
+    ID       string
+    MapDefID MapID
+
+    OverrideDisplayName string
+    OverrideRegion      RegionID
+
+    InhabitantCharacterDefs []CharacterDefID
+    InhabitantCharacterGens []string
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `ID` | Unique identifier referenced by a door's `map_generator_id` property in Tiled |
+| `MapDefID` | References a template `MapDef` (one with `IsMapGenTemplate: true`) |
+| `OverrideDisplayName` | Optional display name override for generated instances |
+| `OverrideRegion` | Optional region override for generated instances |
+| `InhabitantCharacterDefs` | NPC defs to assign to beds (order matches bed order in Tiled) |
+| `InhabitantCharacterGens` | Alternative to defs: character generators for procedural NPCs |
+
+**Key Concepts:**
+
+- **Template maps** are reusable blueprints (defined in Tiled, marked with `IsMapGenTemplate: true`). They are never instantiated directly.
+- **Map generators** clone a template map at game startup when a door references the generator's ID. Each clone gets a unique MapID.
+- **Template map doors** must NOT have `door_to` or `map_generator_id` — these are filled in dynamically at generation time.
+- **Template maps** must have exactly one DOOR (the entry/exit).
+- **Beds** in template maps must NOT have pre-assigned `characterDefID` or `characterGeneratorID` — these are assigned from the generator's inhabitants.
+- **Nested generation** is not allowed: generated maps cannot have doors that trigger further map generation.
+- `InhabitantCharacterDefs` and `InhabitantCharacterGens` are mutually exclusive (must pick one).
+- If more inhabitants than beds are defined, the engine panics.
+
+**Flow:**
+
+1. A door in a non-template map has `map_generator_id` instead of `door_to`
+2. During world graph building, the engine calls `GenerateMap()` which:
+   - Creates a unique map state from the template
+   - Assigns inhabitants to beds
+   - Sets the exit door to return to the source map
+3. The source map's door gets a `DoorOverride` pointing to the generated map's unique ID
 
 ---
 

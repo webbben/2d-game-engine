@@ -29,6 +29,11 @@ The game engine uses Tiled for map creation. Custom properties are defined on:
 | `LIGHT` | A light source |
 | `CONTAINER` | A container (chest, crate) - TODO |
 | `MISC` | General purpose, just collision |
+| `BED` | A bed for sleeping and NPC scheduling |
+| `CHAIR` | A chair for sitting/lounging |
+| `TASK_AREA` | Area where NPCs perform tasks (shopkeeping, bartending) |
+| `ITEM` | An item placed in the world |
+| `ENTITY` | A static entity defined by a map object |
 
 ---
 
@@ -38,10 +43,14 @@ Used when `TYPE = "DOOR"`
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `door_to` | string | Yes | MapID to teleport to |
+| `door_to` | string | See note | MapID to teleport to |
 | `door_spawn_index` | int | No | Spawn point index on target map |
 | `door_activate` | string | Yes | Activation type: `"click"` or `"step"` |
 | `SFX` | string | Yes | Sound effect ID for door opening |
+| `map_generator_id` | string | See note | Map generator ID (alternative to `door_to`; triggers lazy map generation) |
+| `return_spawn_index` | int | When using `map_generator_id` | Spawn index in the current map for returning from the generated map |
+
+**Note**: Every door must have either `door_to` (direct link) or `map_generator_id` (triggers template map generation), but not both. When using `map_generator_id`, the door must also have `return_spawn_index` set.
 
 ---
 
@@ -79,6 +88,40 @@ Used when `TYPE = "LIGHT"` (on tiles or objects)
 | `light_flicker_interval` | int | No | Flicker interval in milliseconds |
 | `light_max_brightness` | float | No | Maximum brightness (0.0-1.0) |
 | `light_core_radius` | float | No | Core radius as fraction of radius |
+
+---
+
+## Bed Properties
+
+Used when `TYPE = "BED"`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `characterDefID` | string | No | CharacterDefID of the NPC that owns this bed (for persistent NPCs) |
+| `owner_id` | string | No | Character state ID for bed ownership |
+
+---
+
+## Chair Properties
+
+Used when `TYPE = "CHAIR"`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `chair_direction` | string | No | Facing direction when seated: `"L"`, `"R"`, `"U"`, or `"D"`. Defaults to `"D"`. |
+
+---
+
+## Task Area Properties
+
+Used when `TYPE = "TASK_AREA"`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `task_id` | string | Yes | Task type identifier, e.g., `"SHOPKEEPER"` or `"BARTENDER"` |
+| `task_dir` | string | No | Facing direction for the NPC at this task area: `"L"`, `"R"`, `"U"`, or `"D"`. Defaults to `"D"`. |
+| `owner_id` | string | No | Restricts task area usage to a specific NPC character state |
+| `role_id` | string | No | Restricts task area usage to NPCs with a specific role |
 
 ---
 

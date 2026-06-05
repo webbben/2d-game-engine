@@ -505,6 +505,7 @@ func (lw *LineWriter) FastForward() {
 	currentPage := lw.pages[lw.currentPage]
 	lw.writtenLines = []string{}
 	lw.writtenLines = append(lw.writtenLines, currentPage...)
+	lw.linkPositions = []LinkPos{}
 
 	lw.resetCursor()
 	lw.textImg.Clear()

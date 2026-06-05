@@ -86,8 +86,6 @@ type DialogSession struct {
 	iconFlashTimer      int
 	ticksSinceLastClick int
 
-	blipSfxID defs.SoundID
-
 	topicButtons []*button.Button
 	topicList    []defs.TopicID
 	replyButtons []*button.Button // reply buttons that can appear in the topic box (for small replies only)
@@ -360,6 +358,8 @@ func (ds *DialogSession) setupReplyOptions() {
 	ds.replyButtons = make([]*button.Button, 0)
 	ds.replyList = make([]defs.DialogReply, 0)
 
+	hasFancyReplies := false
+
 	// first, find out if all replies can fit in the topic box, and get the maximum reply width.
 	replies := []defs.DialogReply{}
 	for _, reply := range ds.currentResponse.Replies {
@@ -368,6 +368,9 @@ func (ds *DialogSession) setupReplyOptions() {
 			dx, _, _ := text.GetStringSize(reply.Text, ds.f)
 			if dx > maxReplyWidth {
 				maxReplyWidth = dx
+			}
+			if reply.InfoText != nil || reply.Decoration != "" {
+				hasFancyReplies = true
 			}
 		}
 	}
@@ -379,7 +382,8 @@ func (ds *DialogSession) setupReplyOptions() {
 	ds.replyList = replies
 
 	// now that we have all valid replies and the max width, create the buttons, and if needed, the larger replies box.
-	if maxReplyWidth > w {
+	// if any of the replies have decorations, info, etc then use the large reply box too
+	if maxReplyWidth > w || hasFancyReplies {
 		ds.setupReplyBox(maxReplyWidth, replies)
 		return
 	}
@@ -637,6 +641,11 @@ func (ds *DialogSession) ApplyReply(dr defs.DialogReply) {
 	}
 
 	if dr.NextResponse == nil {
+		if len(dr.NextResponseOptions) > 0 {
+			resp := chooseResponse(dr.NextResponseOptions, ds.Ctx)
+			ds.ApplyResponse(resp)
+			return
+		}
 		// no response to reply... so, time to go back to topic selection
 		ds.responseStatus = dialogResponseFinished
 		return

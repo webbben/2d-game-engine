@@ -43,7 +43,7 @@ func (obj *Object) updateGate() ObjectUpdateResult {
 	return ObjectUpdateResult{}
 }
 
-func (obj *Object) activateGate(fromX, fromY float64) ObjectUpdateResult {
+func (obj *Object) activateGate() ObjectUpdateResult {
 	if obj.Type != TypeGate {
 		panic("tried to activate gate, but object is not a gate")
 	}

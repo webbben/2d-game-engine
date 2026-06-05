@@ -40,6 +40,14 @@ func (c ConditionHasGold) IsMet(ctx defs.ConditionContext) bool {
 	return playerGold >= c.Amount
 }
 
+type ConditionHasItem struct {
+	ItemID defs.ItemID
+}
+
+func (c ConditionHasItem) IsMet(ctx defs.ConditionContext) bool {
+	return ctx.PlayerHasItem(c.ItemID)
+}
+
 type ConditionDialogProfile struct {
 	ProfileID defs.DialogProfileID
 }
@@ -100,8 +108,11 @@ func (c ConditionOR) IsMet(ctx defs.ConditionContext) bool {
 type ConditionSocialRank struct {
 	Player bool            // if set, will judge player's rank rather than NPC's rank (default is NPC)
 	Rank   defs.SocialRank // the rank level for this condition
-	GEQ    bool            // "greater than or equal to"
-	LEQ    bool            // "less than or equal to"
+
+	// if neither of the following are set, this evaluates if social rank is exactly equal to Rank
+
+	GEQ bool // "greater than or equal to"
+	LEQ bool // "less than or equal to"
 }
 
 func (c ConditionSocialRank) IsMet(ctx defs.ConditionContext) bool {
@@ -171,4 +182,48 @@ type ConditionKnowledge struct {
 
 func (c ConditionKnowledge) IsMet(ctx defs.ConditionContext) bool {
 	return ctx.PlayerHasKnowledge(c.TopicID)
+}
+
+type ConditionSkillLevel struct {
+	SkillID defs.SkillID
+	Level   int
+
+	// if neither of the below are set, this evaluates that the skill is exactly equal to level
+
+	GEQ bool // if set, evaluates if skill if greater than or equal to level
+	LEQ bool // if set, evaluates if skill is less than or equal to level
+}
+
+func (c ConditionSkillLevel) IsMet(ctx defs.ConditionContext) bool {
+	lvl := ctx.GetPlayerSkillLevel(c.SkillID)
+
+	if c.GEQ {
+		return lvl >= c.Level
+	}
+	if c.LEQ {
+		return lvl <= c.Level
+	}
+	return lvl == c.Level
+}
+
+type ConditionAttributeLevel struct {
+	AttrID defs.AttributeID
+	Level  int
+
+	// if neither of the below are set, this evaluates that the skill is exactly equal to level
+
+	GEQ bool // if set, evaluates if skill if greater than or equal to level
+	LEQ bool // if set, evaluates if skill is less than or equal to level
+}
+
+func (c ConditionAttributeLevel) IsMet(ctx defs.ConditionContext) bool {
+	lvl := ctx.GetPlayerAttributeLevel(c.AttrID)
+
+	if c.GEQ {
+		return lvl >= c.Level
+	}
+	if c.LEQ {
+		return lvl <= c.Level
+	}
+	return lvl == c.Level
 }

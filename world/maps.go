@@ -66,8 +66,8 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 	// Get initial items
 	for _, layer := range objLayers {
 		for _, obj := range layer.Objects {
-			if obj.Ellipse {
-				// TODO: ellipses are ignored since they are just used for planning
+			if obj.Ellipse || obj.Text != nil {
+				// text, ellipses, etc are ignored since they're only used for planning
 				continue
 			}
 
@@ -80,22 +80,24 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 			// check if there is a lock on this object
 			var lockLevel int
 			var lockID string
-			lockLevel, found = tiled.GetIntProperty("lock_level", objectInfo.AllProps)
+			lockLevel, found = tiled.GetIntProperty(object.PropLockLevel, objectInfo.AllProps)
 			if found {
 				if lockLevel <= 0 {
 					logz.Panicln("CreateNewMapState", "found lock level property on object, but it had a level of <= 0.", obj.Name, obj.ID, "mapID:", mapID)
 				}
-				lockID, found = tiled.GetStringProperty("lock_id", objectInfo.AllProps)
+				lockID, found = tiled.GetStringProperty(object.PropLockID, objectInfo.AllProps)
 				if !found {
-					logz.Panicln("CreateNewMapState", "found lock level property on object, but no lock ID.", obj.Name, obj.ID, "mapID:", mapID)
+					// if no custom lock ID is set, then just generate a default one for this object
+					lockID = object.GetDefaultLockID(obj.ID)
 				}
 				if lockID == "" {
 					logz.Panicln("CreateNewMapState", "lock ID property was empty:", obj.Name, obj.ID, "mapID:", mapID)
 				}
 				// add it to the lock map
 				mapState.MapLocks[lockID] = state.LockState{
-					LockID:    lockID,
-					LockLevel: lockLevel,
+					OriginalLockLevel: lockLevel,
+					LockID:            lockID,
+					LockLevel:         lockLevel,
 				}
 			}
 
@@ -223,7 +225,7 @@ func (w *World) GenerateMap(mapGeneratorID string, returnMapID defs.MapID, retur
 
 	for _, layer := range objLayers {
 		for _, obj := range layer.Objects {
-			if obj.Ellipse {
+			if obj.Ellipse || obj.Text != nil {
 				continue
 			}
 

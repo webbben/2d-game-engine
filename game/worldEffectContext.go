@@ -50,6 +50,11 @@ func (g *Game) UnlockMapLock(mapID defs.MapID, lockID string) {
 	g.World.UnlockMapLock(mapID, lockID)
 }
 
+func (g *Game) SetMapLock(mapID defs.MapID, lockID string, lockLevel int) {
+	g.requireWorld()
+	g.World.SetMapLock(mapID, lockID, lockLevel)
+}
+
 // EnterMap adds the player to a map. creates the active map too, in the process.
 // Used in the NewGame flow to actually put the player in a map once his character has been created.
 func (g *Game) EnterMap(mapID defs.MapID, spawnIndex int, doTransition bool) {

@@ -33,6 +33,8 @@ type BookSession struct {
 	bookID  defs.BookID
 	bookDef defs.BookDef
 
+	audioman *audio.AudioManager
+
 	b box.Box
 
 	// this image represents the current page's text, in its entirety
@@ -98,6 +100,7 @@ func NewBookSession(
 	params.LineWriterParams.MaxHeightPx = utils.RoundUpToTile(params.LineWriterParams.MaxHeightPx, int(tilesize))
 
 	sesh := &BookSession{
+		audioman:  audioman,
 		bookID:    bookID,
 		bookDef:   dataman.GetBookDef(bookID),
 		b:         box.NewBox(params.BoxTileset, params.BoxOrigin),
@@ -120,43 +123,43 @@ func NewBookSession(
 		params.LineWriterParams.FontFace = config.DefaultFont
 	}
 
-	// figure out the dimensions of the book border
-	w := params.LineWriterParams.LineWidthPx + int(tilesize*2)
-	h := params.LineWriterParams.MaxHeightPx + int(tilesize)
-
 	if params.LineWriterParams.MaxHeightPx == 0 {
 		params.LineWriterParams.MaxHeightPx = display.SCREEN_HEIGHT * 3
-		sesh.scrollMode = true
-		h = utils.RoundUpToTile(display.SCREEN_HEIGHT*2/3, int(tilesize))
+		sesh.scrollMode = true // no explicit height was set, so we will do scroll mode
 	}
 
-	if sesh.bookDef.Title != "" {
-		// add space for the title
-		titleHeight, _ := text.GetRealisticFontMetrics(params.TitleFont)
-		h += int(tilesize) + titleHeight
+	// setup linewriter
+	sesh.lw = text.NewLineWriter(audioman, params.LineWriterParams)
+	if sesh.bookDef.Text != "" {
+		sesh.lw.SetSourceText(sesh.bookDef.Text)
 	}
+	sesh.lw.Update()
 
+	// create page image
+	sesh.renderPageImage()
+
+	// make box image bigger than page image
+	w := sesh.pageImg.Bounds().Dx()
+	h := sesh.pageImg.Bounds().Dy()
+
+	// enforce min and max on height, since if we are in scroll mode the page img could be quite big or somewhat small
+	h = min(h, display.SCREEN_HEIGHT*2/3)
+	h = max(h, int(tilesize)*6)
+
+	textAreaHeight := h
+	textAreaWidth := w
+
+	w += int(tilesize * 2)
+	h += int(tilesize * 2) // height needs to include space for button
+	w = utils.RoundUpToTile(w, int(tilesize))
 	h = utils.RoundUpToTile(h, int(tilesize))
 
 	sesh.boxImage = sesh.b.BuildBoxImage(w, h, config.UIScale)
 
-	// setup linewriter
-	sesh.lw = text.NewLineWriter(audioman, params.LineWriterParams)
-
-	if sesh.bookDef.Text != "" {
-		sesh.lw.SetSourceText(sesh.bookDef.Text)
-	}
-
 	if sesh.scrollMode {
-		// we are in scroll mode, so we should just create the entire linewriter image so it can be scrolled
-		sesh.lw.Update()
-		dx, dy := sesh.lw.CurrentDimensions()
-		sesh.pageImg = ebiten.NewImage(dx, dy+10) // add 10 to keep bottom of letters from getting clipped
-		sesh.lw.Draw(sesh.pageImg, 0, 0)
-
 		sesh.scrollArea = scrollarea.NewScrollArea(scrollarea.ScrollAreaParams{
-			Width:  w - int(tilesize),
-			Height: h - int(tilesize),
+			Width:  textAreaWidth,
+			Height: textAreaHeight,
 		})
 	}
 
@@ -167,6 +170,10 @@ func NewBookSession(
 		for _, topic := range sesh.bookDef.KnowledgeTopics {
 			characterstate.AddKnowledge(topic, dataman, eventBus)
 		}
+	}
+
+	if sesh.bookDef.OpenSFX != "" {
+		audioman.PlaySFX(sesh.bookDef.OpenSFX, 0.5)
 	}
 
 	return sesh
@@ -187,10 +194,56 @@ func (bs *BookSession) Update() {
 
 	if bs.closeBtn.Update().Clicked {
 		bs.exit = true
+		if bs.bookDef.CloseSFX != "" {
+			bs.audioman.PlaySFX(bs.bookDef.CloseSFX, 0.5)
+		}
+	}
+}
+
+func (bs *BookSession) renderPageImage() {
+	tilesize := int(config.GetScaledTilesize())
+
+	if bs.pageImg == nil {
+		totalHeight := tilesize * 2 // top and bottom margin
+
+		if bs.bookDef.Title != "" {
+			titleDy, desc := text.GetRealisticFontMetrics(bs.titleFont)
+			totalHeight += titleDy + desc
+			totalHeight += tilesize
+		}
+
+		dx, dy := bs.lw.CurrentDimensions()
+		totalHeight += dy + tilesize
+		width := dx
+
+		bs.pageImg = ebiten.NewImage(width, totalHeight)
+	} else {
+		bs.pageImg.Clear()
+	}
+
+	drawX := 0
+	drawY := tilesize
+
+	if bs.bookDef.Title != "" {
+		titleHeight, desc := text.GetRealisticFontMetrics(bs.titleFont)
+		drawY += titleHeight + desc
+		middleX := bs.pageImg.Bounds().Dx() / 2
+		drawX = int(text.CenterTextOnXPos(bs.bookDef.Title, bs.titleFont, float64(middleX)))
+		text.DrawShadowText(bs.pageImg, bs.bookDef.Title, bs.titleFont, drawX, drawY, nil, nil, 0, 0)
+		drawY += tilesize
+	}
+
+	if bs.bookDef.Text != "" {
+		drawX = 0
+		bs.lw.Draw(bs.pageImg, drawX, drawY)
 	}
 }
 
 func (bs *BookSession) Draw(screen *ebiten.Image, x, y float64) {
+	if bs.pageImg == nil {
+		logz.Panic("page img is nil!")
+	}
+
 	tilesize := config.GetScaledTilesize()
 	drawX := x
 	drawY := y
@@ -199,20 +252,10 @@ func (bs *BookSession) Draw(screen *ebiten.Image, x, y float64) {
 	drawY += tilesize / 2
 	drawX += tilesize
 
-	if bs.bookDef.Title != "" {
-		middleX := x + float64(bs.boxImage.Bounds().Dx()/2)
-		titleX := text.CenterTextOnXPos(bs.bookDef.Title, bs.titleFont, middleX)
-
-		text.DrawShadowText(screen, bs.bookDef.Title, bs.titleFont, int(titleX), int(drawY), nil, nil, 0, 0)
-		drawY += tilesize * 2
-	}
-
 	if bs.scrollMode {
 		bs.scrollArea.Draw(screen, bs.pageImg, drawX, drawY)
 	} else {
-		if bs.bookDef.Text != "" {
-			bs.lw.Draw(screen, int(drawX), int(drawY))
-		}
+		rendering.DrawImage(screen, bs.pageImg, drawX, drawY, 0)
 	}
 
 	btnDx, btnDy := float64(bs.closeBtn.Width), float64(bs.closeBtn.Height)

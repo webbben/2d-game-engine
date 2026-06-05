@@ -255,3 +255,35 @@ func (ctx DialogContext) UnlockMapLock(mapID defs.MapID, lockID string) {
 func (ctx DialogContext) TravelToMap(mapID defs.MapID, spawnIndex int, hours int) {
 	ctx.GameState.TravelToMap(mapID, spawnIndex, hours)
 }
+
+func (ctx DialogContext) PlayerHasItem(itemID defs.ItemID) bool {
+	playerState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+
+	for _, itemState := range playerState.InventoryItems {
+		if itemState != nil {
+			if itemState.DefID == itemID {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (ctx DialogContext) GetPlayerSkillLevel(skillID defs.SkillID) int {
+	playerState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+
+	// TODO: need to factor in other things like traits, enchanted items (future), etc
+	return playerState.BaseSkills[skillID]
+}
+
+func (ctx DialogContext) GetPlayerAttributeLevel(attrID defs.AttributeID) int {
+	playerState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+
+	// TODO: need to factor in other things like traits, enchanted items (future), etc
+	return playerState.BaseAttributes[attrID]
+}
+
+func (ctx DialogContext) SetMapLock(mapID defs.MapID, lockID string, lockLevel int) {
+	ctx.GameState.SetMapLock(mapID, lockID, lockLevel)
+}

@@ -3,7 +3,12 @@ package pubsub
 import "github.com/webbben/2d-game-engine/data/defs"
 
 const (
-	EventScheduleFutureEvent defs.EventType = "schedule_future_event" // for queueing up an event to broadcast in the future. not noticed by global event subscribers.
+	// for queueing up an event to broadcast in the future. not noticed by global event subscribers.
+	//
+	// data:
+	// 	- "event" (defs.Event) the event that will be scheduled
+	// 	- "time" (defs.GameTime) the future time when the event should fire. only is specific to the hour.
+	EventScheduleFutureEvent defs.EventType = "schedule_future_event"
 
 	// General world
 
@@ -13,7 +18,8 @@ const (
 
 	// Maps
 
-	EventUnlock defs.EventType = "unlock" // data: "mapID" (string), "lockID" (string)
+	EventUnlock  defs.EventType = "unlock"   // data: "mapID" (string), "lockID" (string)
+	EventSetLock defs.EventType = "set_lock" // data: "mapID" (string), "lockID" (string)
 
 	// Quests
 

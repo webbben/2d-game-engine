@@ -46,6 +46,7 @@ type WorldContext interface {
 type ActiveMap struct {
 	debugData debugData
 	MapID     defs.MapID
+	MapDef    defs.MapDef
 
 	InScenario bool // if set, this active map is part of a scenario. changes behavior about things like hourly task schedules.
 
@@ -88,7 +89,8 @@ type ActiveMap struct {
 	Lights       []*lights.Light  // permanent lights that are not controlled by an object
 	LightObjects []*object.Object // lights controlled by an object
 
-	daylightFader lights.LightFader
+	daylightFactor float64
+	daylightFader  lights.LightFader
 
 	NPCManager
 }
@@ -133,6 +135,7 @@ func (m ActiveMap) GetHoverTarget() (*npc.NPC, *object.Object) {
 		if utils.EuclideanDistCenter(m.PlayerRef.Entity.CollisionRect(), m.hoveredNPC.Entity.CollisionRect()) <= distThreshold {
 			return m.hoveredNPC, nil
 		}
+		logz.Println("GetHoverTarget", "NPC too far away:", m.hoveredNPC.DisplayName())
 	}
 
 	if m.hoveredObject != nil {
@@ -175,20 +178,26 @@ func NewActiveMap(
 	tiledMap := tiled.LoadMap(mapDef.ID, regenImages)
 
 	m := &ActiveMap{
-		MapID:       mapID,
-		DisplayName: mapInfo.DisplayName,
-		dataman:     dataman,
-		audioman:    audioman,
-		eventBus:    eventbus,
-		screenman:   screenman,
-		questman:    questman,
-		om:          om,
-		gameCtx:     gameCtx,
-		worldCtx:    worldCtx,
-		Map:         tiledMap,
+		MapID:          mapID,
+		MapDef:         mapDef,
+		daylightFactor: 1,
+		DisplayName:    mapInfo.DisplayName,
+		dataman:        dataman,
+		audioman:       audioman,
+		eventBus:       eventbus,
+		screenman:      screenman,
+		questman:       questman,
+		om:             om,
+		gameCtx:        gameCtx,
+		worldCtx:       worldCtx,
+		Map:            tiledMap,
 		NPCManager: NPCManager{
 			mapRef: tiledMap,
 		},
+	}
+
+	if mapDef.DaylightFactor != 0 {
+		m.daylightFactor = mapDef.DaylightFactor
 	}
 
 	m.playerMenuViewer = screen.NewScreenViewer(playerMenu, m.dataman, m.eventBus, m.audioman, m.questman, m.gameCtx, nil)
@@ -264,9 +273,9 @@ func (m *ActiveMap) OnHourChange(hour int, skipFade bool) {
 func (m *ActiveMap) addAllObjectsToMap(layer tiled.Layer) {
 	allObjs := tiled.GetAllObjectsFromLayer(layer)
 	for _, obj := range allObjs {
-		if obj.Ellipse {
+		if obj.Ellipse || obj.Text != nil {
 			// we only use elipses for planning things in maps, so just skip em
-			logz.TODO("Ellipse Object", "ellipse object found in map (skipped it though). Should we delete this ellipse?")
+			logz.TODO("Planning Object", "planning object found in map (skipped it though). Should we delete it?", m.MapID, obj.ID)
 			continue
 		}
 		m.AddObjectToMap(obj, *m.mapRef)

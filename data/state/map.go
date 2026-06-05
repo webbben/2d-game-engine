@@ -56,9 +56,10 @@ type MapItemState struct {
 }
 
 type LockState struct {
-	LockID    string
-	LockLevel int
-	Unlocked  bool
+	LockID            string
+	OriginalLockLevel int // the level this was originally defined as
+	LockLevel         int
+	Unlocked          bool
 }
 
 type BedState struct {

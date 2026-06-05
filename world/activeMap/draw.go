@@ -81,7 +81,7 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 		logz.Println("", drawLights)
 	}
 
-	m.daylightFader.SetOverallFactor(float32(m.Map.DaylightFactor))
+	m.daylightFader.SetOverallFactor(float32(m.daylightFactor))
 	lights.DrawMapLighting(
 		screen,
 		m.worldScene,

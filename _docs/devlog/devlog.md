@@ -1,3 +1,28 @@
+# 2026-06-03
+
+Another brainstorming session. I've been getting into dialog for quests, and a new thing I realize I want is to have some visual information
+about replies. The main thing I'm looking to implement is the fallout style replies where, if you have a certain skill level, you can give better answers,
+but if you are lacking a skill level, you give a worse or silly answer. But not only that (because that can already be implemented as is), I want there 
+to be visual information on the reply that indicates this.
+
+For example, suppose the player is haggling with an NPC, and the NPC tries to offer an item to the player for 100 gold.
+
+The player will have a couple natural reactions, like accepting or declining. But maybe you can add some skill based responses:
+
+- "100 gold? You're out of your mind. I checked the price listings yesterday and it should sell for 40 gold!"
+(mercantile skill >= 50)
+
+OR 
+
+- "100 gold? That's way too expensive! Uh... my brother sells these things for 50 gold... yeah!"
+(mercantile skill < 50)
+
+for the first reply option there, there should be visual feedback that this is a good answer, or that you meet some requirement to give it.
+Probably will show a skill level threshold to indicate you meet that requirement. Maybe a green box around the reply, and a small "50/50 MERC" below the text.
+
+For the second reply option, it should indicate that you don't meet the required threshold. maybe an orange or red box around the reply, and the same text to
+indicate your lack of skill: "35/50 MERC"
+
 # 2026-05-30
 
 I want to brainstorm about the player inventory screen real quick. 

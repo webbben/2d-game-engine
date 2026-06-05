@@ -90,13 +90,13 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, audioma
 		// base on width of button text
 		width = dx
 	} else if width < dx {
-		logz.Println("Button "+buttonText, "given width was too small for button text. resizing...")
+		logz.Warnf("Button "+buttonText, "given width (%v) was too small for button text (min=%v). resizing...", width, dx)
 		width = dx
 	}
 	if height == 0 {
 		height = dy
 	} else if height < dy {
-		logz.Println("Button "+buttonText, "given height was too small for button text. resizing...")
+		logz.Warnf("Button "+buttonText, "given height (%v) was too small for button text (min=%v). resizing...", height, dy)
 		height = dy
 	}
 

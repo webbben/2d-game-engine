@@ -32,6 +32,8 @@ type MapDef struct {
 	// "templates" are just map defs that represent a generic map, not a specific, unique map.
 	// To use this mapDef with a map generator, you MUST set this to true.
 	IsMapGenTemplate bool
+
+	DaylightFactor float64 // how much influence outside daylight has on this map. defaults to 1, and must be (0, 1]
 }
 
 func (md MapDef) Validate() {
@@ -43,6 +45,10 @@ func (md MapDef) Validate() {
 	}
 	if md.DisplayName == "" {
 		logz.Panicln(string(md.ID), "no display name set")
+	}
+
+	if md.DaylightFactor < 0 || md.DaylightFactor > 1 {
+		logz.Panicln(string(md.ID), "daylight factor is out of bounds. should be range (0, 1]")
 	}
 }
 

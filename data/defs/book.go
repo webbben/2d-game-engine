@@ -13,5 +13,8 @@ type BookDef struct {
 	Text  string
 	Font  font.Face
 
+	OpenSFX  SoundID
+	CloseSFX SoundID
+
 	KnowledgeTopics []TopicID
 }
