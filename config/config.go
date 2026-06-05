@@ -14,6 +14,10 @@ type DefaultBox struct {
 }
 
 var (
+	// If true, all tiles generated during previous game sessions will be deleted and will have to be regenerated.
+	// This is meant for dev, when tilesets are changing frequently, but comes with a hefty performance cost.
+	DeletePreviousSessionTiles bool = true
+
 	// how much the game view is scaled up.
 	// seems better to keep this a whole number.
 	// Using .5's sometimes seems to cause slight distortion in rendered pixels.

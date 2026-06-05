@@ -56,8 +56,8 @@ func InitFileStructure() error {
 
 	// tiles
 	// remove all existing tiles on startup, to ensure that all tiles are up to date with source data
-	if FileExists(tilePath()) {
-		logz.Println("SYSTEM", "deleting all existing generated tiles from previous runs")
+	if FileExists(tilePath()) && DeletePreviousSessionTiles {
+		logz.Warnln("SYSTEM", "deleting all existing generated tiles from previous runs")
 		_ = os.RemoveAll(tilePath())
 	}
 	err := os.MkdirAll(tilePath(), os.ModePerm)

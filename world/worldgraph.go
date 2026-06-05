@@ -101,14 +101,20 @@ func (w *World) BuildWorldGraph() {
 					logz.Panicln("WorldGraph", "found map generator, but the door didn't include the return_spawn_index prop.", mapID, obj.ID)
 				}
 
-				doorTo = w.GenerateMap(mapGenID, mapID, returnSpawn)
-
-				// set the door overrides for this map, so this door can get to the generated map
+				// first, check if an override already exists for this door in the map state.
+				// this will be true when loading the game.
 				mapState := w.Dataman.GetMapState(mapID)
-				mapState.DoorOverrides[obj.ID] = state.DoorState{
-					OverrideDestinationMap: doorTo,
-					// NOTE: we don't set the override spawn, since the regular spawn point prop should be correct.
+				if existingOverride, exists := mapState.DoorOverrides[obj.ID]; exists {
+					doorTo = existingOverride.OverrideDestinationMap
+				} else {
+					doorTo = w.GenerateMap(mapGenID, mapID, returnSpawn)
+					// set the door overrides for this map, so this door can get to the generated map
+					mapState.DoorOverrides[obj.ID] = state.DoorState{
+						OverrideDestinationMap: doorTo,
+						// NOTE: we don't set the override spawn, since the regular spawn point prop should be correct.
+					}
 				}
+
 			}
 
 			toSpawn, found := tiled.GetIntProperty(object.PropDoorSpawnIndex, objectInfo.AllProps)
@@ -140,7 +146,6 @@ func (w *World) BuildWorldGraph() {
 			logz.Panicln("BuildWorldGraph", "map doesn't have spawn point index 0! this is required for all maps. mapID:", mapID)
 		}
 
-		m.TileImageMap = nil // delete this stuff, since it could take up extra memory; we don't need tile images here.
 		wg.MapDataCache[mapID] = m
 
 		wg.Nodes[mapID] = &node

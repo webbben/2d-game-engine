@@ -97,6 +97,7 @@ func LoadTileset(source string) (Tileset, error) {
 }
 
 func (tileset *Tileset) generateTiles() error {
+	logz.Warnln("TILED", "generateTiles")
 	debug.StartTimer("generateTiles")
 	if tileset.Image == "" {
 		return errors.New("tileset JSON data not loaded yet")
