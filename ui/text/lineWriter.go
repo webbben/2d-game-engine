@@ -251,6 +251,8 @@ func (lw *LineWriter) resetCursor() {
 	}
 	lw.cursorX = lw.cursorOffsetX
 	lw.cursorY = lw.lineHeight
+	lw.currentFgColor = lw.fgColor
+	lw.currentShadow = lw.shadow
 }
 
 // Draw returns the last written Y position (for reference by other drawing functions)

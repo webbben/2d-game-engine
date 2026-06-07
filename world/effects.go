@@ -3,6 +3,7 @@ package world
 import (
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
 )
@@ -176,4 +177,32 @@ type TravelToMapEffect struct {
 func (e TravelToMapEffect) Apply(ctx defs.WorldEffectContext) {
 	logz.Println("world effect", "travel to map:", e.MapID, e.ToSpawnIndex)
 	ctx.TravelToMap(e.MapID, e.ToSpawnIndex, e.Hours)
+}
+
+type AddOpinionModEffect struct {
+	Mod      defs.OpinionModifier
+	RelHours int                 // set this to use a relative "Until", rather than an explicit GameTime like OpinionModifier has
+	Holder   id.CharacterStateID // if left empty, assumed to be an NPC in a dialog
+	Subject  id.CharacterStateID // if left empty, assumed to be the player
+}
+
+func (e AddOpinionModEffect) Apply(ctx defs.WorldEffectContext) {
+	if e.Holder == "" {
+		e.Holder = ctx.GetDialogNPC()
+		if e.Holder == "" {
+			logz.Panicln("AddOpinionModEffect", "Holder was empty, so we tried to get the current dialog NPC, but that came back as empty too. Holder should only be empty if being called from a dialog. Mod:", e.Mod)
+		}
+	}
+	if e.Subject == "" {
+		e.Subject = id.CharacterStateID(defs.PlayerID)
+	}
+	if e.RelHours > 0 {
+		if e.Mod.Until != nil {
+			logz.Panicln("AddOpinionModEffect", "RelHours was set, but Mod also had an Until set... which one should we use? Mod:", e.Mod)
+		}
+		currentTime := ctx.GetCurrentGameTime()
+		currentTime.AddTime(e.RelHours)
+		e.Mod.Until = &currentTime
+	}
+	ctx.AddOpinionModifier(e.Holder, e.Subject, e.Mod)
 }

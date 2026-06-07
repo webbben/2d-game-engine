@@ -2,10 +2,10 @@ package textwindow
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/mouse"
 	"github.com/webbben/2d-game-engine/ui/overlay"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 // HoverWindow is a simple hover window that shows a title and body text
@@ -52,22 +52,6 @@ func (hw *HoverWindow) Draw(om *overlay.OverlayManager) {
 	hw.textWindow.Draw(hw.placeHolderImg, 0, 0)
 
 	dx, dy := hw.Dimensions()
-	x, y := getPosNearMouse(15, dx, dy)
+	x, y := utils.GetPositionNearMouse(15, dx, dy)
 	om.AddOverlay(hw.placeHolderImg, float64(x), float64(y))
-}
-
-func getPosNearMouse(distFromMouse int, dx, dy int) (x, y int) {
-	// draw next to the mouse
-	mouseX, mouseY := ebiten.CursorPosition()
-	// make sure the window doesn't go off screen
-	x = mouseX + distFromMouse
-	y = mouseY + distFromMouse
-	if x+dx > display.SCREEN_WIDTH {
-		x = mouseX - distFromMouse - dx
-	}
-	if y+dy > display.SCREEN_HEIGHT {
-		y = mouseY - distFromMouse - dy
-	}
-
-	return x, y
 }

@@ -20,6 +20,9 @@ type CharacterState struct {
 
 	SocialRank defs.SocialRank // the social rank this character currently has
 
+	// Active opinion modifiers towards different characters
+	OpinionMods map[id.CharacterStateID][]defs.OpinionModifier
+
 	// Bed Location
 
 	HomeMapID    defs.MapID // ID of the map that represents this character's home

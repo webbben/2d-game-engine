@@ -101,6 +101,8 @@ type WorldEffectContext interface {
 	// NPCs
 
 	AssignTaskToNPC(id CharacterDefID, taskDef TaskDef, requireListener bool)
+	AddOpinionModifier(holder, subject id.CharacterStateID, mod OpinionModifier)
+	GetDialogNPC() id.CharacterStateID // if not in a dialog, returns empty string
 }
 
 type EventContext interface {

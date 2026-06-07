@@ -155,3 +155,11 @@ func (g *Game) StartBookSession(bookID defs.BookID) {
 	g.requireWorld()
 	g.World.ActiveMap.StartBookSession(bookID, g.GetPlayerInfo(), config.DefaultBookSessionParams)
 }
+
+func (g *Game) AddOpinionModifier(holder, subject id.CharacterStateID, mod defs.OpinionModifier) {
+}
+
+func (g *Game) GetDialogNPC() id.CharacterStateID {
+	g.requireWorld()
+	return g.World.GetDialogNPC()
+}

@@ -3,9 +3,10 @@ package textwindow
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/utils"
 	"golang.org/x/image/font"
 )
 
@@ -86,7 +87,7 @@ func (hw CustomHoverWindow) Draw(om *overlay.OverlayManager) {
 	rendering.DrawImage(hw.placeHolderImage, hw.customBodyContent, float64(tx), tileSize*1.5, 0)
 
 	bounds := hw.placeHolderImage.Bounds()
-	drawX, drawY := getPosNearMouse(15, bounds.Dx(), bounds.Dy())
+	drawX, drawY := utils.GetPositionNearMouse(15, bounds.Dx(), bounds.Dy())
 
 	om.AddOverlay(hw.placeHolderImage, float64(drawX), float64(drawY))
 }

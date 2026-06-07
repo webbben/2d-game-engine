@@ -3,6 +3,7 @@ package dialogv2
 
 import (
 	"fmt"
+	"image/color"
 	"regexp"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -10,15 +11,19 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/display"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/ui/box"
 	"github.com/webbben/2d-game-engine/ui/button"
 	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/utils"
 	"golang.org/x/image/font"
 )
 
@@ -70,10 +75,19 @@ type DialogSession struct {
 	ProfileDef   *defs.DialogProfileDef    // the actual dialog profile definition
 	Ctx          DialogContext             // the dialog state that things within the dialog can read/write on
 
+	showCharInfo bool
+
+	nameTitle             box.BoxTitle
 	boxSrc                box.Box
 	TextBoxImg            *ebiten.Image
 	TopicBoxImg           *ebiten.Image
 	topicBoxDefaultHeight int
+
+	charInfoBoxImg     *ebiten.Image
+	npcName            string
+	opinionHoverWindow *ebiten.Image // the hover window that shows to show opinion mods. if nil, no mods to show.
+	opinionHoverRect   *model.Rect   // the area where, if the mouse is hovering in it, the opinion hover window should start showing
+	opinionMods        []defs.OpinionModifier
 
 	LineWriter text.LineWriter
 
@@ -129,6 +143,7 @@ func ConditionsMet(conditions []defs.DialogCondition, ctx defs.ConditionContext)
 }
 
 type DialogSessionParams struct {
+	ShowCharInfo  bool
 	NPCID         string
 	ProfileID     defs.DialogProfileID
 	BoxTilesetSrc string
@@ -154,6 +169,7 @@ func NewDialogSession(
 
 	ctx := NewDialogContext(params.NPCID, profileState, *profileDef, gameCtx, eventBus, dataman, questman)
 	ds := DialogSession{
+		showCharInfo: params.ShowCharInfo,
 		scrMgr:       scrMgr,
 		ctxForScreen: gameCtx,
 		ProfileState: profileState,
@@ -165,7 +181,7 @@ func NewDialogSession(
 		f:            params.TextFont,
 	}
 
-	ds.dialogSetup(params.BoxTilesetSrc, params.BoxOriginID, params.TextFont)
+	ds.dialogSetup(params)
 
 	// when starting a new dialog session, we start with the first greeting from the NPC/DialogProfile
 	firstGreeting := GetGreeting(*ds.ProfileDef, ds.Ctx)
@@ -208,30 +224,91 @@ func validateParams(params DialogSessionParams, eventBus *pubsub.EventBus, datam
 	}
 }
 
-func (ds *DialogSession) dialogSetup(boxTilesetSrc string, boxOrigin int, f font.Face) {
+func (ds *DialogSession) dialogSetup(params DialogSessionParams) {
 	tileSize := int(config.GetScaledTilesize())
 	topicBoxWidth := tileSize * 8
-	textBoxWidth := display.SCREEN_WIDTH - tileSize - topicBoxWidth
+	screenWidth := utils.RoundDownToTile(display.SCREEN_WIDTH, tileSize)
+	textBoxWidth := screenWidth - topicBoxWidth
 	textBoxWidth -= textBoxWidth % tileSize
 	textBoxHeight := tileSize * 6
 	ds.topicBoxDefaultHeight = textBoxHeight
 
-	b := box.NewBox(boxTilesetSrc, boxOrigin)
+	b := box.NewBox(params.BoxTilesetSrc, params.BoxOriginID)
 	ds.boxSrc = b
+
+	npcState := ds.dataman.GetCharacterState(id.CharacterStateID(params.NPCID))
+	npcName := npcState.DisplayName
+
+	ds.nameTitle = box.NewBoxTitle(params.BoxTilesetSrc, 111, npcName, config.DefaultTitleFont)
 
 	ds.TextBoxImg = b.BuildBoxImage(textBoxWidth, textBoxHeight, config.UIScale)
 	ds.buildTopicBox(textBoxHeight)
 
+	ds.charInfoBoxImg = b.BuildBoxImage(tileSize*8, textBoxHeight, config.UIScale)
+	ds.npcName = npcName
+	npcDef := ds.dataman.GetCharacterDef(npcState.DefID)
+	cultureDef := ds.dataman.GetCultureDef(npcDef.CultureID)
+	ds.Ctx.culture = cultureDef
+	playerState := ds.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	currentTime := ds.Ctx.GetCurrentGameTime()
+	// TODO: add some kind of hover window to show the specific opinion modifiers
+	// Also, if anything during dialog can cause a new opinion modifier, we need to recalculate this
+	ds.opinionMods, ds.Ctx.opinion = characterstate.CalculateOpinion(npcState, playerState, currentTime, ds.dataman)
+	ds.buildOpinionHoverBox()
+
 	lwParams := config.LineWriterParams{
 		LineWidthPx:           textBoxWidth - tileSize,
 		MaxHeightPx:           textBoxHeight - tileSize,
-		FontFace:              f,
+		FontFace:              params.TextFont,
 		UseShadow:             true,
 		TextBlipSfx:           config.DefaultTextBlipSfx,
 		TextBlipTickInterval:  5,
 		SupportSpecialSymbols: true,
 	}
 	ds.LineWriter = text.NewLineWriter(ds.audioman, lwParams)
+}
+
+func (ds *DialogSession) buildOpinionHoverBox() {
+	if len(ds.opinionMods) == 0 {
+		ds.opinionHoverWindow = nil
+		return
+	}
+
+	b := box.NewBox("boxes/boxes.tsj", 231)
+
+	// figure out how big the box should be
+	marginY := 5
+	maxDx := 0
+	totalDy := 0
+	for _, mod := range ds.opinionMods {
+		dx, dy, _ := text.GetStringSize(mod.String(), config.DefaultInfoFont)
+		maxDx = max(maxDx, dx)
+		totalDy += dy + marginY
+	}
+
+	lineDy, _ := text.GetRealisticFontMetrics(config.DefaultInfoFont)
+	tilesize := config.GetScaledTilesize()
+	maxDx = utils.RoundUpToTile(maxDx, int(tilesize))
+	totalDy = utils.RoundUpToTile(totalDy, int(tilesize))
+
+	// for the box's requirements
+	totalDy += int(tilesize * 2) //  the box is pretty thin on the border tiles
+	totalDy = max(totalDy, int(tilesize*3))
+	maxDx += int(tilesize * 2)
+
+	ds.opinionHoverWindow = b.BuildBoxImage(maxDx, totalDy, config.UIScale)
+
+	// now, draw the opinion mod text
+	drawX := int(tilesize)
+	drawY := int(tilesize + float64(lineDy))
+	for _, mod := range ds.opinionMods {
+		c := color.RGBA{0, 255, 0, 0}
+		if mod.Mod < 0 {
+			c = color.RGBA{255, 0, 0, 0}
+		}
+		text.DrawText(ds.opinionHoverWindow, mod.String(), config.DefaultInfoFont, drawX, drawY, c)
+		drawY += lineDy + marginY
+	}
 }
 
 // builds the topic box to fit the given height. has a minimum height it defaults to.

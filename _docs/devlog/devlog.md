@@ -1,5 +1,115 @@
 # 2026-06-06
 
+Today, I want to discuss the concept of "opinion"/"disposition". These two words basically refer to how much an NPC likes the player.
+But, in some games, NPCs could also have dispositions towards each other, like in Crusader Kings 2. Anyway, let's discuss it because I'm wondering
+how I should implement it into my own game.
+
+## First: What is Disposition?
+
+Disposition (or "opinion", as it's called in some games) is how much an NPC likes the player. If the player has some traits about himself,
+it could cause the NPC to like him more or less. If the player has done something nice (or mean) for the NPC, that can also influence it.
+
+And, if an NPC has a higher disposition with the player, he will cooperate more during dialog, telling the player more useful information.
+He might give better prices during trading. There are probably lots of ways that disposition can affect gameplay.
+
+## Disposition in Morrowind/Oblivion/etc
+
+In Morrowind, disposition is relatively simple. It's mainly influenced by a few things, such as:
+
+- Player's race vs NPC's race; same-race usually means better baseline disposition, whereas different race could mean worse.
+- Player's faction membership; if the player is in a certain faction, that will influence an NPC's disposition if the NPC is also in a faction that is
+either friendly or in a rivalry. 
+- Scripted changes; quests, dialog, etc can cause an NPC's disposition to change. You can also do the persuasion mini-games to try to change their disposition
+by bribing, admiring, taunting, etc.
+
+## Disposition in CK2
+
+Another influential game on my concept of disposition is CK2; in this game, disposition is a little more complicated.
+There are all sorts of things that can affect it. Similar things to above, such as culture, will give a baseline modifier to it.
+But also some things unique to the game, like:
+
+- Traits; some traits change the disposition of certain NPCs, and sometimes different combinations of traits between two characters will have different effects.
+(e.g. one trait causes characters of another trait to dislike them, etc).
+- Past interactions; characters in CK2 have a lot of ways they can interact, and they can either help or hurt a relationship.
+- Political situations; if you are at war with someone, they will of course like you less. If you are in a political alliance with them, they like you more, etc.
+
+## So, where does my game fit in?
+
+My game is a bit of a mixture of these two. Overall, I guess it will lean a little more towards that of Morrowind, just given the game's overall style.
+But, I've added some elements from CK2, like traits, and that will also have an effect. And hopefully at some point the character interactions can get
+advanced enough that other things can influence disposition.
+
+But - what's the point of it?
+
+I think the main place that disposition will have an effect is in dialog. I think I'll be adding conditions to a lot of places in dialog that checks disposition level,
+so if an NPC doesn't like the player, he may not tell him much.
+
+I think one of the biggest questions I have right now is, will characters in my game have opinions of other characters?
+In CK2, I believe they do. And that is important because characters interact with each other in CK2, independent of the player. Characters declare war on each other,
+try to assassinate each other, etc. It's a really advanced game in that regard, actually, and I think part of me wants to make my game similar in that way.
+But, that of course will be something I have to work on later, and could be quite complicated.
+
+I think for now, it makes sense to design a system such that opinions are calculated between two characters in general - be it the player, or a random NPC.
+There will be baseline modifiers, like culture based modifiers, then there will be trait based modifiers, and then finally there may be changes to opinion that
+happen from dialog effects, faction membership, etc. But, the calculation should be based on something such that any two characters can have opinions calculated between them.
+
+Let's leave it at that for now, and see how it develops once I start working on it. I do think it's a feature I want in the game, so let's get started.
+
+## Technical Design: Opinion
+
+(I'm gonna start using the word opinion now, because disposition is too annoying to keep typing.)
+
+Q: How do we track opinion modifying variables? 
+
+We have the inherent opinion modifiers based on objective things like traits, culture, etc. But how should we store and track "random" opinion modifiers, like ones 
+triggered from dialog? Say, in a dialog, the player chooses a reply that makes an NPC angry. It's just a temporary issue though - not something that will forever damage the
+relationship. How should we track that?
+
+```go
+type OpinionModifier struct {
+  Mod int // how much the opinion is modified (positive or negative)
+  Until *clock.GameTime // how long this modifier is active (if nil, it is permanent)
+}
+
+type CharacterState {
+  // ...
+
+  // a mapping of the (temporary/non-inherent) opinion modifiers this character has towards other characters
+  OpinionModifiers map[state.CharacterStateID][]OpinionModifier
+
+  // ...
+}
+```
+
+I think the above is a decent schema for how it could work. I guess I'd probably program it so that everytime an opinion is calculated for
+a specific character interaction, the `Until` field would be checked and, if expired, that modifier would be discarded. That way we don't have to plug into
+more complex things like listening for time change events and checking for expired opinion modifiers in all of the NPCs in the game world.
+
+And so, maybe the function for calculating an opinion for a certain character would go like this:
+
+```go 
+func CalculateOpinion(from, to *state.CharacterState) int {
+  opinion := 0 
+
+  if opinionMods, exists := from.OpinionModifiers[to.ID]; exists {
+    currentGameTime := GetCurrentTime()
+    for _, mod := range opinionMods {
+      if mod.Until != nil && currentGameTime.IsAfter(mod.Until) {
+        // remove opinion mod, since it's expired
+      }
+      opinion += mod.Mod
+    }
+  }
+
+  // also, check traits, culture, etc
+  // ...
+  
+  return opinion
+}
+```
+
+# 2026-06-05
+
 Just wanted to take a moment to give myself a little pat on the back. Or maybe to give OpenCode one?
 
 I got load times for starting a new game down from ~30 seconds to just ~2 seconds! Pretty awesome.

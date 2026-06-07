@@ -135,7 +135,6 @@ func (m ActiveMap) GetHoverTarget() (*npc.NPC, *object.Object) {
 		if utils.EuclideanDistCenter(m.PlayerRef.Entity.CollisionRect(), m.hoveredNPC.Entity.CollisionRect()) <= distThreshold {
 			return m.hoveredNPC, nil
 		}
-		logz.Println("GetHoverTarget", "NPC too far away:", m.hoveredNPC.DisplayName())
 	}
 
 	if m.hoveredObject != nil {
@@ -153,6 +152,13 @@ func (m ActiveMap) GetHoverTarget() (*npc.NPC, *object.Object) {
 // IsDialogActive tells you if a dialog is currently active
 func (m ActiveMap) IsDialogActive() bool {
 	return m.dialogSession != nil
+}
+
+func (m ActiveMap) GetDialogNPC() id.CharacterStateID {
+	if !m.IsDialogActive() {
+		return ""
+	}
+	return m.dialogSession.Ctx.GetDialogNPC()
 }
 
 func NewActiveMap(

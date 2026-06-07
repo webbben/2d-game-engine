@@ -127,3 +127,19 @@ func PanicAssert(assertTrue bool, failMsg string) {
 		logz.Panicln("Assert", failMsg)
 	}
 }
+
+func GetPositionNearMouse(distFromMouse int, dx, dy int) (x, y int) {
+	// draw next to the mouse
+	mouseX, mouseY := ebiten.CursorPosition()
+	// make sure the window doesn't go off screen
+	x = mouseX + distFromMouse
+	y = mouseY + distFromMouse
+	if x+dx > display.SCREEN_WIDTH {
+		x = mouseX - distFromMouse - dx
+	}
+	if y+dy > display.SCREEN_HEIGHT {
+		y = mouseY - distFromMouse - dy
+	}
+
+	return x, y
+}

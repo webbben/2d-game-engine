@@ -99,6 +99,7 @@ func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID str
 		BoxTilesetSrc: "boxes/boxes.tsj", // TODO: move this to some params that are passed in? shouldn't be defined here in the engine
 		BoxOriginID:   16,
 		TextFont:      config.DefaultFont,
+		ShowCharInfo:  !mi.InScenario,
 	}
 	ds := dialogv2.NewDialogSession(params, mi.eventBus, mi.dataman, mi.screenman, mi.gameCtx, mi.questman, mi.audioman)
 	mi.dialogSession = &ds

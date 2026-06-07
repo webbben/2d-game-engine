@@ -332,10 +332,10 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 	charDef := dataman.GetCharacterDef(charDefID)
 
 	// find unique ID based on this characterDefID
-	id := dataman.GetNewCharStateID(charDefID)
+	charStateID := dataman.GetNewCharStateID(charDefID)
 	if charDef.Unique {
-		if string(id) != string(charDef.ID) {
-			logz.Panicln("CreateNewCharacterState", "new charStateID should match the defID since the charDef is unique, but it doesn't:", charDef.ID, id)
+		if string(charStateID) != string(charDef.ID) {
+			logz.Panicln("CreateNewCharacterState", "new charStateID should match the defID since the charDef is unique, but it doesn't:", charDef.ID, charStateID)
 		}
 	}
 
@@ -375,7 +375,7 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 
 	charState := &state.CharacterState{
 		Temp:        params.Temp,
-		ID:          id,
+		ID:          charStateID,
 		DefID:       charDefID,
 		DisplayName: displayName,
 		IsPlayer:    params.IsPlayer,
@@ -392,6 +392,8 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		BaseAttributes: charDef.BaseAttributes,
 		BaseSkills:     charDef.BaseSkills,
 		Traits:         charDef.InitialTraits,
+
+		OpinionMods: make(map[id.CharacterStateID][]defs.OpinionModifier),
 	}
 
 	// helper function for equiping the initial state defs
@@ -450,7 +452,7 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 
 	dataman.LoadCharacterState(charState)
 
-	return id
+	return charStateID
 }
 
 // LoadBodySkin loads up a bodyDef into an EntityBodySet. Does not handle loading any equipment.
