@@ -1,13 +1,18 @@
 package dialogv2
 
 import (
+	"fmt"
+	"image/color"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/ui/button"
 	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 // updateDialogResponse handles the logic for what to do next from the current node in the current topic's conversation
@@ -233,12 +238,19 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 	tileSize := config.GetScaledTilesize()
 
 	textBoxBounds := ds.TextBoxImg.Bounds()
+	topicBoxWidth := ds.TopicBoxImg.Bounds().Dx()
+
+	// center everything horizontally
+	totalWidth := textBoxBounds.Dx() + topicBoxWidth
+	startX, _ := utils.CenterInScreen(totalWidth, int(tileSize))
+
 	textBoxY := display.SCREEN_HEIGHT - textBoxBounds.Dy()
-	textBoxX := 0
+	textBoxX := int(startX)
 	rendering.DrawImage(screen, ds.TextBoxImg, float64(textBoxX), float64(textBoxY), 0)
+	ds.nameTitle.Draw(screen, float64(textBoxX), float64(textBoxY)-tileSize)
 
 	lwX := textBoxX + int(tileSize/2)
-	lwY := textBoxY + int(tileSize/2)
+	lwY := textBoxY + int(tileSize*2/3) // moved a little further down, since the box title hands down a bit
 	ds.LineWriter.Draw(screen, lwX, lwY)
 	for i, link := range ds.topicLinks {
 		if link.linkButton == nil {
@@ -273,6 +285,49 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 		optionBoxY = textBoxY // don't let it go lower than the text box
 	}
 	rendering.DrawImage(screen, ds.TopicBoxImg, float64(optionBoxX), float64(optionBoxY), 0)
+
+	if ds.showCharInfo {
+		infoBoxY := 0
+		infoBoxX := optionBoxX
+		rendering.DrawImage(screen, ds.charInfoBoxImg, float64(infoBoxX), float64(infoBoxY), 0)
+		infoBoxY += int(tileSize / 2)
+		titleDx, titleDy, _ := text.GetStringSize(ds.npcName, config.DefaultTitleFont)
+		infoBoxY += titleDy
+		infoBoxX += (topicBoxWidth / 2) - (titleDx / 2)
+		text.DrawShadowText(screen, ds.npcName, config.DefaultTitleFont, infoBoxX, infoBoxY, nil, nil, 0, 0)
+		infoBoxY += int(tileSize)
+		text.DrawShadowText(screen, ds.Ctx.culture.DisplayName, config.DefaultFont, infoBoxX, infoBoxY, nil, nil, 0, 0)
+		infoBoxY += int(tileSize)
+		opinionString := fmt.Sprintf("%v", ds.Ctx.opinion)
+		opinionStringDx, opinionStringDy, _ := text.GetStringSize(opinionString, config.DefaultInfoFont)
+		text.DrawShadowText(screen, "Opinion:", config.DefaultFont, infoBoxX, infoBoxY, nil, nil, 0, 0)
+		if ds.opinionHoverRect == nil {
+			ds.opinionHoverRect = &model.Rect{
+				X: float64(infoBoxX),
+				Y: float64(infoBoxY - opinionStringDy),
+				W: (tileSize * 2) + float64(opinionStringDx),
+				H: float64(opinionStringDy),
+			}
+		}
+		infoBoxX += int(tileSize * 2)
+		c := color.RGBA{255, 255, 0, 0}
+		if ds.Ctx.opinion > 0 {
+			c = color.RGBA{0, 255, 0, 0}
+		} else if ds.Ctx.opinion < 0 {
+			c = color.RGBA{255, 0, 0, 0}
+		}
+		text.DrawText(screen, opinionString, config.DefaultInfoFont, infoBoxX, infoBoxY, c)
+
+		if ds.opinionHoverRect != nil {
+			mouseX, mouseY := ebiten.CursorPosition()
+			if ds.opinionHoverRect.Within(mouseX, mouseY) {
+				dx := ds.opinionHoverWindow.Bounds().Dx()
+				dy := ds.opinionHoverWindow.Bounds().Dy()
+				popupX, popupY := utils.GetPositionNearMouse(5, dx, dy)
+				rendering.DrawImage(screen, ds.opinionHoverWindow, float64(popupX), float64(popupY), 0)
+			}
+		}
+	}
 
 	// handle drawing replies or topics
 	if ds.replyBox != nil {

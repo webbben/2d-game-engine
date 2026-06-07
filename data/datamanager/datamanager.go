@@ -327,6 +327,8 @@ func (dataman *DataManager) LoadCharacterDef(charDef defs.CharacterDef) {
 		logz.Panicln("DataManager", "tried to load character def, but ID already exists:", charDef.ID)
 	}
 
+	charDef.Validate()
+
 	dataman.CharacterDefs[charDef.ID] = charDef
 }
 
@@ -449,13 +451,13 @@ func (dataman DataManager) DialogProfileStateExists(id defs.DialogProfileID) boo
 }
 
 func (dataman *DataManager) LoadTraitDef(trait defs.Trait) {
-	if trait.GetID() == "" {
+	if trait.ID == "" {
 		logz.Panicln("DataManager", "tried to load trait, but ID was empty")
 	}
-	if _, exists := dataman.TraitDefs[trait.GetID()]; exists {
-		logz.Panicln("DataManager", "tried to load in a new trait, but an existing trait of the same ID already exists:", trait.GetID())
+	if _, exists := dataman.TraitDefs[trait.ID]; exists {
+		logz.Panicln("DataManager", "tried to load in a new trait, but an existing trait of the same ID already exists:", trait.ID)
 	}
-	dataman.TraitDefs[trait.GetID()] = trait
+	dataman.TraitDefs[trait.ID] = trait
 }
 
 func (dataman DataManager) GetTraitDef(id defs.TraitID) defs.Trait {

@@ -1,5 +1,7 @@
 package defs
 
+import "github.com/webbben/2d-game-engine/logz"
+
 type (
 	EntityDefID    string
 	CharacterDefID string
@@ -62,6 +64,21 @@ type CharacterDef struct {
 	BaseAttributes map[AttributeID]int // Base attribute levels (not including modifiers from traits, etc)
 	BaseSkills     map[SkillID]int     // Base skill levels (not including modifiers from traits, etc)
 	InitialTraits  []TraitID
+}
+
+func (cd CharacterDef) Validate() {
+	if cd.ID == "" {
+		logz.Panicln("Validate CharacterDef", "id was empty")
+	}
+	if cd.DisplayName == "" {
+		logz.Panicln(string(cd.ID), "display name was empty")
+	}
+	if cd.ClassDefID == "" {
+		logz.Panicln(string(cd.ID), "class def ID was empty")
+	}
+	if cd.CultureID == "" {
+		logz.Panicln(string(cd.ID), "culture ID was empty")
+	}
 }
 
 // A CharacterGenerator is a definition of a "type" of character to generate in the game world.

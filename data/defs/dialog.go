@@ -213,6 +213,7 @@ type DialogCondition interface {
 type ConditionContext interface {
 	GetQuestStage(qid QuestID) (QuestStageDef, QuestStatus)
 	GetNPCCharStateID() id.CharacterStateID
+	GetNPCClassDef() ClassDef
 	GetActiveMapDef() MapDef
 	HasSeenTopic(id TopicID) bool
 	HasMemory(key string) bool
@@ -226,6 +227,7 @@ type ConditionContext interface {
 	PlayerHasItem(itemID ItemID) bool
 	GetPlayerSkillLevel(skillID SkillID) int
 	GetPlayerAttributeLevel(attrID AttributeID) int
+	GetOpinionOfPlayer() int
 }
 
 type MemoryCondition struct {

@@ -194,3 +194,14 @@ func (w *World) TravelToMap(mapID defs.MapID, spawnIndex int, hours int) {
 	w.BlockPlayerChanges = true
 	w.GameCtx.StartLoadScreen(loadFunc)
 }
+
+func (w *World) AddOpinionModifier(holder, subject id.CharacterStateID, mod defs.OpinionModifier) {
+	characterstate.AddOpinionModifier(holder, subject, mod, w.Dataman)
+}
+
+func (w *World) GetDialogNPC() id.CharacterStateID {
+	if w.ActiveMap == nil {
+		return ""
+	}
+	return w.ActiveMap.GetDialogNPC()
+}

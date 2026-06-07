@@ -227,3 +227,33 @@ func (c ConditionAttributeLevel) IsMet(ctx defs.ConditionContext) bool {
 	}
 	return lvl == c.Level
 }
+
+// ConditionClass is for the class of the NPC - the class of the player cannot be considered in dialog conditions,
+// since it is usually custom anyway.
+type ConditionClass struct {
+	ClassDefID defs.ClassDefID
+}
+
+func (c ConditionClass) IsMet(ctx defs.ConditionContext) bool {
+	classDef := ctx.GetNPCClassDef()
+	return classDef.ID == c.ClassDefID
+}
+
+type ConditionOpinion struct {
+	Value int
+	GEQ   bool
+	LEQ   bool
+}
+
+func (c ConditionOpinion) IsMet(ctx defs.ConditionContext) bool {
+	opinion := ctx.GetOpinionOfPlayer()
+
+	if c.GEQ {
+		return opinion >= c.Value
+	}
+	if c.LEQ {
+		return opinion <= c.Value
+	}
+
+	return opinion == c.Value
+}

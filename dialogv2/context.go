@@ -31,6 +31,8 @@ type DialogContext struct {
 	eventBus   *pubsub.EventBus
 	dataman    *datamanager.DataManager
 	questman   *quest.QuestManager
+	opinion    int
+	culture    defs.CultureDef
 
 	seenTopics      map[defs.TopicID]bool // topics the player has already discussed before (with this NPC)
 	knowledgeTopics map[defs.TopicID]bool // topics which both the player and NPC have knowledge of
@@ -286,4 +288,23 @@ func (ctx DialogContext) GetPlayerAttributeLevel(attrID defs.AttributeID) int {
 
 func (ctx DialogContext) SetMapLock(mapID defs.MapID, lockID string, lockLevel int) {
 	ctx.GameState.SetMapLock(mapID, lockID, lockLevel)
+}
+
+func (ctx DialogContext) GetNPCClassDef() defs.ClassDef {
+	charState := ctx.dataman.GetCharacterState(id.CharacterStateID(ctx.NPCID))
+	characterDef := ctx.dataman.GetCharacterDef(charState.DefID)
+	classDef := ctx.dataman.GetClassDef(characterDef.ClassDefID)
+	return classDef
+}
+
+func (ctx DialogContext) GetOpinionOfPlayer() int {
+	return ctx.opinion
+}
+
+func (ctx DialogContext) AddOpinionModifier(holder, subject id.CharacterStateID, mod defs.OpinionModifier) {
+	characterstate.AddOpinionModifier(holder, subject, mod, ctx.dataman)
+}
+
+func (ctx DialogContext) GetDialogNPC() id.CharacterStateID {
+	return id.CharacterStateID(ctx.NPCID)
 }

@@ -4,8 +4,10 @@ package characterstate
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 
+	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
@@ -48,13 +50,13 @@ func GetNetTraitModifiers(traits []defs.TraitID, dataman *datamanager.DataManage
 
 	for _, traitID := range traits {
 		trait := dataman.GetTraitDef(traitID)
-		for id, change := range trait.GetSkillChanges() {
+		for id, change := range trait.SkillChanges {
 			if _, exists := skillMods[id]; !exists {
 				skillMods[id] = 0
 			}
 			skillMods[id] += change
 		}
-		for id, change := range trait.GetAttributeChanges() {
+		for id, change := range trait.AttributeChanges {
 			if _, exists := attrMods[id]; !exists {
 				attrMods[id] = 0
 			}
@@ -425,4 +427,91 @@ func ActivateItem(itemState *state.ItemState, dataman *datamanager.DataManager, 
 	default:
 		logz.Warnln("ActivateItem", "item was activated, but no logic is assigned to its type. item ID:", itemState.DefID, "item type:", itemDef.Type)
 	}
+}
+
+func CalculateOpinion(opinionHolder, subject *state.CharacterState, currentTime clock.GameTime, dataman *datamanager.DataManager) ([]defs.OpinionModifier, int) {
+	mods := []defs.OpinionModifier{}
+	opinion := 0
+
+	// just to be safe, since some old character states from old load files might not have this
+	if opinionHolder.OpinionMods == nil {
+		opinionHolder.OpinionMods = make(map[id.CharacterStateID][]defs.OpinionModifier)
+	}
+	if subject.OpinionMods == nil {
+		subject.OpinionMods = make(map[id.CharacterStateID][]defs.OpinionModifier)
+	}
+
+	// first, count up existing modifiers if they exist
+	if opinionMods, exists := opinionHolder.OpinionMods[subject.ID]; exists {
+		activeOpinionMods := []defs.OpinionModifier{}
+
+		for _, opinionMod := range opinionMods {
+			// first, make sure this opinion mod isn't expired
+			if opinionMod.Until != nil {
+				if currentTime.IsAfter(*opinionMod.Until) {
+					// this one is already expired, so skip it and remove it from character state opinion mods
+					continue
+				}
+			}
+			activeOpinionMods = append(activeOpinionMods, opinionMod)
+
+			mods = append(mods, opinionMod)
+			opinion += opinionMod.Mod
+		}
+
+		opinionHolder.OpinionMods[subject.ID] = activeOpinionMods
+	}
+
+	// next, check traits for opinion mods
+	// trait opinion mods are based on what the subject has; so we look at the subject's traits, not our own
+	for _, traitID := range subject.Traits {
+		traitDef := dataman.GetTraitDef(traitID)
+
+		if traitDef.SameTraitOpinionModifier.Mod != 0 {
+			if slices.Contains(opinionHolder.Traits, traitID) {
+				// both characters share this trait; apply same trait mod
+				mod := traitDef.SameTraitOpinionModifier
+				mods = append(mods, mod)
+				opinion += mod.Mod
+			}
+		}
+
+		if traitDef.OtherTraitOpinionModifiers != nil {
+			for _, myTraitID := range opinionHolder.Traits {
+				mod := traitDef.OtherTraitOpinionModifiers[myTraitID]
+				mods = append(mods, mod)
+				opinion += mod.Mod
+			}
+		}
+	}
+
+	// check for culture opinion mods
+	holderCharDef := dataman.GetCharacterDef(opinionHolder.DefID)
+	cultureDef := dataman.GetCultureDef(holderCharDef.CultureID)
+	subjectCharDef := dataman.GetCharacterDef(subject.DefID)
+	subjectCultureDef := dataman.GetCultureDef(subjectCharDef.CultureID)
+
+	if cultureDef.ID == subjectCultureDef.ID {
+		// TODO: should this go somewhere in the culture def or config? probably shouldn't be hardcoded here
+		mods = append(mods, defs.OpinionModifier{
+			Mod:    20,
+			Reason: "Same culture",
+		})
+		opinion += 20
+	} else {
+		if mod, exists := cultureDef.OtherCultureOpinions[subjectCultureDef.ID]; exists {
+			mods = append(mods, mod)
+			opinion += mod.Mod
+		}
+	}
+
+	return mods, opinion
+}
+
+func AddOpinionModifier(holder, subject id.CharacterStateID, mod defs.OpinionModifier, dataman *datamanager.DataManager) {
+	holderState := dataman.GetCharacterState(holder)
+	if holderState.OpinionMods == nil {
+		holderState.OpinionMods = make(map[id.CharacterStateID][]defs.OpinionModifier)
+	}
+	holderState.OpinionMods[subject] = append(holderState.OpinionMods[subject], mod)
 }

@@ -1,5 +1,12 @@
 package defs
 
+import (
+	"fmt"
+
+	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/logz"
+)
+
 type (
 	AttributeID string
 	SkillID     string
@@ -66,7 +73,6 @@ type ClassDef struct {
 	Name              string
 	SkillCategories   map[SkillID]SkillCategory
 	FavoredAttributes []AttributeID
-	AboutMe           string
 }
 
 type AttributeDef struct {
@@ -86,17 +92,39 @@ type SkillDef struct {
 // The concept of "traits" is more or less from Crusader Kings 2, but we are running with the idea and expanding on it in some ways.
 // But anyway, a trait can boost or decrease an entity's skills, change opinion/disposition of other entities, etc.
 // Since we want traits to be very flexible, we will define it as an interface. That way, it can be defined to really do whatever you want.
-type Trait interface {
-	GetID() TraitID
-	GetName() string
-	GetDescription() string
-	GetTilesetSrc() string
-	GetTileID() int
-	GetConflictTraitIDs() []string // traits that this trait conflicts with and cannot be applied together on a single entity (e.g. Greedy and Generous)
-	GetSkillChanges() map[SkillID]int
-	GetAttributeChanges() map[AttributeID]int
-	GetOpinionChangeToTraitHolder(factors OpinionFactors) int // how this trait changes another character's opinion of the trait holder
-	GetOpinionChangeToOther(factors OpinionFactors) int       // how this trait changes the holder's opinion of another character
+type Trait struct {
+	ID               TraitID
+	Name             string
+	Description      string
+	TilesetSrc       string
+	TileID           int
+	ConflictTraitIDs []TraitID // which traits this trait conflicts with (and thus cannot be had together by a single character)
+	SkillChanges     map[SkillID]int
+	AttributeChanges map[AttributeID]int
+
+	// Opinion modifiers: how other characters' opinions are modified by a character that has this trait
+	// (positive = other character likes trait-holder more; negative = other characters like trait-holder less)
+
+	SameTraitOpinionModifier   OpinionModifier             // how opinion is modified for characters that share this same trait
+	OtherTraitOpinionModifiers map[TraitID]OpinionModifier // how this trait modifies the opinion of characters with certain traits towards this trait-holder
+}
+
+func (t Trait) Validate() {
+	if t.ID == "" {
+		panic("id is empty")
+	}
+	if t.Name == "" {
+		panic("name is empty")
+	}
+	if t.Description == "" {
+		logz.Panicln(t.Name, "description is empty")
+	}
+	if t.TilesetSrc == "" {
+		logz.Panicln(t.Name, "tilesetSrc is empty")
+	}
+	if t.TileID < 0 {
+		logz.Panicln(t.Name, "tileID is negative...")
+	}
 }
 
 // OpinionFactors are factors that can be considered when calculating opinion modifiers.
@@ -113,4 +141,17 @@ type CultureDef struct {
 	Description string
 	AttrMods    map[AttributeID]int
 	SkillMods   map[SkillID]int
+
+	// baseline opinion modifiers towards other cultures (from this one)
+	OtherCultureOpinions map[CultureID]OpinionModifier
+}
+
+type OpinionModifier struct {
+	Mod    int
+	Reason string
+	Until  *clock.GameTime
+}
+
+func (om OpinionModifier) String() string {
+	return fmt.Sprintf("%+v %s", om.Mod, om.Reason)
 }
