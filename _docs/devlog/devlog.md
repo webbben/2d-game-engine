@@ -1,3 +1,19 @@
+# 2026-06-08
+
+Figured it's about time to add more screenshots and show off how things are looking right now.
+
+## Dialog: Opinion System
+
+I'm not sure if I'm included many screenshots of the dialog system before, but here's one from a dialog with a tavern keeper. You can't see the mouse-pointer
+in the screenshot, but I'm hovering over the opinion section of the box on the top right, which shows a hover tooltip that explains the calculation of the character's 
+opinion of you. Very CK2, I know, but that's something I specifically like about CK2; it feels like your actions have a real impact on the world, and rather than just having
+an "opinion bar", you can see that the NPC has specific memory of events that causes him to have a certain opinion of you. If you do something they don't like, they may
+remember it for a little while. You can also see the inherent bonuses, like culture bonuses or traits, etc.
+
+![Dialog](./20260608.png)
+
+
+
 # 2026-06-06
 
 Today, I want to discuss the concept of "opinion"/"disposition". These two words basically refer to how much an NPC likes the player.

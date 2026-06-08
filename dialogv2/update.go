@@ -279,8 +279,7 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 	} else if len(ds.topicButtons) > 0 {
 		buttonHeight = ds.topicButtons[0].Height
 	}
-	numOptions := max(len(ds.replyButtons), len(ds.topicButtons))
-	optionBoxY -= buttonHeight * numOptions
+	optionBoxY -= ds.TopicBoxImg.Bounds().Dy()
 	if optionBoxY > textBoxY {
 		optionBoxY = textBoxY // don't let it go lower than the text box
 	}

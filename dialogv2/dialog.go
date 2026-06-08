@@ -345,11 +345,6 @@ func (ds *DialogSession) setupTopicOptions() {
 	h, _ := text.GetRealisticFontMetrics(ds.f)
 	w := ds.TopicBoxImg.Bounds().Dx() - int(tileSize)
 
-	// if we need to increase the size of the topic box, do so here.
-	// if a previous set of topics caused the topic box to enlarge, but it's no longer necessary, shrink it back down to default size here too.
-	topicTotalHeight := h * len(options)
-	ds.calculateTopicBoxSize(topicTotalHeight)
-
 	for _, topic := range options {
 		dx, _, _ := text.GetStringSize(topic.Prompt, ds.f)
 		if dx > w {
@@ -359,6 +354,11 @@ func (ds *DialogSession) setupTopicOptions() {
 		ds.topicButtons = append(ds.topicButtons, button.NewButton(topic.Prompt, ds.f, w, h, ds.audioman))
 		ds.topicList = append(ds.topicList, topic.ID)
 	}
+
+	// if we need to increase the size of the topic box, do so here.
+	// if a previous set of topics caused the topic box to enlarge, but it's no longer necessary, shrink it back down to default size here too.
+	topicTotalHeight := len(options) * ds.topicButtons[0].Height
+	ds.calculateTopicBoxSize(topicTotalHeight)
 
 	// sanity check: ensure topics actually exist
 	if len(ds.topicButtons) == 0 || len(ds.topicList) == 0 {
@@ -372,8 +372,8 @@ func (ds *DialogSession) setupTopicOptions() {
 func (ds *DialogSession) calculateTopicBoxSize(optionsTotalHeight int) {
 	tileSize := config.GetScaledTilesize()
 	topicBoxCurrentHeight := ds.TopicBoxImg.Bounds().Bounds().Dy()
-	optionsTotalHeight -= optionsTotalHeight % int(tileSize)
-	optionsTotalHeight += int(tileSize)
+	optionsTotalHeight += int(tileSize / 2) // add extra space above and below the options, for the edge box tiles
+	optionsTotalHeight = utils.RoundUpToTile(optionsTotalHeight, int(tileSize))
 
 	if optionsTotalHeight > topicBoxCurrentHeight-int(tileSize) {
 		// need to expand

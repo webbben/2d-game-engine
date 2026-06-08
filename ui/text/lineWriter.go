@@ -253,6 +253,7 @@ func (lw *LineWriter) resetCursor() {
 	lw.cursorY = lw.lineHeight
 	lw.currentFgColor = lw.fgColor
 	lw.currentShadow = lw.shadow
+	lw.currentLinkPos = nil
 }
 
 // Draw returns the last written Y position (for reference by other drawing functions)
