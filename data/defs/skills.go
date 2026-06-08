@@ -153,5 +153,5 @@ type OpinionModifier struct {
 }
 
 func (om OpinionModifier) String() string {
-	return fmt.Sprintf("%+v %s", om.Mod, om.Reason)
+	return fmt.Sprintf("%+d %s", om.Mod, om.Reason)
 }

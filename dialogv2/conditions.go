@@ -257,3 +257,11 @@ func (c ConditionOpinion) IsMet(ctx defs.ConditionContext) bool {
 
 	return opinion == c.Value
 }
+
+type ConditionSeenTopic struct {
+	TopicID defs.TopicID
+}
+
+func (c ConditionSeenTopic) IsMet(ctx defs.ConditionContext) bool {
+	return ctx.HasSeenTopic(c.TopicID)
+}
