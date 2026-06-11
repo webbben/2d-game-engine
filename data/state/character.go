@@ -44,6 +44,8 @@ type CharacterState struct {
 	StandardInventory
 
 	// Attributes, Skills
+	// The "Base" levels below are the real, unmodified levels for this character. They are initialized by the character def on character creation.
+	// To get the "full" level values, you need to include things like favored attribute bonuses, trait modifiers, etc.
 
 	BaseAttributes map[defs.AttributeID]int // Base attribute levels (not including modifiers from traits, etc)
 	BaseSkills     map[defs.SkillID]int     // Base skill levels (not including modifiers from traits, etc)
