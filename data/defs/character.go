@@ -52,6 +52,7 @@ type CharacterDef struct {
 	// This is set by the classDef, but the classDef remains as is; this just allows a character to have a customized name, but still use a specific base classDef.
 	ClassName        string
 	ClassDefID       ClassDefID // the actual class def
+	IsCustomClassDef bool       // if true, then the class def for this character was made customly. which means it would need to be saved off especially in save files.
 	CultureID        CultureID
 	InitialInventory InitialStandardInventoryDef
 

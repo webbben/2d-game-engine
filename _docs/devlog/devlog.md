@@ -1,4 +1,4 @@
-# 2026-06-08
+# 2026-06-11
 
 Figured it's about time to add more screenshots and show off how things are looking right now.
 
@@ -12,7 +12,20 @@ remember it for a little while. You can also see the inherent bonuses, like cult
 
 ![Dialog](./20260608.png)
 
+## Map of Rome (Very WIP)
 
+Here's an inside peek at how the maps that Rome will ultimately consist of are coming together. This is as viewed from the Tiled map editor, and as you can see,
+there's still a lot of work to do. I've been trying to organize things roughly in the way there were as the "Regiones" under Augustus, but of course there is
+some translating that needs to be done to take a 3d world and squish it into a 2d, tile-based one.
+
+I've been putting a lot of effort into doing research on what Augustan Rome would've been like, and making a lot of use of `digitalaugustanrome.org`,
+an online resource that gives you a map of Rome during the Augustan era, and with annotations and pins on the map that show locations and information about various
+landmarks, temples, or other archaeological details. But, of course, I'm going to have to simplify things massively unless I want to spend 10 years making this game.
+
+What's shown here is the Southern half of Rome, mostly with the Aventine Hill, Emporium, and Circus Maximus, etc.
+And you will be able to follow a road past the Emporium (bottom) down to Ostia.
+
+![Rome](./20260611.png)
 
 # 2026-06-06
 

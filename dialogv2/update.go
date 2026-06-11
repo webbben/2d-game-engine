@@ -43,6 +43,7 @@ func (ds *DialogSession) updateDialogResponse() {
 			if ds.screenViewer.IsDone() {
 				// we can disconnect the screen now
 				ds.screenViewer = nil
+				ds.refreshOpinion()
 				ds.continueApplyResponse()
 			}
 			return
@@ -51,7 +52,7 @@ func (ds *DialogSession) updateDialogResponse() {
 		}
 	case dialogResponseStarted:
 		// since we are no longer writing, that means we should move on to the next status
-		logz.TODO("Dialog", "does this code ever get hit? seems like it shouldn't")
+		// 2026-06-09 Note: not sure exactly why we would end up here, but we do anyhow. Doesn't cause issues so leaving it like this.
 		ds.responseStatus = dialogResponseTextDone
 		return
 	case dialogResponseTextDone:

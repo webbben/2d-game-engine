@@ -54,11 +54,6 @@ var AllDialogVariables = []string{
 	VarPlayerName, VarPlayerCulture,
 }
 
-type GetUserInputActionParams struct {
-	ModalTitle        string
-	ConfirmButtonText string
-}
-
 type ShowScreenActionParams struct {
 	ScreenID     defs.ScreenID
 	ScreenParams any
@@ -268,6 +263,18 @@ func (ds *DialogSession) dialogSetup(params DialogSessionParams) {
 	ds.LineWriter = text.NewLineWriter(ds.audioman, lwParams)
 }
 
+func (ds *DialogSession) refreshOpinion() {
+	if !ds.showCharInfo {
+		return
+	}
+	npcState := ds.dataman.GetCharacterState(id.CharacterStateID(ds.Ctx.NPCID))
+	playerState := ds.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	currentTime := ds.Ctx.GetCurrentGameTime()
+	ds.opinionMods, ds.Ctx.opinion = characterstate.CalculateOpinion(npcState, playerState, currentTime, ds.dataman)
+	ds.buildOpinionHoverBox()
+	ds.opinionHoverRect = nil // this will get recalculated when Draw is called next
+}
+
 func (ds *DialogSession) buildOpinionHoverBox() {
 	if len(ds.opinionMods) == 0 {
 		ds.opinionHoverWindow = nil
@@ -369,23 +376,23 @@ func (ds *DialogSession) setupTopicOptions() {
 	}
 }
 
+// you should pass in the actual height of the option buttons that go into the topic box. the rest of the sizing logic is handled here.
 func (ds *DialogSession) calculateTopicBoxSize(optionsTotalHeight int) {
 	tileSize := config.GetScaledTilesize()
-	topicBoxCurrentHeight := ds.TopicBoxImg.Bounds().Bounds().Dy()
-	optionsTotalHeight += int(tileSize / 2) // add extra space above and below the options, for the edge box tiles
-	optionsTotalHeight = utils.RoundUpToTile(optionsTotalHeight, int(tileSize))
 
-	if optionsTotalHeight > topicBoxCurrentHeight-int(tileSize) {
-		// need to expand
+	// adjust the given optionsTotalHeight value:
+	// - make sure some extra space is there so that the box edges (vertical) don't overlap onto the buttons
+	// - ensure it is tileSize based
+	// - ensure it is >= topicBoxDefaultHeight
+	optionsTotalHeight += int(tileSize / 2)
+	optionsTotalHeight = utils.RoundUpToTile(optionsTotalHeight, int(tileSize))
+	optionsTotalHeight = max(optionsTotalHeight, ds.topicBoxDefaultHeight)
+
+	// figure out if we need to resize the current topic box
+	topicBoxCurrentHeight := ds.TopicBoxImg.Bounds().Bounds().Dy()
+
+	if topicBoxCurrentHeight != optionsTotalHeight {
 		ds.buildTopicBox(optionsTotalHeight)
-	} else {
-		// check if we should shrink?
-		if optionsTotalHeight < topicBoxCurrentHeight {
-			if topicBoxCurrentHeight > ds.topicBoxDefaultHeight {
-				// we can shrink back down, since it's taller than the default.
-				ds.buildTopicBox(optionsTotalHeight)
-			}
-		}
 	}
 }
 
@@ -465,16 +472,16 @@ func (ds *DialogSession) setupReplyOptions() {
 		return
 	}
 
-	totalHeight := max(len(replies)*h, int(tileSize)*4)
-
 	// using regular topic box; make sure it is the correct height
 	ds.replyBox = nil // if set to nil, we know not to use it at draw time
-	ds.calculateTopicBoxSize(totalHeight)
 
 	// build all the buttons, now that we know the width to use
 	for _, reply := range replies {
 		ds.replyButtons = append(ds.replyButtons, button.NewButton(reply.Text, ds.f, maxReplyWidth, h, ds.audioman))
 	}
+
+	totalHeight := ds.replyButtons[0].Height * len(replies)
+	ds.calculateTopicBoxSize(totalHeight)
 
 	if len(ds.replyButtons) == 0 {
 		panic("setting up reply buttons, but no valid replies were found")
@@ -640,6 +647,9 @@ func (ds *DialogSession) continueApplyResponse() {
 	for _, effect := range ds.currentResponse.WorldEffects {
 		effect.Apply(&ds.Ctx)
 	}
+
+	// refresh opinion display, since effects may have added opinion modifiers
+	ds.refreshOpinion()
 
 	if ds.currentResponse.Exit {
 		ds.Exit = true

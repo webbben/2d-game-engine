@@ -115,8 +115,12 @@ func SaveGame(
 	// get player def
 	playerDef := dataman.GetCharacterDef(defs.PlayerID)
 	sf.PlayerCharacterDef = playerDef
-	playerClass := dataman.GetClassDef(playerDef.ClassDefID)
-	sf.PlayerCustomClass = playerClass
+
+	// if the player is using a custom class, save that off too.
+	if playerDef.IsCustomClassDef {
+		playerClass := dataman.GetClassDef(playerDef.ClassDefID)
+		sf.PlayerCustomClass = playerClass
+	}
 
 	uniqueID := sf.PlayerCharacterDef.UniquePlayerID
 	characterstate.ValidateUniquePlayerID(uniqueID)
@@ -212,7 +216,11 @@ func LoadSave(saveFilePath string, dataman *datamanager.DataManager, questMgr *q
 	// load data and quest managers
 	// player defs
 	dataman.LoadCharacterDef(sf.PlayerCharacterDef)
-	dataman.LoadClassDef(sf.PlayerCustomClass)
+
+	if sf.PlayerCharacterDef.IsCustomClassDef {
+		// player uses a custom class def; load it into dataman from the save file
+		dataman.LoadClassDef(sf.PlayerCustomClass)
+	}
 
 	// states
 	for _, st := range sf.CharacterStates {

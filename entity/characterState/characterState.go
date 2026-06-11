@@ -3,6 +3,7 @@ package characterstate
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"strings"
@@ -186,9 +187,7 @@ func bestPayment(price int, wallet map[int]int) (map[int]int, bool) {
 				bestOverpay = overpay
 				bestUsed = used
 				bestCombo = make(map[int]int)
-				for k, v := range combo {
-					bestCombo[k] = v
-				}
+				maps.Copy(bestCombo, combo)
 			}
 			return
 		}
@@ -514,4 +513,37 @@ func AddOpinionModifier(holder, subject id.CharacterStateID, mod defs.OpinionMod
 		holderState.OpinionMods = make(map[id.CharacterStateID][]defs.OpinionModifier)
 	}
 	holderState.OpinionMods[subject] = append(holderState.OpinionMods[subject], mod)
+}
+
+func CalculateSkillsAndAttributes(charStateID id.CharacterStateID, dataman *datamanager.DataManager) (skills map[defs.SkillID]int, attrs map[defs.AttributeID]int) {
+	// get base skill levels
+	characterState := dataman.GetCharacterState(charStateID)
+
+	skillLevels := maps.Clone(characterState.BaseSkills)
+	attrLevels := maps.Clone(characterState.BaseAttributes)
+
+	// factor in trait modifiers
+	for _, traitID := range characterState.Traits {
+		traitDef := dataman.GetTraitDef(traitID)
+		for attrID, mod := range traitDef.AttributeChanges {
+			attrLevels[attrID] += mod
+		}
+		for skillID, mod := range traitDef.SkillChanges {
+			skillLevels[skillID] += mod
+		}
+	}
+
+	// factor in culture modifiers
+	charDef := dataman.GetCharacterDef(characterState.DefID)
+	if charDef.CultureID != "" {
+		cultureDef := dataman.GetCultureDef(charDef.CultureID)
+		for attrID, mod := range cultureDef.AttrMods {
+			attrLevels[attrID] += mod
+		}
+		for skillID, mod := range cultureDef.SkillMods {
+			skillLevels[skillID] += mod
+		}
+	}
+
+	return skillLevels, attrLevels
 }
