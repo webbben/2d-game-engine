@@ -5,7 +5,12 @@ import "github.com/webbben/2d-game-engine/logz"
 type (
 	MapID    string
 	RegionID string
-	MapType  int
+	MapType  string
+)
+
+const (
+	MapTypeTavern MapType = "tavern"
+	MapTypeShop   MapType = "shop"
 )
 
 // MapDef defines a map in the game.
@@ -18,15 +23,11 @@ type (
 //
 // - Doors: these are placed in the map as objects
 //   - initial door locks are set in the object properties
-//
-// TODO: should we add the following to this struct, instead of managing within the Tiled map?
-// - the Daylight factor; how much daylight will show in this map.
-//   - currently set in the tiled map, but I wonder if it's better set here. easier to discover, edit, etc. You can't actually see how much "daylight" there
-//     is from the Tiled map editor anyway, so it can easily be forgotten there.
 type MapDef struct {
 	ID          MapID
 	Region      RegionID // the overall location you are in, such as which city, or which forest, etc.
 	DisplayName string
+	Type        MapType // If you set a type, it may enable some extra logic for things like NPC tasks (ex: if a "tavern", NPCs with "go to tavern" task can find this as an option.)
 
 	// if true, this map def will be considered as just a template for map generators; so, it won't directly be built into the world as a unique map.
 	// "templates" are just map defs that represent a generic map, not a specific, unique map.

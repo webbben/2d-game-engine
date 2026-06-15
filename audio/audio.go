@@ -15,6 +15,8 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 )
 
+// Note: If audio is playing faster or higher pitched than expected, most likely the file you're playing
+// does not match this sample rate. Consider resampling it to match this sample rate.
 const sampleRate = 44100
 
 var audioContext = audio.NewContext(sampleRate)
@@ -23,7 +25,6 @@ type Sound struct {
 	srcPath    string
 	player     *audio.Player
 	baseVolume float64
-	volume     float64
 	// data   []byte
 }
 

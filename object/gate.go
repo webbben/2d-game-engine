@@ -2,6 +2,7 @@ package object
 
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/tiled"
 )
 
@@ -49,11 +50,19 @@ func (obj *Object) activateGate() ObjectUpdateResult {
 	}
 	if obj.Gate.changingState {
 		// can't open or close a gate if it's already changing state
+		logz.Println("activateGate", "gate is changing state; activate cancelled")
 		return ObjectUpdateResult{}
 	}
-	if obj.World.GetPlayerRect().Intersects(obj.collisionRect) || obj.collidesWithEntityOrObject() {
+	if obj.World.GetPlayerRect().Intersects(obj.collisionRect) {
 		// don't allow gate to open if the player or any NPC is standing in its way
+		logz.Println("activateGate", "gate is colliding with the player; activate cancelled")
 		return ObjectUpdateResult{}
+	}
+	if obj.collidesWithEntityOrObject() {
+		// Note: if this is happening unexpectedly, make sure that you didn't place an object that intersects with the gate object; especially a collidable one.
+		logz.Println("activateGate", "gate is colliding with an entity or object; activate cancelled.")
+		return ObjectUpdateResult{}
+
 	}
 
 	// ensure the activation origin point (NPC/player position) isn't too far away

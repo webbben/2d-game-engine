@@ -113,6 +113,8 @@ func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 		t = NewBartenderTask(n, taskDef)
 	case TaskShopkeeper:
 		t = NewShopkeeperTask(n, taskDef)
+	case TaskGoToTavern:
+		t = NewGotoTavernTask(n, taskDef)
 	case TaskRoute:
 		// we don't plan to allow this as a "top level" task (it's considered a "sub-task" that should be used inside other tasks' logic)
 		// TODO: if we decide for sure that a task (like routing) should never be "top level", maybe we should make it private (lowercase) so that schedules can't add it.

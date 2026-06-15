@@ -33,6 +33,7 @@ const (
 	TaskFaceDir     defs.TaskID = "FACE_DIR" // TODO
 	TaskBartender   defs.TaskID = "BARTENDER"
 	TaskShopkeeper  defs.TaskID = "SHOPKEEPER"
+	TaskGoToTavern  defs.TaskID = "GO_TO_TAVERN"
 )
 
 const (
@@ -248,6 +249,19 @@ func (tb TaskBase) GetStartLocation() *defs.TaskStartLocation {
 			return &defs.TaskStartLocation{
 				MapID: homeMap,
 			}
+		}
+		return nil
+	}
+	if startLoc.UseHomeMap {
+		if startLoc.TileX != nil || startLoc.TileY != nil {
+			logz.Panicln("GetStartLocation", "UseHomeMap set, but TileX or TileY was set too, which seems contradictory or invalid (you don't know which map is home).", tb.Owner.WhoAmI())
+		}
+		homeMap := tb.Owner.CharacterStateRef.HomeMapID
+		if homeMap == "" {
+			logz.Panicln("GetStartLocation", "no home map found.", tb.Owner.WhoAmI())
+		}
+		return &defs.TaskStartLocation{
+			MapID: homeMap,
 		}
 	}
 	return startLoc
