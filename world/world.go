@@ -385,6 +385,13 @@ func (w *World) FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldP
 	return w.WorldGraph.FindPath(from, to)
 }
 
+func (w *World) FindClosestMapType(from defs.MapID, mapType defs.MapType) (defs.MapID, bool) {
+	if w.WorldGraph == nil {
+		logz.Panic("worldgraph was nil")
+	}
+	return w.WorldGraph.FindClosestMapType(from, mapType)
+}
+
 func (w *World) ChangeMapOccupancyEvent(charStateID id.CharacterStateID, from, to defs.MapID, toSpawn int) {
 	w.EventBus.SysChangeMapOccupancy(charStateID, from, to, toSpawn)
 }

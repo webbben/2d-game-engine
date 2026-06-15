@@ -1,3 +1,4 @@
+// Package worldgraph defines the schema for the worldgraph
 package worldgraph
 
 import (
@@ -30,6 +31,7 @@ type MapNode struct {
 	ID          defs.MapID
 	Edges       []MapEdge
 	SpawnPoints map[int]model.Coords
+	Type        defs.MapType
 }
 
 // WorldGraph is a graph of all maps that comprise the entire game world. It is used for finding paths from one map to another.
@@ -149,7 +151,7 @@ func (wg *WorldGraph) reconstructPath(prev map[defs.MapID]defs.MapID, prevEdge m
 				lastPathPos := inMapPath[len(inMapPath)-1]
 				dist := utils.EuclideanDistCoords(lastPathPos, lastStep.NextEdge.EdgeCoords)
 				if dist > 2 {
-					logz.Println("WorldGraph", "start:", lastSpawnCoords, "goal:", lastStep.NextEdge.EdgeCoords)
+					logz.Println("WorldGraph", "start:", lastSpawnCoords, "goal:", lastStep.NextEdge.EdgeCoords, "mapID:", lastStep.MapID)
 					logz.Println("WorldGraph", "last path pos:", lastPathPos, "dist from goal:", dist)
 					logz.Panicln("WorldGraph", "failed to find path between spawn point and edge of path step; last step of path didn't get close enough to goal (dist > 2)")
 				}
@@ -165,6 +167,40 @@ func (wg *WorldGraph) reconstructPath(prev map[defs.MapID]defs.MapID, prevEdge m
 	slices.Reverse(path)
 
 	return path
+}
+
+func (wg *WorldGraph) FindClosestMapType(fromID defs.MapID, mapType defs.MapType) (defs.MapID, bool) {
+	visited := map[defs.MapID]bool{}
+	queue := []defs.MapID{fromID}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		node := wg.Nodes[current]
+		if node == nil {
+			logz.Panicln("WorldGraph", "map node was nil!", current)
+		}
+
+		if current != fromID && node.Type == mapType {
+			// found a nearby map of the correct type
+			return current, true
+		}
+
+		// queue up next path options
+		for _, edge := range node.Edges {
+			next := edge.To
+			if !visited[next] {
+				visited[next] = true
+				queue = append(queue, next)
+			}
+		}
+	}
+
+	// If we get here, does that mean there's no matching map type in the entire world? or at least not one that is reachable
+	// from the start node?
+	logz.Warnln("FindClosestMapType", "Unable to find map of type:", mapType)
+	return "", false
 }
 
 type WorldPath struct {

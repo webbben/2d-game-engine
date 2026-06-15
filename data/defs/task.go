@@ -73,6 +73,7 @@ func (td TaskDef) Equals(other TaskDef) bool {
 
 type TaskStartLocation struct {
 	MapID        MapID
+	UseHomeMap   bool // if true, we use the home map for the NPC rather than explicitly set a start MapID.
 	TileX, TileY *int // if not set, then we will assume the task logic can decide for itself where the NPC should go
 }
 

@@ -26,6 +26,7 @@ import (
 type WorldContext interface {
 	GetActiveMapID() defs.MapID // this is here instead of activeMapContext so that NPCs can check it without being in the active world
 	FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldPath, foundPath bool)
+	FindClosestMapType(fromID defs.MapID, mapType defs.MapType) (defs.MapID, bool)
 	ChangeMapOccupancyEvent(charStateID id.CharacterStateID, from, to defs.MapID, toSpawn int)
 }
 
@@ -269,8 +270,11 @@ func (n *NPC) GetScheduledMap(gameTime clock.GameTime) defs.MapID {
 			// sleep task with no set start location => home bed location
 			return n.CharacterStateRef.HomeMapID
 		}
-		logz.Warnln("GetScheduledMap", "NPC scheduled task doesn't have start map. taskID:", scheduleTask.TaskID)
-		return ""
+		logz.Warnln("GetScheduledMap", "NPC scheduled task doesn't have start map; defaulting to home map. taskID:", scheduleTask.TaskID)
+		return n.CharacterStateRef.HomeMapID
+	}
+	if scheduleTask.StartLocation.UseHomeMap {
+		return n.CharacterStateRef.HomeMapID
 	}
 	return scheduleTask.StartLocation.MapID
 }

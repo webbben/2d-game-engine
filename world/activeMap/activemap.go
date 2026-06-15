@@ -871,6 +871,9 @@ func (mi *ActiveMap) RectCollidesWithOthers(r model.Rect, excludeEntID string, e
 		if obj.ID == excludeObjID {
 			continue
 		}
+		if !obj.IsCollidable() {
+			continue
+		}
 		if obj.GetRect().Intersects(r) {
 			return true
 		}
