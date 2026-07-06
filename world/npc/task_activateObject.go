@@ -33,7 +33,10 @@ func NewActivateObjectTask(n *NPC, obj *object.Object) *ActivateObjectTask {
 		panic("obj was nil")
 	}
 	if obj.GetTargetingNPC() != "" {
-		panic("object is already being targeted by another NPC; you should ensure the object is not targeted before setting the activateObjectTask.")
+		// some objects, like doors, don't matter if they're already targeted; multiple NPCs can use the same door simultaneously to switch maps
+		if obj.Type != object.TypeDoor {
+			logz.Panicln("NewActivateObjectTask", "object is already being targeted by another NPC; ensure the object is not targeted before setting activateObjectTask. obj:", obj.ID, obj.Type, "npc:", n.WhoAmI())
+		}
 	}
 	if !n.SatisfiesObjectOwnership(*obj) {
 		logz.Panicln("ActivateObjectTask", "tried to create activate object task, but NPC is not authorized to use this object. objID:", obj.ID, n.WhoAmI())

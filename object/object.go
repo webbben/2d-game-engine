@@ -198,7 +198,11 @@ func (obj Object) IsHovering(x, y int) bool {
 
 func (obj *Object) SetTargetingNPC(id id.CharacterStateID) {
 	if obj.targetedByNPC != "" {
-		logz.Panicln("Object", "tried to set targeting NPC, but there was already another ID set... make sure you clear it before trying to set a new one. existing id:", obj.targetedByNPC, "new id:", id)
+		if obj.Type != TypeDoor {
+			// TODO: as more object types are decided to be allowed to be targeted by multiple NPCs, add the types here.
+			// also, should we make targetedByNPC a slice? or should we just not set a  targetingNPC for objects that don't care?
+			logz.Panicln("Object", "tried to set targeting NPC, but there was already another ID set... make sure you clear it before trying to set a new one. existing id:", obj.targetedByNPC, "new id:", id)
+		}
 	}
 	obj.targetedByNPC = id
 }

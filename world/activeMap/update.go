@@ -113,7 +113,6 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 	for _, n := range m.NPCs {
 		n.Update()
 		if n.IsHovering(mouseX, mouseY) {
-			logz.Println("NPC Hovering", n.DisplayName())
 			m.hoveredNPC = n
 			break
 		}
