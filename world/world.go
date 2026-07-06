@@ -203,6 +203,7 @@ func (w *World) EnterMapAtPosition(mapID defs.MapID, x, y float64, doTransition 
 // EnterMap sets up a map and puts the player in it at the given position. meant for use once player already exists in game state
 func (w *World) EnterMap(mapID defs.MapID, playerSpawnIndex int, doTransition bool) {
 	loadFunc := func(ctx defs.GameContext) {
+		logz.Println("EnterMap", "start")
 		w.setupNewMap(mapID)
 		w.ActiveMap.PlacePlayerAtSpawnPoint(w.Player, playerSpawnIndex)
 
@@ -210,6 +211,7 @@ func (w *World) EnterMap(mapID defs.MapID, playerSpawnIndex int, doTransition bo
 		if !w.ActiveMap.InScenario {
 			w.SimPaused.Store(false)
 		}
+		logz.Println("EnterMap", "end")
 	}
 
 	// pause the simulation while loading

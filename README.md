@@ -42,54 +42,11 @@ So, a completed game will probably look something like this:
   - this engine provides all the concepts needed for building these pages, such as UI components and access to all the relevant data via the root "Game" struct for ebiten, etc.
 - Some amount of code to handle wrapping it all together, loading the definitions into the engine, and starting the game.
 
-## Status Overview 
-
-I'll track the overall status of how I (think) each of these systems are functioning, and/or my plans to develop them in the future:
-
-### Finished or "basically finished"
-
-- Items
-  - I'm not aware of any missing things here, but that can change of course.
-- Dialog 
-  - recently rewrote it to be much more robust and support a much more flexible system. seems "done" to me but of course I haven't tested much yet.
-- UI components (for screens, etc)
-  - pretty much done I'd say. I add new components from time to time, or enhance existing ones, but by now we have a lot of stuff that can be used to make complex screens.
-
-### Getting close to finished 
-
-- Maps 
-  - loading tiled maps, and rendering entities in them.
-  - TODO: probably some things about managing moving between maps, the "game world" as a concept, etc.
-
-- Entity core logic:
-  - movement in a map, collisions, etc.
-  - body rendering and animation system 
-  - TODO: probably things like handling combat
-
-- Quests 
-  - recently wrote this system, but haven't tested yet. But, it feels like it's close to being fully functional.
-
-- Trading system 
-  - seems to work pretty well, but I haven't touched this in a while and a big refactor occurred, so I should test this more and make sure it's not missing anything.
-
-
-### WIP 
-
-- Combat system 
-  - have some basic functions created for handling attacks and damaging enemies, but it's still in its infancy and could change.
-
-- Skills, Attributes, and Leveling system 
-  - skills and attributes have been created as a concept, and I'm made the formula for calculating characters' levels based on their skills.
-  - haven't yet made a way to have skills and attributes influence things like combat, or other mechanics that they should be able to influence.
-
-
-### Future (Not Started)
-
 ## Dev Log 
 
 I have a dev log in the _docs directory, which I use to track how things are going, talk about issues or new things I'm working on, etc.
 Since this engine is still in kind of an early phase of development, it mainly has discussions on technical issues, brainstorming new game concepts, and giving updates 
 on things like the "Character Builder" utility. But it will eventually also be a place to discuss the game I'm working on.
 
-[Dev Log](/_docs/devlog/devlog.md)
+[Dev Log](./_docs/devlog/devlog.md)
 

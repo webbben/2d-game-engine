@@ -1,3 +1,335 @@
+# 2026-07-06
+
+I'm back from vacation; it's been almost 3 weeks since I've worked on this, so let me get my bearings and
+decide the best way to move forward from here.
+
+## Quick Recap
+
+My last post here was basically a big reflection on the entire project, from the beginning until now.
+I think I ended up getting a little bit focused on explaining details that aren't super relevant to the current game development
+progress though. It was more of a story-telling session about everything starting from day 1 all the way to today, and highlighting
+some significant points along the way. It also goes into depth about AI usage and how that has evolved over time.
+
+Let's recap a bit on just the current state of the game and the things I was working on before I left for vacation.
+
+### Side Note: The demo
+
+One of the biggest things I was anticipating doing was demoing the game for my brother back home. I even considered demoing it a bit for 
+friends, but neither of those things ended up happening... The main reason is, well, a terrible stomach bug spread around a family reunion,
+and that kind of made me forget all about this. Unfortunate, but not a huge deal I guess. In the end, the thought that I might have to demo
+it was probably the most important part - it got me highly motivated to crunch at getting something presentable ready, which is really good.
+
+But, the downside is that I don't have any feedback. Although I doubt I would've gotten any major feedback that I don't already know.
+If my brother got to play it, it probably would've just been for a few minutes while he tests out the small amount of content that exists currently,
+and then he'd probably just say "wow that's cool!". Once there's a bit more to do, getting people to test it and getting their feedback may
+be more useful.
+
+## Before Vacation: Last Developments
+
+Before I left for vacation, these are the things I believe I was working on most:
+
+1. Building out cities
+- creating Rome's maps, adding buildings, roads, decorations, etc.
+- slight additions to Ostia, but not much work was being done there besides adding an Inn and a fast travel boat.
+
+2. Main Questline: Demetrios Pergamenos
+- creating the first couple quests, like picking up a book from the book store.
+
+3. Merchants Guild
+- designing characters and first quest (joining the guild)
+
+## What's Next? 
+
+So, now I need to decide what to focus on next. I think any of these above 3 would be worthwhile, but I think I'd rather spend
+more time on making quest lines, since that seems more important. However, let me list out some additional ideas, since there are other
+things that could be just as important.
+
+### Art: Revise Player Animations?
+
+This is a spectre that has been looming in the background for some time; I've been considering if the current animations are good enough, or if
+they need work. I do think they could use some improvements. But, every time I change them, I also need to update clothes animations.
+
+One way I might consider changing them is just adjusting the arms and legs a bit. I don't know. It may also be fine to leave things as they are.
+But sometimes I feel like the running and fighting animations are not very good. And well, they aren't if I'm honest.
+
+Medium-High priority.
+
+### Art: Add new hair/eyes?
+
+This would be good for adding more "flavor" to the characters. Currently, a lot of the characters I've been making look a bit similar.
+That's just because there isn't a lot of variety yet in the eye and hair sets. especially hair.
+
+Low priority.
+
+### Art/Code: Add female characters?
+
+This is going to be a must at some point. I think all it would really involve is making new hair and eye sets, but I might be able to more or less use the
+same body sets. Need to brainstorm this a bit. But it will probably also ultimately result in some code changes too, albeit minor ones. Maybe a slight debuff to
+certain attributes and slight buffs to other ones. For example, slight debuff to strength, but slight buff to personality?
+
+Medium priority.
+
+### Art: Add new equipment items (armor, clothes, etc)
+
+This is also going to be important soon. Almost all the characters I've made so far wear the same couple outfits. It's not a super high priority thing, but as the
+number of characters grows, it'll become a larger and larger "clean up" task to change the armor or clothes of different characters later on.
+
+Low priority.
+
+### Writing: Merchants Guild Questline
+
+Need to do some writing to come up with quests for the merchants guild, and once I've figured them out, actually implement them into the project.
+
+Medium priority.
+
+### Writing: Main questline
+
+Same for the main questline.
+
+Medium priority.
+
+### Code: Implement combat system
+
+I actually have already started on this in the past, but it ended up on the back-burner and by now I'm not even sure if fighting animations still work property,
+not to mention the actual fighting mechanics. Need to revisit this and confirm things still work, and consider improving it a bit. The fighting AI task for NPCs almost
+certainly needs updates or improvements, since the NPC task system has changed a good deal in recently months.
+
+Medium-high priority.
+
+## Priority
+
+Ok, I'll go ahead and list these out in order of priority now, just based on how I feel about it:
+
+1. Implement/Update combat system
+- This feels the most important because very soon quests will almost certainly involve combat. also a major part of the game anyway.
+2. Revisit character animations and consider improvements
+- I want the fighting and movement animations to be as good as possible, since those are things the player will be seeing constantly while playing.
+3. Add female characters
+- I think this will be crucial soon, because well, the game can't just be male characters. And until I implement this, I probably will be tempted to mainly use male characters
+  in the writing just so that I don't have to wait before implementing the quests. So let's get this done sooner than later.
+4. Main questline 
+- I'd like to see more progress here first; it's the most important part of the game, more or less.
+5. merchants guild questline
+- need to develop this more, but it's lower priority than main questline.
+6. add new equipment items 
+- this isn't the high priority since it isn't blocking other things from progressing all that much.
+
+# 2026-06-18
+
+I'm on a plane to the US, and at this point the "demo preparation" period for this game has mostly come to an end.
+I'm planning to show this game off to some friends and family while I'm visiting the US, and I don't think I'll
+have much opportunity to add much more in the coming days or weeks, since I'll be busy traveling.
+
+I'll do a little reflection on the current status of the game.
+
+## Reflection: Where are we at now?
+
+I think it's getting close to almost a year since I really started putting the hammer to the nail on this project;
+of course, I technically started on this a couple years ago, but most of the code I had written back then has
+been completely rewritten by now, and I really had almost no idea what game I would truly be making. I had some vague
+impressions, but nothing clearly figured out.
+
+It wasn't until I left Hexabase that I decided to get serious about this game project. And I believe I've made a lot of
+great progress since then.
+
+I'll skip some of the details, like how I've basically refactored the entire project (a lot of the original code was,
+well, pretty bad if I'm honest... lol). But, at this point, I think I have a decently well designed and developed
+set of systems in the game engine:
+
+- Dialog system and runtime, that smoothly shows NPC dialog sequences, allows you to define Dialog Profiles, and
+  make pretty complex logic built into dialogs, as well as trigger all sorts of effects.
+- A decent quest system that seems to work well and suit its needs; quests are mostly just organizing progress for
+  some of the storylines that are mainly unfolding via dialog; but good to be able to review that progress, of course.
+- All of the basic world physics and movement; I spent countless hours trying to get entities (NPCs and the player)
+  to move around the map well, handle collisions, etc. It's pretty tricky, but it's working smoothly now.
+- Integrating with Tiled; originally, we didn't even have a formalized map data format! I was just coming up with some
+  random JSON schema and putting the tiles together myself... madness, lol.
+- Lots and lots of UI components and screens. There are too many to list, but some major ones were things like `LineWriter`,
+  which is the component I use to write multiple lines of text in a box, with pagination, and also a typewriter effect
+  (each letter writes one at a time). But also, so many screens and so much time spent iterating on some of them.
+- Inventories, items, chests, shopkeepers, money, transactions, it goes on: so many things with making items work.
+- Animating characters, creating frames for weapons, armor, clothes, etc. This is still largely WIP, but many hours went
+  into just getting us where we are right now.
+- Lots of time spent working on art in general; There is zero AI art in this game, so I've been hand-crafting every single 
+  pixel, really. But it's a lot of fun, and I'm definitely not complaining. And it's been a nice skill to continuously
+  improve on. In fact, sometimes I'll see my old artwork and end up redoing it just because I'm not satisfied with the
+  old stuff anymore. Which is a good sign, I think.
+- A TON of story writing, world building, and just trying to figure out "what game is this?". I know things about what
+  kind of game I wanted to make, but I realized along the way that there is so, so much involved in writing a game's
+  storyline, background/setting, characters, etc. And then, once you get something that "works", you realize "wait, this
+  kind of sucks. I'm gonna need to make this a whole lot better". And then it's back to the drawing room. 
+
+I'm sure I'm forgetting a dozen or so things that I sunk many hours into working on over the past several months even.
+To tell you the truth, I've been basically working on this game daily, often up to 7 days a week, morning until late at 
+night, ever since I left Hexabase. That might be a slight exaggeration, sure, but it's also not that far off the mark.
+I take some days off here and there, especially on the weekends, but even on a typical weekend I'm probably putting in
+at least a few hours on both Saturday and Sunday, depending on how busy I am. Some days, when I'm really excited to get to
+work, I'll be up at 8 or 9 AM already coding away or working on art, and I'll find myself doing the same thing most of the
+day, and up until around 10 or 11 at night. But those days are often pretty good days, because if I'm working that hard,
+that means I'm just genuinely excited about what I'm doing. When you don't have a boss, nobody is actually forcing you to
+work. So, all the hours I pour into this are for myself, not because I feel forced to, or something like that.
+Just to reiterate, this is the most enjoyment I've ever gotten out of "work". That has to be one of the most valuable lessons
+I've learned so far in this process: "work" doesn't feel like work if you are truly satisfied and doing something you love.
+
+## Reflection: AI Usage
+
+Ok, that's enough sleep-deprived ranting about work satisfaction and what-not. If anyone is reading this, just remember
+that I'm working on just a few hours of sleep, having been awake for _quite_ a long time. But, these damn airplane chairs
+are so uncomfortable that it's not like I could sleep on this 13 hour flight anyway.
+
+Next I want to reflect on AI usage. This is particularly interesting because AI in coding and, well, in general has been
+advancing at a really rapid rate over the entire time I've been working on this game project. When I started working on this
+codebase a couple years ago (2024-ish?) AI was already a pretty big deal. But, it wasn't where it is today.
+I think I've always been using things like ChatGPT since those early points of the project, just to help with learning how to 
+use certain things like `ebiten`, or to work out tricky problems or design issues here and there. I especially used it for 
+learning some basic game development concepts, because I came from a completely different background and knew nothing of it.
+
+But, I never had used AI agents or anything like that back then. I'd say for 90% of this project so far, I've always ultimately
+hand-written all the code, even if I was getting it from ChatGPT. The vast, vast majority (basically all) of this `2d-game-engine`
+project - while it certainly has code that AI helped me write - was hand typed.
+
+And there was good reason for that. First and foremost, I wanted to learn. Part of the original motivation to do this project 
+was for learning. But I also simply didn't trust the AI to always get things right. I guess I still don't, but especially back
+then, ChatGPT would "hallucinate" fake code all the time, especially when working on something that is a bit "nice"
+(i.e. not Javascript). It was, and still is in many ways, a liability to let the AI write code into my game engine, because
+any tiny bugs I introduced would certainly come back to bite me later on, and when your code base gets bigger and bigger,
+having a really good understanding of it and lots of confidence in the accuracy of the code in it becomes much more
+important. If I had "vibe coded" this engine, I'm sure it would be a complete unusable dumpster fire by now.
+
+### First interaction with AI Agents: Claude Code
+
+While working at Hexabase, I had my first run-in with an AI "agent": Claude Code.
+
+(disclaimer: I was only using it for work; I never used Claude Code for my personal projects)
+
+Claude Code was very impressive. I'd say this would've been around early to mid 2025? Probably about half a year before quitting,
+Hexabase was moving hard into exploring AI and trying to use it to automate things. They tasked me with trying to make a system
+using AI to automate the creation of webpages using some obscure, ridiculous web "framework" (if you wanna call it that) that
+nobody should've ever heard of. I won't bother mentioning the name, but it's nothing like React et al.
+
+... anyway, like I said, I was tasked with essentially building some kind of AI pipeline to automate the creation of entire
+applications using just AI and Figma designs. I'll leave the details of the project out of this, since it's not very interesting,
+but I got hands on experience that was very interesting, and taught me a lot about what it can do.
+
+I was also just very impressed. Claude Code was really good. Even at the somewhat ridiculous task I was attempting, it
+did a pretty good job, but it also started to teach me really clearly what AI is good at doing in a codebase, and what it's
+not so good at. 
+
+One interesting trick I picked up during this Claude Code episode was I learned to offload as much work as possible _not_
+directly to the AI, but to scripts or other coded tools whenever possible. But here's the trick: you can have the AI
+_build_ these tools for you. So, suppose you have some complicated task you want the AI to do; you want it to generate some
+code that follows specific patterns and requirements, but the AI isn't well trained on it and so it's often making mistakes.
+What do you do?
+
+Well, the thing you might be tempted to do is just keep prompting it to fix its mistakes. You could do something really naive
+too like add an extra step in the AI pipeline (literally just piping claude code calls in a bash script, for example) to
+do an additional run that tells it to check for mistakes and follow some long list of guidelines, etc.
+
+But all of that is incredibly inefficient. Instead, I had Claude Code build me a validator tool that could literally parse
+the syntax of the ridiculous framework I mentioned before, and have it validate the syntax according to a bunch of rules
+that the framework expects. You might be thinking: "doesn't this framework have some kind of compiler or validation tool
+already?". The answer is "no". That's why I hate it so much that I won't repeat the name of it. It had a web interface where you
+could write or upload code, and only THERE would it show you validation issues. I had this ridiculous war with Claude Code
+for so long trying to get it to generate code that correctly matches the documentation for this "framework", only for it
+to continue making new mistakes and bugs all over the place. And besides, AI's have context windows. You can't feed it
+100 pages of documentation and expect it to do everything right.
+
+So, that's when I decided to spend a day going through all the errors, and having the AI build a validator tool: one at a time,
+I'd give it a new error and example, have it add this new scenario to the validator, add test cases so it never accidentally
+breaks for that case, etc. Then, I could give it this validator to use, and it can self correct all of its own errors.
+It was a miracle. And I felt like I had just cracked some crazy code in doing this. So that's why I wanted to go on this lengthy
+diversion into this story.
+
+### What was I talking about? Oh yeah, this game project.
+
+Ok, back to the game project. As I said, I had my first interaction with an AI agent via Claude Code, and was quite
+impressed. But that costs money, and not money I have. But it still got the seed planted; I had realized that AI is quite
+powerful, and can be used in a lot of interesting ways.
+
+One interesting way I noticed it can be used is for all of the "boring" stuff. Like the validator I mentioned; I wouldn't
+in 1000 years want to painstakingly hand-code a validator for WebRel- oops, I almost said the name of that garbage framework!
+Right: I wouldn't want to spend countless hours coding a validator for something which I have neither interest nor long term,
+serious need for. But an AI agent may be able to code it up for you in half a day, or less, depending on how complicated the
+task is. And once you have that validator, not only can you the _human_ use it, but the _AI_ can use it to simplify its
+complicated workflow, thus making it more capable than it was before.
+
+**In this project**, this is basically how I got started using AI "for real". No more random ChatGPT prompts; Around a few
+months ago, I moved on to **OpenCode**. OpenCode is pretty awesome; it has a UI that is actually better than Claude Code,
+and it supports any models you want from any provider. They also provide a few decently powerful free models, which I use.
+These have rate limits of course, so you can't just constantly have the AI agents chugging away. But it works great for my
+own use cases.
+
+I started with just having OpenCode write documentation. This is a classic problem with programmers: we never want to write
+documentation. Luckily, "Big Pickle", the free model served on OpenCode is happy to write all of my documentation for me.
+
+> "But Ben, why do you need documentation?" I hear you asking...
+
+Good question. At first, I think I just wanted it for myself. It's nice to see a summary of how the systems in your code
+are working. It also enabled me to consider designs and things a bit more carefully, because I could see it all summed up
+for me and then I could even ask the AI questions about it.
+
+But I think the real reason that this documentation would become important is that, if I want an AI agent to write code for me,
+it needs to understand very clearly how to use it. Not just "what works", but also what patterns to follow, what is allowed and
+not allowed, etc. 
+
+Because, eventually I realized that one of the biggest things for this project would be filling out game data structs for me.
+The documentation part is great too, but one big win for me with AI agents is that I no longer have to type out by hand 
+_allll_ of the dialog profiles, dialog responses, quest definitions, etc. Instead, here's how I do it:
+
+1. Ben writes a "quest plan"; basically just a markdown document where I write all the dialog for characters and loosely define
+the details of things like quest stages, world effects, etc.
+
+2. Ben tells "Big Pickle" to take a look and create the dialog sequences
+
+Step 2 normally is _very_ tedious. I guess you can't see the source code for the actual game data project, but it's
+essentially just me making bunch of variables that are the various "defs" in the `data/defs` package.
+It is very repetitive, and over time it starts to wear on you. So it feels like magic to be able to type up a script
+for an NPC's dialog and have it converted into the correct structs, conditions, etc that I wanted.
+
+Now, it's not all sunshine and daisies. The AI still makes a lot of mistakes. They forget something here, omit an
+important field there, forget to do XYZ, and then when I run the game it starts crashing.
+I found myself doing the same sort of thing I was doing with Claude Code; I was constantly going back to the AI,
+telling it to hunt down the cause of some bug in the dialog it created, and then hoping it would learn to not make that
+mistake. I'd even have it modify its own `AGENTS.md` file, hoping that it would be able to coax itself into doing the
+right things. And changing the wording of markdown files does help. But ultimately, problems would always end up surfacing,
+and context windows would run out (so the AI would forget that important thing I told it 20 minutes ago).
+
+So, I made a validator. This time, it wasn't for a ridiculous framework, but it was just an additional validator CLI tool
+that would run all the various validations on conditions that would need to be true once running the game.
+This was a perfect task for the AI, because:
+
+1. this validator isn't actually crucial for the game itself to work; just helpful to have.
+2. I didn't want to write it. I have plenty of other code I need to write already.
+
+And... once I had that tool ready, and put instructions in `AGENTS.md` to run the validator after all data changes,
+suddenly the AI was able to quickly catch its own problems and address them. I could also use this same tool myself whenever
+I'm making my own changes and want to double check things. Amazing.
+
+Ok, I've been ranting for a very long time now. I'm also going a bit delirious due to sleep deprivation.
+But I'll just say that this "philosophy" of converting as much predictable or scriptable work into scripts for AI to use
+has been very useful. I've been expanding the scope of these tools to different places, and I continue to see improving
+results.
+
+### I'm about to pass out. Quickly - write a conclusion!
+
+So yeah, AI is fancy. I try not to overuse it for things that are actually important. For example, in `2d-game-engine`, I still
+generally hand write all changes. Very rarely I'll slacken the leash on ol' Pickle and let him make very simple fixes, but I
+always make him show me the exact change first in Plan mode. Otherwise, I heavily scrutinize other changes to ensure the
+game engine doesn't suddenly combust. 
+
+I also like to hand write code still because it's good learning, and it's fun. I don't ever want to offload all coding to AI.
+Not really even most of it. I just want to offload the tedious, repetitive and uninteresting bits. Oh yeah, another great
+thing about OpenCode is I can have it help with bug investigations. Random crash happens in the game engine? copy logs and
+stack trace, give a quick pointer to the AI to get started, and then let it chug while I either get some coffee, or maybe
+we both investigate in parallel to see who finds the issue first. The AI isn't always perfect at this (far from it),
+but sometimes it surprises me and points out something I missed. Cool stuff.
+
+But, I see a lot of potential with OpenCode too. Hopefully this isn't the precursor to the good ol' "AI psychosis" that everyone
+talks about, but I'm even designing custom "agents"/system prompts for specialized tasks, and it seems to work even better
+when I do it that way.
+
+Ok, time to attempt to sleep for another hour.
+
 # 2026-06-11
 
 Figured it's about time to add more screenshots and show off how things are looking right now.

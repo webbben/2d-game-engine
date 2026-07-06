@@ -14,6 +14,7 @@ type StartDialogTask struct {
 	dialogProfileID defs.DialogProfileID
 	dialogChain     *defs.DialogResponse
 	started         bool
+	subID           string
 }
 
 type StartDialogTaskParams struct {
@@ -56,8 +57,9 @@ func (t *StartDialogTask) Update() {
 		}
 		t.started = true
 		t.Status = TaskInProg
-		// TODO: might need an unsubscribe function, or else we need to move event handling to happen outside the task level (duplicate subscribers could happen otherwise)
-		t.Owner.eventBus.Subscribe(fmt.Sprintf("%s_%s", t.Owner.ID(), t.Def.TaskID), pubsub.EventDialogEnded, t.OnDialogEnd)
+		t.subID = fmt.Sprintf("%s_%s", t.Owner.ID(), t.Def.TaskID)
+		t.Owner.eventBus.Subscribe(t.subID, pubsub.EventDialogEnded, t.OnDialogEnd)
+		t.Owner.activeMapSubscriptionIDs[t.subID] = true
 		return
 	}
 }
@@ -69,7 +71,9 @@ func (t *StartDialogTask) OnDialogEnd(e defs.Event) {
 			panic("tried to get profileID, but data didn't include the key")
 		}
 		if profileID == t.dialogProfileID {
-			// dialog has ended, so task is done.
+			// dialog has ended; clean up subscription and mark task done.
+			t.Owner.eventBus.Unsubscribe(t.subID)
+			delete(t.Owner.activeMapSubscriptionIDs, t.subID)
 			t.Status = TaskEnded
 		} else {
 			logz.Warnln(t.Owner.ID(), "dialogStartTask is listening for a dialog ended event, and one came - but it was the wrong profile ID.",
