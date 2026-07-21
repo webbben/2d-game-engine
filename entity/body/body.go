@@ -60,7 +60,7 @@ type EntityBodySet struct {
 	// currently equiped items
 
 	EquipBodySet BodyPartSet // An equiped piece of body armor or shirt, on the entity's torso and arms.
-	EquipLegsSet BodyPartSet // The corresponding leg equipment for the body set
+	EquipArmsSet BodyPartSet // The corresponding arms equipment for the body set
 	EquipFeetSet BodyPartSet // Equiped boots, shoes, or other footwear
 	EquipHeadSet BodyPartSet // An equiped helmet or hat, on the entity's head
 	WeaponSet    BodyPartSet // The weapon as shown in the entity's hands
@@ -88,7 +88,7 @@ func (eb EntityBodySet) GetDebugString() string {
 	s += eb.EyesSet.animationDebugString() + "\n"
 	s += eb.HairSet.animationDebugString() + "\n"
 	s += eb.EquipBodySet.animationDebugString() + "\n"
-	s += eb.EquipLegsSet.animationDebugString() + "\n"
+	s += eb.EquipArmsSet.animationDebugString() + "\n"
 	s += eb.EquipHeadSet.animationDebugString() + "\n"
 	s += eb.EquipFeetSet.animationDebugString() + "\n"
 	s += eb.WeaponSet.animationDebugString() + "\n"
@@ -104,7 +104,7 @@ func (eb *EntityBodySet) Load() {
 	eb.SetEquipFeet(eb.EquipFeetSet.PartSrc)
 	eb.SetHair(eb.HairSet.PartSrc)
 	eb.SetEyes(eb.EyesSet.PartSrc)
-	eb.SetEquipBody(eb.EquipBodySet.PartSrc, eb.EquipLegsSet.PartSrc)
+	eb.SetEquipBody(eb.EquipBodySet.PartSrc, eb.EquipArmsSet.PartSrc)
 	eb.SetWeapon(eb.WeaponSet.PartSrc, eb.WeaponFxSet.PartSrc)
 	eb.SetAuxiliary(eb.AuxItemSet.PartSrc)
 
@@ -129,9 +129,7 @@ func (eb EntityBodySet) validate() {
 	if eb.ArmsSet.PartSrc.None {
 		panic("arms cannot be None")
 	}
-	if eb.LegsSet.PartSrc.None {
-		panic("legs cannot be None")
-	}
+	// NOTE: we don't validate legs anymore, since legs are combined with body (but we still allow a legs set to exist, it's just not really used anymore.)
 	if eb.EyesSet.PartSrc.None {
 		panic("eyes cannot be None")
 	}
@@ -143,7 +141,7 @@ func (eb EntityBodySet) validate() {
 	eb.HairSet.validate()
 	eb.EyesSet.validate()
 	eb.EquipBodySet.validate()
-	eb.EquipLegsSet.validate()
+	eb.EquipArmsSet.validate()
 	eb.EquipHeadSet.validate()
 	eb.EquipFeetSet.validate()
 	eb.BodySet.validate()
@@ -216,8 +214,8 @@ func NewHumanBodyFramework() EntityBodySet {
 		HasUp:       true,
 		IsRemovable: true,
 	})
-	equipLegsSet := NewBodyPartSet(BodyPartSetParams{
-		Name:        "equipLegsSet",
+	equipArmsSet := NewBodyPartSet(BodyPartSetParams{
+		Name:        "equipArmsSet",
 		HasUp:       true,
 		IsRemovable: true,
 	})
@@ -247,12 +245,12 @@ func NewHumanBodyFramework() EntityBodySet {
 		IsRemovable: true,
 	})
 
-	entBody := NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipLegsSet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
+	entBody := NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipArmsSet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
 	return entBody
 }
 
 // NewEntityBodySet creates a base body set, without anything equiped
-func NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipLegsSet, weaponSet, weaponFxSet, auxSet BodyPartSet, bodyHSV, eyesHSV, hairHSV *defs.HSV) EntityBodySet {
+func NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipArmsSet, weaponSet, weaponFxSet, auxSet BodyPartSet, bodyHSV, eyesHSV, hairHSV *defs.HSV) EntityBodySet {
 	if bodyHSV == nil {
 		bodyHSV = &Default
 	}
@@ -276,7 +274,7 @@ func NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet,
 		EyesSet:            eyesSet,
 		EyesHSV:            *eyesHSV,
 		EquipBodySet:       equipBodySet,
-		EquipLegsSet:       equipLegsSet,
+		EquipArmsSet:       equipArmsSet,
 		EquipHeadSet:       equipHeadSet,
 		EquipFeetSet:       equipFeetSet,
 		WeaponSet:          weaponSet,
@@ -303,14 +301,10 @@ func (eb *EntityBodySet) SetBody(bodyDef, armDef, legDef defs.SelectedPartDef) {
 	if armDef.None {
 		panic("arms must be defined")
 	}
-	if legDef.None {
-		panic("legs must be defined")
-	}
 
 	eb.BodySet.setImageSource(bodyDef, 0, 0, eb.IsAuxEquipped())
 
 	// reload any body parts that are influenced by stretch properties
-	// ensure these stretch values are set before calling subtract arms, since it uses equipBodyStretchY
 	eb.stretchX = bodyDef.StretchX
 	eb.stretchY = bodyDef.StretchY
 	if eb.HairSet.HasLoaded() {
@@ -323,25 +317,23 @@ func (eb *EntityBodySet) SetBody(bodyDef, armDef, legDef defs.SelectedPartDef) {
 		eb.EquipBodySet.load(eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
 	}
 	// FYI: this hasn't been tested yet, since we've stopped using body stretching (for now)
-	if eb.EquipLegsSet.HasLoaded() {
-		eb.EquipLegsSet.load(eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
+	// 2026-07-16 still aren't using stretch. should we consider removing?
+	if eb.EquipArmsSet.HasLoaded() {
+		eb.EquipArmsSet.load(eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
 	}
 	if eb.EquipFeetSet.HasLoaded() {
 		eb.EquipFeetSet.load(eb.stretchX, 0, eb.IsAuxEquipped())
 	}
 
-	// ensure this is set before calling subtractArms, since it uses this value
 	eb.globalOffsetY = float64(bodyDef.OffsetY)
 
 	// arms are directly set with body
 	eb.ArmsSet.setImageSource(armDef, 0, 0, eb.IsAuxEquipped())
-	if eb.EquipBodySet.sourceSet && !eb.EquipBodySet.PartSrc.None {
-		// subtract arms by equip body image (remove parts hidden by it)
-		eb.subtractArms()
-	}
 
 	// legs are also set directly with body
-	eb.LegsSet.setImageSource(legDef, 0, 0, eb.IsAuxEquipped())
+	if !legDef.None {
+		eb.LegsSet.setImageSource(legDef, 0, 0, eb.IsAuxEquipped())
+	}
 }
 
 func (eb *EntityBodySet) SetEyes(def defs.SelectedPartDef) {
@@ -400,9 +392,6 @@ func (eb *EntityBodySet) ReloadArms() {
 	}
 
 	eb.ArmsSet.load(0, 0, eb.IsAuxEquipped())
-	if !eb.EquipBodySet.PartSrc.None {
-		eb.subtractArms()
-	}
 
 	if eb.animation != "" {
 		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
@@ -413,7 +402,7 @@ func (eb *EntityBodySet) EquipBodyItem(i defs.ItemDef) {
 	if i.Type != defs.TypeBodywear {
 		logz.Panicln("EquipBodyItem", "item is not bodywear:", i.ID)
 	}
-	eb.SetEquipBody(*i.BodyPartDef, *i.LegsPartDef)
+	eb.SetEquipBody(*i.BodyPartDef, *i.ArmsPartDef)
 }
 
 func (eb *EntityBodySet) EquipHeadItem(i defs.ItemDef) {
@@ -445,19 +434,14 @@ func (eb *EntityBodySet) EquipFootItem(i defs.ItemDef) {
 	eb.SetEquipFeet(*i.BodyPartDef)
 }
 
-func (eb *EntityBodySet) SetEquipBody(bodyDef, legsDef defs.SelectedPartDef) {
+func (eb *EntityBodySet) SetEquipBody(bodyDef, armsDef defs.SelectedPartDef) {
 	eb.EquipBodySet.setImageSource(bodyDef, eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
 
-	// redo the arms subtraction
-	if eb.ArmsSet.HasLoaded() {
-		eb.ReloadArms()
-	}
-
-	eb.EquipLegsSet.setImageSource(legsDef, eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
+	eb.EquipArmsSet.setImageSource(armsDef, eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
 
 	if eb.animation != "" {
 		eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation)
-		eb.EquipLegsSet.setCurrentFrame(eb.currentDirection, eb.animation)
+		eb.EquipArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
 	}
 }
 
@@ -506,8 +490,7 @@ func (eb *EntityBodySet) RemoveFootwear() {
 
 func (eb *EntityBodySet) RemoveBodywear() {
 	eb.EquipBodySet.Remove()
-	eb.EquipLegsSet.Remove()
-	eb.ReloadArms()
+	eb.EquipArmsSet.Remove()
 }
 
 // IsAuxEquipped determines if an aux item is currently equiped.
@@ -658,82 +641,6 @@ func (eb *EntityBodySet) cropHair() {
 	cropper(&eb.HairSet.IdleAnimation)
 }
 
-// subtractArms "subtracts" the arms from the equip body set. i.e. the arms are cut off anywhere the the body equipment overlaps.
-// this produces an arms set that is just the hands or lower arms, and allows for more careful placement of different body parts.
-// for example, when doing a sword slash while facing up, we need the body equipment to show "on top" of the arms, and the hair to show on top of the body equipment,
-// but we still need the arms (hands) to be visible as they are behind the head. So, this subtraction allows for that more fine grained control.
-//
-// Specific cases:
-// - facing up, doing a sword slash: the arm is cocked back behind the head. body equipment is "on top" of the arms, hair is on top of body equipment, but hands can still show
-// over the hair.
-func (eb *EntityBodySet) subtractArms() {
-	if eb.EquipBodySet.PartSrc.None {
-		logz.Panicln(eb.Name, "trying to subtract arms, but no bodywear is set")
-	}
-	cropper := func(a *Animation, subtractorA Animation) {
-		equipBodyOffsetY := int(eb.globalOffsetY + eb.getEquipBodyOffsetY())
-
-		// LEFT
-		if len(a.L) == 0 {
-			logz.Panicln(eb.Name, "subtract arms: no left arms frames?")
-		}
-		if len(a.L) != len(subtractorA.L) {
-			logz.Panicln(eb.Name, "subtract arms: subtractor and subtractee not same size (L)")
-		}
-		for i, img := range a.L {
-			equipBodyImg := subtractorA.L[i]
-			a.L[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
-		}
-
-		// RIGHT
-		if len(a.R) == 0 {
-			logz.Panicln(eb.Name, "subtract arms: no right arms frames?")
-		}
-		if len(a.R) != len(subtractorA.R) {
-			logz.Panicln(eb.Name, "subtract arms: subtractor and subtractee not same size (R)")
-		}
-		for i, img := range a.R {
-			equipBodyImg := subtractorA.R[i]
-			a.R[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
-		}
-
-		// UP
-		if len(a.U) == 0 {
-			logz.Panicln(eb.Name, "subtract arms: no up arms frames?")
-		}
-		if len(a.U) != len(subtractorA.U) {
-			logz.Panicln(eb.Name, "subtract arms: subtractor and subtractee not same size (U)")
-		}
-		for i, img := range a.U {
-			equipBodyImg := subtractorA.U[i]
-			a.U[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
-		}
-
-		// DOWN
-		if len(a.D) == 0 {
-			logz.Panicln(eb.Name, "subtract arms: no down arms frames?")
-		}
-		if len(a.D) != len(subtractorA.D) {
-			logz.Panicln(eb.Name, "subtract arms: subtractor and subtractee not same size (D)")
-		}
-		for i, img := range a.D {
-			equipBodyImg := subtractorA.D[i]
-			a.D[i] = rendering.SubtractImageByOtherImage(img, equipBodyImg, 0, equipBodyOffsetY)
-		}
-	}
-
-	// Note: had issues when a tileset moved down a row without me knowing, and suddenly we were subtracting empty equip body frames from arms.
-	// If something similar happens again, you can try using something like the below debug string to confirm the frame indices are wrong.
-	// logz.Println(eb.Name, eb.EquipBodySet.PartSrc.WalkAnimation.DebugString())
-
-	cropper(&eb.ArmsSet.WalkAnimation, eb.EquipBodySet.WalkAnimation)
-	cropper(&eb.ArmsSet.RunAnimation, eb.EquipBodySet.RunAnimation)
-	cropper(&eb.ArmsSet.SlashAnimation, eb.EquipBodySet.SlashAnimation)
-	cropper(&eb.ArmsSet.BackslashAnimation, eb.EquipBodySet.BackslashAnimation)
-	cropper(&eb.ArmsSet.ShieldAnimation, eb.EquipBodySet.ShieldAnimation)
-	cropper(&eb.ArmsSet.IdleAnimation, eb.EquipBodySet.IdleAnimation)
-}
-
 func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64) {
 	// Warning: Do not use characterScale anywhere except the bottom - where we draw stagingImg onto screen!
 	// we first make a "staging image" which is drawn without scale, and then we draw that image into screen using characterScale.
@@ -741,15 +648,15 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	// eb.stagingImg.Fill(color.RGBA{100, 0, 0, 50})  // for testing
 
 	// render order decisions (for not so obvious things):
-	// - Arms: after equip body, equip head, hair so that hands show when doing U slash (we subtract arms by equip_body)
-	renderOrder := []string{"body", "legs", "equip_feet", "equip_body", "equip_legs", "eyes", "hair", "equip_head", "arms", "equip_weapon", "aux"}
+	// - Arms: after equip body, equip head, hair so that hands show when doing U slash
+	renderOrder := []string{"body", "legs", "equip_feet", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_arms", "equip_weapon", "aux"}
 	switch eb.currentDirection {
 	case model.Directions.Up:
 		// aux first: since facing up, aux items (e.g. torches) will generally be covered by everything
-		renderOrder = []string{"aux", "body", "legs", "equip_feet", "equip_body", "equip_legs", "eyes", "hair", "equip_head", "arms", "equip_weapon"}
+		renderOrder = []string{"aux", "body", "legs", "equip_feet", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_arms", "equip_weapon"}
 	case model.Directions.Right:
 		// aux after arms: shield may cover part of hands, so aux should render after arms
-		renderOrder = []string{"body", "legs", "equip_feet", "equip_body", "equip_legs", "eyes", "hair", "equip_head", "arms", "aux", "equip_weapon"}
+		renderOrder = []string{"body", "legs", "equip_feet", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_arms", "aux", "equip_weapon"}
 	}
 
 	yOff := eb.globalOffsetY
@@ -758,7 +665,8 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	bodyY := float64(config.TileSize)
 
 	equipBodyY := bodyY + yOff + eb.getEquipBodyOffsetY()
-	equipFeetY := bodyY + config.TileSize // equip feet tiles are only 16x16
+	// equipFeetY := bodyY + config.TileSize // equip feet tiles are only 16x16
+	equipFeetY := equipBodyY // equip feet tiles are now 32px tall (same as body)
 
 	eyesY := bodyY + (float64(eb.nonBodyYOffset)) + yOff
 	hairY := bodyY + (float64(eb.nonBodyYOffset)) + yOff
@@ -773,14 +681,16 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 		case "arms":
 			rendering.DrawHSVImage(eb.stagingImg, eb.ArmsSet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, 0)
 		case "legs":
-			rendering.DrawHSVImage(eb.stagingImg, eb.LegsSet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, 0)
+			if eb.LegsSet.img != nil {
+				rendering.DrawHSVImage(eb.stagingImg, eb.LegsSet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, 0)
+			}
 		case "equip_body":
 			if eb.EquipBodySet.img != nil {
 				rendering.DrawImage(eb.stagingImg, eb.EquipBodySet.img, bodyX, equipBodyY, 0)
 			}
-		case "equip_legs":
-			if eb.EquipLegsSet.img != nil {
-				rendering.DrawImage(eb.stagingImg, eb.EquipLegsSet.img, bodyX, equipBodyY, 0)
+		case "equip_arms":
+			if eb.EquipArmsSet.img != nil {
+				rendering.DrawImage(eb.stagingImg, eb.EquipArmsSet.img, bodyX, equipBodyY, 0)
 			}
 		case "eyes":
 			if eb.EyesSet.img != nil {
@@ -844,8 +754,10 @@ func (eb *EntityBodySet) animationFinished() bool {
 	if !eb.ArmsSet.reachedLastFrame {
 		return false
 	}
-	if !eb.LegsSet.reachedLastFrame {
-		return false
+	if !eb.LegsSet.PartSrc.None {
+		if !eb.LegsSet.reachedLastFrame {
+			return false
+		}
 	}
 	if !eb.WeaponSet.PartSrc.None {
 		if !eb.WeaponSet.reachedLastFrame {
@@ -862,8 +774,8 @@ func (eb *EntityBodySet) animationFinished() bool {
 			return false
 		}
 	}
-	if !eb.EquipLegsSet.PartSrc.None {
-		if !eb.EquipLegsSet.reachedLastFrame {
+	if !eb.EquipArmsSet.PartSrc.None {
+		if !eb.EquipArmsSet.reachedLastFrame {
 			return false
 		}
 	}
@@ -882,7 +794,7 @@ func (eb *EntityBodySet) resetCurrentAnimation() {
 	eb.ArmsSet.animIndex = 0
 	eb.LegsSet.animIndex = 0
 	eb.EquipBodySet.animIndex = 0
-	eb.EquipLegsSet.animIndex = 0
+	eb.EquipArmsSet.animIndex = 0
 	eb.EquipHeadSet.animIndex = 0
 	eb.EquipFeetSet.animIndex = 0
 	eb.WeaponSet.animIndex = 0
@@ -895,7 +807,7 @@ func (eb *EntityBodySet) resetCurrentAnimation() {
 	eb.ArmsSet.reachedLastFrame = false
 	eb.LegsSet.reachedLastFrame = false
 	eb.EquipBodySet.reachedLastFrame = false
-	eb.EquipLegsSet.reachedLastFrame = false
+	eb.EquipArmsSet.reachedLastFrame = false
 	eb.EquipHeadSet.reachedLastFrame = false
 	eb.EquipFeetSet.reachedLastFrame = false
 	eb.WeaponSet.reachedLastFrame = false
@@ -923,7 +835,7 @@ func (eb *EntityBodySet) Update() {
 		eb.ArmsSet.nextFrame(eb.animation)
 		eb.LegsSet.nextFrame(eb.animation)
 		eb.EquipBodySet.nextFrame(eb.animation)
-		eb.EquipLegsSet.nextFrame(eb.animation)
+		eb.EquipArmsSet.nextFrame(eb.animation)
 		eb.EquipHeadSet.nextFrame(eb.animation)
 		eb.EquipFeetSet.nextFrame(eb.animation)
 		eb.WeaponSet.nextFrame(eb.animation)
@@ -950,7 +862,7 @@ func (eb *EntityBodySet) Update() {
 	eb.LegsSet.setCurrentFrame(eb.currentDirection, eb.animation)
 
 	eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation)
-	eb.EquipLegsSet.setCurrentFrame(eb.currentDirection, eb.animation)
+	eb.EquipArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
 	eb.EquipHeadSet.setCurrentFrame(eb.currentDirection, eb.animation)
 	eb.EquipFeetSet.setCurrentFrame(eb.currentDirection, eb.animation)
 	eb.WeaponSet.setCurrentFrame(eb.currentDirection, eb.animation)
@@ -1097,7 +1009,7 @@ func (eb *EntityBodySet) _initializeDirection(dir byte) {
 	eb.LegsSet.animIndex = 0
 
 	eb.EquipBodySet.animIndex = 0
-	eb.EquipLegsSet.animIndex = 0
+	eb.EquipArmsSet.animIndex = 0
 	eb.EquipHeadSet.animIndex = 0
 	eb.EquipFeetSet.animIndex = 0
 	eb.WeaponSet.animIndex = 0
@@ -1110,7 +1022,7 @@ func (eb *EntityBodySet) _initializeDirection(dir byte) {
 	eb.ArmsSet.setCurrentFrame(dir, AnimWalk)
 	eb.LegsSet.setCurrentFrame(dir, AnimWalk)
 	eb.EquipBodySet.setCurrentFrame(dir, AnimWalk)
-	eb.EquipLegsSet.setCurrentFrame(dir, AnimWalk)
+	eb.EquipArmsSet.setCurrentFrame(dir, AnimWalk)
 	eb.EquipHeadSet.setCurrentFrame(dir, AnimWalk)
 	eb.EquipFeetSet.setCurrentFrame(dir, AnimWalk)
 	eb.WeaponSet.setCurrentFrame(dir, AnimWalk)

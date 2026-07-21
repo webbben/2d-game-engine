@@ -468,18 +468,25 @@ func LoadBodySkin(bodyDef defs.BodyDef, dataman *datamanager.DataManager) body.E
 		logz.Panicln("LoadBodySkin", "failed to load body set; id is empty")
 	}
 	skin.BodySet.PartSrc = dataman.GetBodyPartDef(bodyDef.BodyID)
+
 	if bodyDef.ArmsID == "" {
 		logz.Panicln("LoadBodySkin", "failed to load arms set; id is empty")
 	}
 	skin.ArmsSet.PartSrc = dataman.GetBodyPartDef(bodyDef.ArmsID)
+
+	// NOTE: we don't use leg sets anymore. we keep legs sets in the code just in case we'd want it later,
+	// but as of now legs are coupled with the body set, and so leg sets are unused.
 	if bodyDef.LegsID == "" {
-		logz.Panicln("LoadBodySkin", "failed to load legs set; id is empty")
+		skin.LegsSet.PartSrc.None = true
+	} else {
+		skin.LegsSet.PartSrc = dataman.GetBodyPartDef(bodyDef.LegsID)
 	}
-	skin.LegsSet.PartSrc = dataman.GetBodyPartDef(bodyDef.LegsID)
+
 	if bodyDef.EyesID == "" {
 		logz.Panicln("LoadBodySkin", "failed to load eyes set; id is empty")
 	}
 	skin.EyesSet.PartSrc = dataman.GetBodyPartDef(bodyDef.EyesID)
+
 	if bodyDef.HairID == "" {
 		logz.Panicln("LoadBodySkin", "failed to load hair set; id is empty")
 	}
@@ -604,18 +611,17 @@ func (e Entity) validateEquipment() {
 
 	validateEquipment(e.characterStateRef.EquipedHeadwear, e.Body.EquipHeadSet)
 	validateEquipment(e.characterStateRef.EquipedBodywear, e.Body.EquipBodySet)
-	// the validation function checks the bodyPartDef, but for legs we want to check the LegsPartDef... so just handle it here separately
 	if e.characterStateRef.EquipedBodywear == nil {
-		if !e.Body.EquipLegsSet.PartSrc.None {
-			logz.Panicln(e.DisplayName(), "equiped bodywear is nil, but equiped legs part is not none")
+		if !e.Body.EquipArmsSet.PartSrc.None {
+			logz.Panicln(e.DisplayName(), "equiped bodywear is nil, but equiped arms part is not none")
 		}
 	} else {
-		equipedLegsPart := e.equipedBodywear.LegsPartDef
-		if equipedLegsPart == nil {
-			logz.Panicln(e.DisplayName(), "bodywear set, but equiped legs part seems to be nil")
+		equipedArmsPart := e.equipedBodywear.ArmsPartDef
+		if equipedArmsPart == nil {
+			logz.Panicln(e.DisplayName(), "bodywear set, but equiped arms part seems to be nil")
 		}
-		if !equipedLegsPart.IsEqual(e.Body.EquipLegsSet.PartSrc) {
-			logz.Panicln(e.DisplayName(), "equiped legs dont appear to match actual item legs equipment")
+		if !equipedArmsPart.IsEqual(e.Body.EquipArmsSet.PartSrc) {
+			logz.Panicln(e.DisplayName(), "equiped arms dont appear to match actual item arms equipment")
 		}
 	}
 	validateEquipment(e.characterStateRef.EquipedAuxiliary, e.Body.AuxItemSet)
