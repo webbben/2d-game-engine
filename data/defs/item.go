@@ -43,7 +43,7 @@ type ItemDef struct {
 	// I guess this works out since this is an item def, and so it serves as a central place to define something.
 
 	BodyPartDef *SelectedPartDef // made it a pointer so it can be nil-able
-	LegsPartDef *SelectedPartDef // bodywear has a legs component that moves separately from the body component
+	ArmsPartDef *SelectedPartDef // arms move independently from the body, to allow specific action animations (swinging sword, holding aux item, etc) while sitting or riding horse.
 
 	// Item-type specific fields
 
@@ -98,15 +98,15 @@ func (id ItemDef) Validate() {
 		if id.BodyPartDef == nil {
 			logz.Panic("bodywear must have a body part def" + "(" + string(id.ID) + ")")
 		}
-		if id.LegsPartDef == nil {
-			logz.Panic("bodywear must have a legs part" + "(" + string(id.ID) + ")")
+		if id.ArmsPartDef == nil {
+			logz.Panic("bodywear must have an arms part" + "(" + string(id.ID) + ")")
 		}
 	} else if id.Type == TypeHeadwear {
 		if id.BodyPartDef == nil {
 			logz.Panic("headwear must have a body part def" + "(" + string(id.ID) + ")")
 		}
-		if id.LegsPartDef != nil {
-			logz.Panic("headwear must NOT have a legs component. that is only for bodywear." + "(" + string(id.ID) + ")")
+		if id.ArmsPartDef != nil {
+			logz.Panic("headwear must NOT have an arms component. that is only for bodywear." + "(" + string(id.ID) + ")")
 		}
 	}
 }
