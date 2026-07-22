@@ -720,7 +720,7 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 			}
 		case "aux":
 			if eb.AuxItemSet.img != nil {
-				rendering.DrawImage(eb.stagingImg, eb.AuxItemSet.img, bodyX, bodyY, 0)
+				rendering.DrawImage(eb.stagingImg, eb.AuxItemSet.img, weaponX, weaponY, 0)
 			}
 		default:
 			panic("unrecognized part name: " + part)
