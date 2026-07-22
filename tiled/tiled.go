@@ -294,7 +294,7 @@ func (t Tileset) validate() {
 	// tilecount should equal (imagewidth / tilewidth) * (imageheight / tileheight)
 	actualTileCount := (t.ImageWidth / t.TileWidth) * (t.ImageHeight / t.TileHeight)
 	if actualTileCount != t.TileCount {
-		logz.Panicln("ValidateTileset", "calculated tile count doesn't match tile count set in tileset json. expected:", actualTileCount, "in tsj:", t.TileCount)
+		logz.Panicln("ValidateTileset", "calculated tile count doesn't match tile count set in tileset json. expected:", actualTileCount, "in tsj:", t.TileCount, t.Source)
 	}
 }
 

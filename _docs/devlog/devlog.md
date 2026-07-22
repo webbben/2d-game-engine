@@ -1,3 +1,57 @@
+# 2026-07-21
+
+It feels like it's been a long time since I last wrote in this dev log. Basically, I went on vacation back to the US
+(the last post was when I was on the plan to the US) and now I've been back in Japan for a couple weeks.
+
+I've been slow to getting back into my work on this game; partly because I got distracted by playing civ 6 and ck2,
+and anyone who has played Civilization will know how devastating that can be for your productivity. But I'm on the other side of
+the Civ 6 break, and I've also been reworking the character art for the game. Some of my older posts might reveal that I've been
+a bit worried about the art and animations for the player/human character base skin. There have been a few things that bothered me:
+partly that I thought they just weren't quite good enough, and partly that I thought they may not be "unique" or "my own style" enough.
+See, the main pixel art game I've played in recent years is Stardew Valley, so I think most of my artistic inspiration comes from there.
+But, at this point I've tried recreating the base skin animations a couple times, and I think it's about as good as its gonna get.
+I'm admittedly not the best artist, although I try my best to learn the craft. But I also don't want to spend more time worrying about
+these character animations, because my true joy is in coding, making the game better by adding new features, gameplay stuff, or even
+adding better UI art and stuff. But for some reason messing around with human character animations isn't quite as fun for me.
+It also just gets tedious because if I make a change there, I have to slog through updating _allll_ of the animation frames for every
+wearable item, which is not much fun. That's solely what I've been working on for the past few days, and maybe if I were a better artist
+it would be a little bit faster or more enjoyable, but at some point it definitely just feels like busy work and a delay for what I
+really want to get working on.
+
+So anyway, in conclusion, I think at this point I am officially **done** with character skin art updates. At least, I will try not to rework
+existing animation frames. If I discover I need new animation frames to accomodate some new action or something, sure, but no more
+wholesale redraws.
+
+## What am I working on next?
+
+The biggest thing overall coming up (the thing I'm most interested in) is the combat system. I think this will also require some art updates,
+since I need to adjust how the weapon animations are so they line up correctly with the new character skin animation frames. I'm also considering
+making a change so that weapon items can look better in their animations; so far, most things have been restricted to frames that are 16x32 pixels,
+since that is the space allocated for drawing the character. However, I don't think this is enough space for weapons, especially if I want them
+to look nice in their attack animations. I can't have spears and swords being crammed into such a small area. Actually... now that I type this out,
+didn't I already do something to accomodate this? I guess I need to revisit this, since it's been so long.
+
+But, I need to confirm that combat is still working, probably touch it up, and then I also need to do the following:
+
+1. Add a "dead body" state for characters. During my "redraw", I added a frame that represents a dead body, and so now I need to make characters switch
+to that when they die. And handle all the logic for updates and stuff there too.
+
+2. Improve the combat AI task. As of now it's very simple: approach the player, and once close enough, swing the sword to attack. I want to make NPC's
+be able to use their shields, do different attack types like stabs, and maybe even power attacks. I guess those last two are not just AI updates,
+but I need to implement those on their own in the first place.
+
+Beyond combat, another important thing before I get back to implementing new characters and quests is: I need to add **female characters**.
+I've been holding off on this, but I think all it will _really_ require is some new hair options, maybe some new eye options, and some slight modifiers
+for stats that are gender specific. I touched on it before, but I think it would make sense to give female and male characters some slight buffs and debuffs,
+like male characters will have a slight buff to strength maybe, and female characters will have a slight buff to personality.
+Maybe some other ones too, but not sure yet.
+
+But until I add female characters in the game, I don't want to proceed with making new quests and characters, because I feel like I just instinctively 
+skip female characters right now since I know I can't really add it at the moment. 
+
+Once those things are figured out, I think it's back to the writing phase for me. I've already done a decent amount of planning for questlines, but
+they haven't actually been fully fleshed out.
+
 # 2026-07-06
 
 I'm back from vacation; it's been almost 3 weeks since I've worked on this, so let me get my bearings and
