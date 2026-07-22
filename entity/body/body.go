@@ -671,8 +671,10 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	eyesY := bodyY + (float64(eb.nonBodyYOffset)) + yOff
 	hairY := bodyY + (float64(eb.nonBodyYOffset)) + yOff
 
+	// TODO: currently weapon frames are 48x64, but in the past I considered a larger 80x80, if needed for things like spears.
+	// change this (weaponX subtract by tilesize*2) if we go back to 80x80 frame size for weapon animations
 	weaponY := bodyY - (config.TileSize) + yOff
-	weaponX := bodyX - (config.TileSize * 2)
+	weaponX := bodyX - (config.TileSize)
 
 	for _, part := range renderOrder {
 		switch part {
