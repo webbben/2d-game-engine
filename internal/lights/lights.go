@@ -9,6 +9,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/tiled"
@@ -41,21 +42,9 @@ func LightShader() *ebiten.Shader {
 	return lightShader
 }
 
-// LightColor defines a light color used in the shader code. Instead of using [0, 255] RGB values, we use [0, 1] values.
-// mainly because that's what's used in the shader, but also easier to conceptualize as percentages.
-type LightColor [3]float32
-
-func (l LightColor) Equals(lc LightColor) bool {
-	return l[0] == lc[0] && l[1] == lc[1] && l[2] == lc[2]
-}
-
-func (l LightColor) Scale(factor float32) LightColor {
-	return LightColor{l[0] * factor, l[1] * factor, l[2] * factor}
-}
-
 type LightFader struct {
-	TargetColor           LightColor
-	currentColor          LightColor
+	TargetColor           defs.LightColor
+	currentColor          defs.LightColor
 	TargetDarknessFactor  float32
 	currentDarknessFactor float32
 	changeFactor          float32
@@ -65,7 +54,7 @@ type LightFader struct {
 	overallFactor float32 // this factor influences all light colors; used for eliminating light or increasing its strength
 }
 
-func (l LightFader) GetCurrentColor() LightColor {
+func (l LightFader) GetCurrentColor() defs.LightColor {
 	return l.currentColor.Scale(l.overallFactor)
 }
 
@@ -77,7 +66,7 @@ func (l *LightFader) SetOverallFactor(val float32) {
 	l.overallFactor = val
 }
 
-func NewLightFader(initialColor LightColor, initialDarknessFactor float32, changeFactor float32, changeInterval time.Duration) LightFader {
+func NewLightFader(initialColor defs.LightColor, initialDarknessFactor float32, changeFactor float32, changeInterval time.Duration) LightFader {
 	if changeFactor <= 0 {
 		changeFactor = 0.1
 	}
@@ -99,7 +88,7 @@ func NewLightFader(initialColor LightColor, initialDarknessFactor float32, chang
 	return lf
 }
 
-func (lf *LightFader) SetCurrentColor(light LightColor) {
+func (lf *LightFader) SetCurrentColor(light defs.LightColor) {
 	lf.currentColor = light
 	lf.lastChange = time.Now()
 }
@@ -125,13 +114,6 @@ func (l *LightFader) Update() {
 	l.currentDarknessFactor += (l.TargetDarknessFactor - l.currentDarknessFactor) * l.changeFactor
 }
 
-// light colors (for cutting through darkness as a light source)
-
-var (
-	LightTorch   = LightColor{1.0, 0.7, 0.7}
-	LightLantern = LightColor{1.0, 0.6, 0.6}
-)
-
 type Light struct {
 	X, Y                 float32
 	MaxRadius, MinRadius float32
@@ -145,7 +127,7 @@ type Light struct {
 	coreRadiusFactor float32
 
 	FlickerTickInterval int
-	LightColor          LightColor
+	LightColor          defs.LightColor
 
 	// a value between 0 and 1 which is the percent brightness. lower this value for a dimmer light.
 	// defaults to 0.8
@@ -160,56 +142,66 @@ func (l Light) String() string {
 	return fmt.Sprintf("pos=(%.2f, %.2f) radius=(%v, %v)", l.X, l.Y, l.MinRadius, l.MaxRadius)
 }
 
-func NewLight(x, y int, lightProp tiled.LightProps, customLight *LightColor) Light {
-	var lightColor LightColor
-	switch lightProp.ColorPreset {
-	case "torch":
-		lightColor = LightTorch
-	case "lantern":
-		lightColor = LightLantern
-	}
-	// if a custom light is defined, use it
-	if customLight != nil {
-		lightColor = *customLight
+func NewLight(x, y int, lightDef defs.LightDef) Light {
+	if lightDef.InnerRadiusFactor < 0 || lightDef.InnerRadiusFactor >= 1 {
+		logz.Panicf("inner radius factor must be positive and < 1. got: %v", lightDef.InnerRadiusFactor)
 	}
 
-	if lightProp.InnerRadiusFactor < 0 || lightProp.InnerRadiusFactor >= 1 {
-		logz.Panicf("inner radius factor must be positive and < 1. got: %v", lightProp.InnerRadiusFactor)
+	if lightDef.FlickerInterval < 50 {
+		lightDef.FlickerInterval = 50
 	}
 
-	if lightProp.FlickerInterval < 50 {
-		lightProp.FlickerInterval = 50
-	}
-
-	if lightProp.MaxBrightness < 0 {
+	if lightDef.MaxBrightness < 0 {
 		panic("tried creating light with negative max brightness")
 	}
-	if lightProp.MaxBrightness == 0 {
-		lightProp.MaxBrightness = 0.8
+	if lightDef.MaxBrightness == 0 {
+		lightDef.MaxBrightness = 0.8
 	}
 
-	if lightProp.CoreRadiusFactor < 0 || lightProp.CoreRadiusFactor >= 1 {
-		logz.Panicf("core radius factor must be positive and < 1. got: %v", lightProp.CoreRadiusFactor)
+	if lightDef.CoreRadiusFactor < 0 || lightDef.CoreRadiusFactor >= 1 {
+		logz.Panicf("core radius factor must be positive and < 1. got: %v", lightDef.CoreRadiusFactor)
 	}
-	if lightProp.InnerRadiusFactor > 0 && lightProp.CoreRadiusFactor >= lightProp.InnerRadiusFactor {
+	if lightDef.InnerRadiusFactor > 0 && lightDef.CoreRadiusFactor >= lightDef.InnerRadiusFactor {
 		panic("if an inner radius is defined, the core radius must be smaller than it")
 	}
 
 	// randomize initial flicker progress so that all lights aren't too synchronized
-	flickerProgress := rand.Intn(lightProp.FlickerInterval)
+	flickerProgress := rand.Intn(lightDef.FlickerInterval)
 
 	return Light{
-		X:                   float32(x),
-		Y:                   float32(y + lightProp.OffsetY),
-		MinRadius:           float32(lightProp.Radius),
-		MaxRadius:           float32(lightProp.Radius) + (float32(lightProp.Radius) * float32(lightProp.GlowFactor)),
-		LightColor:          lightColor,
-		FlickerTickInterval: lightProp.FlickerInterval,
+		X:                   float32(x + lightDef.OffsetX),
+		Y:                   float32(y + lightDef.OffsetY),
+		MinRadius:           float32(lightDef.Radius),
+		MaxRadius:           float32(lightDef.Radius) + (float32(lightDef.Radius) * float32(lightDef.GlowFactor)),
+		LightColor:          lightDef.Color,
+		FlickerTickInterval: lightDef.FlickerInterval,
 		flickerProgress:     flickerProgress,
-		innerRadiusFactor:   float32(lightProp.InnerRadiusFactor),
-		coreRadiusFactor:    float32(lightProp.CoreRadiusFactor),
-		maxBrightness:       float32(lightProp.MaxBrightness),
+		innerRadiusFactor:   float32(lightDef.InnerRadiusFactor),
+		coreRadiusFactor:    float32(lightDef.CoreRadiusFactor),
+		maxBrightness:       float32(lightDef.MaxBrightness),
 	}
+}
+
+func NewLightFromTiledProps(x, y int, lightProp tiled.LightProps) Light {
+	var lightColor defs.LightColor
+
+	// otherwise, there must be a light defined in the props
+	lightColor[0] = float32(lightProp.R)
+	lightColor[1] = float32(lightProp.G)
+	lightColor[2] = float32(lightProp.B)
+
+	lightDef := defs.LightDef{
+		Radius:            lightProp.Radius,
+		GlowFactor:        lightProp.GlowFactor,
+		InnerRadiusFactor: lightProp.InnerRadiusFactor,
+		CoreRadiusFactor:  lightProp.CoreRadiusFactor,
+		FlickerInterval:   lightProp.FlickerInterval,
+		MaxBrightness:     lightProp.MaxBrightness,
+		Color:             lightColor,
+		OffsetY:           lightProp.OffsetY, // TODO: should we add an OffsetX? not sure if we really need it for tiled map objects
+	}
+
+	return NewLight(x, y, lightDef)
 }
 
 func (l *Light) calculateNextRadius() {
@@ -234,7 +226,7 @@ func (l *Light) calculateNextRadius() {
 
 const MaxLights = 16
 
-func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight LightColor, nightFx float32, offsetX, offsetY float64) {
+func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight defs.LightColor, nightFx float32, offsetX, offsetY float64) {
 	if len(lights) > MaxLights {
 		logz.Panicln("DrawMapLighting", "number of lights exceeded max light count! max lights:", MaxLights, "num lights:", len(lights))
 	}
@@ -293,7 +285,7 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight Ligh
 	screen.DrawRectShader(display.SCREEN_WIDTH, display.SCREEN_HEIGHT, lightShader, op)
 }
 
-func CalculateDaylight(hour int) (LightColor, float32) {
+func CalculateDaylight(hour int) (defs.LightColor, float32) {
 	if hour < 0 || hour > 23 {
 		panic("invalid hour!")
 	}
@@ -302,63 +294,63 @@ func CalculateDaylight(hour int) (LightColor, float32) {
 	// midnight: 0 - 4
 	// dark blue to black
 	case 0:
-		return LightColor{0.15, 0.2, 0.8}, 1.2
+		return defs.LightColor{0.15, 0.2, 0.8}, 1.2
 	case 1:
-		return LightColor{0.15, 0.2, 0.8}, 1.2
+		return defs.LightColor{0.15, 0.2, 0.8}, 1.2
 	case 2:
-		return LightColor{0.15, 0.15, 0.6}, 1
+		return defs.LightColor{0.15, 0.15, 0.6}, 1
 	case 3:
-		return LightColor{0.15, 0.15, 0.4}, 0.9
+		return defs.LightColor{0.15, 0.15, 0.4}, 0.9
 	case 4:
-		return LightColor{0.25, 0.15, 0.4}, 0.8
+		return defs.LightColor{0.25, 0.15, 0.4}, 0.8
 	// dawn: 5 - 7
 	// black to red
 	case 5:
-		return LightColor{0.35, 0.2, 0.45}, 0.7
+		return defs.LightColor{0.35, 0.2, 0.45}, 0.7
 	case 6:
-		return LightColor{0.55, 0.35, 0.5}, 0.5
+		return defs.LightColor{0.55, 0.35, 0.5}, 0.5
 	case 7:
-		return LightColor{0.7, 0.55, 0.55}, 0.3
+		return defs.LightColor{0.7, 0.55, 0.55}, 0.3
 	// morning: 8 - 11
 	// red to light blue
 	case 8:
-		return LightColor{0.8, 0.7, 0.7}, 0.1
+		return defs.LightColor{0.8, 0.7, 0.7}, 0.1
 	case 9:
-		return LightColor{0.8, 0.8, 0.9}, 0
+		return defs.LightColor{0.8, 0.8, 0.9}, 0
 	case 10:
-		return LightColor{0.8, 0.85, 1}, 0
+		return defs.LightColor{0.8, 0.85, 1}, 0
 	case 11:
-		return LightColor{0.85, 0.85, 1}, 0
+		return defs.LightColor{0.85, 0.85, 1}, 0
 	// midday: 12 - 15
 	// light blue to yellow
 	case 12:
-		return LightColor{0.9, 0.9, 1}, 0
+		return defs.LightColor{0.9, 0.9, 1}, 0
 	case 13:
-		return LightColor{1.0, 0.9, 0.9}, 0
+		return defs.LightColor{1.0, 0.9, 0.9}, 0
 	case 14:
-		return LightColor{1.0, 0.9, 0.8}, 0
+		return defs.LightColor{1.0, 0.9, 0.8}, 0
 	case 15:
-		return LightColor{1.0, 0.9, 0.7}, 0
+		return defs.LightColor{1.0, 0.9, 0.7}, 0
 	// evening: 16 - 19
 	// yellow to red
 	case 16:
-		return LightColor{1.0, 0.8, 0.6}, 0
+		return defs.LightColor{1.0, 0.8, 0.6}, 0
 	case 17:
-		return LightColor{0.9, 0.75, 0.5}, 0.1
+		return defs.LightColor{0.9, 0.75, 0.5}, 0.1
 	case 18:
-		return LightColor{0.8, 0.5, 0.5}, 0.2
+		return defs.LightColor{0.8, 0.5, 0.5}, 0.2
 	case 19:
-		return LightColor{0.7, 0.4, 0.5}, 0.4
+		return defs.LightColor{0.7, 0.4, 0.5}, 0.4
 	// night: 20 - 23
 	// red to dark blue
 	case 20:
-		return LightColor{0.4, 0.4, 0.6}, 0.6
+		return defs.LightColor{0.4, 0.4, 0.6}, 0.6
 	case 21:
-		return LightColor{0.3, 0.3, 0.7}, 0.7
+		return defs.LightColor{0.3, 0.3, 0.7}, 0.7
 	case 22:
-		return LightColor{0.2, 0.2, 0.8}, 0.8
+		return defs.LightColor{0.2, 0.2, 0.8}, 0.8
 	case 23:
-		return LightColor{0.15, 0.2, 0.9}, 0.9
+		return defs.LightColor{0.15, 0.2, 0.9}, 0.9
 	default:
 		panic("unknown hour")
 	}

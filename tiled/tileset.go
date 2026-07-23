@@ -283,7 +283,7 @@ func GetTileImage(tilesetSrc string, tileID int, panicOnEmpty bool) *ebiten.Imag
 }
 
 type LightProps struct {
-	ColorPreset       string
+	R, G, B           float64 // must be between 0 and 1
 	GlowFactor        float64
 	InnerRadiusFactor float64
 	OffsetY           int
@@ -308,8 +308,12 @@ func GetLightProps(p []Property) LightProps {
 
 	for _, prop := range p {
 		switch prop.Name {
-		case "light_color_preset":
-			props.ColorPreset = prop.GetStringValue()
+		case "light_color_r":
+			props.R = prop.GetFloatValue()
+		case "light_color_g":
+			props.G = prop.GetFloatValue()
+		case "light_color_b":
+			props.B = prop.GetFloatValue()
 		case "light_glow_factor":
 			props.GlowFactor = prop.GetFloatValue()
 		case "light_offset_y":
@@ -324,6 +328,8 @@ func GetLightProps(p []Property) LightProps {
 			props.MaxBrightness = prop.GetFloatValue()
 		case "light_core_radius":
 			props.CoreRadiusFactor = prop.GetFloatValue()
+		case "light_preset":
+			logz.Panicln("GetLightProps", "light_preset prop is deprecated; use light_color_r/g/b props instead.")
 		}
 	}
 

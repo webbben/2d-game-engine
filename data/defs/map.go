@@ -107,3 +107,33 @@ func (mg MapGenerator) Validate() {
 		logz.Panicln("Validate", "both character defs and character gens are defined; that's not allowed, since only one or the other will get used (the others would be ignored)")
 	}
 }
+
+// LightColor defines a light color used in the shader code. Instead of using [0, 255] RGB values, we use [0, 1] values.
+// mainly because that's what's used in the shader, but also easier to conceptualize as percentages.
+type LightColor [3]float32
+
+func (l LightColor) Equals(lc LightColor) bool {
+	return l[0] == lc[0] && l[1] == lc[1] && l[2] == lc[2]
+}
+
+func (l LightColor) Scale(factor float32) LightColor {
+	return LightColor{l[0] * factor, l[1] * factor, l[2] * factor}
+}
+
+// A LightDef is for defining the params to create a light in a game map.
+// Most lights are (so far) just defined in properties in Tiled maps, but this has been
+// made to enable item defs to have a light defined on it too.
+//
+// TODO: should we move everything to using this? For example, in Tiled, instead of defining these
+// properties there directly, we could just define a centralized mapping of LightDefs, and just store
+// an LightID in a Tiled property for objects.
+type LightDef struct {
+	Radius            int
+	GlowFactor        float64
+	InnerRadiusFactor float64
+	CoreRadiusFactor  float64
+	FlickerInterval   int
+	MaxBrightness     float64
+	Color             LightColor
+	OffsetX, OffsetY  int // how much this light is offset when drawn
+}
