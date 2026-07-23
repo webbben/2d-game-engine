@@ -63,6 +63,10 @@ type ItemDef struct {
 	// Book
 
 	BookID BookID // if this is a book, set this to the book ID
+
+	// Effects
+
+	EmitsLight *LightDef // if set, this light will be emitted if the item is equipped by an entity
 }
 
 func (id ItemDef) Validate() {

@@ -14,7 +14,7 @@ type Light struct {
 func (obj *Object) loadLightObject(props []tiled.Property) {
 	lightProps := tiled.GetLightProps(props)
 
-	l := lights.NewLight(int(obj.xPos+float64(obj.Width/2)), int(obj.yPos+float64(obj.Height/2)), lightProps, nil)
+	l := lights.NewLightFromTiledProps(int(obj.xPos+float64(obj.Width/2)), int(obj.yPos+float64(obj.Height/2)), lightProps)
 
 	obj.Light = Light{
 		Light: &l,

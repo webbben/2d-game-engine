@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity/body"
+	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
@@ -90,6 +91,9 @@ type Entity struct {
 	stunTicks int
 
 	speechBubble *SpeechBubble
+
+	Light                      *lights.Light
+	LightOffsetX, LightOffsetY float32
 }
 
 func (e *Entity) ShowSpeechBubble(s string, params SpeechBubbleParams) {
@@ -562,9 +566,21 @@ func (e *Entity) SyncBodyToState() {
 		var itemDef defs.ItemDef
 		if actualAuxID == "" {
 			e.Body.RemoveAuxiliary()
+			e.Light = nil
 		} else {
 			itemDef = e.dataman.GetItemDef(actualAuxID)
 			e.Body.EquipAuxItem(itemDef)
+			if itemDef.EmitsLight != nil {
+				l := lights.NewLight(0, 0, *itemDef.EmitsLight)
+				// get the offsetX and offsetY by looking at the light's X and Y values.
+				// since we pass in 0, this is a bit of a "hacky" way we can get it. because lights don't normally
+				// preserve the actual offset values, they just put it into the X/Y values
+				e.LightOffsetX = l.X
+				e.LightOffsetY = l.Y
+				e.Light = &l
+			} else {
+				e.Light = nil
+			}
 		}
 		e.equipedAuxiliary = itemDef
 	}

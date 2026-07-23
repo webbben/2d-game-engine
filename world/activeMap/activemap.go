@@ -213,7 +213,7 @@ func NewActiveMap(
 
 	m.Camera.SetMapLimits(tiledMap.Width, tiledMap.Height)
 
-	m.daylightFader = lights.NewLightFader(lights.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20)
+	m.daylightFader = lights.NewLightFader(defs.LightColor{1, 1, 1}, 0, 0.1, config.HourSpeed/20)
 	m.worldScene = ebiten.NewImage(display.SCREEN_WIDTH, display.SCREEN_HEIGHT)
 
 	// find all lights embedded in tiles
@@ -230,7 +230,7 @@ func NewActiveMap(
 					// center on the tile so the light doesn't show in the tile's top-left corner
 					x := (pos.X * config.TileSize) + (config.TileSize / 2)
 					y := (pos.Y * config.TileSize) + (config.TileSize / 2)
-					l := lights.NewLight(x, y, lightProps, nil)
+					l := lights.NewLightFromTiledProps(x, y, lightProps)
 					m.Lights = append(m.Lights, &l)
 					fmt.Printf("light found at x: %v y: %v\n", x, y)
 				}

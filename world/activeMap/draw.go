@@ -76,6 +76,28 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 			drawLights = append(drawLights, lightObj.Light.Light)
 		}
 	}
+	for _, n := range m.NPCs {
+		if len(drawLights) == lights.MaxLights {
+			skippedLight = true
+			break
+		}
+		if n.Entity.Light != nil {
+			n.Entity.Light.X = float32(n.Entity.X) + n.Entity.LightOffsetX
+			n.Entity.Light.Y = float32(n.Entity.Y) + n.Entity.LightOffsetY
+			if isLightVisible(n.Entity.Light, m.Camera) {
+				drawLights = append(drawLights, n.Entity.Light)
+			}
+		}
+	}
+	if len(drawLights) != lights.MaxLights {
+		if m.PlayerRef.Entity.Light != nil {
+			m.PlayerRef.Entity.Light.X = float32(m.PlayerRef.Entity.X) + m.PlayerRef.Entity.LightOffsetX
+			m.PlayerRef.Entity.Light.Y = float32(m.PlayerRef.Entity.Y) + m.PlayerRef.Entity.LightOffsetY
+			if isLightVisible(m.PlayerRef.Entity.Light, m.Camera) {
+				drawLights = append(drawLights, m.PlayerRef.Entity.Light)
+			}
+		}
+	}
 	if skippedLight {
 		logz.Warnln("Map Lights", "MaxLights reached; some lights were skipped")
 		logz.Println("", drawLights)
