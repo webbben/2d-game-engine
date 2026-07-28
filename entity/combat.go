@@ -1,6 +1,10 @@
 package entity
 
 import (
+	"fmt"
+	"image/color"
+	"time"
+
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
@@ -124,23 +128,35 @@ func (e *Entity) StartMeleeAttack() {
 }
 
 func (e *Entity) ReceiveAttack(attack AttackInfo) {
+	if e.IsDead() {
+		logz.Panicln(string(e.ID()), "received attack, but entity is dead")
+	}
 	logz.Println(e.DisplayName(), "received attack!")
 	if attack.Damage < 0 {
-		panic("attack can not have negative damage")
+		logz.Panicln(string(e.ID()), "attack can not have negative damage.", attack)
 	}
 	if attack.Damage == 0 {
 		// ineffectual attack
-		panic("attack had 0 damage")
+		logz.Panicln(string(e.ID()), "attack had 0 damage.", attack)
 	}
 	if attack.Attacker == "" {
 		logz.Panicln("ReceiveAttack", "no attacker info. receiver:", e.ID())
 	}
+
 	eventInfo := map[string]any{
 		"attacker":    attack.Attacker,
 		"receiver":    e.ID(),
 		"receiverPos": model.Vec2{X: e.drawX, Y: e.drawY},
 		"damage":      attack.Damage,
 	}
+
+	params := FloatTextParams{
+		Font:     config.DefaultInfoFont, // TODO: add new font for float text?
+		Color:    color.RGBA{255, 0, 0, 0},
+		Duration: time.Second * 2,
+	}
+	txt := fmt.Sprintf("-%v", attack.Damage)
+
 	if e.IsUsingShield() {
 		// attack was blocked; still some bump back, but no other change
 		eventInfo["blocked"] = true
@@ -151,6 +167,8 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 		}
 		// TODO: play shield clash sound effect
 		// TODO: damage shield item
+
+		e.FloatMGMT.AddFloatText(NewFloatText(txt, params))
 
 		e.eventBus.Publish(defs.Event{
 			Type: pubsub.EventAttackEntity,
@@ -186,6 +204,8 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	if attack.StunTicks > 0 {
 		e.stun(attack.StunTicks)
 	}
+
+	e.FloatMGMT.AddFloatText(NewFloatText(txt, params))
 
 	e.eventBus.Publish(defs.Event{
 		Type: pubsub.EventAttackEntity,

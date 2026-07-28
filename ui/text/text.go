@@ -80,6 +80,17 @@ func DrawTextWithOptions(screen *ebiten.Image, s string, x, y int, params DrawTe
 	if params.Font == nil {
 		panic("font was nil")
 	}
+
+	if params.Fg != nil {
+		r, g, b, a := params.Fg.RGBA()
+		ops.ColorScale.Scale(
+			float32(r)/0xffff,
+			float32(g)/0xffff,
+			float32(b)/0xffff,
+			float32(a)/0xffff,
+		)
+	}
+
 	ops.GeoM.Translate(float64(x), float64(y))
 	ebiten_text.DrawWithOptions(screen, s, params.Font, ops)
 }

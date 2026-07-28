@@ -66,6 +66,8 @@ type Entity struct {
 	Body              body.EntityBodySet
 	DisableCollisions bool // if set, this entity will no longer collide with anything else in the map
 
+	FloatMGMT *FloatMGMT
+
 	// logic for sleeping in beds and sitting in chairs
 
 	IsSleeping             bool
@@ -279,6 +281,7 @@ func LoadCharacterStateIntoEntity(charStateID id.CharacterStateID, dataman *data
 			TickDelay:     20,  // TODO: this should actually be calculated by the movement speed / speed of movement animation
 			DefaultVolume: 0.2, // TODO: look into how this is being used, because I'm not really sure about it
 		}, audioMgr),
+		FloatMGMT: NewFloatMGMT(),
 	}
 
 	// save char state to definition manager, since that's really where the character state will "live".
