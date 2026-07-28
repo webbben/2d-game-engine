@@ -63,3 +63,23 @@ func DrawOutlinedText(screen *ebiten.Image, s string, f font.Face, x, y int, fg 
 	DrawText(screen, s, f, x, y+bgOffsetY, bg)
 	DrawText(screen, s, f, x, y, fg)
 }
+
+// TODO: not doing this now because there would be so many places to update, but...
+// probably should just make one DrawText function and use this DrawTextParams struct as an argument.
+
+type DrawTextParams struct {
+	Font font.Face
+	Fg   color.Color
+	// for now, not implementing background color and stuff for this
+}
+
+func DrawTextWithOptions(screen *ebiten.Image, s string, x, y int, params DrawTextParams, ops *ebiten.DrawImageOptions) {
+	if s == "" {
+		panic("string is empty")
+	}
+	if params.Font == nil {
+		panic("font was nil")
+	}
+	ops.GeoM.Translate(float64(x), float64(y))
+	ebiten_text.DrawWithOptions(screen, s, params.Font, ops)
+}

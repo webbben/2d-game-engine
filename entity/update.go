@@ -60,6 +60,18 @@ func (e *Entity) Update() {
 
 	e.SyncBodyToState()
 
+	e.Body.Update()
+
+	if e.characterStateRef.Dead {
+		return
+	} else {
+		// detect if entity has died
+		if e.characterStateRef.Health <= 0 {
+			e.Kill()
+			return
+		}
+	}
+
 	if e.stunTicks > 0 {
 		e.stunTicks--
 	}
@@ -111,7 +123,17 @@ func (e *Entity) Update() {
 		}
 	}
 
-	e.Body.Update()
+	// TODO: 2026-07-24 moved body.Update from here. if something starts behaving weirdly with body, maybe move it back here.
 
 	e.updateAttackManager()
+}
+
+func (e *Entity) Kill() {
+	e.characterStateRef.Health = 0
+	e.characterStateRef.Dead = true
+	// TODO: set body to dead animation
+}
+
+func (e Entity) IsDead() bool {
+	return e.characterStateRef.Dead
 }
