@@ -103,6 +103,9 @@ func (p *Player) handleMovement() bool {
 
 	// if there is movement input and we are not blocking with a shield, move
 	if v.X != 0 || v.Y != 0 {
+		if p.Entity.IsStunned() {
+			return false
+		}
 		animRes := p.Entity.SetAnimation(entity.AnimationOptions{
 			AnimationName:         animation,
 			AnimationTickInterval: animationTickInterval,

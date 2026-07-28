@@ -27,6 +27,8 @@ func (e *Entity) Draw(screen *ebiten.Image, om *overlay.OverlayManager, offsetX 
 		sbY := (drawY - config.TileSize*2) * config.GameScale
 		e.speechBubble.DrawOverlay(om, sbX, sbY)
 	}
+
+	e.FloatMGMT.Draw(screen, e.drawX, e.drawY)
 }
 
 // DrawPos returns the actual absolute position where the entity will be drawn
@@ -57,6 +59,8 @@ func (e *Entity) Update() {
 			e.speechBubble = nil
 		}
 	}
+
+	e.FloatMGMT.Update()
 
 	e.SyncBodyToState()
 
@@ -131,6 +135,7 @@ func (e *Entity) Update() {
 func (e *Entity) Kill() {
 	e.characterStateRef.Health = 0
 	e.characterStateRef.Dead = true
+	logz.Warnln(string(e.ID()), "Entity died!")
 	// TODO: set body to dead animation
 }
 

@@ -1,8 +1,8 @@
 package entity
 
 import (
-	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 func (e Entity) DistFromEntity(otherEnt Entity) float64 {
@@ -15,6 +15,10 @@ func (e Entity) GetPathToEntity(otherEnt Entity) (path []model.Coords, found boo
 }
 
 func (e *Entity) TryMoveTowardsEntity(otherEnt Entity, dist, speed float64) MoveError {
+	if e.IsStunned() {
+		return MoveError{Cancelled: true, Info: "stunned"}
+	}
+
 	currentPosition := model.NewVec2(e.X, e.Y)
 	targetPosition := model.NewVec2(otherEnt.X, otherEnt.Y)
 	v := targetPosition.Sub(currentPosition)

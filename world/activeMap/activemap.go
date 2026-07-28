@@ -747,6 +747,9 @@ func (mi *ActiveMap) AttackArea(attackInfo entity.AttackInfo) {
 	}
 
 	for _, n := range mi.NPCs {
+		if n.Entity.IsDead() {
+			continue
+		}
 		logz.Println("Attack Area", "entID:", n.Entity.ID())
 		if slices.Contains(attackInfo.ExcludeEntIds, string(n.Entity.ID())) {
 			continue

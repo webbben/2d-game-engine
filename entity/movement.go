@@ -373,10 +373,6 @@ func (e *Entity) TryMovePx(dx, dy, speed float64) MoveError {
 		panic("TryMovePx: dx and dy are both 0")
 	}
 
-	if e.IsStunned() {
-		return MoveError{Cancelled: true, Info: "stunned"}
-	}
-
 	if e.Body.IsAttacking() || e.waitingToAttack {
 		// cannot move (or change directions) while attacking
 		info := ""
@@ -577,6 +573,10 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 	tilePos := e.TilePos()
 	if nextTarget.Equals(tilePos) {
 		panic("trySetNextTargetPath: next target is the same tile as current position")
+	}
+
+	if e.IsStunned() {
+		return MoveError{Cancelled: true, Info: "stunned"}
 	}
 
 	if float64(tilePos.X) != e.X/config.TileSize || float64(tilePos.Y) != e.Y/config.TileSize {

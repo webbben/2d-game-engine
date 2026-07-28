@@ -3,11 +3,20 @@ package logz
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"os"
+	"runtime/debug"
+	"strings"
+	"sync"
 
 	"github.com/fatih/color"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/crashreport"
 )
+
+// MaxRecentLogs is the max number of recent log lines included in a crash report.
+const MaxRecentLogs = 50
 
 var (
 	WarnColor = color.New(color.FgYellow, color.Bold)
@@ -16,6 +25,50 @@ var (
 	TodoColor  = color.RGB(0, 0, 0).Add(color.BgCyan)
 	InfoColor  = color.New(color.FgHiBlue)
 )
+
+// ring buffer for capturing recent log lines
+type logCapture struct {
+	mu    sync.Mutex
+	lines []string
+	max   int
+}
+
+func (c *logCapture) Write(p []byte) (n int, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, line := range strings.Split(string(p), "\n") {
+		if line == "" {
+			continue
+		}
+		c.lines = append(c.lines, line)
+		if len(c.lines) > c.max {
+			c.lines = c.lines[len(c.lines)-c.max:]
+		}
+	}
+	return len(p), nil
+}
+
+func (c *logCapture) Lines() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	result := make([]string, len(c.lines))
+	copy(result, c.lines)
+	return result
+}
+
+var logCaptureBuffer *logCapture
+
+func init() {
+	logCaptureBuffer = &logCapture{max: MaxRecentLogs}
+	log.SetOutput(io.MultiWriter(os.Stderr, logCaptureBuffer))
+}
+
+func GetRecentLogs() []string {
+	if logCaptureBuffer == nil {
+		return nil
+	}
+	return logCaptureBuffer.Lines()
+}
 
 func PrintFancy(s string) {
 	colors := []*color.Color{
@@ -87,16 +140,21 @@ func Warnf(category string, format string, args ...any) {
 }
 
 func Panicf(formatString string, args ...any) {
+	msg := fmt.Sprintf(formatString, args...)
 	printLogLine(PanicColor.Sprint("[Panic!]"))
-	panic(fmt.Sprintf(formatString, args...))
+	crashreport.WriteCrashReport(msg, debug.Stack(), GetRecentLogs())
+	panic(msg)
 }
 
 func Panicln(category string, args ...any) {
+	msg := fmt.Sprintln(args...)
 	printLogLine(PanicColor.Sprintf("[%s]", category))
-	panic(fmt.Sprintln(args...))
+	crashreport.WriteCrashReport(fmt.Sprintf("[%s] %s", category, msg), debug.Stack(), GetRecentLogs())
+	panic(msg)
 }
 
 func Panic(s string) {
 	printLogLine(PanicColor.Sprint("[Panic!]"))
+	crashreport.WriteCrashReport(s, debug.Stack(), GetRecentLogs())
 	panic(s)
 }
