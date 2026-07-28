@@ -61,6 +61,9 @@ type LevelSystemParameters struct {
 
 	// How much of a bonus is given to an attribute when it is designated as "favored" in a class.
 	FavoredBonus int
+
+	CalculateMaxHealth  func(map[AttributeID]int) int
+	CalculateMaxStamina func(map[AttributeID]int) int
 }
 
 type (

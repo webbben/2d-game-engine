@@ -62,6 +62,8 @@ type Game struct {
 	AudioManager  *audio.AudioManager
 	QuestManager  *quest.QuestManager
 	ScreenManager *screen.ScreenManager
+
+	LevelSystemParams *defs.LevelSystemParameters
 }
 
 func ShowFullDebugReport() {
@@ -164,7 +166,17 @@ func (g *Game) InitializeGameWorld(initTime clock.GameTime) {
 
 	playerMenuScreen := g.ScreenManager.GetScreen(g.PlayerMenuScreenID)
 
-	g.World = world.NewWorld(initTime, g.Dataman, g.AudioManager, g.EventBus, g.ScreenManager, g.QuestManager, g, playerMenuScreen)
+	g.World = world.NewWorld(
+		initTime,
+		g.Dataman,
+		g.AudioManager,
+		g.EventBus,
+		g.ScreenManager,
+		g.QuestManager,
+		g,
+		playerMenuScreen,
+		g.LevelSystemParams,
+	)
 	debug.StopTimer("InitializeGameWorld")
 	debug.ShowAllReports()
 }

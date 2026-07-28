@@ -164,7 +164,7 @@ func NewNPC(params NPCParams, dataman *datamanager.DataManager, audioMgr *audio.
 		panic("eventBus was nil")
 	}
 
-	ent := entity.LoadCharacterStateIntoEntity(params.CharStateID, dataman, audioMgr)
+	ent := entity.LoadCharacterStateIntoEntity(params.CharStateID, dataman, audioMgr, eventBus)
 
 	charState := dataman.GetCharacterState(params.CharStateID)
 	charDef := dataman.GetCharacterDef(charState.DefID)

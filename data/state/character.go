@@ -50,6 +50,13 @@ type CharacterState struct {
 	BaseAttributes map[defs.AttributeID]int // Base attribute levels (not including modifiers from traits, etc)
 	BaseSkills     map[defs.SkillID]int     // Base skill levels (not including modifiers from traits, etc)
 	Traits         []defs.TraitID
+
+	Health     int
+	MaxHealth  int
+	Stamina    int
+	MaxStamina int
+
+	Dead bool // if set, this character is dead.
 }
 
 // WalkSpeed returns a walking speed, calculated by character stats (chiefly Agility)

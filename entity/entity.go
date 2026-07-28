@@ -14,6 +14,7 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/pubsub"
 )
 
 var (
@@ -41,7 +42,8 @@ func GetDefaultRunSpeed() float64 {
 // An Entity makes a character exist in the world. The entity itself mainly handles logic for runtime stuff, like showing a body on a screen
 // and doing animations. However, it links to the underlying state of a character too.
 type Entity struct {
-	dataman *datamanager.DataManager
+	dataman  *datamanager.DataManager
+	eventBus *pubsub.EventBus
 	// State and Definitions
 
 	// Note: we don't keep a pointer to the CharacterDef here, since we don't need that data during runtime - just for instantiating or loading a character state.
@@ -244,7 +246,14 @@ func (e Entity) IsPlayer() bool {
 
 // LoadCharacterStateIntoEntity loads a character state into an Entity, for rendering and interacting in a game map.
 // Grabs the character state from definition manager, outfits it in an entity, and prepares it for runtime use.
-func LoadCharacterStateIntoEntity(charStateID id.CharacterStateID, dataman *datamanager.DataManager, audioMgr *audio.AudioManager) *Entity {
+func LoadCharacterStateIntoEntity(charStateID id.CharacterStateID, dataman *datamanager.DataManager, audioMgr *audio.AudioManager, eventBus *pubsub.EventBus) *Entity {
+	if dataman == nil {
+		logz.Panic("dataman nil")
+	}
+	if eventBus == nil {
+		logz.Panic("eventBus nil")
+	}
+
 	charState := dataman.GetCharacterState(charStateID)
 
 	charState.Validate()
@@ -257,8 +266,9 @@ func LoadCharacterStateIntoEntity(charStateID id.CharacterStateID, dataman *data
 	sfxDef := dataman.GetFootstepSFXDef(charDef.FootstepSFXDefID)
 
 	ent := Entity{
-		dataman: dataman,
-		Body:    skin,
+		dataman:  dataman,
+		eventBus: eventBus,
+		Body:     skin,
 		Movement: Movement{
 			WalkAnimationTickInterval: defaultWalkAnimationTickInterval,
 			RunAnimationTickInterval:  defaultRunAnimationTickInterval,
@@ -321,6 +331,8 @@ type NewCharacterStateParams struct {
 	InitialMapID defs.MapID
 	HomeMapID    defs.MapID
 	HomeMapBedID int
+
+	LevelSysParams *defs.LevelSystemParameters // used to determine initial max health, stamina, etc
 }
 
 // CreateNewCharacterState instantiates a new Character State from a CharacterDef. This should only be done when:
@@ -333,6 +345,10 @@ type NewCharacterStateParams struct {
 //
 // ... Basically, DON'T use this to "load an existing character back into the world". Each character only has this done to them once in their existence.
 func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterStateParams, dataman *datamanager.DataManager) id.CharacterStateID {
+	if params.LevelSysParams == nil {
+		logz.Panicln("CreateNewCharacterState", "LevelSysParams were nil")
+	}
+
 	charDef := dataman.GetCharacterDef(charDefID)
 
 	// find unique ID based on this characterDefID
@@ -377,6 +393,9 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		displayName = params.OverwriteDisplayName
 	}
 
+	maxHealth := params.LevelSysParams.CalculateMaxHealth(charDef.BaseAttributes)
+	maxStamina := params.LevelSysParams.CalculateMaxStamina(charDef.BaseAttributes)
+
 	charState := &state.CharacterState{
 		Temp:        params.Temp,
 		ID:          charStateID,
@@ -396,6 +415,11 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		BaseAttributes: charDef.BaseAttributes,
 		BaseSkills:     charDef.BaseSkills,
 		Traits:         charDef.InitialTraits,
+
+		Health:     maxHealth,
+		MaxHealth:  maxHealth,
+		Stamina:    maxStamina,
+		MaxStamina: maxStamina,
 
 		OpinionMods: make(map[id.CharacterStateID][]defs.OpinionModifier),
 	}

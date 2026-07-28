@@ -2,9 +2,12 @@ package entity
 
 import (
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/pubsub"
 )
 
 type attackManager struct {
@@ -51,6 +54,7 @@ func (e *Entity) updateAttackManager() {
 }
 
 type AttackInfo struct {
+	Attacker      id.CharacterStateID
 	Damage        int
 	StunTicks     int
 	TargetRect    model.Rect
@@ -110,6 +114,7 @@ func (e *Entity) StartMeleeAttack() {
 	}
 
 	e.queueAttack(AttackInfo{
+		Attacker:      e.ID(),
 		Damage:        10,
 		StunTicks:     20,
 		TargetRect:    e.GetFrontRect(),
@@ -127,14 +132,30 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 		// ineffectual attack
 		panic("attack had 0 damage")
 	}
+	if attack.Attacker == "" {
+		logz.Panicln("ReceiveAttack", "no attacker info. receiver:", e.ID())
+	}
+	eventInfo := map[string]any{
+		"attacker":    attack.Attacker,
+		"receiver":    e.ID(),
+		"receiverPos": model.Vec2{X: e.drawX, Y: e.drawY},
+		"damage":      attack.Damage,
+	}
 	if e.IsUsingShield() {
 		// attack was blocked; still some bump back, but no other change
-
+		eventInfo["blocked"] = true
 		moveError := e.TryBumpBack(config.TileSize/2, defaultWalkSpeed, attack.Origin, body.AnimShield, defaultIdleAnimationTickInterval)
 		if !moveError.Success {
 			// perhaps there was a collision?
 			logz.Println(e.DisplayName(), "shielded bump back failed:", moveError)
 		}
+		// TODO: play shield clash sound effect
+		// TODO: damage shield item
+
+		e.eventBus.Publish(defs.Event{
+			Type: pubsub.EventAttackEntity,
+			Data: eventInfo,
+		})
 		return
 	}
 
@@ -149,9 +170,8 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	}
 	e.waitingToAttack = false
 
-	// TODO: handle health once I've worked out how it will be implemented. currently planning to use attributes to calculate max health
-	// e.characterStateRef.Vitals.Health.CurrentVal -= attack.Damage
-	// logz.Println(e.DisplayName(), "current health:", e.characterStateRef.Vitals.Health.CurrentVal)
+	e.characterStateRef.Health -= attack.Damage
+	logz.Println(e.DisplayName(), "current health:", e.characterStateRef.Health)
 
 	e.Body.SetDamageFlicker(15)
 
@@ -166,6 +186,11 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	if attack.StunTicks > 0 {
 		e.stun(attack.StunTicks)
 	}
+
+	e.eventBus.Publish(defs.Event{
+		Type: pubsub.EventAttackEntity,
+		Data: eventInfo,
+	})
 }
 
 func (e *Entity) stun(ticks int) {

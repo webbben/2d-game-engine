@@ -45,6 +45,16 @@ const (
 
 	EventRoleAdded   defs.EventType = "role_added"   // data: "roleID" (string)
 	EventRoleRemoved defs.EventType = "role_removed" // data: "roleID" (string)
+
+	// Entity Interactions
+
+	// data:
+	// 	- "attacker" (string/charStateID)
+	// 	- "receiver" (string/charStateID)
+	// 	- "receiverPos" (model.vec2?)
+	// 	- "damage" (int)
+	// 	- "blocked" (bool)
+	EventAttackEntity defs.EventType = "attack_entity"
 )
 
 // DataKey is the commonly used key in the Data map of an event to store specific structs.
