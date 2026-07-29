@@ -6,6 +6,7 @@ import (
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
@@ -183,5 +184,10 @@ func (sv *ScreenViewer) Draw(screen *ebiten.Image) {
 type OpenContainerScreenParams struct {
 	MapID       defs.MapID
 	ContainerID int
+	DisplayName string
+}
+
+type LootScreenParams struct {
+	CharStateID id.CharacterStateID
 	DisplayName string
 }

@@ -77,6 +77,7 @@ var (
 	DefaultLoadingScreen defs.ScreenID = "" // this needs to be set if you want load screens to show while maps are loading.
 
 	OpenContainerScreen defs.ScreenID = "" // screen to show when opening a container
+	LootNPCScreen       defs.ScreenID = "" // screen to show when looting a dead NPC
 
 	DefaultContainerGeneratorID string = ""
 
