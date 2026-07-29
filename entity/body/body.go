@@ -661,7 +661,9 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 		case "body":
 			rendering.DrawHSVImage(eb.stagingImg, eb.BodySet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, 0)
 		case "arms":
-			rendering.DrawHSVImage(eb.stagingImg, eb.ArmsSet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, 0)
+			if eb.ArmsSet.img != nil {
+				rendering.DrawHSVImage(eb.stagingImg, eb.ArmsSet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, 0)
+			}
 		case "legs":
 			if eb.LegsSet.img != nil {
 				rendering.DrawHSVImage(eb.stagingImg, eb.LegsSet.img, eb.BodyHSV.H, eb.BodyHSV.S, eb.BodyHSV.V, bodyX, bodyY, 0)
@@ -679,10 +681,9 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 				rendering.DrawHSVImage(eb.stagingImg, eb.EyesSet.img, eb.EyesHSV.H, eb.EyesHSV.S, eb.EyesHSV.V, bodyX, eyesY, 0)
 			}
 		case "hair":
-			if eb.HairSet.img == nil {
-				logz.Panicln(eb.Name, "hair img is nil")
+			if eb.HairSet.img != nil {
+				rendering.DrawHSVImage(eb.stagingImg, eb.HairSet.img, eb.HairHSV.H, eb.HairHSV.S, eb.HairHSV.V, bodyX, hairY, 0)
 			}
-			rendering.DrawHSVImage(eb.stagingImg, eb.HairSet.img, eb.HairHSV.H, eb.HairHSV.S, eb.HairHSV.V, bodyX, hairY, 0)
 		case "equip_head":
 			if eb.EquipHeadSet.img != nil {
 				rendering.DrawImage(eb.stagingImg, eb.EquipHeadSet.img, bodyX, hairY, 0)

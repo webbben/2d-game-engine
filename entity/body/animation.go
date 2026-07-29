@@ -1,6 +1,8 @@
 package body
 
 import (
+	"slices"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
@@ -10,6 +12,7 @@ import (
 )
 
 const (
+	AnimDead      = "dead"
 	AnimIdle      = "idle"
 	AnimWalk      = "walk"
 	AnimRun       = "run"
@@ -23,17 +26,15 @@ const (
 // adding a const and adding it to this list. All iteration over animations
 // should use this function.
 func AllAnimations() []string {
-	return []string{AnimIdle, AnimWalk, AnimRun, AnimSlash, AnimBackslash, AnimShield}
+	return []string{AnimIdle, AnimWalk, AnimRun, AnimSlash, AnimBackslash, AnimShield, AnimDead}
 }
 
 func validateAnimation(anim string) {
 	if anim == "" {
 		panic("animation name is empty (this is not supported; for 'no animation' use the idle animation)")
 	}
-	for _, name := range AllAnimations() {
-		if anim == name {
-			return
-		}
+	if slices.Contains(AllAnimations(), anim) {
+		return
 	}
 	panic("unrecognized animation: " + anim)
 }
