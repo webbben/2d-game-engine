@@ -506,7 +506,11 @@ func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef defs.SelectedPartDef) 
 
 	// as of now, we are assuming that weaponFx will never have an idle animation, so setting it to skip here.
 	// this is to prevent the weaponFx frames from showing while idle is active.
-	weaponFxDef.IdleAnimation.Skip = true
+	if !weaponDef.None {
+		fxIdle := weaponFxDef.Animations[AnimIdle]
+		fxIdle.Skip = true
+		weaponFxDef.Animations[AnimIdle] = fxIdle
+	}
 
 	eb.WeaponSet.setImageSource(weaponDef, 0, 0, eb.IsAuxEquipped())
 	eb.WeaponFxSet.setImageSource(weaponFxDef, 0, 0, eb.IsAuxEquipped())
@@ -533,7 +537,8 @@ type PartDefParams struct {
 	None      bool
 	FlipRForL bool // if true, frames for Right directions will be flipped horizontally and reused for the Left direction.
 
-	Idle, Walk, Run, Slash, Backslash, Shield *defs.AnimationParams
+	// Animation params keyed by animation name (use body.AnimIdle, body.AnimWalk, etc.)
+	Anims map[string]*defs.AnimationParams
 
 	StretchX, StretchY int
 	OffsetY            int
@@ -548,59 +553,33 @@ func NewPartDef(params PartDefParams) defs.SelectedPartDef {
 		return defs.SelectedPartDef{None: true}
 	}
 	def := defs.SelectedPartDef{
-		ID:                 params.ID,
-		FlipRForL:          params.FlipRForL,
-		StretchX:           params.StretchX,
-		StretchY:           params.StretchY,
-		OffsetY:            params.OffsetY,
-		CropHairToHead:     params.CropHairToHead,
-		IdleAnimation:      defs.AnimationParams{Skip: true},
-		WalkAnimation:      defs.AnimationParams{Skip: true},
-		RunAnimation:       defs.AnimationParams{Skip: true},
-		SlashAnimation:     defs.AnimationParams{Skip: true},
-		BackslashAnimation: defs.AnimationParams{Skip: true},
-		ShieldAnimation:    defs.AnimationParams{Skip: true},
+		ID:             params.ID,
+		FlipRForL:      params.FlipRForL,
+		StretchX:       params.StretchX,
+		StretchY:       params.StretchY,
+		OffsetY:        params.OffsetY,
+		CropHairToHead: params.CropHairToHead,
+		Animations:     make(map[string]defs.AnimationParams),
 	}
-	validateAnimParams := func(animParams defs.AnimationParams) {
-		if animParams.Skip {
-			return
+	// Pre-populate with Skip: true defaults so all animations exist in the map
+	for _, name := range AllAnimations() {
+		def.Animations[name] = defs.AnimationParams{Skip: true, Name: name}
+	}
+	// Override with caller-provided animation params
+	for name, animParams := range params.Anims {
+		if animParams != nil {
+			anim := *animParams
+			anim.Name = name
+			def.Animations[name] = anim
 		}
-		if animParams.TilesetSrc == "" {
-			panic("tilesetSrc must not be empty")
+	}
+	// Validate that non-skip animations have a tileset source
+	for _, name := range AllAnimations() {
+		ap := def.Animations[name]
+		if !ap.Skip && ap.TilesetSrc == "" {
+			panic("tilesetSrc must not be empty for animation " + name)
 		}
 	}
-
-	if params.Idle != nil {
-		def.IdleAnimation = *params.Idle
-		def.IdleAnimation.Name = "idle"
-	}
-	if params.Walk != nil {
-		def.WalkAnimation = *params.Walk
-		def.WalkAnimation.Name = "walk"
-	}
-	if params.Run != nil {
-		def.RunAnimation = *params.Run
-		def.RunAnimation.Name = "run"
-	}
-	if params.Slash != nil {
-		def.SlashAnimation = *params.Slash
-		def.SlashAnimation.Name = "slash"
-	}
-	if params.Backslash != nil {
-		def.BackslashAnimation = *params.Backslash
-		def.BackslashAnimation.Name = "backslash"
-	}
-	if params.Shield != nil {
-		def.ShieldAnimation = *params.Shield
-		def.ShieldAnimation.Name = "shield"
-	}
-
-	validateAnimParams(def.IdleAnimation)
-	validateAnimParams(def.WalkAnimation)
-	validateAnimParams(def.RunAnimation)
-	validateAnimParams(def.SlashAnimation)
-	validateAnimParams(def.BackslashAnimation)
-	validateAnimParams(def.ShieldAnimation)
 
 	return def
 }
@@ -609,14 +588,16 @@ func NewPartDef(params PartDefParams) defs.SelectedPartDef {
 func (eb *EntityBodySet) cropHair() {
 	eb.BodySet.validate()
 	eb.HairSet.validate()
+
+	walkAnim := eb.BodySet.Animations[AnimWalk]
 	leftHead := ebiten.NewImage(config.TileSize, config.TileSize)
-	rendering.DrawImage(leftHead, eb.BodySet.WalkAnimation.L[0], 0, 0, 0)
+	rendering.DrawImage(leftHead, walkAnim.L[0], 0, 0, 0)
 	rightHead := ebiten.NewImage(config.TileSize, config.TileSize)
-	rendering.DrawImage(rightHead, eb.BodySet.WalkAnimation.R[0], 0, 0, 0)
+	rendering.DrawImage(rightHead, walkAnim.R[0], 0, 0, 0)
 	upHead := ebiten.NewImage(config.TileSize, config.TileSize)
-	rendering.DrawImage(upHead, eb.BodySet.WalkAnimation.U[0], 0, 0, 0)
+	rendering.DrawImage(upHead, walkAnim.U[0], 0, 0, 0)
 	downHead := ebiten.NewImage(config.TileSize, config.TileSize)
-	rendering.DrawImage(downHead, eb.BodySet.WalkAnimation.D[0], 0, 0, 0)
+	rendering.DrawImage(downHead, walkAnim.D[0], 0, 0, 0)
 
 	cropper := func(a *Animation) {
 		for i, img := range a.L {
@@ -633,12 +614,11 @@ func (eb *EntityBodySet) cropHair() {
 		}
 	}
 
-	cropper(&eb.HairSet.WalkAnimation)
-	cropper(&eb.HairSet.RunAnimation)
-	cropper(&eb.HairSet.SlashAnimation)
-	cropper(&eb.HairSet.BackslashAnimation)
-	cropper(&eb.HairSet.ShieldAnimation)
-	cropper(&eb.HairSet.IdleAnimation)
+	for _, name := range AllAnimations() {
+		a := eb.HairSet.Animations[name]
+		cropper(&a)
+		eb.HairSet.Animations[name] = a
+	}
 }
 
 func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64) {

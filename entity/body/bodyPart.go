@@ -18,15 +18,10 @@ type BodyPartSet struct {
 
 	// animation definitions
 
-	animIndex          int       // index or "step" of the animation we are currently on
-	reachedLastFrame   bool      // used to detect when an animation has finished (if all sets are at last frame, entire animation is done)
-	IdleAnimation      Animation `json:"-"`
-	WalkAnimation      Animation `json:"-"`
-	RunAnimation       Animation `json:"-"`
-	SlashAnimation     Animation `json:"-"`
-	BackslashAnimation Animation `json:"-"`
-	ShieldAnimation    Animation `json:"-"`
-	HasUp              bool      // if true, this set has an "up" direction animation. some don't since they will be covered by the body (such as eyes)
+	animIndex        int                  // index or "step" of the animation we are currently on
+	reachedLastFrame bool                 // used to detect when an animation has finished (if all sets are at last frame, entire animation is done)
+	Animations       map[string]Animation `json:"-"`
+	HasUp            bool                 // if true, this set has an "up" direction animation. some don't since they will be covered by the body (such as eyes)
 
 	img *ebiten.Image `json:"-"`
 }
@@ -57,7 +52,8 @@ func NewBodyPartSet(params BodyPartSetParams) BodyPartSet {
 		IsRemovable: params.IsRemovable,
 		Name:        params.Name,
 		// all parts start off as being "none"/disabled. a partSrc can be added later.
-		PartSrc: defs.SelectedPartDef{None: true},
+		PartSrc:    defs.SelectedPartDef{None: true},
+		Animations: make(map[string]Animation),
 	}
 
 	return bps
@@ -86,12 +82,9 @@ func (bps BodyPartSet) validate() {
 	if bps.Name == "" {
 		panic("no name set")
 	}
-	bps.WalkAnimation.validate()
-	bps.RunAnimation.validate()
-	bps.SlashAnimation.validate()
-	bps.BackslashAnimation.validate()
-	bps.IdleAnimation.validate()
-	bps.ShieldAnimation.validate()
+	for _, a := range bps.Animations {
+		a.validate()
+	}
 
 	// animation validation
 	if bps.animIndex > 20 {
@@ -103,12 +96,11 @@ func (bps BodyPartSet) validate() {
 }
 
 func (bps *BodyPartSet) unsetAllImages() {
-	bps.WalkAnimation.reset()
-	bps.RunAnimation.reset()
-	bps.SlashAnimation.reset()
-	bps.BackslashAnimation.reset()
-	bps.IdleAnimation.reset()
-	bps.ShieldAnimation.reset()
+	for name := range bps.Animations {
+		a := bps.Animations[name]
+		a.reset()
+		bps.Animations[name] = a
+	}
 	bps.img = nil
 }
 
@@ -131,20 +123,13 @@ func (set *BodyPartSet) load(stretchX, stretchY int, aux bool) {
 		panic("source not set before attempting to load")
 	}
 
-	set.WalkAnimation.Name = fmt.Sprintf("%s/walk", set.Name)
-	set.RunAnimation.Name = fmt.Sprintf("%s/run", set.Name)
-	set.SlashAnimation.Name = fmt.Sprintf("%s/slash", set.Name)
-	set.BackslashAnimation.Name = fmt.Sprintf("%s/backslash", set.Name)
-	set.IdleAnimation.Name = fmt.Sprintf("%s/idle", set.Name)
-	set.ShieldAnimation.Name = fmt.Sprintf("%s/shield", set.Name)
-	set.PartSrc.IdleAnimation.Name = "idle"
-
-	set.WalkAnimation.load(set.PartSrc.WalkAnimation, aux, set.HasUp, set.PartSrc.FlipRForL, stretchX, stretchY)
-	set.RunAnimation.load(set.PartSrc.RunAnimation, aux, set.HasUp, set.PartSrc.FlipRForL, stretchX, stretchY)
-	set.SlashAnimation.load(set.PartSrc.SlashAnimation, aux, set.HasUp, set.PartSrc.FlipRForL, stretchX, stretchY)
-	set.BackslashAnimation.load(set.PartSrc.BackslashAnimation, aux, set.HasUp, set.PartSrc.FlipRForL, stretchX, stretchY)
-	set.ShieldAnimation.load(set.PartSrc.ShieldAnimation, aux, set.HasUp, set.PartSrc.FlipRForL, stretchX, stretchY)
-	set.IdleAnimation.load(set.PartSrc.IdleAnimation, aux, set.HasUp, set.PartSrc.FlipRForL, stretchX, stretchY)
+	for _, name := range AllAnimations() {
+		a := set.Animations[name]
+		animParams := set.PartSrc.Animations[name]
+		a.Name = fmt.Sprintf("%s/%s", set.Name, name)
+		a.load(animParams, aux, set.HasUp, set.PartSrc.FlipRForL, stretchX, stretchY)
+		set.Animations[name] = a
+	}
 
 	set.validate()
 }
@@ -162,41 +147,19 @@ func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string) {
 		return
 	}
 
-	switch animationName {
-	case AnimWalk:
-		set.img = set.WalkAnimation.getFrame(dir, set.animIndex)
-	case AnimRun:
-		set.img = set.RunAnimation.getFrame(dir, set.animIndex)
-	case AnimSlash:
-		set.img = set.SlashAnimation.getFrame(dir, set.animIndex)
-	case AnimBackslash:
-		set.img = set.BackslashAnimation.getFrame(dir, set.animIndex)
-	case AnimIdle:
-		set.img = set.IdleAnimation.getFrame(dir, set.animIndex)
-	case AnimShield:
-		set.img = set.ShieldAnimation.getFrame(dir, set.animIndex)
-	default:
+	anim, ok := set.Animations[animationName]
+	if !ok {
 		panic("unrecognized animation name: " + animationName)
 	}
+	set.img = anim.getFrame(dir, set.animIndex)
 }
 
 func (set BodyPartSet) getCurrentYOffset(animationName string, direction byte) int {
-	switch animationName {
-	case AnimWalk:
-		return set.WalkAnimation.GetOffsetY(direction, set.animIndex)
-	case AnimRun:
-		return set.RunAnimation.GetOffsetY(direction, set.animIndex)
-	case AnimSlash:
-		return set.SlashAnimation.GetOffsetY(direction, set.animIndex)
-	case AnimBackslash:
-		return set.BackslashAnimation.GetOffsetY(direction, set.animIndex)
-	case AnimIdle:
-		return set.IdleAnimation.GetOffsetY(direction, set.animIndex)
-	case AnimShield:
-		return set.ShieldAnimation.GetOffsetY(direction, set.animIndex)
+	anim, ok := set.Animations[animationName]
+	if !ok {
+		return 0
 	}
-
-	return 0
+	return anim.GetOffsetY(direction, set.animIndex)
 }
 
 func (set *BodyPartSet) nextFrame(animationName string) {
@@ -210,59 +173,25 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 		logz.Panic("called nextFrame on empty animation. should this be the idle animation?")
 	}
 
-	set.reachedLastFrame = false
-	numSteps := 0
-	// For now, we assume all directions of an animation have the same length. if this changes, we need to redo this logic
-	switch animationName {
-	case AnimWalk:
-		// this body part skips this animation
-		if set.WalkAnimation.Skip {
-			// if we skip, mark this body part as having reached the last frame so that the animation doesn't get hung up waiting on this one
-			set.reachedLastFrame = true
-			return
-		}
-		numSteps = len(set.WalkAnimation.L)
-	case AnimRun:
-		if set.RunAnimation.Skip {
-			set.reachedLastFrame = true
-			return
-		}
-		numSteps = len(set.RunAnimation.L)
-	case AnimSlash:
-		if set.SlashAnimation.Skip {
-			set.reachedLastFrame = true
-			return
-		}
-		numSteps = len(set.SlashAnimation.L)
-	case AnimBackslash:
-		if set.BackslashAnimation.Skip {
-			set.reachedLastFrame = true
-			return
-		}
-		numSteps = len(set.BackslashAnimation.L)
-	case AnimIdle:
-		if set.IdleAnimation.Skip {
-			set.reachedLastFrame = true
-			return
-		}
-		numSteps = len(set.IdleAnimation.L)
-	case AnimShield:
-		if set.ShieldAnimation.Skip {
-			set.reachedLastFrame = true
-			return
-		}
-		numSteps = len(set.ShieldAnimation.L)
-	default:
+	anim, ok := set.Animations[animationName]
+	if !ok {
 		logz.Panicln(set.Name, "nextFrame: animation name has no registered animation sequence:", animationName)
 	}
 
-	// do below the above switch, so that if the animation is skipped we don't keep incrementing animIndex
+	set.reachedLastFrame = false
+
+	if anim.Skip {
+		set.reachedLastFrame = true
+		return
+	}
+
+	numSteps := len(anim.L)
+
+	// do below the skip check, so that if the animation is skipped we don't keep incrementing animIndex
 	set.animIndex++
 
 	if numSteps == 0 {
 		logz.Panicln(set.Name, "anim: ", animationName, "num steps is somehow 0")
-		// set.animIndex = 0
-		// set.reachedLastFrame = true
 	}
 	// ensure we don't go past the last frame - and mark this body part as done with the animation, if it has.
 	if set.animIndex >= numSteps {

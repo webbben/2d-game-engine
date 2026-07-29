@@ -3,9 +3,9 @@ package body
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
-	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/tiled"
 )
 
@@ -18,15 +18,24 @@ const (
 	AnimShield    = "shield"
 )
 
+// AllAnimations returns the list of all registered animation names.
+// This is the single source of truth — adding a new animation only requires
+// adding a const and adding it to this list. All iteration over animations
+// should use this function.
+func AllAnimations() []string {
+	return []string{AnimIdle, AnimWalk, AnimRun, AnimSlash, AnimBackslash, AnimShield}
+}
+
 func validateAnimation(anim string) {
-	switch anim {
-	case AnimIdle, AnimWalk, AnimRun, AnimSlash, AnimBackslash, AnimShield:
-		return
-	case "":
+	if anim == "" {
 		panic("animation name is empty (this is not supported; for 'no animation' use the idle animation)")
-	default:
-		panic("unrecognized animation: " + anim)
 	}
+	for _, name := range AllAnimations() {
+		if anim == name {
+			return
+		}
+	}
+	panic("unrecognized animation: " + anim)
 }
 
 // IsAttacking determines if the body is currently doing an attack animation
