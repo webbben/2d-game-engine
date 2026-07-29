@@ -473,6 +473,10 @@ func (m ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) (collid
 		if n.Entity.DisableCollisions {
 			continue
 		}
+		if n.Entity.IsDead() {
+			// don't worry about colliding with dead entities
+			continue
+		}
 		cr := checkCornerCollision(r, n.Entity.CollisionRect())
 		if cr.Collides() {
 			dist := utils.EuclideanDistCenter(r, n.Entity.CollisionRect())

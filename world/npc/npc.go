@@ -120,6 +120,10 @@ func (n NPC) DisplayName() string {
 
 func (n *NPC) Activate() {
 	logz.Println("NPC", "NPC", n.DisplayName(), "was activated")
+	if n.Entity.IsDead() {
+		// TODO: open inventory to loot
+		return
+	}
 	if n.dialogProfileID != "" {
 		n.ActiveMapCtx.StartDialog(n.dialogProfileID, n.ID())
 		return

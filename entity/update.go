@@ -3,6 +3,7 @@ package entity
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
@@ -136,7 +137,13 @@ func (e *Entity) Kill() {
 	e.characterStateRef.Health = 0
 	e.characterStateRef.Dead = true
 	logz.Warnln(string(e.ID()), "Entity died!")
-	// TODO: set body to dead animation
+	e.SetAnimation(AnimationOptions{
+		AnimationName:         body.AnimDead,
+		AnimationTickInterval: 1,
+		SetAnimationOps: body.SetAnimationOps{
+			Force: true,
+		},
+	})
 }
 
 func (e Entity) IsDead() bool {
