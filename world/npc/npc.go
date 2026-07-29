@@ -8,6 +8,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
@@ -18,6 +19,7 @@ import (
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/worldgraph"
 	"golang.org/x/image/font"
@@ -121,7 +123,16 @@ func (n NPC) DisplayName() string {
 func (n *NPC) Activate() {
 	logz.Println("NPC", "NPC", n.DisplayName(), "was activated")
 	if n.Entity.IsDead() {
-		// TODO: open inventory to loot
+		n.eventBus.Publish(defs.Event{
+			Type: pubsub.SysShowScreen,
+			Data: map[string]any{
+				"screen_id": config.LootNPCScreen,
+				"params": screen.LootScreenParams{
+					CharStateID: n.Entity.ID(),
+					DisplayName: n.DisplayName(),
+				},
+			},
+		})
 		return
 	}
 	if n.dialogProfileID != "" {

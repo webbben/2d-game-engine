@@ -27,11 +27,15 @@ type ItemMover struct {
 	playerAvatarRect *model.Rect
 }
 
-func NewItemMover(itemSlots []*ItemSlot) ItemMover {
-	return ItemMover{
+func NewItemMover(itemSlots []*ItemSlot) *ItemMover {
+	return &ItemMover{
 		dropableSlots:     itemSlots,
 		possibleTransfers: make(map[string][]string),
 	}
+}
+
+func (im *ItemMover) AddItemSlots(itemSlots []*ItemSlot) {
+	im.dropableSlots = append(im.dropableSlots, itemSlots...)
 }
 
 // AddPlayerAvatorZone lets you set a zone on the screen where the player avatar is.

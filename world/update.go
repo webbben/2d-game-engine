@@ -49,14 +49,16 @@ func (w *World) Update(showingLoadScreen bool) {
 		blockPlayerChanges = true
 	}
 
-	w.ActiveMap.Update(blockPlayerChanges)
-
 	// don't allow the player to do anything while map is showing screens.
 	// One major reason to block this is, we don't want the E key to trigger the player menu to close from outside the player menu logic.
 	// If that happens, then the screen doesn't save its changes.
+	// Also - check this before active map's Update call; if a screen were just closed on the same tick,
+	// then BlockPlayerChanges is no longer set, allowing a button click to also trigger something like a melee attack, etc.
 	if w.ActiveMap.IsScreenShowing() {
 		blockPlayerChanges = true
 	}
+
+	w.ActiveMap.Update(blockPlayerChanges)
 
 	w.Player.Update(blockPlayerChanges)
 
