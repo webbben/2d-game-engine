@@ -18,13 +18,9 @@ type SelectedPartDef struct {
 	None      bool `json:"-"` // if true, this part will not be shown
 	FlipRForL bool `json:"-"` // if true, instead of using an L source, we just flip the frames for right
 
-	// Idle animation def
-	IdleAnimation      AnimationParams `json:"-"` // this is defined separately from other animations, since it behaves uniquely (see body.md)
-	WalkAnimation      AnimationParams `json:"-"`
-	RunAnimation       AnimationParams `json:"-"`
-	SlashAnimation     AnimationParams `json:"-"`
-	BackslashAnimation AnimationParams `json:"-"`
-	ShieldAnimation    AnimationParams `json:"-"`
+	// Animation definitions keyed by animation name (e.g. "idle", "walk", "run", etc.)
+	// See body.AllAnimations() for the canonical list of animation names.
+	Animations map[string]AnimationParams `json:"-"`
 
 	// body-specific props
 
@@ -57,29 +53,20 @@ func (def SelectedPartDef) IsEqual(other SelectedPartDef) bool {
 		fmt.Println("cropHairToHead values are different:", def.CropHairToHead, other.CropHairToHead)
 		return false
 	}
-	if !def.IdleAnimation.IsEqual(other.IdleAnimation) {
-		fmt.Println("Idle animations are not equal")
+	if len(def.Animations) != len(other.Animations) {
+		fmt.Printf("animation map size differs: %d vs %d\n", len(def.Animations), len(other.Animations))
 		return false
 	}
-	if !def.WalkAnimation.IsEqual(other.WalkAnimation) {
-		fmt.Println("Walk animations are not equal")
-		return false
-	}
-	if !def.RunAnimation.IsEqual(other.RunAnimation) {
-		fmt.Println("Run animations are not equal")
-		return false
-	}
-	if !def.SlashAnimation.IsEqual(other.SlashAnimation) {
-		fmt.Println("Slash animations are not equal")
-		return false
-	}
-	if !def.BackslashAnimation.IsEqual(other.BackslashAnimation) {
-		fmt.Println("Backslash animations are not equal")
-		return false
-	}
-	if !def.ShieldAnimation.IsEqual(other.ShieldAnimation) {
-		fmt.Println("Shield animations are not equal")
-		return false
+	for name, anim := range def.Animations {
+		otherAnim, ok := other.Animations[name]
+		if !ok {
+			fmt.Printf("animation %s is missing in the other definition\n", name)
+			return false
+		}
+		if !anim.IsEqual(otherAnim) {
+			fmt.Printf("animation %s is not equal\n", name)
+			return false
+		}
 	}
 	return true
 }

@@ -1,3 +1,60 @@
+# 2026-07-29
+
+Continuing work on what I outlined last time. Wanted to collect my thoughts a bit and think more about what to
+work on next. Currently working from Nagoya, and probably will be for the next week or so.
+
+## Completed
+
+1. Character art updates/"redraw"
+
+This went well I'd say. Some of the animations were improved a little, some others might still not be perfect,
+but I believe I plan to keep them as they are now and completely move on. Let's let it stay concrete like this,
+so that fixing other affected art isn't necessary in the future. I could still add new animation frames as needed,
+though. For example, I'll probably add a more full "death" animation, so that when characters die, they don't just
+immediately switch to a "dead" frame.
+
+2. Combat is working again (but not finished)
+
+Dusted off the cob webs of the old combat related code (excepting the AI/NPC task). Sword swings and other stuff
+like that appear to work.
+
+## In Progress
+
+1. Adding a "death" animation
+
+This will just be a single frame for now. When an NPC is dead, they will switch to this frame.
+Later on I'll probably make a fuller animation for death which should include at least a few frames.
+
+2. Refactor body animation system
+
+Just decided to do this, but I'm going to try to let the AI take care of this for the most part.
+As a little test to see how effective it is at refactoring. We will see, but it will be useful to refactor
+the current system because it's really kind of burdensome to add new animations, and there is a lot of repetitive
+code that could be abstracted a bit or made reusable I think.
+
+## Next Up 
+
+1. Update/Improve NPC combat AI
+
+This will be one of the most important (but interesting) things to work on. I want to make the NPCs as competent
+as possible at combat, but also to behave more "human-like" and not just be overwhelmingly fast and efficient at
+attacking. I don't want them to get stuck on things, and want them to be good at path finding to reach the player,
+but I also want them to behave in a way that makes combat enjoyable for the player. This will just take a lot of
+experimentation probably.
+
+2. Add sound effects and more visual effects to combat
+
+Right now, there is no sound effect when a weapon is used in an attack, so that will be a quick win to improve the combat
+experience right away. From there, I need to consider how to make combat feel more tactical or visually satisfying;
+add some visual effects when a character is hit (we have one now, but it's just a simple flashing red effect).
+Maybe add a sound effect if you hit an enemy that is using a shield, show some visual feedback about how much damage
+you do to the enemy, maybe show a health bar somewhere, etc.
+
+3. HUD for health and stamina bars
+
+This is obviously important so the player knows how much health he has. Need to do the art for this and decide the
+layout on the screen.
+
 # 2026-07-21
 
 It feels like it's been a long time since I last wrote in this dev log. Basically, I went on vacation back to the US
