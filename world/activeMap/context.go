@@ -22,7 +22,7 @@ import (
 // GetValidMapPosition finds a valid position in the active map for a given NPC.
 // Basically, this can be used for placing an NPC in a random place, and ensures that the NPC doesn't spawn in inaccessible areas,
 // behind locked gates (that they can't unlock), etc.
-func (m ActiveMap) GetValidMapPosition(n npc.NPC) model.Coords {
+func (m *ActiveMap) GetValidMapPosition(n npc.NPC) model.Coords {
 	// get the cost map (which includes NPC and object collisions), and then factor in other stuff like locked gates.
 	costmap := m.CostMap()
 
@@ -77,7 +77,7 @@ func (m ActiveMap) GetValidMapPosition(n npc.NPC) model.Coords {
 
 // FindObjectsAtPosition finds all objects that intersect with a given tile position.
 // This includes collidable and non-collidable objects, as long as they have a draw rect.
-func (mi ActiveMap) FindObjectsAtPosition(c model.Coords) []*object.Object {
+func (mi *ActiveMap) FindObjectsAtPosition(c model.Coords) []*object.Object {
 	posRect := model.NewRect(float64(c.X)*config.TileSize, float64(c.Y)*config.TileSize, config.TileSize, config.TileSize)
 	objs := []*object.Object{}
 	for _, obj := range mi.Objects {
@@ -116,16 +116,18 @@ func (m *ActiveMap) StartBookSession(bookID defs.BookID, playerInfo defs.PlayerI
 	m.bookSession = book.NewBookSession(bookID, m.dataman, m.audioman, m.eventBus, playerInfo, params)
 }
 
-func (m ActiveMap) GetAllObjects() []*object.Object {
+func (m *ActiveMap) GetAllObjects() []*object.Object {
 	return m.Objects
 }
 
-func (m ActiveMap) GetCostMap() [][]int {
+func (m *ActiveMap) GetCostMap() [][]int {
 	return m.CostMap()
 }
 
-func (m ActiveMap) GetAllNPCs() []*npc.NPC {
-	return m.NPCs
+func (m *ActiveMap) GetAllNPCs() []*npc.NPC {
+	m.npcMu.RLock()
+	defer m.npcMu.RUnlock()
+	return append([]*npc.NPC{}, m.NPCs...)
 }
 
 func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMap defs.MapID) {
@@ -139,14 +141,17 @@ func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMa
 			n.PrepareLeaveActiveMap()
 			// move to the new map's occupancy
 			m.worldCtx.ChangeMapOccupancy(charStateID, m.MapID, toMap, -1)
+
 			// remove from active map
+			m.npcMu.Lock()
 			m.NPCs = utils.RemoveIndexUnordered(m.NPCs, i)
+			m.npcMu.Unlock()
 			return
 		}
 	}
 	logz.Panicln("RemoveNPCFromActiveMap", "NPC not found in active map:", charStateID)
 }
 
-func (m ActiveMap) GetOverlayManager() *overlay.OverlayManager {
+func (m *ActiveMap) GetOverlayManager() *overlay.OverlayManager {
 	return m.om
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
-	"github.com/webbben/2d-game-engine/world/npc"
 )
 
 func (w *World) Update(showingLoadScreen bool) {
@@ -114,7 +113,7 @@ func (w *World) initializeNpcWorldState() {
 		}
 
 		// clear any existing task from this NPC and set the one scheduled for the current hour
-		n.CurrentTask = nil
+		n.ClearCurrentTask()
 		n.SetupTaskState(gameTime, nil)
 	}
 }
@@ -152,7 +151,7 @@ func (w *World) timeLapse(newTime clock.GameTime) {
 	for _, n := range w.ActiveMap.NPCs {
 		n.PrepareLeaveActiveMap()
 	}
-	w.ActiveMap.NPCs = []*npc.NPC{}
+	w.ActiveMap.ResetNPCs()
 
 	w.loadRegularMapNPCs()
 

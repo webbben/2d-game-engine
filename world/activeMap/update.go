@@ -11,6 +11,8 @@ import (
 func (m *ActiveMap) Update(blockPlayerChanges bool) {
 	m.daylightFader.Update()
 
+	m.refreshPathfindingSnapshot()
+
 	blockMapUpdates := false
 
 	if m.dialogSession != nil {

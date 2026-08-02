@@ -41,6 +41,12 @@ func (nm *NPCManager) startBackgroundNPCManager() {
 // async jobs that the NPC Manager runs in a separate go-routine.
 //
 // DO NOT call this directly! Call StartBackgroundNPCManager instead!
+// maxBgLoopSpeed bounds how fast the background jobs loop can repeat. Deliberately aligned with the
+// pathfinding snapshot refresh throttle (see ActiveMap.refreshPathfindingSnapshot, 100ms), since bg
+// assist pathfinding runs against that snapshot — faster passes would just recompute against an
+// identical cost map. Without throttling, the loop would busy-spin and peg a core.
+const maxBgLoopSpeed = time.Millisecond * 100
+
 func (nm *NPCManager) _asyncJobs() {
 	defer func() {
 		nm.backgroundJobsRunning = false
@@ -49,30 +55,28 @@ func (nm *NPCManager) _asyncJobs() {
 
 	logz.Println("NPC Manager", "starting background jobs loop")
 
-	// ensure the loop doesn't repeat faster than this length of time
-	maxLoopSpeed := time.Millisecond * 100
-
 	for {
 		start := time.Now()
 		if !nm.RunBackgroundJobs {
 			return
 		}
 
-		for _, n := range nm.NPCs {
-			if !n.IsActive() {
+		// doing this to avoid data race stuff
+		nm.npcMu.RLock()
+		npcs := make([]*npc.NPC, len(nm.NPCs))
+		copy(npcs, nm.NPCs)
+		nm.npcMu.RUnlock()
+
+		for _, n := range npcs {
+			task := n.GetCurrentTaskForBgAssist()
+			if task == nil {
 				continue
 			}
-
-			// check if NPC's current task can use background assistance
-			if n.CurrentTask != nil {
-				n.CurrentTask.BackgroundAssist()
-			} else {
-				logz.Println(n.DisplayName(), "NPC Manager: NPC has no current task")
-			}
+			task.BackgroundAssist()
 		}
 
-		if time.Since(start) < maxLoopSpeed {
-			time.Sleep(maxLoopSpeed - time.Since(start))
+		if time.Since(start) < maxBgLoopSpeed {
+			time.Sleep(maxBgLoopSpeed - time.Since(start))
 		}
 	}
 }

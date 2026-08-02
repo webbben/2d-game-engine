@@ -6,6 +6,11 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/utils"
+)
+
+const (
+	SightDist float64 = 8
 )
 
 type debug struct {
@@ -20,14 +25,20 @@ func (n *NPC) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 }
 
 func (n *NPC) Update() {
-	if time.Since(n.debug.lastDebugPrint) > 10*time.Second {
-		n.debug.lastDebugPrint = time.Now()
-		logz.Println(n.ID(), "== DEBUG PRINT ==")
-		logz.Println(n.ID(), "IsActive:", n.IsActive())
-		if n.CurrentTask != nil {
-			logz.Println(n.ID(), "Current Task:", n.CurrentTask.GetName())
-			logz.Println(n.ID(), "Status:", n.CurrentTask.GetStatus())
-		}
+	// if time.Since(n.debug.lastDebugPrint) > 10*time.Second {
+	// 	n.debug.lastDebugPrint = time.Now()
+	// 	logz.Println(n.ID(), "== DEBUG PRINT ==")
+	// 	logz.Println(n.ID(), "IsActive:", n.IsActive())
+	// 	if n.CurrentTask != nil {
+	// 		logz.Println(n.ID(), "Current Task:", n.CurrentTask.GetName())
+	// 		logz.Println(n.ID(), "Status:", n.CurrentTask.GetStatus())
+	// 	}
+	// }
+
+	// check if player is nearby/in sight range
+	n.playerInSightRange = utils.EuclideanDistCoords(n.WorldCtx.GetPlayerPosition(), n.Entity.TilePos()) < SightDist
+	if n.playerInSightRange {
+		n.lastPlayerSightingTime = time.Now()
 	}
 
 	n.npcUpdates()
@@ -46,7 +57,9 @@ func (mgmt *TaskMGMT) Update() {
 				return
 			}
 			// no next task, so disconnect this one.
+			mgmt.taskStateMu.Lock()
 			mgmt.CurrentTask = nil
+			mgmt.taskStateMu.Unlock()
 			return
 		}
 	}
@@ -62,7 +75,9 @@ func (n *NPC) OnHourChange(hour int) {
 }
 
 func (mgmt *TaskMGMT) RunScheduleTask(hour int, n *NPC) {
+	mgmt.taskStateMu.Lock()
 	mgmt.CurrentTask = nil
+	mgmt.taskStateMu.Unlock()
 
 	taskDef := mgmt.Schedule.Hourly[hour]
 
@@ -88,7 +103,9 @@ func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 	case TaskDoNothing:
 		// do nothing tasks are just a way for the schedule to tell an NPC to... do nothing. be frozen in one spot.
 		// TODO: should we still make a task for this? it can just be an empty task with no logic in its update functions, of course.
+		mgmt.taskStateMu.Lock()
 		n.CurrentTask = nil
+		mgmt.taskStateMu.Unlock()
 		return
 	case TaskIdle:
 		t = NewIdleTask(n, taskDef)
@@ -119,6 +136,12 @@ func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 		// we don't plan to allow this as a "top level" task (it's considered a "sub-task" that should be used inside other tasks' logic)
 		// TODO: if we decide for sure that a task (like routing) should never be "top level", maybe we should make it private (lowercase) so that schedules can't add it.
 		logz.Panicln("TaskMGMT", "This task is not intended to use as a top-level task:", taskDef.TaskID, "If this is a mistake, we can always change that of course.")
+	case TaskFight:
+		fightParams, ok := taskDef.Params.(FightTaskParams)
+		if !ok {
+			logz.Panicln("RunTask", "failed to parse fight params.", taskDef.Params)
+		}
+		t = NewFightTask(fightParams.TargetEntity, n, taskDef.Priority, taskDef.NextTask)
 	default:
 		logz.Panicln("TaskMGMT", "unknown task ID:", taskDef.TaskID)
 	}
@@ -138,7 +161,9 @@ func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
 	}
 
 	logz.Println(n.ID(), "setting task:", t.GetID())
+	mgmt.taskStateMu.Lock()
 	n.CurrentTask = t
+	mgmt.taskStateMu.Unlock()
 }
 
 // Updates related to NPC behavior or tasks

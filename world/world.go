@@ -402,6 +402,13 @@ func (w *World) ChangeMapOccupancyEvent(charStateID id.CharacterStateID, from, t
 	w.EventBus.SysChangeMapOccupancy(charStateID, from, to, toSpawn)
 }
 
+func (w *World) GetPlayerPosition() model.Coords {
+	if w.Player == nil || w.Player.Entity == nil {
+		return model.Coords{}
+	}
+	return w.Player.Entity.TilePos()
+}
+
 func (w *World) OnEvent(e defs.Event) {
 	logz.Println("WORLD", "Incoming event:", e.Type)
 	switch e.Type {

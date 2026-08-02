@@ -55,10 +55,12 @@ type ItemDef struct {
 
 	Damage    int
 	FxPartDef *SelectedPartDef
+	SwingSFX  SoundID // sound effect played when this weapon swings
 
 	// Armor (body/head/footwear, shield auxes, etc)
 
-	Protection int // amount of protection this piece of armor gives
+	Protection int     // amount of protection this piece of armor gives
+	HitSFX     SoundID // sound effect played when this armor is hit
 
 	// Book
 
