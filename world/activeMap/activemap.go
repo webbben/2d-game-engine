@@ -4,6 +4,9 @@ package activemap
 import (
 	"fmt"
 	"slices"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/audio"
@@ -42,6 +45,10 @@ type WorldContext interface {
 	ChangeMapOccupancy(charStateID id.CharacterStateID, fromMap, toMap defs.MapID, toSpawn int)
 }
 
+type PathfindingSnapshot struct {
+	CostMap [][]int
+}
+
 // ActiveMap contains information about the current room the player is in
 type ActiveMap struct {
 	debugData debugData
@@ -61,6 +68,11 @@ type ActiveMap struct {
 
 	gameCtx  defs.GameContext
 	worldCtx WorldContext
+
+	// for async pathfinding process to see current snapshot of cost map, while avoiding
+	// data races.
+	pathfindingSnapshot     atomic.Pointer[PathfindingSnapshot]
+	lastPathfindingSnapshot time.Time
 
 	dataman   *datamanager.DataManager
 	audioman  *audio.AudioManager
@@ -95,7 +107,7 @@ type ActiveMap struct {
 	NPCManager
 }
 
-func (m ActiveMap) IsScreenShowing() bool {
+func (m *ActiveMap) IsScreenShowing() bool {
 	return m.showPlayerMenu || m.showMiscScreen
 }
 
@@ -128,7 +140,7 @@ func (m *ActiveMap) ShowMiscScreen(scr screen.Screen, params any) {
 	}
 }
 
-func (m ActiveMap) GetHoverTarget() (*npc.NPC, *object.Object) {
+func (m *ActiveMap) GetHoverTarget() (*npc.NPC, *object.Object) {
 	distThreshold := float64(config.PlayerHoverDistanceThreshold)
 
 	if m.hoveredNPC != nil {
@@ -150,11 +162,11 @@ func (m ActiveMap) GetHoverTarget() (*npc.NPC, *object.Object) {
 }
 
 // IsDialogActive tells you if a dialog is currently active
-func (m ActiveMap) IsDialogActive() bool {
+func (m *ActiveMap) IsDialogActive() bool {
 	return m.dialogSession != nil
 }
 
-func (m ActiveMap) GetDialogNPC() id.CharacterStateID {
+func (m *ActiveMap) GetDialogNPC() id.CharacterStateID {
 	if !m.IsDialogActive() {
 		return ""
 	}
@@ -247,6 +259,7 @@ func NewActiveMap(
 	if m.backgroundJobsRunning {
 		panic("backgroundJobsRunning flag is already true while initializing map")
 	}
+	m.refreshPathfindingSnapshot() // ensure the snapshot is never nil
 	m.RunBackgroundJobs = true
 	m.startBackgroundNPCManager()
 
@@ -329,6 +342,8 @@ func (m *ActiveMap) addAllObjectsToMap(layer tiled.Layer) {
 type NPCManager struct {
 	NPCs []*npc.NPC // the NPC entities in the map
 
+	npcMu sync.RWMutex // protect changes to the NPCs slice
+
 	mapRef       *tiled.Map // map info so we can get map size, tile adjacency, etc
 	nextPriority int        // the next priority value to assign to an NPC
 
@@ -336,6 +351,12 @@ type NPCManager struct {
 	// if false, the background jobs goroutine will stop.
 	RunBackgroundJobs     bool
 	backgroundJobsRunning bool // flag that indicates if background jobs loop already running.
+}
+
+func (mi *ActiveMap) ResetNPCs() {
+	mi.npcMu.Lock()
+	mi.NPCs = make([]*npc.NPC, 0)
+	mi.npcMu.Unlock()
 }
 
 type sortedRenderable interface {
@@ -369,7 +390,7 @@ func (mi *ActiveMap) AddPlayerToMap(p *player.Player, x, y float64) {
 	p.World = mi
 }
 
-func (mi ActiveMap) GetObjByID(objID int) *object.Object {
+func (mi *ActiveMap) GetObjByID(objID int) *object.Object {
 	for _, obj := range mi.Objects {
 		if obj.ID == objID {
 			return obj
@@ -403,10 +424,13 @@ func (mi *ActiveMap) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	n.ActiveMapCtx = mi // NPC has its own world context it needs, that isn't relevant to entity
 	n.Entity.SetPosition(startPos)
 	n.Priority = mi.getNextNPCPriority() // TODO: not really sure if priority is still used, since there is no collision between entities
+
+	mi.npcMu.Lock()
 	mi.NPCs = append(mi.NPCs, n)
+	mi.npcMu.Unlock()
 }
 
-func (mi ActiveMap) IsTileCollision(coords model.Coords) bool {
+func (mi *ActiveMap) IsTileCollision(coords model.Coords) bool {
 	r := model.Rect{
 		X: float64(coords.X * config.TileSize),
 		Y: float64(coords.Y * config.TileSize),
@@ -420,7 +444,7 @@ func (mi ActiveMap) IsTileCollision(coords model.Coords) bool {
 	return res.Collides()
 }
 
-func (m ActiveMap) IsTileEntityCollision(c model.Coords, excludeEntID string) bool {
+func (m *ActiveMap) IsTileEntityCollision(c model.Coords, excludeEntID string) bool {
 	r := model.Rect{
 		X: float64(c.X * config.TileSize),
 		Y: float64(c.Y * config.TileSize),
@@ -455,7 +479,7 @@ func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
 // CollidesWithEntity checks if the rect collides with an entity. This is meant for detecting if an entity
 // collides with another entity, and should therefore move slower or not. For "hard" collisions, use Collides instead.
 // TODO: at some point, when combat is more developed, we will want to make combatant entities not able to be walked through.
-func (m ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) (collides bool, dist float64) {
+func (m *ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) (collides bool, dist float64) {
 	if m.PlayerRef != nil {
 		if string(m.PlayerRef.Entity.ID()) != excludeEntID && !m.PlayerRef.Entity.DisableCollisions {
 			playerR := m.PlayerRef.Entity.CollisionRect()
@@ -487,7 +511,7 @@ func (m ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) (collid
 }
 
 // Collides detects if the given rect collides in the map.
-func (mi ActiveMap) Collides(r model.Rect) model.CollisionResult {
+func (mi *ActiveMap) Collides(r model.Rect) model.CollisionResult {
 	// adding a full tilesize would make you spill over into the next tile's space.
 	// this is because an individual pixel position represents an actual pixel.
 	// so, the space within a tile at tile position 0,0 is:
@@ -611,13 +635,16 @@ func checkCornerCollision(r, targetRect model.Rect) model.CollisionResult {
 
 // FindPath returns a path to the goal, or if it cannot be reached, a path to the closest reachable position.
 // The boolean indicates if the goal was successfully reached.
-func (mi ActiveMap) FindPath(start, goal model.Coords) ([]model.Coords, bool) {
+//
+// NOTE: This should not be used by parallel/bg processes, like NPC's background assist.
+// In such cases, use the PathfindingSnapshot. This is in order to avoid a data race.
+func (mi *ActiveMap) FindPath(start, goal model.Coords) ([]model.Coords, bool) {
 	return path_finding.FindPath(start, goal, mi.CostMap())
 }
 
 // MapDimensions gives the TILE dimensions of a map (columns = width, rows = height).
 // This is not a pixels/absolute dimensions function.
-func (mi ActiveMap) MapDimensions() (width int, height int) {
+func (mi *ActiveMap) MapDimensions() (width int, height int) {
 	return mi.Map.Width, mi.Map.Height
 }
 
@@ -631,7 +658,28 @@ func (mi ActiveMap) MapDimensions() (width int, height int) {
 //
 // - Object rects
 //   - Does not include gates, since those may be opened by an NPC (even if locked). NPC logic handles unlocking gates if possible.
-func (mi ActiveMap) CostMap() [][]int {
+func (mi *ActiveMap) CostMap() [][]int {
+	return mi.buildCostMap()
+}
+
+func (mi *ActiveMap) refreshPathfindingSnapshot() {
+	if time.Since(mi.lastPathfindingSnapshot) < time.Millisecond*100 {
+		return
+	}
+	mi.pathfindingSnapshot.Store(&PathfindingSnapshot{CostMap: mi.buildCostMap()})
+
+	mi.lastPathfindingSnapshot = time.Now()
+}
+
+func (mi *ActiveMap) GetPathfindingSnapshot() [][]int {
+	snapshot := mi.pathfindingSnapshot.Load()
+	if snapshot == nil {
+		logz.Panicln("ActiveMap", "Pathfinding snapshot was nil!")
+	}
+	return snapshot.CostMap
+}
+
+func (mi *ActiveMap) buildCostMap() [][]int {
 	if mi.Map.CostMap == nil {
 		panic("tried to get ActiveMap cost map before Map costmap was created")
 	}
@@ -697,7 +745,7 @@ func (mi *ActiveMap) GetSpawnPosition(index int) (x, y float64, found bool) {
 	return -1, -1, false
 }
 
-func (mi ActiveMap) GetPlayerRect() model.Rect {
+func (mi *ActiveMap) GetPlayerRect() model.Rect {
 	if mi.PlayerRef == nil {
 		panic("player ref is nil")
 	}
@@ -726,7 +774,7 @@ func (mi *ActiveMap) GetPlayer() *player.Player {
 	return mi.PlayerRef
 }
 
-func (mi ActiveMap) GetDistToPlayer(x, y float64) float64 {
+func (mi *ActiveMap) GetDistToPlayer(x, y float64) float64 {
 	return utils.EuclideanDist(x, y, mi.PlayerRef.Entity.X, mi.PlayerRef.Entity.Y)
 }
 
@@ -761,6 +809,10 @@ func (mi *ActiveMap) AttackArea(attackInfo entity.AttackInfo) {
 		fmt.Println("npc rect:", n.Entity.CollisionRect())
 		if attackInfo.TargetRect.Intersects(n.Entity.CollisionRect()) {
 			n.Entity.ReceiveAttack(attackInfo)
+			attacker := mi.findEntityByID(attackInfo.Attacker)
+			if attacker != nil {
+				n.OnAttacked(attacker)
+			}
 		}
 	}
 	if mi.PlayerRef != nil && !slices.Contains(attackInfo.ExcludeEntIds, string(mi.PlayerRef.Entity.ID())) {
@@ -768,6 +820,19 @@ func (mi *ActiveMap) AttackArea(attackInfo entity.AttackInfo) {
 			mi.PlayerRef.Entity.ReceiveAttack(attackInfo)
 		}
 	}
+}
+
+// findEntityByID resolves a character ID to an entity in the active map, or nil if not found.
+func (mi *ActiveMap) findEntityByID(id id.CharacterStateID) *entity.Entity {
+	if mi.PlayerRef != nil && mi.PlayerRef.Entity.ID() == id {
+		return mi.PlayerRef.Entity
+	}
+	for _, n := range mi.NPCs {
+		if n.Entity.ID() == id {
+			return n.Entity
+		}
+	}
+	return nil
 }
 
 // ActivateArea attempts to activate an object or npc in an area. if an activation occurs, true is returned.

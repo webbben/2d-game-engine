@@ -346,6 +346,16 @@ func (im *ItemMover) handleItemPlacement() ItemMoverUpdateResult {
 						im.carryItem = nil
 						return result
 					}
+				} else {
+					// different item; switch items
+					slotItem := *slot.Item
+					slotItemDef := slot.ItemDef
+					slot.SetContent(im.carryItem, im.carryItemDef)
+					im.carryItem = &slotItem
+					im.carryItemDef = slotItemDef
+					im.originalSlot = slot
+					im.MakeItemImage()
+					return result
 				}
 			}
 		} else if slot.mouseBehavior.RightClick.ClickReleased {

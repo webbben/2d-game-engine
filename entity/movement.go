@@ -460,6 +460,40 @@ func (e *Entity) TryBumpBack(px int, speed float64, forceOrigin model.Vec2, anim
 	return e.TryMoveMaxPx(dx, dy, speed)
 }
 
+// WalkTowardsPosition moves the entity towards the given tile position using a direct
+// "move towards a point" style of movement (rather than path following).
+// Mainly used to recover onto the tile grid when the entity has been knocked off it
+// (e.g. by an attack bump), since moving to the next path position is a more direct
+// recovery than snapping back to the current tile.
+func (e *Entity) WalkTowardsPosition(target model.Coords, speed float64) MoveError {
+	targetX := float64(target.X * config.TileSize)
+	targetY := float64(target.Y * config.TileSize)
+	curPos := model.Vec2{X: e.X, Y: e.Y}
+	targetPos := model.Vec2{X: targetX, Y: targetY}
+	dPos := targetPos.Sub(curPos)
+	if dPos.X == 0 && dPos.Y == 0 {
+		// already at the target position
+		return MoveError{Success: true, Info: "already at target position"}
+	}
+
+	moveError := e.TryMoveMaxPx(dPos.X, dPos.Y, speed)
+	if !moveError.Success {
+		return moveError
+	}
+
+	animRes := e.SetAnimation(AnimationOptions{
+		AnimationName:         body.AnimWalk,
+		AnimationTickInterval: e.Movement.WalkAnimationTickInterval,
+	})
+	if !animRes.Success && !animRes.AlreadySet {
+		logz.Println(e.DisplayName(), "WalkTowardsPosition: failed to set walk animation:", animRes)
+	}
+
+	e.FaceTowards(dPos.X, dPos.Y)
+
+	return MoveError{Success: true}
+}
+
 type updateMovementResult struct {
 	ReachedTarget           bool
 	UnexpectedCollision     bool
@@ -467,17 +501,33 @@ type updateMovementResult struct {
 }
 
 func (e *Entity) updateMovement() updateMovementResult {
+	// check for suggested paths. if the entity is following a path, try to merge the suggestion into
+	// it; if the entity is idle, adopt the suggestion as a new target path (this is how the follow
+	// task picks up paths computed by background assist).
+	if len(e.Movement.SuggestedTargetPath) > 0 {
+		if len(e.Movement.TargetPath) > 0 && e.Movement.IsMoving {
+			e.tryMergeSuggestedPath(e.Movement.SuggestedTargetPath)
+		} else if len(e.Movement.TargetPath) == 0 && !e.Movement.IsMoving {
+			// only adopt the suggestion if it starts from a tile other than the current one, since
+			// trySetNextTargetPath panics when the next target equals the current tile (and the
+			// suggestion may be stale if the entity moved since it was computed).
+			path := e.Movement.SuggestedTargetPath
+			if len(path) > 0 && !path[0].Equals(e.TilePos()) {
+				e.Movement.TargetPath = path
+				res := e.trySetNextTargetPath()
+				if !res.Success {
+					e.Movement.TargetPath = []model.Coords{}
+				}
+			}
+		}
+		e.Movement.SuggestedTargetPath = []model.Coords{}
+	}
+
 	if !e.Movement.IsMoving {
 		return updateMovementResult{} // not moving, so an empty result will suffice
 	}
 	if e.Movement.Speed == 0 {
 		panic("updateMovement called when speed is 0; speed was not set wherever entity movement was started")
-	}
-
-	// check for suggested paths (if entity is currently following a path)
-	if len(e.Movement.TargetPath) > 0 && len(e.Movement.SuggestedTargetPath) > 0 {
-		e.tryMergeSuggestedPath(e.Movement.SuggestedTargetPath)
-		e.Movement.SuggestedTargetPath = []model.Coords{}
 	}
 
 	actualSpeed := e.Movement.Speed
@@ -580,13 +630,16 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 	}
 
 	if float64(tilePos.X) != e.X/config.TileSize || float64(tilePos.Y) != e.Y/config.TileSize {
-		logz.Println(e.DisplayName(), "trySetNextTargetPath: entity is not at its tile position. Was it bumped by an enemy attack or something?")
-		logz.Println(e.DisplayName(), "tilePos:", e.TilePos(), "e.X:", e.X/config.TileSize, "e.Y:", e.Y/config.TileSize)
-		logz.Println(e.DisplayName(), "Clamping to current tile position. TODO: perhaps we should make a more graceful way of recovering the position than this?")
-		e.TargetX = float64(tilePos.X * config.TileSize)
-		e.TargetY = float64(tilePos.Y * config.TileSize)
-		e.Movement.IsMoving = true
-		return MoveError{Cancelled: true, Info: "entity was unexpectedly not at its tile position - possibly bumped by an enemy attack or something?"}
+		// entity was knocked off the tile grid (e.g. bumped by an attack). instead of snapping back to the current tile
+		// (which can waste time or move in the wrong direction), walk directly towards the next path position.
+		// this recovers onto the tile grid while heading in the correct direction.
+		logz.Println(e.DisplayName(), "trySetNextTargetPath: entity is not at its tile position; walking towards next path position to recover. tilePos:", tilePos, "pos:", e.X, e.Y)
+		moveError := e.WalkTowardsPosition(nextTarget, e.characterStateRef.WalkSpeed())
+		if !moveError.Success {
+			return moveError
+		}
+		e.Movement.TargetPath = e.Movement.TargetPath[1:]
+		return MoveError{Success: true}
 	}
 
 	curPos := model.Vec2{X: e.X, Y: e.Y}

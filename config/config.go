@@ -56,6 +56,7 @@ var (
 	ButtonClickSfx     defs.SoundID = "" // if set, buttons will play this sfx when clicked
 	DefaultTextBlipSfx defs.SoundID = "" // if set, dialogs will play this on text writing
 	LockedSfx          defs.SoundID = "" // if set, this will play when a locked object is activated
+	DefaultHitSfx      defs.SoundID = "" // if set, used as fallback for entity hit sounds when no armor/shield HitSFX is defined
 
 	// default box used for simple tooltips (e.g. tooltips for tabs); must be set by game
 	// (this one is actually required as of now)

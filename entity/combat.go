@@ -8,6 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
@@ -70,7 +71,7 @@ type AttackInfo struct {
 func (e Entity) GetFrontRect() model.Rect {
 	// we want to make a rect that's a little smaller, so that we can't reach things that are too far away.
 	// It seems like a rect that is a full tilesize is a little too big
-	targetRectSize := config.TileSize / 2
+	targetRectSize := config.TileSize * 3 / 4
 	collisionRect := e.CollisionRect()
 	offsetX := (collisionRect.W - float64(targetRectSize)) / 2
 	offsetY := (collisionRect.H - float64(targetRectSize)) / 2
@@ -115,6 +116,13 @@ func (e *Entity) StartMeleeAttack() {
 		}
 		// already attacking - need to wait until the animation is done before attacking again
 		return
+	}
+
+	if e.characterStateRef.EquipedWeapon != nil {
+		weaponDef := e.dataman.GetItemDef(e.characterStateRef.EquipedWeapon.DefID)
+		if weaponDef.SwingSFX != "" {
+			e.footstepSFX.AudioMgr.PlaySFX(weaponDef.SwingSFX, 0.5)
+		}
 	}
 
 	e.queueAttack(AttackInfo{
@@ -165,10 +173,18 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 			// perhaps there was a collision?
 			logz.Println(e.DisplayName(), "shielded bump back failed:", moveError)
 		}
-		// TODO: play shield clash sound effect
+
+		// play shield hit sound
+		e.playHitSFX(e.characterStateRef.EquipedAuxiliary)
 		// TODO: damage shield item
 
-		e.FloatMGMT.AddFloatText(NewFloatText(txt, params))
+		// TODO: once damage reduction/partial blocks are calculated, the damage dealt (blockedDamage) may be greater than 0.
+		blockedDamage := 0
+		e.FloatMGMT.AddFloatText(NewFloatText(fmt.Sprintf("%v", blockedDamage), FloatTextParams{
+			Font:     config.DefaultInfoFont,
+			Color:    color.RGBA{200, 200, 200, 0},
+			Duration: time.Second * 2,
+		}))
 
 		e.eventBus.Publish(defs.Event{
 			Type: pubsub.EventAttackEntity,
@@ -204,6 +220,9 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	if attack.StunTicks > 0 {
 		e.stun(attack.StunTicks)
 	}
+
+	// play armor hit sound (body armor, or default if none)
+	e.playHitSFX(e.characterStateRef.EquipedBodywear)
 
 	e.FloatMGMT.AddFloatText(NewFloatText(txt, params))
 
@@ -276,4 +295,17 @@ func (e Entity) IsUsingShield() bool {
 
 func (e Entity) IsAttacking() bool {
 	return e.Body.IsAttacking()
+}
+
+func (e *Entity) playHitSFX(equipedItem *state.ItemState) {
+	if equipedItem != nil {
+		itemDef := e.dataman.GetItemDef(equipedItem.DefID)
+		if itemDef.HitSFX != "" {
+			e.footstepSFX.AudioMgr.PlaySFX(itemDef.HitSFX, 0.5)
+			return
+		}
+	}
+	if config.DefaultHitSfx != "" {
+		e.footstepSFX.AudioMgr.PlaySFX(config.DefaultHitSfx, 0.5)
+	}
 }

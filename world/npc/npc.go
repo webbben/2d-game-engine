@@ -4,6 +4,7 @@ package npc
 import (
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/webbben/2d-game-engine/audio"
@@ -30,6 +31,7 @@ type WorldContext interface {
 	FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldPath, foundPath bool)
 	FindClosestMapType(fromID defs.MapID, mapType defs.MapType) (defs.MapID, bool)
 	ChangeMapOccupancyEvent(charStateID id.CharacterStateID, from, to defs.MapID, toSpawn int)
+	GetPlayerPosition() model.Coords
 }
 
 type ActiveMapContext interface {
@@ -46,6 +48,8 @@ type ActiveMapContext interface {
 	GetCostMap() [][]int
 
 	StartDialog(dialogProfileID defs.DialogProfileID, npcID string)
+
+	GetPathfindingSnapshot() [][]int
 }
 
 type NPC struct {
@@ -65,6 +69,10 @@ type NPC struct {
 	// priority assigned to this NPC by the map it is added to. used for prioritizing which NPC moves first in a collision.
 	Priority int
 
+	playerInSightRange     bool      // if true, the player is within sight distance of the NPC
+	hasSeenPlayerYet       bool      // if true, this NPC has seen the player at some point already (in the current map)
+	lastPlayerSightingTime time.Time // the last time the player was seen
+
 	// === World related things ===
 
 	// The character state gives the NPC access to get data about the character's current state, as well as make changes to it.
@@ -82,6 +90,16 @@ type NPC struct {
 	speechBubbleFont        font.Face
 
 	activeMapSubscriptionIDs map[string]bool // subscription IDs for events only listened to when NPC is in active map
+}
+
+// GetCurrentTaskForBgAssist returns the NPC's current task if set, for use by the
+// background jobs goroutine. Safe for concurrent use. Deliberately does NOT check
+// completion status: task.Status is written by the main loop without synchronization,
+// so reading it here would just create another race.
+func (n *NPC) GetCurrentTaskForBgAssist() Task {
+	n.taskStateMu.RLock()
+	defer n.taskStateMu.RUnlock()
+	return n.CurrentTask
 }
 
 // PrepareLeaveActiveMap does all things necessary to prepare an NPC to leave the active map; undoes entity active state, unsubscribes
@@ -204,8 +222,9 @@ func NewNPC(params NPCParams, dataman *datamanager.DataManager, audioMgr *audio.
 		CharacterStateRef: charState,
 		dialogProfileID:   dialogProfileID,
 		TaskMGMT: TaskMGMT{
-			Schedule: scheduleDef,
-			dataman:  dataman,
+			taskStateMu: &sync.RWMutex{},
+			Schedule:    scheduleDef,
+			dataman:     dataman,
 		},
 		speechBubbleTileset:      params.SpeechBubbleTileset,
 		speechBubbleOriginIndex:  params.SpeechBubbleOriginIndex,
@@ -239,6 +258,9 @@ func (n *NPC) OnEvent(e defs.Event) {
 // TODO:
 // - default to Idle task if no schedule or current task is set?
 type TaskMGMT struct {
+	// protects CurrentTask, since it's used in both the main Update thread and bg assist
+	taskStateMu *sync.RWMutex
+
 	CurrentTask         Task
 	waitUntil           time.Time
 	waitUntilDoneMoving bool // if set, will wait until entity has stopped moving before processing next update
@@ -247,6 +269,12 @@ type TaskMGMT struct {
 	Schedule defs.ScheduleDef
 
 	dataman *datamanager.DataManager
+}
+
+func (tm *TaskMGMT) ClearCurrentTask() {
+	tm.taskStateMu.Lock()
+	tm.CurrentTask = nil
+	tm.taskStateMu.Unlock()
 }
 
 // IsActive checks if the npc is currently working on a task
@@ -374,20 +402,39 @@ func (n *NPC) SetupSpeechBubbleReactions(speechBubbleCtx defs.SpeechBubbleContex
 	}
 }
 
+func (n NPC) defaultSpeechBubbleParams() entity.SpeechBubbleParams {
+	return entity.SpeechBubbleParams{
+		Font:          n.speechBubbleFont,
+		BoxTileset:    n.speechBubbleTileset,
+		BoxTileOrigin: n.speechBubbleOriginIndex,
+		Duration:      time.Second * 5,
+	}
+}
+
 func (n *NPC) OnSpeechBubbleEvent(e defs.Event) {
 	dialogProfileDef := n.dataman.GetDialogProfile(n.dialogProfileID)
 	for _, speechBubbleReaction := range dialogProfileDef.SpeechBubbles {
 		if slices.Contains(speechBubbleReaction.SubscribeEvents, e.Type) {
 			reactionString := speechBubbleReaction.Reaction.Reaction(e, n.speechBubbleCtx)
 			if reactionString != "" {
-				n.Entity.ShowSpeechBubble(reactionString, entity.SpeechBubbleParams{
-					Font:          n.speechBubbleFont,
-					BoxTileset:    n.speechBubbleTileset,
-					BoxTileOrigin: n.speechBubbleOriginIndex,
-					Duration:      time.Second * 5,
-				})
+				n.Entity.ShowSpeechBubble(reactionString, n.defaultSpeechBubbleParams())
 				return
 			}
 		}
 	}
+}
+
+func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
+	// TODO: add logic to judge if NPC should retaliate
+	var nextTask *defs.TaskDef
+	if n.CurrentTask != nil {
+		prevDef := n.CurrentTask.GetDef()
+		nextTask = &prevDef
+	}
+	n.RunTask(defs.TaskDef{
+		TaskID:   TaskFight,
+		Priority: Emergency,
+		Params:   FightTaskParams{TargetEntity: attackedBy},
+		NextTask: nextTask,
+	}, n)
 }

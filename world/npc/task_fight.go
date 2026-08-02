@@ -1,6 +1,11 @@
 package npc
 
 import (
+	"math"
+	"math/rand"
+	"sync"
+	"time"
+
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity"
@@ -11,18 +16,18 @@ import (
 type fightStatus int
 
 const (
-	fight_status_idle fightStatus = iota
-	fight_status_follow
-	fight_status_combat
+	fightStatusIdle fightStatus = iota
+	fightStatusFollow
+	fightStatusCombat
 )
 
 func (fs fightStatus) String() string {
 	switch fs {
-	case fight_status_idle:
+	case fightStatusIdle:
 		return "idle (0)"
-	case fight_status_follow:
+	case fightStatusFollow:
 		return "follow (1)"
-	case fight_status_combat:
+	case fightStatusCombat:
 		return "combat (2)"
 	default:
 		return "unregistered status!"
@@ -31,20 +36,32 @@ func (fs fightStatus) String() string {
 
 type FightTask struct {
 	TaskBase
-	NoBackgroundWork
+	NoActiveState
 
-	FollowTask FollowTask // task for running after the enemy
+	// followTask is the subtask for running after the enemy, set only while status is fightStatusFollow.
+	// It's a pointer (instead of an embedded value) so the background goroutine can hold a stable
+	// reference while the main loop swaps it out; followTaskMu guards the pointer itself.
+	followTask   *FollowTask
+	followTaskMu *sync.RWMutex
 
-	status fightStatus
-
+	status       fightStatus
 	targetEntity *entity.Entity
+
+	nextAttackTime time.Time
+	shieldEndTime  time.Time
+}
+
+type FightTaskParams struct {
+	TargetEntity *entity.Entity
+	// TODO: add params to indicate how "serious" the fight is?
+	// e.g. can the NPC surrender or not, etc. Probably a future thing once combat is more advanced.
 }
 
 func (t FightTask) ZzCompileCheck() {
 	_ = append([]Task{}, &t)
 }
 
-func NewFightTask(targetEnt *entity.Entity, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) FightTask {
+func NewFightTask(targetEnt *entity.Entity, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) *FightTask {
 	if targetEnt == nil {
 		panic("target is nil")
 	}
@@ -56,9 +73,10 @@ func NewFightTask(targetEnt *entity.Entity, owner *NPC, p defs.TaskPriority, nex
 		Priority: p,
 		NextTask: nextTask,
 	}
-	return FightTask{
+	return &FightTask{
 		TaskBase:     NewTaskBase(t, "Fight", "Fight another entity", owner),
-		status:       fight_status_idle,
+		followTaskMu: &sync.RWMutex{},
+		status:       fightStatusIdle,
 		targetEntity: targetEnt,
 	}
 }
@@ -80,7 +98,7 @@ func (t *FightTask) Start() {
 	if t.Owner == nil {
 		panic("owner entity must not be nil")
 	}
-	if t.status != fight_status_idle {
+	if t.status != fightStatusIdle {
 		logz.Panicf("Start: fight task should be idle when (re)starting. (%s)", t.status)
 	}
 
@@ -98,66 +116,101 @@ func (t *FightTask) Start() {
 }
 
 func (t *FightTask) startFollowing() {
-	if t.status != fight_status_idle {
+	if t.status != fightStatusIdle {
 		panic("fight status should be idle before trying to follow")
 	}
-	if t.FollowTask.IsActive() {
+	t.followTaskMu.RLock()
+	existing := t.followTask
+	t.followTaskMu.RUnlock()
+	if existing != nil && existing.IsActive() {
 		// if the follow task appears to already be active, then that's also a problem
-		logz.Panicf("follow subtask appears to already be active (%v). It should've ended (or not started yet) before Start was called.", t.FollowTask.GetStatus())
+		logz.Panicf("follow subtask appears to already be active (%v). It should've ended (or not started yet) before Start was called.", existing.GetStatus())
 	}
 	logz.Println(t.Owner.DisplayName(), "start follow")
 
-	// TODO: probably need to set a next task? but I might need to redo this entire task tbh lol
-	t.FollowTask = NewFollowTask(t.targetEntity, 0, t.Owner, Emergency, nil)
-	t.FollowTask.Start()
-	if !t.FollowTask.IsActive() {
-		logz.Panicf("follow subtask should've started, but appears inactive (%s)", t.FollowTask.GetStatus())
+	newTask := NewFollowTask(t.targetEntity, 0, t.Owner, Emergency, nil)
+	newTask.Start()
+	if !newTask.IsActive() {
+		logz.Panicf("follow subtask should've started, but appears inactive (%s)", newTask.GetStatus())
 	}
 
-	t.status = fight_status_follow
+	t.followTaskMu.Lock()
+	t.followTask = newTask
+	t.status = fightStatusFollow
+	t.followTaskMu.Unlock()
 }
 
 func (t *FightTask) stopFollowing() {
-	if t.status != fight_status_follow {
+	if t.status != fightStatusFollow {
 		logz.Panic("trying to stop following, but not in the following state")
 	}
-	if !t.FollowTask.IsActive() {
-		// if the follow task appears to already be active, then that's also a problem
-		logz.Panicf("trying to stop following, but follow task appears to not be active (%v)", t.FollowTask.GetStatus())
+	t.followTaskMu.RLock()
+	ft := t.followTask
+	t.followTaskMu.RUnlock()
+	if ft == nil {
+		logz.Panic("trying to stop following, but follow task is nil")
+	}
+	if !ft.IsActive() {
+		// if the follow task appears to already be inactive, then that's also a problem
+		logz.Panicf("trying to stop following, but follow task appears to not be active (%v)", ft.GetStatus())
 	}
 	logz.Println(t.Owner.DisplayName(), "stop follow")
-	t.FollowTask.End()
-	t.status = fight_status_idle
+	ft.End()
+
+	t.followTaskMu.Lock()
+	t.followTask = nil
+	t.status = fightStatusIdle
+	t.followTaskMu.Unlock()
 }
 
 func (t *FightTask) startCombat() {
-	if t.status != fight_status_idle {
+	if t.status != fightStatusIdle {
 		panic("fight status should be idle before trying to start combat")
 	}
 	logz.Println(t.Owner.DisplayName(), "start combat")
 	// nothing to really do here except flip the switch on combat status
-	t.status = fight_status_combat
+	t.status = fightStatusCombat
 }
 
 func (t *FightTask) Update() {
+	if t.IsDone() {
+		return
+	}
+
+	if t.targetEntity.IsDead() {
+		t.Status = TaskEnded
+		return
+	}
+
+	if t.status == fightStatusIdle {
+		// Start is what kicks off the fight task; it transitions out of idle into follow or combat.
+		t.Start()
+		return
+	}
+
 	t.Status = TaskInProg
+
 	switch t.status {
-	case fight_status_idle:
-		// why are you idle? you should've already been directed to a new status from wherever the previous action was cancelled
-		panic("fight task appears to be stuck in idle")
-	case fight_status_follow:
-		if !t.FollowTask.IsActive() {
-			logz.Panicf("supposed to be following, but follow task is inactive? (followTask status=%s)", t.FollowTask.GetStatus())
+	case fightStatusFollow:
+		t.followTaskMu.RLock()
+		ft := t.followTask
+		t.followTaskMu.RUnlock()
+		if ft == nil {
+			logz.Panic("supposed to be following, but follow task is nil")
 		}
-		// check if we are close enough to end follow stage
-		pathLen := len(t.Owner.Entity.Movement.TargetPath)
-		if pathLen < 3 {
+		if !ft.IsActive() {
+			logz.Panicf("supposed to be following, but follow task is inactive? (followTask status=%s)", ft.GetStatus())
+		}
+		ft.Update()
+		// check if we are close enough to end follow stage. note: this uses actual distance rather
+		// than path length, since a freshly-started follow may not have a path yet (it's computed by
+		// background assist), and a path-length check would collapse straight into combat.
+		if t.Owner.Entity.DistFromEntity(*t.targetEntity) <= config.TileSize*3 {
 			t.stopFollowing()
 			t.startCombat()
 			return
 		}
-		t.FollowTask.Update()
-	case fight_status_combat:
+	case fightStatusCombat:
 		// the real "meat and potatoes" of this task's logic
 		t.handleCombat()
 	}
@@ -170,7 +223,7 @@ func (t *FightTask) Update() {
 // 3. at times, hold up a shield (TODO - shields not implemented yet)
 // 4. strike! then return to 1
 func (t *FightTask) handleCombat() {
-	if t.status != fight_status_combat {
+	if t.status != fightStatusCombat {
 		panic("status is not set to combat")
 	}
 
@@ -180,19 +233,48 @@ func (t *FightTask) handleCombat() {
 
 	dist := t.Owner.Entity.DistFromEntity(*t.targetEntity)
 	if dist > config.TileSize*5 {
-		t.status = fight_status_idle
+		t.status = fightStatusIdle
 		t.startFollowing()
 		return
 	}
 
 	t.Owner.Entity.FaceTowardsEntity(*t.targetEntity)
 
-	if dist > config.TileSize*2 {
-		// creep forward
+	if t.Owner.Entity.IsUsingShield() {
+		// keep using shield until time has expired
+		if time.Now().After(t.shieldEndTime) {
+			t.Owner.Entity.StopUsingShield()
+			// slight pause after dropping shield before attacking
+			t.nextAttackTime = time.Now().Add(time.Millisecond * 500)
+		}
+		return
+	}
+
+	if time.Now().Before(t.nextAttackTime) {
+		// wait until it's attack time before approaching the enemy
+		return
+	}
+
+	// attacks only land orthogonally (the front rect is one tile in the facing direction),
+	// so we must be aligned with the target (same row or column) before striking.
+	myPos := t.Owner.Entity.TilePos()
+	targetPos := t.targetEntity.TilePos()
+	dx := targetPos.X - myPos.X
+	dy := targetPos.Y - myPos.Y
+	aligned := dx == 0 || dy == 0
+
+	if !aligned || dist > config.TileSize*1.8 {
+		// creep towards the enemy, moving along the axis with the greater tile offset
+		// this both approaches the enemy and lines us up so our attacks can land
 		if !t.Owner.Entity.Movement.IsMoving {
 			speed := t.Owner.CharacterStateRef.WalkSpeed() / 2
 			tickInterval := t.Owner.Entity.Movement.WalkAnimationTickInterval * 2
-			moveError := t.Owner.Entity.TryMoveTowardsEntity(*t.targetEntity, config.TileSize, speed)
+			var moveError entity.MoveError
+			if math.Abs(float64(dx)) >= math.Abs(float64(dy)) {
+				moveError = t.Owner.Entity.TryMoveMaxPx(float64(dx)/math.Abs(float64(dx))*config.TileSize, 0, speed)
+			} else {
+				moveError = t.Owner.Entity.TryMoveMaxPx(0, float64(dy)/math.Abs(float64(dy))*config.TileSize, speed)
+			}
 			if moveError.Success {
 				t.Owner.Entity.SetAnimation(entity.AnimationOptions{
 					AnimationName:         body.AnimWalk,
@@ -205,8 +287,16 @@ func (t *FightTask) handleCombat() {
 		return
 	}
 
-	// once close, attack
+	// in striking range (and aligned): decide to raise shield or attack
+	if t.Owner.Entity.IsShieldEquiped() && rand.Float32() < 0.4 {
+		t.Owner.Entity.UseShield()
+		t.shieldEndTime = time.Now().Add(time.Duration(1+rand.Intn(3)) * time.Second)
+		return
+	}
+
+	// attack, then set a 1-2s cooldown
 	t.Owner.Entity.StartMeleeAttack()
+	t.nextAttackTime = time.Now().Add(time.Second + time.Duration(rand.Intn(1000))*time.Millisecond)
 }
 
 func (t *FightTask) End() {
@@ -221,6 +311,13 @@ func (t FightTask) IsFailure() bool {
 	return false
 }
 
-func (t *FightTask) SetupActiveState() {
-	panic("not yet implemented!")
+func (t *FightTask) BackgroundAssist() {
+	t.followTaskMu.RLock()
+	ft := t.followTask
+	t.followTaskMu.RUnlock()
+	if ft != nil {
+		ft.BackgroundAssist()
+	}
 }
+
+func (t *FightTask) SimulationUpdate() {}

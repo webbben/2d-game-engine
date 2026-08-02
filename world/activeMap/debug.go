@@ -23,7 +23,7 @@ type debugData struct {
 	pathTile1, pathTile2 *ebiten.Image
 }
 
-func (m ActiveMap) drawGridLines(screen *ebiten.Image, offsetX float64, offsetY float64) {
+func (m *ActiveMap) drawGridLines(screen *ebiten.Image, offsetX float64, offsetY float64) {
 	offsetX = offsetX * config.GameScale
 	offsetY = offsetY * config.GameScale
 	lineColor := color.RGBA{255, 0, 0, 255}
@@ -215,7 +215,7 @@ func (m *ActiveMap) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY f
 	}
 }
 
-func (m ActiveMap) ShowEntityCoords() string {
+func (m *ActiveMap) ShowEntityCoords() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf(
 		"Player pos: [%v, %v] (%v, %v)\n",
@@ -236,7 +236,7 @@ func (m ActiveMap) ShowEntityCoords() string {
 	return sb.String()
 }
 
-func (m ActiveMap) GetDaylightData(s *strings.Builder) {
+func (m *ActiveMap) GetDaylightData(s *strings.Builder) {
 	lightColor := m.daylightFader.GetCurrentColor()
 	fmt.Fprintf(s, "daylight (RGB scales): [%v %v %v]\n", lightColor[0], lightColor[1], lightColor[2])
 	fmt.Fprintf(s, "darkness factor: %v", m.daylightFader.GetDarknessFactor())

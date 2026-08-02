@@ -19,6 +19,14 @@ func EuclideanDist(x1, y1, x2, y2 float64) float64 {
 	return math.Sqrt(math.Pow(x2-x1, 2) + math.Pow(y2-y1, 2))
 }
 
+func ManhattanDist(x1, y1, x2, y2 int) int {
+	return int(math.Abs(float64(x2-x1)) + math.Abs(float64(y2-y1)))
+}
+
+func ManhattanDistCoords(pointA, pointB model.Coords) int {
+	return ManhattanDist(pointA.X, pointA.Y, pointB.X, pointB.Y)
+}
+
 // EuclideanDistCoords is a euclidean distance function for coords structs, for ease of use
 func EuclideanDistCoords(pointA, pointB model.Coords) float64 {
 	return EuclideanDist(float64(pointA.X), float64(pointA.Y), float64(pointB.X), float64(pointB.Y))

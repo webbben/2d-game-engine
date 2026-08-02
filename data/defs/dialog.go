@@ -26,10 +26,16 @@ type DialogProfileDef struct {
 
 	// Speech bubbles aren't part of actual dialog, but defined here since it's related to speech
 
-	SpeechBubbles []SpeechBubbleDef
+	PlayerNoticeReactions []SpeechBubbleReaction
+	SpeechBubbles         []SpeechBubbleDef
 }
 
+// SpeechBubbleReaction is an interface meant for producing speech bubble text to show (if any)
+// based on the given event data and any contextual info from SpeechBubbleContext.
 type SpeechBubbleReaction interface {
+	// Note: When used as a PlayerNoticeMessage, the event parameter of Reaction has no data.
+	// this is because it's called directly from task logic code, not triggered via an event.
+	// So, don't check the Event parameter when designing a SpeechBubbleReaction for PlayerNOticeMessages.
 	Reaction(e Event, ctx SpeechBubbleContext) string
 }
 

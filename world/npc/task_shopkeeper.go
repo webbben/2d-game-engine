@@ -86,6 +86,7 @@ func (t *ShopkeeperTask) Update() {
 	}
 
 	// at the task area; just stand there
+	t.Owner.initialPlayerSightingSpeechBubble()
 }
 
 func (t *ShopkeeperTask) findTaskArea() {
