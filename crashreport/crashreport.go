@@ -20,6 +20,10 @@ var (
 	reportsDir string
 	mu         sync.Mutex
 	hexPattern = regexp.MustCompile(`0x[0-9a-f]+`)
+	// lineNumberPattern strips the line number from "file.go:123" so the hash
+	// stays stable across edits that shift lines (but not across moves to
+	// different functions/files).
+	lineNumberPattern = regexp.MustCompile(`\.go:\d+`)
 )
 
 // CrashReport represents a single crash report stored on disk.
@@ -190,7 +194,8 @@ func filterStack(stack []byte) string {
 }
 
 // sanitizeStackForHash strips runtime-varying content (goroutine IDs, memory
-// addresses) so the hash is consistent across runs of the same crash.
+// addresses) and line numbers so the hash is consistent across runs of the same
+// crash, even after edits that shift line numbers.
 func sanitizeStackForHash(s string) string {
 	lines := strings.Split(s, "\n")
 	var out []string
@@ -199,7 +204,9 @@ func sanitizeStackForHash(s string) string {
 		if strings.HasPrefix(trimmed, "goroutine ") || strings.HasPrefix(trimmed, "created by ") {
 			continue
 		}
-		out = append(out, hexPattern.ReplaceAllString(line, "0x..."))
+		line = hexPattern.ReplaceAllString(line, "0x...")
+		line = lineNumberPattern.ReplaceAllString(line, ".go")
+		out = append(out, line)
 	}
 	return strings.Join(out, "\n")
 }

@@ -3,6 +3,7 @@ package crashreport
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -116,6 +117,61 @@ func TestReportsDirNotSet(t *testing.T) {
 	}
 	if len(reports) != 0 {
 		t.Errorf("expected 0 reports, got %d", len(reports))
+	}
+}
+
+func TestHashStableAcrossLineShifts(t *testing.T) {
+	dir := t.TempDir()
+	if err := SetReportsDir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	base := "github.com/webbben/2d-game-engine/entity.(*Entity).TryMoveMaxPx(...)\n" +
+		"\t/Users/me/entity/movement.go:187 +0x16c\n" +
+		"github.com/webbben/2d-game-engine/world/npc.(*FightTask).handleCombat(...)\n" +
+		"\t/Users/me/npc/task_fight.go:246 +0x5b8\n"
+	shifted := strings.ReplaceAll(base, "task_fight.go:246", "task_fight.go:245")
+
+	WriteCrashReport("same crash", []byte(base), nil)
+	WriteCrashReport("same crash", []byte(shifted), nil)
+
+	reports, err := LoadAllReports()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reports) != 2 {
+		t.Fatalf("expected 2 reports, got %d", len(reports))
+	}
+	if reports[0].Hash != reports[1].Hash {
+		t.Errorf("line shifts should not change crash hash:\n  %s\n  %s", reports[0].Hash, reports[1].Hash)
+	}
+}
+
+func TestHashStableAcrossAddressAndGoroutineVariance(t *testing.T) {
+	dir := t.TempDir()
+	if err := SetReportsDir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	stackA := "goroutine 10 [running]:\n" +
+		"mygame.Foo(0x14000abc, 0x0?)\n" +
+		"\t/path/to/foo.go:10 +0x1a2\n"
+	stackB := "goroutine 12 [running]:\n" +
+		"mygame.Foo(0x14000def, 0x0?)\n" +
+		"\t/path/to/foo.go:10 +0x3b4\n"
+
+	WriteCrashReport("same crash", []byte(stackA), nil)
+	WriteCrashReport("same crash", []byte(stackB), nil)
+
+	reports, err := LoadAllReports()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reports) != 2 {
+		t.Fatalf("expected 2 reports, got %d", len(reports))
+	}
+	if reports[0].Hash != reports[1].Hash {
+		t.Errorf("goroutine IDs/addresses should not change crash hash:\n  %s\n  %s", reports[0].Hash, reports[1].Hash)
 	}
 }
 
