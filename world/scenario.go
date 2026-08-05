@@ -1,6 +1,7 @@
 package world
 
 import (
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/logz"
@@ -33,9 +34,15 @@ func (w *World) loadScenario(scenarioDef defs.ScenarioDef) {
 			charDef.CharDefID,
 			params,
 			w.Dataman)
-		n := npc.NewNPC(npc.NPCParams{
-			CharStateID: charStateID,
-		}, w.Dataman, w.Audioman, w.EventBus, w) // TODO: should scenario NPCs be able to use world context?
+
+		npcParams := npc.NPCParams{
+			CharStateID:             charStateID,
+			SpeechBubbleTileset:     config.SpeechBubbleBox.TilesetSrc,
+			SpeechBubbleOriginIndex: config.SpeechBubbleBox.OriginIndex,
+			SpeechBubbleFont:        config.SpeechBubbleFont,
+		}
+		// TODO: should scenario NPCs be able to use world context?
+		n := npc.NewNPC(npcParams, w.Dataman, w.Audioman, w.EventBus, w)
 
 		startPos := model.Coords{X: charDef.SpawnCoordX, Y: charDef.SpawnCoordY}
 		w.ActiveMap.AddNPCToMap(n, startPos)

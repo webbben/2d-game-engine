@@ -35,14 +35,25 @@ func (n *NPC) Update() {
 	// 	}
 	// }
 
-	// check if player is nearby/in sight range
+	n.npcUpdates()
+	n.Entity.Update()
+}
+
+func (n *NPC) updatePlayerSighting() {
+	n.initialPlayerSightingThisTick = false
+
+	// check if in sight range
 	n.playerInSightRange = utils.EuclideanDistCoords(n.WorldCtx.GetPlayerPosition(), n.Entity.TilePos()) < SightDist
 	if n.playerInSightRange {
 		n.lastPlayerSightingTime = time.Now()
-	}
 
-	n.npcUpdates()
-	n.Entity.Update()
+		// detect if this is the initial sighting
+		if !n.hasSeenPlayerYet {
+			n.initialPlayerSightingThisTick = true
+			logz.Println(n.ID(), "first player sighting")
+		}
+		n.hasSeenPlayerYet = true
+	}
 }
 
 func (mgmt *TaskMGMT) Update(n *NPC) {
@@ -226,12 +237,25 @@ func (n *NPC) npcUpdates() {
 		n.waitUntilDoneMoving = false
 	}
 
+	n.updatePlayerSighting()
+
+	// if there is no task, or if the task allows it, do default speech bubble behavior
+	if n.CurrentTask == nil || !n.CurrentTask.DisableDefaultSpeechBubbles() {
+		if n.initialPlayerSightingThisTick {
+			n.initialPlayerSightingSpeechBubble()
+		} else {
+			// TODO: add logic here if we want to show "sees player again" speech bubble
+		}
+	}
+
 	n.TaskMGMT.Update(n)
 
 	if n.IsActive() {
 		if n.CurrentTask == nil {
 			panic("NPC is marked as active, but there is no current task set")
 		}
+
 		n.HandleTaskUpdate()
+
 	}
 }

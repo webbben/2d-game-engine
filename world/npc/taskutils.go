@@ -2,6 +2,7 @@ package npc
 
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/object"
 )
 
@@ -16,21 +17,9 @@ func (n NPC) SatisfiesObjectOwnership(obj object.Object) bool {
 	return n.CharacterStateRef.Roles[obj.RoleID]
 }
 
-// returns true if the NPC is seeing the player for the first time
-func (n *NPC) initialPlayerSighting() bool {
-	if n.hasSeenPlayerYet {
-		return false
-	}
-	if !n.playerInSightRange {
-		return false
-	}
-	n.hasSeenPlayerYet = true
-	return true
-}
-
 // call this if a task should have an initial sighting speech bubble.
 func (n *NPC) initialPlayerSightingSpeechBubble() {
-	if !n.initialPlayerSighting() {
+	if !n.initialPlayerSightingThisTick {
 		return
 	}
 
@@ -40,6 +29,7 @@ func (n *NPC) initialPlayerSightingSpeechBubble() {
 		if msg != "" {
 			// found a valid reaction; show it in a speech bubble
 			n.Entity.ShowSpeechBubble(msg, n.defaultSpeechBubbleParams())
+			logz.Println(n.ID(), "showing speech bubble:", msg)
 			return
 		}
 	}

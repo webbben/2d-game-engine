@@ -70,9 +70,10 @@ type NPC struct {
 	// priority assigned to this NPC by the map it is added to. used for prioritizing which NPC moves first in a collision.
 	Priority int
 
-	playerInSightRange     bool      // if true, the player is within sight distance of the NPC
-	hasSeenPlayerYet       bool      // if true, this NPC has seen the player at some point already (in the current map)
-	lastPlayerSightingTime time.Time // the last time the player was seen
+	playerInSightRange            bool      // if true, the player is within sight distance of the NPC
+	initialPlayerSightingThisTick bool      // if true, the NPC just saw the player for the first time this update tick
+	hasSeenPlayerYet              bool      // if true, this NPC has seen the player at some point already (in the current map)
+	lastPlayerSightingTime        time.Time // the last time the player was seen
 
 	// === World related things ===
 

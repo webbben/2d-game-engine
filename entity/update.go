@@ -24,8 +24,9 @@ func (e *Entity) Draw(screen *ebiten.Image, om *overlay.OverlayManager, offsetX 
 		if om == nil {
 			logz.Panic("overlay manager was empty")
 		}
-		sbX := (drawX + config.TileSize) * config.GameScale
-		sbY := (drawY - config.TileSize*2) * config.GameScale
+		// make it appear to the top right of the NPC's head
+		sbX := drawX + config.TileSize*config.GameScale*0.7
+		sbY := drawY - config.TileSize*config.GameScale*2.5
 		e.speechBubble.DrawOverlay(om, sbX, sbY)
 	}
 

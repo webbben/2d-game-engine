@@ -26,9 +26,9 @@ type SpeechBubble struct {
 
 func (sb SpeechBubble) Done() bool {
 	if sb.speechBubbleCreation.IsZero() {
-		return true
+		logz.Panic("speech bubble creation time is zero? was it not set or was the speech bubble not made with constructor?")
 	}
-	return time.Now().After(sb.speechBubbleCreation.Add(sb.speechBubbleDuration))
+	return time.Since(sb.speechBubbleCreation) > sb.speechBubbleDuration
 }
 
 type SpeechBubbleParams struct {
