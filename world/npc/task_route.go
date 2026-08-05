@@ -360,3 +360,8 @@ func (t *RouteTask) SetupActiveState() {
 	t.Owner.Entity.SetPosition(pos)
 	// Update can handle setting up the activeDoorTask
 }
+
+func (t RouteTask) DisableDefaultSpeechBubbles() bool {
+	// NPC shouldn't be talking to you while heading somewhere
+	return true
+}

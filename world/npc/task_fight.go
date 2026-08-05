@@ -304,3 +304,8 @@ func (t *FightTask) BackgroundAssist() {
 }
 
 func (t *FightTask) SimulationUpdate() {}
+
+func (t FightTask) DisableDefaultSpeechBubbles() bool {
+	// we don't want standard greeting speech bubbles during combat
+	return true
+}

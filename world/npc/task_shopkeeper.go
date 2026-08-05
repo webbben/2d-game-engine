@@ -86,9 +86,6 @@ func (t *ShopkeeperTask) Update() {
 		t.reachedTaskArea = true
 		t.Owner.Entity.SetDirection(t.taskAreaObj.TaskArea.Dir)
 	}
-
-	// at the task area; just stand there
-	t.Owner.initialPlayerSightingSpeechBubble()
 }
 
 func (t *ShopkeeperTask) SetupActiveState() {

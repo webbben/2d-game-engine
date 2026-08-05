@@ -76,7 +76,9 @@ func (g Game) GetActiveMapDef() defs.MapDef {
 		logz.Panicln("GetActiveMapDef", "tried to get active map def, but active map is nil")
 	}
 	mapID := g.World.ActiveMap.MapID
-	mapDef := g.Dataman.GetMapDef(mapID)
+	mapInfo, mapDef, _ := g.Dataman.GetAllMapData(mapID)
+	mapDef.Region = mapInfo.RegionID
+	mapDef.DisplayName = mapInfo.DisplayName
 	return mapDef
 }
 

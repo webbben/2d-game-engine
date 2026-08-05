@@ -232,6 +232,12 @@ type Task interface {
 	SimulationUpdate()
 
 	SetupActiveState()
+
+	// modify default NPC behavior while this task is active
+
+	// If true, the default speech bubble activations that run for NPCs will be disabled.
+	// Set this to true if the task needs customized speech bubble behavior, or if there should be no speech bubbles at all.
+	DisableDefaultSpeechBubbles() bool
 }
 
 type TaskBase struct {
@@ -260,6 +266,14 @@ type childRef struct {
 
 func (tb TaskBase) GetDef() defs.TaskDef {
 	return tb.Def
+}
+
+func (tb TaskBase) DisableDefaultSpeechBubbles() bool {
+	// NOTE: we don't forward to child tasks, because I think it would get too complicated at some
+	// point; it's better to decide this at the parent task level, and if custom speech bubble behavior
+	// is needed, fully control it at the parent task level rather than passing it to the child.
+	// But, of course, individual tasks can decide to forward it if they like.
+	return false
 }
 
 // ---- child task support ----

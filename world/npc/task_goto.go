@@ -134,3 +134,8 @@ func (t *GotoTask) SetupActiveState() {
 	// confirm the path can't happen; tracked before touching this.
 	panic("not yet implemented! could this ever be called anyway? i think goto tasks are only created when NPC is in same map as player.")
 }
+
+func (t GotoTask) DisableDefaultSpeechBubbles() bool {
+	// NPC shouldn't be talking to you while heading somewhere
+	return true
+}

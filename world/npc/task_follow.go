@@ -200,3 +200,8 @@ func (t *FollowTask) SetupActiveState() {
 	// state to set up (no subscriptions, no routing) — it just moves the entity toward a target via
 	// background-computed paths — so this is a no-op. Reachable via TaskBase's child forwarding.
 }
+
+func (t *FollowTask) DisableDefaultSpeechBubbles() bool {
+	// NPC shouldn't be talking to you while following you or somebody else
+	return true
+}

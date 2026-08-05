@@ -92,23 +92,26 @@ func (t *ActivateObjectTask) Update() {
 			t.skipGoto = true
 		}
 	}
+	// if the goto task is not done, then keep updating it
 	if t.gotoTask != nil && !t.gotoTask.IsDone() {
 		t.gotoTask.Update()
 		return
 	}
 
-	if t.gotoTask == nil {
+	if t.gotoTask == nil && !t.skipGoto {
 		logz.Println("ActivateObjectTask", t.Owner.WhoAmI())
-		logz.Panicln("ActivateObjectTask", "goto task was unexpectedly nil... this shouldn't be possible, right?")
+		logz.Panicln("ActivateObjectTask", "goto task was unexpectedly nil, but we aren't skipping goto.")
 	}
 
 	// 2. once next to the object, try to activate it
 	// confirm we are next to the target object now
 	objPos := t.targetObj.TilePos()
-	if t.gotoTask.Result.Status != ResultSuccess {
-		dist := utils.EuclideanDistCoords(t.Owner.Entity.TilePos(), objPos)
-		if dist > 2 {
-			// it seems we didn't manage to get close enough to the object...
+	dist := utils.EuclideanDistCoords(t.Owner.Entity.TilePos(), objPos)
+	if dist > 2 {
+		if t.gotoTask != nil && t.gotoTask.Result.Status == ResultSuccess {
+			logz.Println(t.Owner.WhoAmI(), "distance:", dist)
+			logz.Panicln("ActivateObjectTask", "gotoTask reported success, but didn't get close enough to object.")
+		} else {
 			logz.Println("ActivateObjectTask", "failed to reach object; didn't get close enough. distance to object:", dist, "objPos:", objPos, "objID:", t.targetObj.ID, "whoami:", t.Owner.WhoAmI())
 			t.targetObj.ClearTargetingNPC()
 			t.FinishFail("failed to reach object")
