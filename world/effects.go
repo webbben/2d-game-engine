@@ -89,12 +89,14 @@ func (e ScheduleFutureEventEffect) Apply(ctx defs.WorldEffectContext) {
 				gt.Hour = *e.UntilHour
 			}
 		} else {
-			logz.Panicln("ScheduleFutureEventEffect", "time parameters for future event were invalid.", e)
+			logz.Println("ScheduleFutureEventEffect", e)
+			logz.Panicln("ScheduleFutureEventEffect", "time parameters for future event were invalid.")
 		}
 	}
 
 	if gt == nil {
-		logz.Panicln("ScheduleFutureEventEffect", "gametime was nil. event:", e.Event.Type)
+		logz.Println("ScheduleFutureEventEffect", e.Event.Type)
+		logz.Panicln("ScheduleFutureEventEffect", "gametime was nil")
 	}
 
 	ctx.BroadcastEvent(defs.Event{
@@ -190,7 +192,8 @@ func (e AddOpinionModEffect) Apply(ctx defs.WorldEffectContext) {
 	if e.Holder == "" {
 		e.Holder = ctx.GetDialogNPC()
 		if e.Holder == "" {
-			logz.Panicln("AddOpinionModEffect", "Holder was empty, so we tried to get the current dialog NPC, but that came back as empty too. Holder should only be empty if being called from a dialog. Mod:", e.Mod)
+			logz.Println("AddOpinionModEffect", e.Mod)
+			logz.Panicln("AddOpinionModEffect", "Holder was empty, so we tried to get the current dialog NPC, but that came back as empty too. Holder should only be empty if being called from a dialog")
 		}
 	}
 	if e.Subject == "" {
@@ -198,7 +201,8 @@ func (e AddOpinionModEffect) Apply(ctx defs.WorldEffectContext) {
 	}
 	if e.RelHours > 0 {
 		if e.Mod.Until != nil {
-			logz.Panicln("AddOpinionModEffect", "RelHours was set, but Mod also had an Until set... which one should we use? Mod:", e.Mod)
+			logz.Println("AddOpinionModEffect", e.Mod)
+			logz.Panicln("AddOpinionModEffect", "RelHours was set, but Mod also had an Until set... which one should we use?")
 		}
 		currentTime := ctx.GetCurrentGameTime()
 		currentTime.AddTime(e.RelHours)

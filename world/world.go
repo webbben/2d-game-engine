@@ -160,7 +160,8 @@ func (w *World) populateNPCMap() {
 			continue
 		}
 		if _, exists := w.NPCs[charID]; exists {
-			logz.Panicln("World", "loading NPC, but an existing NPC with the same ID was found...", charID)
+			logz.Println("World", charID)
+			logz.Panicln("World", "loading NPC, but an existing NPC with the same ID was found...")
 		}
 		if charState.Temp {
 			// don't use temp char states, since those are just for scenarios
@@ -178,7 +179,8 @@ func (w *World) populateNPCMap() {
 
 		currentMap := charState.CurrentMap
 		if currentMap == "" {
-			logz.Panicln("World", "charState didn't have a current map. charStateID:", charID)
+			logz.Println("World", charID)
+			logz.Panicln("World", "charState didn't have a current map")
 		}
 		w.MapOccupancy[currentMap] = append(w.MapOccupancy[currentMap], charID)
 	}
@@ -340,7 +342,8 @@ func (w *World) OnHourChange(hour int, skipFade, skipNpcCheck, postEvent bool) {
 	}
 	currentTime := w.Clock.GetCurrentGameTime()
 	if hour != currentTime.Hour {
-		logz.Panicln("OnHourChange", "given hour doesn't match actual game time. hour:", hour, "gameTime hour:", currentTime.Hour)
+		logz.Println("OnHourChange", hour, "gameTime hour:", currentTime.Hour)
+		logz.Panicln("OnHourChange", "given hour doesn't match actual game time")
 	}
 
 	if w.ActiveMap != nil {
@@ -416,20 +419,24 @@ func (w *World) OnEvent(e defs.Event) {
 		if _, ok := e.Data["params"]; ok {
 			params, ok := e.Data["params"].(pubsub.SysEventChangeMapOccupancyParams)
 			if !ok {
-				logz.Panicln("WORLD", "SysEventChangeMapOccupancy:", "event data couldn't be type asserted to params.", e.Data)
+				logz.Println("WORLD", e.Data)
+				logz.Panicln("WORLD", "SysEventChangeMapOccupancy: event data couldn't be type asserted to params.")
 			}
 			w.ChangeMapOccupancy(params.CharacterStateID, params.From, params.To, params.ToSpawn)
 		} else {
-			logz.Panicln("WORLD", "SysEventChangeMapOccupancy:", "didn't find params in data.", e.Data)
+			logz.Println("WORLD", e.Data)
+			logz.Panicln("WORLD", "SysEventChangeMapOccupancy: didn't find params in data.")
 		}
 	case pubsub.SysScheduledWorldEffect:
 		effectType, ok := e.Data["type"]
 		if !ok {
-			logz.Panicln("SysScheduledWorldEffect", "event data was missing effect type.", e.Data)
+			logz.Println("SysScheduledWorldEffect", e.Data)
+			logz.Panicln("SysScheduledWorldEffect", "event data was missing effect type.")
 		}
 		effectData, ok := e.Data["effect"]
 		if !ok {
-			logz.Panicln("SysScheduledWorldEffect", "event data was missing effect.", e.Data)
+			logz.Println("SysScheduledWorldEffect", e.Data)
+			logz.Panicln("SysScheduledWorldEffect", "event data was missing effect.")
 		}
 
 		var worldEffect defs.WorldEffect
@@ -438,7 +445,8 @@ func (w *World) OnEvent(e defs.Event) {
 		case "RemoveRoleEffect":
 			removeRoleEffect, ok := effectData.(RemoveRoleEffect)
 			if !ok {
-				logz.Panicln("SysScheduledWorldEffect", "effect is supposed to be removeRole, but failed to type assert.", effectType, effectData)
+				logz.Println("SysScheduledWorldEffect", effectType, effectData)
+				logz.Panicln("SysScheduledWorldEffect", "effect is supposed to be removeRole, but failed to type assert.")
 			}
 			worldEffect = removeRoleEffect
 		}
@@ -454,7 +462,8 @@ func (w *World) OnEvent(e defs.Event) {
 		}
 		screenID, ok := e.Data["screen_id"].(defs.ScreenID)
 		if !ok {
-			logz.Panicln("SysShowScreen", "screen_id data not found.", e.Data)
+			logz.Println("SysShowScreen", e.Data)
+			logz.Panicln("SysShowScreen", "screen_id data not found.")
 		}
 		screenParams := e.Data["params"]
 
@@ -478,11 +487,13 @@ func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to def
 		panic("to was empty!")
 	}
 	if from == to {
-		logz.Panicln("ChangeMapOccupancy", "from and to were the same! whoever called this should've noticed that and handled it. to/from:", to)
+		logz.Println("ChangeMapOccupancy", to)
+		logz.Panicln("ChangeMapOccupancy", "from and to were the same! whoever called this should've noticed that and handled it")
 	}
 	if _, exists := w.MapOccupancy[from]; !exists {
 		// all from maps should have a map occupancy because, of course, a character is apparently already in that map...
-		logz.Panicln("ChangeMapOccupancy", "MapOccupancy not defined for 'from' map:", from)
+		logz.Println("ChangeMapOccupancy", from)
+		logz.Panicln("ChangeMapOccupancy", "MapOccupancy not defined for 'from' map")
 	}
 	if _, exists := w.MapOccupancy[to]; !exists {
 		// it's not actually a problem if the 'to' doesn't exist yet. That could just mean that there are no
@@ -500,7 +511,8 @@ func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to def
 			fromOccupancy = utils.RemoveIndexUnordered(fromOccupancy, i)
 			// do a quick gut check and confirm the length decreased by 1
 			if len(fromOccupancy) != originalLen-1 {
-				logz.Panicln("ChangeMapOccupancy", "map occupancy length didn't decrease by 1 after removing character. from:", from)
+				logz.Println("ChangeMapOccupancy", from)
+				logz.Panicln("ChangeMapOccupancy", "map occupancy length didn't decrease by 1 after removing character")
 			}
 			w.MapOccupancy[from] = fromOccupancy
 			found = true
@@ -508,7 +520,8 @@ func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to def
 		}
 	}
 	if !found {
-		logz.Panicln("ChangeMapOccupancy", "didn't find character state ID in from map occupancy. charStateID:", charStateID, "from mapID:", from)
+		logz.Println("ChangeMapOccupancy", charStateID, "from mapID:", from)
+		logz.Panicln("ChangeMapOccupancy", "didn't find character state ID in from map occupancy")
 	}
 
 	// ensure ID doesn't already exist in new map (before adding)
@@ -516,7 +529,8 @@ func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to def
 	// I don't think it'll be a problem, but maybe it could have some minor impact if maps start having really large numbers of occupants?
 	if slices.Contains(w.MapOccupancy[to], charStateID) {
 		fmt.Println("from:", w.MapOccupancy[from], "\nto:", w.MapOccupancy[to])
-		logz.Panicln("ChangeMapOccupancy", "charStateID already exists in new map occupancy:", charStateID, "to mapID:", to)
+		logz.Println("ChangeMapOccupancy", charStateID, "to mapID:", to)
+		logz.Panicln("ChangeMapOccupancy", "charStateID already exists in new map occupancy")
 	}
 
 	w.MapOccupancy[to] = append(w.MapOccupancy[to], charStateID)
@@ -540,7 +554,8 @@ func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to def
 		}
 		x, y, found := w.ActiveMap.GetSpawnPosition(toSpawn)
 		if !found {
-			logz.Panicln("ChangeMapOccupancy", "spawn point not found! spawn index:", toSpawn)
+			logz.Println("ChangeMapOccupancy", toSpawn)
+			logz.Panicln("ChangeMapOccupancy", "spawn point not found")
 		}
 		startPos := model.ConvertPxToTilePos(x, y)
 		w.ActiveMap.AddNPCToMap(n, startPos)
@@ -567,7 +582,8 @@ func (w *World) GetActiveMapID() defs.MapID {
 func (w *World) getNPC(id id.CharacterStateID) *npc.NPC {
 	n, exists := w.NPCs[id]
 	if !exists {
-		logz.Panicln("WORLD", "NPC not found! charStateID:", id)
+		logz.Println("WORLD", id)
+		logz.Panicln("WORLD", "NPC not found")
 	}
 	return n
 }
@@ -578,7 +594,8 @@ func (w *World) AddNPCToActiveMap(charStateID id.CharacterStateID, spawnIndex in
 	n := w.getNPC(charStateID)
 	x, y, found := w.ActiveMap.GetSpawnPosition(spawnIndex)
 	if !found {
-		logz.Panicln("AddNPCToActiveMap", "given spawn index doesn't exist in active map:", spawnIndex, "mapID:", w.ActiveMap.MapID)
+		logz.Println("AddNPCToActiveMap", spawnIndex, "mapID:", w.ActiveMap.MapID)
+		logz.Panicln("AddNPCToActiveMap", "given spawn index doesn't exist in active map")
 	}
 	spawnPos := model.ConvertPxToTilePos(x, y)
 

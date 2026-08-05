@@ -1,6 +1,7 @@
 package npc
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -10,12 +11,10 @@ import (
 
 type GotoTask struct {
 	TaskBase
-	NoBackgroundWork
 
 	goalPos          model.Coords
 	isGoingTo        bool
-	unknownCollision int  // counter for repeated unknown collisions; used for triggering failure.
-	ReachedTarget    bool // tells you if this task succeeded in reaching the goal tile
+	unknownCollision int // counter for repeated unknown collisions; used for triggering failure.
 }
 
 type GotoTaskParams struct {
@@ -33,11 +32,32 @@ func NewGotoTask(params GotoTaskParams, owner *NPC, def defs.TaskDef) *GotoTask 
 	}
 }
 
+func init() {
+	registerTask(TaskGoto, taskMeta{
+		build: func(def defs.TaskDef, owner *NPC) Task {
+			params, ok := def.Params.(GotoTaskParams)
+			if !ok {
+				logz.Println("GotoTask", def.Params)
+				logz.Panicln("GotoTask", "tried to run a goto task, but the params could not be converted into GotoTaskParams. make sure you are using the right struct")
+			}
+			return NewGotoTask(params, owner, def)
+		},
+		validateParams: func(def defs.TaskDef) error {
+			_, ok := def.Params.(GotoTaskParams)
+			if !ok {
+				return fmt.Errorf("GotoTask params must be GotoTaskParams, got %T", def.Params)
+			}
+			return nil
+		},
+	})
+}
+
 // Start hook for a GoTo task. Just sets the entity on course for the goal position.
-func (t *GotoTask) start() {
+func (t *GotoTask) Start() {
 	t.Status = TaskNotStarted
 	if t.goalPos.Equals(t.Owner.Entity.TilePos()) {
-		logz.Panicln("GotoTask", "tried to go to the position the NPC is already at. goalPos:", t.goalPos, "npcPos:", t.Owner.Entity.TilePos(), t.Owner.WhoAmI())
+		logz.Println("GotoTask", t.goalPos, "npcPos:", t.Owner.Entity.TilePos(), t.Owner.WhoAmI())
+		logz.Panicln("GotoTask", "tried to go to the position the NPC is already at")
 	}
 	// if sitting or sleeping, go back to standing
 	if t.Owner.Entity.IsSleeping {
@@ -55,7 +75,7 @@ func (t *GotoTask) start() {
 	// since the goal position could've been changed (due to path being blocked), update it here
 	t.goalPos = actualGoal
 	t.Status = TaskInProg
-	if len(t.Owner.Entity.Movement.TargetPath) == 0 {
+	if !t.Owner.Entity.HasPath() {
 		panic("started goto, but target path is empty")
 	}
 	t.unknownCollision = 0
@@ -65,7 +85,7 @@ func (t *GotoTask) start() {
 func (t *GotoTask) Update() {
 	switch t.GetStatus() {
 	case TaskNotStarted:
-		t.start()
+		t.Start()
 		return
 	case TaskInProg:
 		result := t.HandleNPCCollision()
@@ -73,33 +93,31 @@ func (t *GotoTask) Update() {
 			return
 		}
 		if result.ReRoute {
-			t.start()
+			t.Start()
 			return
 		}
 		if result.UnknownCollision {
 			t.unknownCollision++
 			if t.unknownCollision > 5 {
-				t.Status = TaskEnded
+				t.FinishFail("gave up after repeated unknown collisions")
 				return
 			}
 		} else {
 			t.unknownCollision = 0
 		}
 		if t.isComplete() {
-			t.Status = TaskEnded
-			t.ReachedTarget = true
+			t.FinishSuccess()
 			return
 		}
-		if !t.Owner.Entity.Movement.IsMoving {
-			if len(t.Owner.Entity.Movement.TargetPath) == 0 {
+		if !t.Owner.Entity.IsMoving() {
+			if !t.Owner.Entity.HasPath() {
 				// not moving and has no target; shouldn't we have reached our goal then?
-				logz.Panicln(t.Owner.ID(), "supposed to be going towards a goal, but entity has no target path")
+				logz.Println(t.Owner.ID(), "supposed to be going towards a goal, but entity has no target path")
+				logz.Panicln("GotoTask", "supposed to be going towards a goal, but entity has no target path")
 			}
 			// entity is not moving, but also is not being blocked (and has a path to follow still).
-			// let's just jump start it's path again.
-			// TODO: is this the "proper way" to start moving again? seems a bit hacky to manually set the IsMoving flag outside of actual entity logic.
-			// Maybe we need a function called "attemptResumePath" or something, which is publicly exposed?
-			t.Owner.Entity.Movement.IsMoving = true
+			// jump start its path again.
+			t.Owner.Entity.ResumePath()
 		}
 	case TaskEnded:
 		return
@@ -111,5 +129,8 @@ func (t GotoTask) isComplete() bool {
 }
 
 func (t *GotoTask) SetupActiveState() {
+	// TODO(#99): this is actually reachable for a top-level GotoTask (quest/schedule assigns TaskGoto, and
+	// map-loading calls SetupActiveState on the current task). Decide whether to implement a real setup or
+	// confirm the path can't happen; tracked before touching this.
 	panic("not yet implemented! could this ever be called anyway? i think goto tasks are only created when NPC is in same map as player.")
 }

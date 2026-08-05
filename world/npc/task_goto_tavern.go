@@ -8,14 +8,11 @@ import (
 
 type GotoTavernTask struct {
 	TaskBase
-
-	// this task is basically just a wrapper around lounge task that just finds the start location first
-	loungeTask *LoungeTask
+	// this task is basically just a wrapper around lounge task that just finds the start location first;
+	// the lounge task runs as this task's child once the tavern is found.
 }
 
-func (t *GotoTavernTask) ZzInterfaceCheck() {
-	_ = append([]Task{}, t)
-}
+var _ Task = (*GotoTavernTask)(nil)
 
 func NewGotoTavernTask(n *NPC, def defs.TaskDef) *GotoTavernTask {
 	return &GotoTavernTask{
@@ -28,41 +25,55 @@ func NewGotoTavernTask(n *NPC, def defs.TaskDef) *GotoTavernTask {
 	}
 }
 
+func init() {
+	registerTask(TaskGoToTavern, taskMeta{
+		build: func(def defs.TaskDef, owner *NPC) Task {
+			return NewGotoTavernTask(owner, def)
+		},
+	})
+}
+
 func (t *GotoTavernTask) Update() {
-	if t.loungeTask == nil {
-		if t.BgAssistUnplugged() {
-			logz.Panicln("GotoTavernTask", "BackgroundAssist is unplugged!")
-		}
-		// waiting for background assist
+	if !t.HasChild() {
+		// waiting for background assist to find the tavern
 		return
 	}
-
-	t.loungeTask.Update()
+	t.TaskBase.Update()
 }
 
 func (t *GotoTavernTask) SimulationUpdate() {
-	if t.loungeTask == nil {
+	if !t.HasChild() {
 		t.findTavern()
 	}
-	utils.PanicAssert(t.loungeTask != nil, "lounge task was nil")
-
-	t.loungeTask.SimulationUpdate()
+	t.TaskBase.SimulationUpdate()
 }
 
 func (t *GotoTavernTask) BackgroundAssist() {
-	if t.loungeTask == nil {
+	if !t.HasChild() {
 		t.findTavern()
 	}
-	utils.PanicAssert(t.loungeTask != nil, "lounge task was nil")
-
-	t.loungeTask.BackgroundAssist()
+	t.TaskBase.BackgroundAssist()
 }
 
 func (t *GotoTavernTask) findTavern() {
-	var targetMapID defs.MapID
-	// find nearest tavern map
-
 	fromID := t.Owner.CharacterStateRef.CurrentMap
+	targetMapID := t.resolveTavernFrom(fromID)
+
+	if !t.HasChild() {
+		t.RunChild(NewLoungeTask(t.Owner, defs.TaskDef{
+			TaskID:   TaskLounge,
+			Priority: t.Def.Priority,
+			StartLocation: &defs.TaskStartLocation{
+				MapID: targetMapID,
+			},
+		}))
+	}
+}
+
+// resolveTavernFrom finds the nearest tavern map to the given map, or stays in place if the map already is a tavern.
+// Shared by runtime (findTavern, anchored on the NPC's current map) and placement (ResolveStartMap, anchored on the
+// schedule) so both always agree on which tavern an NPC should be at.
+func (t *GotoTavernTask) resolveTavernFrom(fromID defs.MapID) defs.MapID {
 	// get mapDefID from mapState if this is a generated map
 	mapState := t.Owner.dataman.GetMapState(fromID)
 	mapDefID := fromID
@@ -74,34 +85,27 @@ func (t *GotoTavernTask) findTavern() {
 	if fromMapDef.Type == defs.MapTypeTavern {
 		// already in a tavern! let's just lounge here then.
 		logz.Warnln("GotoTavernTask", "NPC is already in a tavern... is this expected?", t.Owner.WhoAmI())
-		targetMapID = fromID
-	} else {
-		var found bool
-		targetMapID, found = t.Owner.WorldCtx.FindClosestMapType(fromID, defs.MapTypeTavern)
-		if !found {
-			logz.Panicln("GotoTavernTask", "failed to find tavern map. fromID:", fromID)
-		}
+		return fromID
 	}
 
+	targetMapID, found := t.Owner.WorldCtx.FindClosestMapType(fromID, defs.MapTypeTavern)
+	if !found {
+		logz.Println("GotoTavernTask", fromID)
+		logz.Panicln("GotoTavernTask", "failed to find tavern map")
+	}
 	utils.PanicAssert(targetMapID != "", "target map was empty")
+	return targetMapID
+}
 
-	if t.loungeTask == nil {
-		t.loungeTask = NewLoungeTask(t.Owner, defs.TaskDef{
-			TaskID:   TaskLounge,
-			Priority: t.Def.Priority,
-			StartLocation: &defs.TaskStartLocation{
-				MapID: targetMapID,
-			},
-		})
-	}
+// ResolveStartMap answers the scheduler's placement question: which map does this task put the NPC in?
+// GO_TO_TAVERN has no declared start location, so it resolves to the nearest tavern to the anchor.
+func (t *GotoTavernTask) ResolveStartMap(anchor defs.MapID) defs.MapID {
+	return t.resolveTavernFrom(anchor)
 }
 
 func (t *GotoTavernTask) SetupActiveState() {
-	if t.loungeTask == nil {
+	if !t.HasChild() {
 		t.findTavern()
 	}
-
-	utils.PanicAssert(t.loungeTask != nil, "loung task was nil")
-
-	t.loungeTask.SetupActiveState()
+	t.TaskBase.SetupActiveState()
 }

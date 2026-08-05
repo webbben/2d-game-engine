@@ -331,7 +331,8 @@ func (m *ActiveMap) addAllObjectsToMap(layer tiled.Layer) {
 					break
 				}
 				if !found {
-					logz.Panicln("addAllObjectsToMap", "trying to find object that is below another object, but couldn't find it. looking for object ID:", obj.OnTopOfObjID)
+					logz.Println("addAllObjectsToMap", obj.OnTopOfObjID)
+					logz.Panicln("addAllObjectsToMap", "trying to find object that is below another object, but couldn't find it")
 				}
 			}
 		}
@@ -381,7 +382,8 @@ func (mi *ActiveMap) AddPlayerToMap(p *player.Player, x, y float64) {
 	}
 	if res := mi.Collides(r); res.Collides() {
 		// this also handles placement outside of map bounds
-		logz.Panicln("AddPlayerToMap", "player added to map on colliding position:", r, res.Note)
+		logz.Println("AddPlayerToMap", r, res.Note)
+		logz.Panicln("AddPlayerToMap", "player added to map on colliding position")
 	}
 	mi.PlayerRef = p
 	p.Entity.World = mi
@@ -396,7 +398,8 @@ func (mi *ActiveMap) GetObjByID(objID int) *object.Object {
 			return obj
 		}
 	}
-	logz.Panicln("GetObjByID", "no object of the given ID found:", objID)
+	logz.Println("GetObjByID", objID)
+	logz.Panicln("GetObjByID", "no object of the given ID found")
 	return nil
 }
 
@@ -414,7 +417,8 @@ func (mi *ActiveMap) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	}
 
 	if mi.IsTileCollision(startPos) {
-		logz.Panicln("AddNPCToMap", "NPC added to map on colliding tile.", "mapID:", mi.MapID, "npcID:", n.ID(), "startPos:", startPos)
+		logz.Println("AddNPCToMap", mi.MapID, "npcID:", n.ID(), "startPos:", startPos)
+		logz.Panicln("AddNPCToMap", "NPC added to map on colliding tile")
 	}
 
 	// subscribe speech bubble reaction functions to events
@@ -957,7 +961,8 @@ func (mi *ActiveMap) RectCollidesWithOthers(r model.Rect, excludeEntID string, e
 func (m *ActiveMap) PlacePlayerAtSpawnPoint(p *player.Player, spawnIndex int) {
 	x, y, found := m.GetSpawnPosition(spawnIndex)
 	if !found {
-		logz.Panicf("given spawn point index not found in map: %v", spawnIndex)
+		logz.Println("ActiveMap", "spawn index:", spawnIndex)
+		logz.Panicf("given spawn point index not found in map")
 	}
 	m.PlacePlayerAtPosition(p, x, y)
 }

@@ -13,7 +13,6 @@ import (
 // Just a good default for an NPC that shouldn't be doing anything in particular, but still puts them in the map and occupies them with something.
 type IdleTask struct {
 	TaskBase
-	NoBackgroundWork
 
 	timer idleTimer
 }
@@ -42,10 +41,18 @@ func NewIdleTask(n *NPC, def defs.TaskDef) *IdleTask {
 	}
 }
 
+func init() {
+	registerTask(TaskIdle, taskMeta{
+		build: func(def defs.TaskDef, owner *NPC) Task {
+			return NewIdleTask(owner, def)
+		},
+	})
+}
+
 func (it *IdleTask) SetupActiveState() {
 	// For the idle task, the active state should just to be placed somewhere in the map.
 	var pos model.Coords
-	startLocation := it.GetStartLocation()
+	startLocation := it.GetDeclaredStartLocation()
 	if startLocation != nil {
 		// a specific location is defined; start as close as possible to there.
 		if startLocation.TileX == nil || startLocation.TileY == nil {
@@ -64,9 +71,7 @@ func (it *IdleTask) SetupActiveState() {
 	it.timer.setChangeTimer()
 }
 
-func (it IdleTask) ZzCompileCheck() {
-	_ = append([]Task{}, &it)
-}
+var _ Task = (*IdleTask)(nil)
 
 func (it *IdleTask) Update() {
 	if it.IsDone() {

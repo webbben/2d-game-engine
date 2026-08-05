@@ -36,8 +36,6 @@ type RouteTask struct {
 
 	lastMapID defs.MapID // the last map that the NPC was in - to confirm if changing maps works
 
-	activateDoorTask *ActivateObjectTask
-
 	awaitingMapChange bool       // set when we send a change map occupancy event; causes code to wait until we are confirmed in the next map.
 	awaitMapChangeTo  defs.MapID // map we are waiting to change to
 }
@@ -51,7 +49,8 @@ func NewRouteTask(params RouteTaskParams, owner *NPC, p defs.TaskPriority) *Rout
 		panic("destination map ID was empty")
 	}
 	if owner.CharacterStateRef.CurrentMap == params.DestinationMapID {
-		logz.Panicln("RouteTask", "NPC is already in destination map!", owner.WhoAmI())
+		logz.Println("RouteTask", owner.WhoAmI())
+		logz.Panicln("RouteTask", "NPC is already in destination map!")
 	}
 	def := defs.TaskDef{
 		TaskID:   TaskRoute,
@@ -67,8 +66,9 @@ func NewRouteTask(params RouteTaskParams, owner *NPC, p defs.TaskPriority) *Rout
 }
 
 func (t *RouteTask) BackgroundAssist() {
-	t.RecordBgAssist()
 	if t.pathCalculated {
+		// path is already calculated; just forward to any active child (e.g. the activateDoorTask)
+		t.TaskBase.BackgroundAssist()
 		return
 	}
 	if t.Owner.CharacterStateRef.CurrentMap != t.Owner.WorldCtx.GetActiveMapID() {
@@ -83,14 +83,17 @@ func (t *RouteTask) findWorldPath() {
 	from := t.Owner.CharacterStateRef.CurrentMap
 	to := t.DestinationMapID
 	if from == to {
-		logz.Panicln("RouteTask", "NPC is already at destination map...", t.Owner.WhoAmI(), "dest:", t.DestinationMapID)
+		logz.Println("RouteTask", t.Owner.WhoAmI(), "dest:", t.DestinationMapID)
+		logz.Panicln("RouteTask", "NPC is already at destination map...")
 	}
 	wp, found := t.Owner.WorldCtx.FindWorldPath(from, to)
 	if !found {
-		logz.Panicln("RouteTask", "failed to find world path to target map. target map:", to, t.Owner.WhoAmI())
+		logz.Println("RouteTask", to, t.Owner.WhoAmI())
+		logz.Panicln("RouteTask", "failed to find world path to target map")
 	}
 	if len(wp.Path) == 0 {
-		logz.Panicln("RouteTask", "world path has no length...", t.Owner.WhoAmI(), "dest:", t.DestinationMapID)
+		logz.Println("RouteTask", t.Owner.WhoAmI(), "dest:", t.DestinationMapID)
+		logz.Panicln("RouteTask", "world path has no length...")
 	}
 
 	t.worldPath = &wp
@@ -129,9 +132,10 @@ func (t *RouteTask) SimulationUpdate() {
 	// I think this is where it would be caught if the NPC walks from the active map directly into the destination map.
 	if t.inDestinationMap() {
 		if t.worldPathIndex < len(t.worldPath.Path) {
-			logz.Panicln("RouteTask", "in destination map, but worldPathIndex hasn't past the last path segment. index:", t.worldPathIndex, "len(path):", len(t.worldPath.Path))
+			logz.Println("RouteTask", t.worldPathIndex, "len(path):", len(t.worldPath.Path))
+			logz.Panicln("RouteTask", "in destination map, but worldPathIndex hasn't past the last path segment")
 		}
-		t.Status = TaskEnded
+		t.FinishSuccess()
 		return
 	}
 
@@ -196,7 +200,7 @@ func (t *RouteTask) handleAwaitMapChange() {
 		if !t.inDestinationMap() {
 			panic("route task finished, but NPC's current map doesn't match destination map!")
 		}
-		t.Status = TaskEnded
+		t.FinishSuccess()
 		return
 	}
 	if t.inDestinationMap() {
@@ -208,16 +212,14 @@ func (t *RouteTask) handleAwaitMapChange() {
 
 // Update for RouteTask is only done when NPC is in the active map; for NPCs that are routing while in other maps, the SimulationUpdate function is used instead.
 func (t *RouteTask) Update() {
-	if t.BgAssistUnplugged() {
-		logz.Panicln("RouteTask", "Background Assist appears to be unplugged! Whatever task is using this one should make sure to forward calls to BackgroundAssist to RouteTask's BackgroundAssist function.")
-	}
 	if t.awaitingMapChange {
 		t.handleAwaitMapChange()
 		return
 	}
 
 	if t.Owner.CharacterStateRef.CurrentMap != t.Owner.WorldCtx.GetActiveMapID() {
-		logz.Panicln("RouteTask", "Update called for an NPC that isn't in the active map.", t.Owner.WhoAmI())
+		logz.Println("RouteTask", t.Owner.WhoAmI())
+		logz.Panicln("RouteTask", "Update called for an NPC that isn't in the active map.")
 	}
 	if t.IsDone() {
 		return
@@ -237,23 +239,26 @@ func (t *RouteTask) Update() {
 	// If the NPC reaches the target map, then this task is considered completed - since we expect a different task to take over and do something afterwards.
 
 	if t.inDestinationMap() {
-		t.Status = TaskEnded
+		t.FinishSuccess()
 		return
 	}
 
 	if t.worldPathIndex >= len(t.worldPath.Path) {
-		logz.Panicln("RouteTask", "world path seems to have been traversed (index wise) but apparently the NPC is not at the destination yet...", t.Owner.WhoAmI())
+		logz.Println("RouteTask", t.Owner.WhoAmI())
+		logz.Panicln("RouteTask", "world path seems to have been traversed (index wise) but apparently the NPC is not at the destination yet...")
 	}
 
-	if t.activateDoorTask != nil {
-		t.activateDoorTask.Update()
-		if t.activateDoorTask.IsDone() {
-			if t.activateDoorTask.Success {
+	if t.HasChild() {
+		t.TaskBase.Update()
+		if t.ChildDone() {
+			if t.ChildResult().Status == ResultSuccess {
 				if t.Owner.CharacterStateRef.CurrentMap == t.lastMapID {
-					logz.Panicln("RouteTask", "NPC should've successfully activated a door, but its current map didn't change...", t.Owner.WhoAmI())
+					logz.Println("RouteTask", t.Owner.WhoAmI())
+					logz.Panicln("RouteTask", "NPC should've successfully activated a door, but its current map didn't change...")
 				}
 				if t.Owner.CharacterStateRef.CurrentMap == t.Owner.WorldCtx.GetActiveMapID() {
-					logz.Panicln("RouteTask", "NPC should've successfully activated a door, but its current map is still the active map...", t.Owner.WhoAmI())
+					logz.Println("RouteTask", t.Owner.WhoAmI())
+					logz.Panicln("RouteTask", "NPC should've successfully activated a door, but its current map is still the active map...")
 				}
 				// next, we can expect the code to continue to SimulationUpdate if there are still more places for the NPC to travel
 				// set the flags that SimulationUpdate will use to move to next map
@@ -261,16 +266,17 @@ func (t *RouteTask) Update() {
 				t.awaitingMapChange = true
 			} else {
 				// failed to activate door... retry?
-				logz.Panicln("RouteTask", "NPC failed to activate door:", t.activateDoorTask.FailReason, t.Owner.WhoAmI())
+				logz.Println("RouteTask", t.ChildResult(), t.Owner.WhoAmI())
+				logz.Panicln("RouteTask", "NPC failed to activate door")
 			}
-			t.activateDoorTask = nil
+			t.EndChild()
 		}
 		return
 	}
 
 	// NPC is in the same map as the player. Tell it to go to the position of the next door and activate it.
 	t.goActivateDoor()
-	if t.activateDoorTask == nil {
+	if !t.HasChild() {
 		panic("sanity check: failed to setup active door task?")
 	}
 }
@@ -285,8 +291,8 @@ func (t *RouteTask) goActivateDoor() {
 	if t.Owner.CharacterStateRef.CurrentMap == t.DestinationMapID {
 		panic("called GoActivateDoor, but NPC is already in the destination map")
 	}
-	if t.activateDoorTask != nil {
-		panic("activateDoorTask is already set")
+	if t.HasChild() {
+		panic("a child task is already set")
 	}
 	if t.Owner.CharacterStateRef.CurrentMap != t.Owner.WorldCtx.GetActiveMapID() {
 		panic("goActivateDoor called, but npc is not in active map!")
@@ -306,12 +312,13 @@ func (t *RouteTask) goActivateDoor() {
 		}
 	}
 	if doorObj == nil {
-		logz.Panicln("RouteTask", "failed to find next door in world path:", pathNode, "\n", t.Owner.WhoAmI())
+		logz.Println("RouteTask", pathNode, "\n", t.Owner.WhoAmI())
+		logz.Panicln("RouteTask", "failed to find next door in world path")
 	}
 
 	t.lastMapID = t.Owner.CharacterStateRef.CurrentMap
 
-	t.activateDoorTask = NewActivateObjectTask(t.Owner, doorObj)
+	t.RunChild(NewActivateObjectTask(t.Owner, doorObj))
 }
 
 // SetupActiveState will only be called when the Routing task is already in progress; the path was calculated,
@@ -319,7 +326,8 @@ func (t *RouteTask) goActivateDoor() {
 // So, this function should just put the NPC in the right position along his path and setup a GoTo task, and let things be taken over by Update.
 func (t *RouteTask) SetupActiveState() {
 	if t.Owner.CharacterStateRef.CurrentMap != t.Owner.WorldCtx.GetActiveMapID() {
-		logz.Panicln("RouteTask", "SetupActiveState was called, but NPC is not in the current map.", t.Owner.WhoAmI())
+		logz.Println("RouteTask", t.Owner.WhoAmI())
+		logz.Panicln("RouteTask", "SetupActiveState was called, but NPC is not in the current map.")
 	}
 	if !t.pathCalculated {
 		// I think that if SetupActiveState is ever called for this task, then that means the task should've already been setup and its route calculated,
@@ -340,7 +348,8 @@ func (t *RouteTask) SetupActiveState() {
 		panic("world path was empty")
 	}
 	if t.currentPathProgress >= 1 {
-		logz.Panicln("RouteTask", "current path progress is already >= 1; it should've advanced to the next path segment.", t.Owner.WhoAmI())
+		logz.Println("RouteTask", t.Owner.WhoAmI())
+		logz.Panicln("RouteTask", "current path progress is already >= 1; it should've advanced to the next path segment.")
 	}
 
 	// decide the position to put the NPC along the path in the map

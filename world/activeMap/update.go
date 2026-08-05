@@ -105,7 +105,8 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 				m.worldCtx.HandleMapDoor(result)
 				return
 			} else {
-				logz.Panicln("Update Map", "an object update apparently occurred, but we didn't handle it.", result)
+				logz.Println("Update Map", result)
+				logz.Panicln("Update Map", "an object update apparently occurred, but we didn't handle it.")
 			}
 		}
 	}

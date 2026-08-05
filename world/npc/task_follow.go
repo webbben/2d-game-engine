@@ -41,9 +41,7 @@ type FollowTask struct {
 	lastPathRequest time.Time
 }
 
-func (t *FollowTask) ZzCompileCheck() {
-	_ = append([]Task{}, t)
-}
+var _ Task = (*FollowTask)(nil)
 
 func NewFollowTask(target *entity.Entity, distance int, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) *FollowTask {
 	if target == nil {
@@ -67,22 +65,14 @@ func NewFollowTask(target *entity.Entity, distance int, owner *NPC, p defs.TaskP
 }
 
 func (t *FollowTask) End() {
-	if len(t.Owner.Entity.Movement.TargetPath) > 0 {
+	if t.Owner.Entity.HasPath() {
 		t.Owner.Entity.CancelCurrentPath()
 	}
 	// clear any pending request/result so an in-flight path computation can't leak into a later run.
 	t.pathRequest.Store(nil)
 	t.pathResult.Swap(nil)
 
-	t.Status = TaskEnded
-}
-
-func (t *FollowTask) IsComplete() bool {
-	return false
-}
-
-func (t *FollowTask) IsFailure() bool {
-	return false
+	t.FinishAborted("follow ended by parent")
 }
 
 func (t *FollowTask) Start() {
@@ -97,9 +87,9 @@ func (t *FollowTask) Start() {
 	t.lastGoal = model.Coords{}
 }
 
-func _followGetTargetPosition(e entity.Entity, dist int) model.Coords {
+func _followGetTargetPosition(e *entity.Entity, dist int) model.Coords {
 	target := e.TilePos()
-	switch e.Movement.Direction {
+	switch e.Direction() {
 	case model.Directions.Left:
 		target.X += dist + 1
 	case model.Directions.Right:
@@ -120,15 +110,15 @@ func (t *FollowTask) Update() {
 	// claim any path the background goroutine computed and hand it to the entity. this is the only
 	// place SuggestedTargetPath gets written (main loop only).
 	if p := t.pathResult.Swap(nil); p != nil {
-		t.Owner.Entity.Movement.SuggestedTargetPath = *p
+		t.Owner.Entity.SuggestPath(*p)
 	}
 
-	goal := _followGetTargetPosition(*t.targetEntity, t.distance)
+	goal := _followGetTargetPosition(t.targetEntity, t.distance)
 
-	if len(t.Owner.Entity.Movement.TargetPath) > 0 {
+	if t.Owner.Entity.HasPath() {
 		// the entity is following a path. redirection when the target moves is handled by requesting
 		// a new path here and letting the entity's suggestion merge in updateMovement.
-		if !t.Owner.Entity.Movement.IsMoving {
+		if !t.Owner.Entity.IsMoving() {
 			// the entity stopped unexpectedly while still having a path (e.g. a collision).
 			// clear the stale path and request a fresh one, so a background suggestion can be adopted.
 			t.Owner.Entity.CancelCurrentPath()
@@ -147,7 +137,7 @@ func (t *FollowTask) Update() {
 		// already standing behind the target; nothing to do until the target moves.
 		return
 	}
-	if t.Owner.Entity.Movement.IsMoving {
+	if t.Owner.Entity.IsMoving() {
 		// still finishing the current move; re-evaluate next frame.
 		return
 	}
@@ -168,12 +158,11 @@ func (t *FollowTask) requestPath(goal model.Coords, throttle bool) {
 	// current tile if idle. if the path is too short to anchor a merge, let the entity finish and
 	// re-request once it stops.
 	var start model.Coords
-	switch {
-	case len(t.Owner.Entity.Movement.TargetPath) >= 3:
-		start = t.Owner.Entity.Movement.TargetPath[2]
-	case len(t.Owner.Entity.Movement.TargetPath) == 0 && !t.Owner.Entity.Movement.IsMoving:
+	if pos, ok := t.Owner.Entity.PathAhead(2); ok {
+		start = pos
+	} else if !t.Owner.Entity.HasPath() && !t.Owner.Entity.IsMoving() {
 		start = t.Owner.Entity.TilePos()
-	default:
+	} else {
 		return
 	}
 	if start.Equals(goal) {
@@ -206,5 +195,8 @@ func (t *FollowTask) BackgroundAssist() {
 func (t *FollowTask) SimulationUpdate() {}
 
 func (t *FollowTask) SetupActiveState() {
-	panic("not yet implemented!")
+	// FollowTask is never a current task (see the registry panic for child-only tasks); it only ever
+	// runs as a child (e.g. of FightTask) once the NPC is already in the active map. It has no active-map
+	// state to set up (no subscriptions, no routing) — it just moves the entity toward a target via
+	// background-computed paths — so this is a no-op. Reachable via TaskBase's child forwarding.
 }

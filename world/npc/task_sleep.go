@@ -10,9 +10,8 @@ import (
 
 type SleepTask struct {
 	TaskBase
-	activateObjectTask *ActivateObjectTask
-	bedObj             *object.Object
-	inBed              bool
+	bedObj *object.Object
+	inBed  bool
 }
 
 func NewSleepTask(n *NPC, p defs.TaskPriority) *SleepTask {
@@ -29,6 +28,15 @@ func NewSleepTask(n *NPC, p defs.TaskPriority) *SleepTask {
 	}
 
 	return t
+}
+
+func init() {
+	// Note: not passing whole task def because sleep task doesn't have things (as of now) like start location and such. that's just assumed to be home map.
+	registerTask(TaskSleep, taskMeta{
+		build: func(def defs.TaskDef, owner *NPC) Task {
+			return NewSleepTask(owner, def.Priority)
+		},
+	})
 }
 
 func (t *SleepTask) Update() {
@@ -52,16 +60,26 @@ func (t *SleepTask) Update() {
 		if t.bedObj == nil {
 			panic("bed object was nil")
 		}
-		// go to the bed and activate it
-		t.activateObjectTask = NewActivateObjectTask(t.Owner, t.bedObj)
+		// go to the bed and activate it (as this task's child)
+		t.RunChild(NewActivateObjectTask(t.Owner, t.bedObj))
 		return
 	}
 
-	if t.activateObjectTask != nil {
+	if !t.ChildDone() {
 		if t.inBed {
-			panic("NPC is in bed, but activateObjectTask wasn't cleared")
+			panic("NPC is in bed, but child task wasn't cleared")
 		}
-		t.handleActivateObj()
+		// advance the child (activate object) task
+		t.TaskBase.Update()
+		return
+	}
+
+	if t.HasChild() {
+		if t.inBed {
+			panic("NPC is in bed, but child task wasn't cleared")
+		}
+		// the activate-object child finished; process its result
+		t.handleActivateObjResult()
 		return
 	}
 
@@ -69,44 +87,47 @@ func (t *SleepTask) Update() {
 		// in the bed; mission accomplished
 		return
 	}
-
-	logz.Panicln("SleepTask", "somehow, we are neither in bed or trying to activate the bed... npcID:", t.Owner.ID(), "bedID:", t.bedObj.ID)
+	logz.Println("SleepTask", t.Owner.ID(), "bedID:", t.bedObj.ID)
+	logz.Panicln("SleepTask", "somehow, we are neither in bed or trying to activate the bed")
 }
 
-func (t *SleepTask) handleActivateObj() {
-	if t.activateObjectTask.IsDone() {
-		// sanity check: make sure targetingNPC was unset
-		if t.bedObj.GetTargetingNPC() == t.Owner.CharacterStateRef.ID {
-			logz.Panicln("SleepTask", "activate object finished, but this NPC is still set as the targeting NPC...", "npcID:", t.Owner.ID(), "bedID:", t.bedObj.ID)
-		}
-		// bed has been activated
-		if t.activateObjectTask.Success {
-			// we should be currently in bed right now; nothing to do.
-			if !t.bedObj.Bed.InUse {
-				logz.Panicln("SleepTask", "activate object task was reportedly a success, but bed is not in use? bedID:", t.bedObj.ID, "npcID:", t.Owner.ID())
-			}
-			if t.bedObj.Bed.SleeperID != t.Owner.CharacterStateRef.ID {
-				logz.Panicln("SleepTask", "activate object task was reportedly a success, but bed object sleeper ID doesn't match NPC ID. sleeperID:", t.bedObj.Bed.SleeperID, "npcID:", t.Owner.ID())
-			}
-			if !t.Owner.Entity.IsSleeping {
-				logz.Panicln("SleepTask", "we are supposed to be sleeping, but entity is not marked as sleeping...")
-			}
-
-			t.inBed = true
-			t.activateObjectTask = nil
-			return
-		}
-		// failed to activate bed...
-		if t.bedObj.Bed.InUse {
-			logz.Panicln("SleepTask", "failed to activate bed; bed is already in use. sleeperID:", t.bedObj.Bed.SleeperID, "objID:", t.bedObj.ID, "npc:", t.Owner.WhoAmI())
-		}
-		if t.activateObjectTask.FailReason.failedToReachObject {
-			logz.Panicln("SleepTask", "failed to activate bed; failed to reach target bed.", t.Owner.WhoAmI(), "bedID:", t.bedObj.ID)
-		}
-		logz.Panicln("SleepTask", "failed to activate bed, due to some unknown reason... ", t.Owner.WhoAmI(), "bedID:", t.bedObj.ID)
-	} else {
-		t.activateObjectTask.Update()
+func (t *SleepTask) handleActivateObjResult() {
+	// sanity check: make sure targetingNPC was unset
+	if t.bedObj.GetTargetingNPC() == t.Owner.CharacterStateRef.ID {
+		logz.Println("SleepTask", t.Owner.ID(), "bedID:", t.bedObj.ID)
+		logz.Panicln("SleepTask", "activate object finished, but this NPC is still set as the targeting NPC")
 	}
+	result := t.ChildResult()
+	// bed has been activated
+	if result.Status == ResultSuccess {
+		// we should be currently in bed right now; nothing to do.
+		if !t.bedObj.Bed.InUse {
+			logz.Println("SleepTask", t.bedObj.ID, "npcID:", t.Owner.ID())
+			logz.Panicln("SleepTask", "activate object task was reportedly a success, but bed is not in use?")
+		}
+		if t.bedObj.Bed.SleeperID != t.Owner.CharacterStateRef.ID {
+			logz.Println("SleepTask", t.bedObj.Bed.SleeperID, "npcID:", t.Owner.ID())
+			logz.Panicln("SleepTask", "activate object task was reportedly a success, but bed object sleeper ID doesn't match NPC ID")
+		}
+		if !t.Owner.Entity.IsSleeping {
+			logz.Panicln("SleepTask", "we are supposed to be sleeping, but entity is not marked as sleeping...")
+		}
+
+		t.inBed = true
+		t.EndChild()
+		return
+	}
+	// failed to activate bed...
+	if t.bedObj.Bed.InUse {
+		logz.Println("SleepTask", t.bedObj.Bed.SleeperID, "objID:", t.bedObj.ID, "npc:", t.Owner.WhoAmI())
+		logz.Panicln("SleepTask", "failed to activate bed; bed is already in use")
+	}
+	if result.Reason == "failed to reach object" {
+		logz.Println("SleepTask", t.Owner.WhoAmI(), "bedID:", t.bedObj.ID)
+		logz.Panicln("SleepTask", "failed to activate bed; failed to reach target bed.")
+	}
+	logz.Println("SleepTask", t.Owner.WhoAmI(), "bedID:", t.bedObj.ID)
+	logz.Panicln("SleepTask", "failed to activate bed, due to some unknown reason...")
 }
 
 func (t *SleepTask) findBed() {
@@ -120,10 +141,11 @@ func (t *SleepTask) findBed() {
 			}
 			if obj.Bed.InUse {
 				if obj.Bed.SleeperID != id.CharacterStateID(defs.PlayerID) {
-					logz.Panicln("SleepTask", "Another (non-player) character appears to be sleeping in NPC's bed! npcID:", t.Owner.ID(), "bedID:", bedID, "sleeperID:", obj.Bed.SleeperID)
+					logz.Println("SleepTask", t.Owner.ID(), "bedID:", bedID, "sleeperID:", obj.Bed.SleeperID)
+					logz.Panicln("SleepTask", "Another (non-player) character appears to be sleeping in NPC's bed!")
 				}
 				// the player is using this NPC's bed... we should probably cause something to happen, but let's just cancel the task for now.
-				t.Status = TaskEnded
+				t.FinishAborted("bed is in use by the player")
 				return
 			}
 			targetingNPC := obj.GetTargetingNPC()
@@ -132,13 +154,15 @@ func (t *SleepTask) findBed() {
 					// player is... targeting the bed?  doesn't seem possible, since player doesn't use tasks right?
 					logz.Panicln("SleepTask", "player is apparently targeting the bed... this shouldnt be happening, right?")
 				}
-				logz.Panicln("SleepTask", "a different NPC is targeting my bed! that shouldn't be happening... npcID:", t.Owner.ID(), "targetingNPC:", targetingNPC, "bedID:", obj.ID)
+				logz.Println("SleepTask", t.Owner.ID(), "targetingNPC:", targetingNPC, "bedID:", obj.ID)
+				logz.Panicln("SleepTask", "a different NPC is targeting my bed! that shouldn't be happening")
 			}
 			t.bedObj = obj
 			return
 		}
 	}
-	logz.Panicln("SleepTask", "couldn't find NPC's bed! it's supposed to be in this map... homeMapID:", homeMap, "bedID:", bedID, "npcID:", t.Owner.ID())
+	logz.Println("SleepTask", homeMap, "bedID:", bedID, "npcID:", t.Owner.ID())
+	logz.Panicln("SleepTask", "couldn't find NPC's bed! it's supposed to be in this map")
 }
 
 func (t *SleepTask) SetupActiveState() {
@@ -157,13 +181,15 @@ func (t *SleepTask) SetupActiveState() {
 	// this is to ensure that when the NPC leaves the bed, they will appear next to it as one would expect.
 
 	if t.Owner.Entity.IsSleeping {
-		logz.Panicln("SleepTask", "SetupActiveState was called, but for some reason the NPC was already sleeping... did entity not get reset from a previous map?", t.Owner.WhoAmI())
+		logz.Println("SleepTask", t.Owner.WhoAmI())
+		logz.Panicln("SleepTask", "SetupActiveState was called, but for some reason the NPC was already sleeping... did entity not get reset from a previous map?")
 	}
 
 	c := t.bedObj.TilePos()
 	nearest, found := t.Owner.getNearestOpenTile(c, 2, true)
 	if !found {
-		logz.Panicln("SleepTask", "failed to find open tile near bed. bedID:", t.bedObj.ID, t.Owner.WhoAmI())
+		logz.Println("SleepTask", t.bedObj.ID, t.Owner.WhoAmI())
+		logz.Panicln("SleepTask", "failed to find open tile near bed")
 	}
 	t.Owner.Entity.SetPosition(nearest)
 
@@ -179,28 +205,17 @@ func (t *SleepTask) SetupActiveState() {
 		t.Status = TaskInProg
 		return
 	}
-	logz.Panicln("SleepTask", "failed to activate bed...", t.Owner.WhoAmI(), "bedID:", t.bedObj.ID)
+	logz.Println("SleepTask", t.Owner.WhoAmI(), "bedID:", t.bedObj.ID)
+	logz.Panicln("SleepTask", "failed to activate bed...")
 }
 
 func (t *SleepTask) BackgroundAssist() {
 	if !t.InStartMap() {
-		// sleep needs to route to a new map, so send bg assist to route so it can calculate the path
-		// NOTE: it seems there's a slim chance of background assist calling after the task starts, but before the task has had its routing set up.
-		// this is probably a race condition technically, but I think it won't be an issue if I handle it with this condition.
-		// However, if more race-condition stuff keeps happening in the future, maybe it'll be work adding some synchronization to the different goroutines,
-		// like a Mutex or something.
+		// sleep needs to route to a new map, so send bg assist to the routing child so it can calculate the path
 		t.RouteToStartMapBgAssist()
 		return
 	}
-	if !t.InActiveMap() {
-		// NOTE: considered doing a panic here, but figured there is a bg assist calling at least one tick even after the task exited the active map,
-		// due to the separate goroutines/race case possibility.
-		// if we switch to mutexes, then this should be made into a panic.
-		return
-	}
-	if t.activateObjectTask != nil && !t.activateObjectTask.IsDone() {
-		t.activateObjectTask.BackgroundAssist()
-	}
+	t.TaskBase.BackgroundAssist()
 }
 
 func (t *SleepTask) SimulationUpdate() {

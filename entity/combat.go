@@ -96,13 +96,15 @@ func (e Entity) GetFrontRect() model.Rect {
 
 func (e *Entity) StartMeleeAttack() {
 	if !e.IsWeaponEquiped() {
-		logz.Panicln(e.DisplayName(), "tried to swing weapon, but no weapon is equiped")
+		logz.Println(e.DisplayName(), "tried to swing weapon, but no weapon is equiped")
+		logz.Panicln("Combat", "tried to swing weapon, but no weapon is equiped")
 	}
 	if e.IsStunned() {
 		return
 	}
 	if e.IsAttacking() {
-		logz.Panicln(e.DisplayName(), "tried to start melee attack, but entity is already attacking")
+		logz.Println(e.DisplayName(), "tried to start melee attack, but entity is already attacking")
+		logz.Panicln("Combat", "tried to start melee attack, but entity is already attacking")
 	}
 
 	animationInterval := 6
@@ -137,18 +139,22 @@ func (e *Entity) StartMeleeAttack() {
 
 func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	if e.IsDead() {
-		logz.Panicln(string(e.ID()), "received attack, but entity is dead")
+		logz.Println(string(e.ID()), "received attack, but entity is dead")
+		logz.Panicln("Combat", "received attack, but entity is dead")
 	}
 	logz.Println(e.DisplayName(), "received attack!")
 	if attack.Damage < 0 {
-		logz.Panicln(string(e.ID()), "attack can not have negative damage.", attack)
+		logz.Println(string(e.ID()), attack)
+		logz.Panicln("Combat", "attack can not have negative damage.")
 	}
 	if attack.Damage == 0 {
 		// ineffectual attack
-		logz.Panicln(string(e.ID()), "attack had 0 damage.", attack)
+		logz.Println(string(e.ID()), attack)
+		logz.Panicln("Combat", "attack had 0 damage.")
 	}
 	if attack.Attacker == "" {
-		logz.Panicln("ReceiveAttack", "no attacker info. receiver:", e.ID())
+		logz.Println("ReceiveAttack", e.ID())
+		logz.Panicln("ReceiveAttack", "no attacker info")
 	}
 
 	eventInfo := map[string]any{
@@ -248,7 +254,8 @@ func (e Entity) IsWeaponEquiped() bool {
 		return !weaponIsNil
 	}
 	// uh oh - we have a bugged case here. let's panic so it can be noticed and fixed.
-	logz.Panicln(e.DisplayName(), "equiped weapon slot and weapon body part don't seem to match... weapon is nil?:", weaponIsNil, "part is none?:", partIsNone)
+	logz.Println(e.DisplayName(), weaponIsNil, "part is none?:", partIsNone)
+	logz.Panicln("Combat", "equiped weapon slot and weapon body part don't seem to match")
 	return false
 }
 
@@ -261,7 +268,8 @@ func (e Entity) IsShieldEquiped() bool {
 
 func (e *Entity) UseShield() {
 	if !e.IsShieldEquiped() {
-		logz.Panicln(e.DisplayName(), "tried to use shield, but shield is not equipped")
+		logz.Println(e.DisplayName(), "tried to use shield, but shield is not equipped")
+		logz.Panicln("Combat", "tried to use shield, but shield is not equipped")
 	}
 	if e.IsUsingShield() {
 		return
@@ -280,12 +288,14 @@ func (e *Entity) UseShield() {
 
 func (e *Entity) StopUsingShield() {
 	if !e.IsUsingShield() {
-		logz.Panicln(e.DisplayName(), "trying to stop using shield, but shield isn't being used")
+		logz.Println(e.DisplayName(), "trying to stop using shield, but shield isn't being used")
+		logz.Panicln("Combat", "trying to stop using shield, but shield isn't being used")
 	}
 
 	res := e.Body.SetAnimation(body.AnimIdle, body.SetAnimationOps{Force: true})
 	if !res.Success {
-		logz.Panicln(e.DisplayName(), "failed to unset shield animation...")
+		logz.Println(e.DisplayName(), "failed to unset shield animation...")
+		logz.Panicln("Combat", "failed to unset shield animation...")
 	}
 }
 

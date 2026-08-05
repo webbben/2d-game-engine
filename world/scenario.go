@@ -17,7 +17,8 @@ func (w *World) loadScenario(scenarioDef defs.ScenarioDef) {
 
 	logz.Println("Loading Scenario", "MapID:", scenarioDef.MapID, "ScenarioID:", scenarioDef.ID)
 	if scenarioDef.MapID != w.ActiveMap.MapID {
-		logz.Panicln("SetupMap", "found queued scenario for map, but mapID in scenario def doesn't match. mapID:", w.ActiveMap.MapID, "found in scenario def:", scenarioDef.MapID)
+		logz.Println("SetupMap", w.ActiveMap.MapID, "found in scenario def:", scenarioDef.MapID)
+		logz.Panicln("SetupMap", "found queued scenario for map, but mapID in scenario def doesn't match")
 	}
 
 	for _, charDef := range scenarioDef.Characters {

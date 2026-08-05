@@ -28,7 +28,8 @@ func (w *World) BuildWorldGraph() {
 		for _, genMapStateID := range genMapStateIDs {
 			moreGenIDs := w.buildGraphNode(&wg, genMapStateID)
 			if len(moreGenIDs) > 0 {
-				logz.Panicln("BuildWorldGraph", "somehow, a generated map produced more generated maps within it... that's not supposed to be allowed.", mapStateID, genMapStateID, moreGenIDs)
+				logz.Println("BuildWorldGraph", mapStateID, genMapStateID, moreGenIDs)
+				logz.Panicln("BuildWorldGraph", "somehow, a generated map produced more generated maps within it... that's not supposed to be allowed.")
 			}
 		}
 	}
@@ -92,14 +93,16 @@ func (w *World) buildGraphNode(wg *worldgraph.WorldGraph, mapStateID defs.MapID)
 		objectInfo := m.GetObjectPropsAndTile(obj)
 		objType, found := object.GetObjectType(objectInfo.AllProps)
 		if !found {
-			logz.Panicln("buildGraphNode", "object didn't have a TYPE property:", obj.Name, obj.ID, "mapID:", mapDefID)
+			logz.Println("buildGraphNode", obj.Name, obj.ID, "mapID:", mapDefID)
+			logz.Panicln("buildGraphNode", "object didn't have a TYPE property")
 		}
 
 		if objType == object.TypeSpawnPoint {
 			// record spawn point location
 			spawnID, found := tiled.GetIntProperty(object.PropSpawnIndex, obj.Properties)
 			if !found {
-				logz.Panicln("BuildWorldGraph", "Tried to get spawn index of spawn point, but property wasn't found. mapID:", mapDefID, "objID:", obj.ID)
+				logz.Println("BuildWorldGraph", mapDefID, "objID:", obj.ID)
+				logz.Panicln("BuildWorldGraph", "Tried to get spawn index of spawn point, but property wasn't found")
 			}
 			if spawnID == 0 {
 				foundSpawn0 = true
@@ -122,11 +125,13 @@ func (w *World) buildGraphNode(wg *worldgraph.WorldGraph, mapStateID defs.MapID)
 			// any door in a generated map must have a door override, because generated maps aren't allowed to have explicit door_to properties and such.
 			override, exists := mapState.DoorOverrides[obj.ID]
 			if !exists {
-				logz.Panicln("buildGraphNode", "door in generated map didn't have an override set; generated maps must only have a single door to the map that routes back to the original place that generated it.", mapStateID, obj.ID)
+				logz.Println("buildGraphNode", mapStateID, obj.ID)
+				logz.Panicln("buildGraphNode", "door in generated map didn't have an override set; generated maps must only have a single door to the map that routes back to the original place that generated it.")
 			}
 			doorTo = override.OverrideDestinationMap
 			if override.OverrideDestinationSpawn == nil {
-				logz.Panicln("buildGraphNode", "overrideDestinationSpawn was unexpectedly nil.", mapStateID)
+				logz.Println("buildGraphNode", mapStateID)
+				logz.Panicln("buildGraphNode", "overrideDestinationSpawn was unexpectedly nil.")
 			}
 			toSpawn = *override.OverrideDestinationSpawn
 		} else {
@@ -137,7 +142,8 @@ func (w *World) buildGraphNode(wg *worldgraph.WorldGraph, mapStateID defs.MapID)
 				doorTo = defs.MapID(doorToProp)
 				toSpawn, found = tiled.GetIntProperty(object.PropDoorSpawnIndex, objectInfo.AllProps)
 				if !found {
-					logz.Panicln("buildGraphNode", "door object didn't have a spawn index prop.", obj.ID, mapStateID)
+					logz.Println("buildGraphNode", obj.ID, mapStateID)
+					logz.Panicln("buildGraphNode", "door object didn't have a spawn index prop.")
 				}
 			} else {
 				mapGenID, found := tiled.GetStringProperty(object.PropDoorMapGeneratorID, objectInfo.AllProps)
@@ -148,7 +154,8 @@ func (w *World) buildGraphNode(wg *worldgraph.WorldGraph, mapStateID defs.MapID)
 
 				returnSpawn, found := tiled.GetIntProperty("return_spawn_index", objectInfo.AllProps)
 				if !found {
-					logz.Panicln("WorldGraph", "found map generator, but the door didn't include the return_spawn_index prop.", mapDefID, obj.ID)
+					logz.Println("WorldGraph", mapDefID, obj.ID)
+					logz.Panicln("WorldGraph", "found map generator, but the door didn't include the return_spawn_index prop.")
 				}
 
 				// first, check if an override already exists for this door in the map state.
@@ -156,7 +163,8 @@ func (w *World) buildGraphNode(wg *worldgraph.WorldGraph, mapStateID defs.MapID)
 				if existingOverride, exists := mapState.DoorOverrides[obj.ID]; exists {
 					doorTo = existingOverride.OverrideDestinationMap
 					if existingOverride.OverrideDestinationSpawn == nil {
-						logz.Panicln("buildGraphNode", "overrideDestinationSpawn was nil, but it never should be.", obj.ID, mapStateID)
+						logz.Println("buildGraphNode", obj.ID, mapStateID)
+						logz.Panicln("buildGraphNode", "overrideDestinationSpawn was nil, but it never should be.")
 					}
 					toSpawn = *existingOverride.OverrideDestinationSpawn
 				} else {
@@ -194,7 +202,8 @@ func (w *World) buildGraphNode(wg *worldgraph.WorldGraph, mapStateID defs.MapID)
 	}
 
 	if !foundSpawn0 {
-		logz.Panicln("BuildWorldGraph", "map doesn't have spawn point index 0! this is required for all maps. mapID:", mapDefID)
+		logz.Println("BuildWorldGraph", mapDefID)
+		logz.Panicln("BuildWorldGraph", "map doesn't have spawn point index 0! this is required for all maps")
 	}
 
 	wg.MapDataCache[mapDefID] = m
