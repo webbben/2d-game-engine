@@ -93,21 +93,25 @@ func (a Animation) validate() {
 
 	// even if an animation only has a single frame (i.e. no TileSteps) it should still have a single frame for each direction
 	if len(a.L) == 0 {
-		logz.Panicln(a.Name, "left animation is empty")
+		logz.Println(a.Name, "left animation is empty")
+		logz.Panicln("Animation", "left animation is empty")
 	}
 	if len(a.R) == 0 {
-		logz.Panicln(a.Name, "right animation is empty")
+		logz.Println(a.Name, "right animation is empty")
+		logz.Panicln("Animation", "right animation is empty")
 	}
 	// Up might be empty, if set is !hasUp.  TODO add this as a property to Animation so we can verify here?
 
 	if len(a.D) == 0 {
-		logz.Panicln(a.Name, "down animation is empty")
+		logz.Println(a.Name, "down animation is empty")
+		logz.Panicln("Animation", "down animation is empty")
 	}
 
 	// confirm all directions are the same length
 	if (len(a.L)+len(a.R)+len(a.D))/3 != len(a.L) {
 		// we leave out Up, since some sets don't have an Up direction for their animations.
-		logz.Panicln(a.Name, "animation directions don't appear to be equal in length")
+		logz.Println(a.Name, "animation directions don't appear to be equal in length")
+		logz.Panicln("Animation", "animation directions don't appear to be equal in length")
 	}
 
 	// confirm that offsetY slices are the correct size
@@ -116,7 +120,8 @@ func (a Animation) validate() {
 			return
 		}
 		if len(offsetY) != numFrames {
-			logz.Panicln(a.Name, "offsetY slice is of incorrect length. should be:", numFrames, "offsetY:", offsetY)
+			logz.Println(a.Name, numFrames, "offsetY:", offsetY)
+			logz.Panicln("Animation", "offsetY slice is of incorrect length")
 		}
 	}
 	numFrames := len(a.L) // all directions are the same size
@@ -139,40 +144,49 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 		return nil
 	}
 	if animationIndex < 0 {
-		logz.Panicf("animation index is negative? %v", animationIndex)
+		logz.Println("Animation", "animation index:", animationIndex)
+		logz.Panicf("animation index is negative")
 	}
 
 	switch dir {
 	case 'L':
 		if len(a.L) == 0 {
-			logz.Panicf("%s: no frames?", a.Name)
+			logz.Println("Animation", "no frames?", a.Name)
+			logz.Panicf("no frames")
 		}
 		if animationIndex >= len(a.L) {
-			logz.Panicln(a.Name, "past last index")
+			logz.Println(a.Name, "past last index")
+			logz.Panicln("Animation", "past last index")
 		}
 		return a.L[animationIndex]
 	case 'R':
 		if len(a.R) == 0 {
-			logz.Panicf("%s: no frames?", a.Name)
+			logz.Println("Animation", "no frames?", a.Name)
+			logz.Panicf("no frames")
 		}
 		if animationIndex >= len(a.R) {
-			logz.Panicln(a.Name, "past last index")
+			logz.Println(a.Name, "past last index")
+			logz.Panicln("Animation", "past last index")
 		}
 		return a.R[animationIndex]
 	case 'U':
 		if len(a.U) == 0 {
-			logz.Panicf("%s: no frames?", a.Name)
+			logz.Println("Animation", "no frames?", a.Name)
+			logz.Panicf("no frames")
 		}
 		if animationIndex >= len(a.U) {
-			logz.Panicln(a.Name, "past last index")
+			logz.Println(a.Name, "past last index")
+			logz.Panicln("Animation", "past last index")
 		}
 		return a.U[animationIndex]
 	case 'D':
 		if len(a.D) == 0 {
-			logz.Panicf("%s: no frames?", a.Name)
+			logz.Println("Animation", "no frames?", a.Name)
+			logz.Panicf("no frames")
 		}
 		if animationIndex >= len(a.D) {
-			logz.Panicln(a.Name, "past last index")
+			logz.Println(a.Name, "past last index")
+			logz.Panicln("Animation", "past last index")
 		}
 		return a.D[animationIndex]
 	}
@@ -241,7 +255,8 @@ func (a *Animation) load(params defs.AnimationParams, aux, hasUp, flipRL bool, s
 
 func (a Animation) GetOffsetY(direction byte, animIndex int) int {
 	if animIndex < 0 {
-		logz.Panicln(a.Name, "animIndex is negative:", animIndex)
+		logz.Println(a.Name, animIndex)
+		logz.Panicln("Animation", "animIndex is negative")
 	}
 	var vals []int
 
@@ -269,7 +284,8 @@ func (a Animation) GetOffsetY(direction byte, animIndex int) int {
 	}
 
 	if animIndex >= len(vals) {
-		logz.Panicln(a.Name, "animIndex is too big for y offset list?", "animIndex:", animIndex, "yoffsets:", vals)
+		logz.Println(a.Name, animIndex, "yoffsets:", vals)
+		logz.Panicln("Animation", "animIndex is too big for y offset list?")
 	}
 
 	return vals[animIndex]

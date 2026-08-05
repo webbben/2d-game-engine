@@ -1,9 +1,9 @@
 package npc
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/webbben/2d-game-engine/config"
@@ -36,13 +36,6 @@ func (fs fightStatus) String() string {
 
 type FightTask struct {
 	TaskBase
-	NoActiveState
-
-	// followTask is the subtask for running after the enemy, set only while status is fightStatusFollow.
-	// It's a pointer (instead of an embedded value) so the background goroutine can hold a stable
-	// reference while the main loop swaps it out; followTaskMu guards the pointer itself.
-	followTask   *FollowTask
-	followTaskMu *sync.RWMutex
 
 	status       fightStatus
 	targetEntity *entity.Entity
@@ -57,9 +50,7 @@ type FightTaskParams struct {
 	// e.g. can the NPC surrender or not, etc. Probably a future thing once combat is more advanced.
 }
 
-func (t FightTask) ZzCompileCheck() {
-	_ = append([]Task{}, &t)
-}
+var _ Task = (*FightTask)(nil)
 
 func NewFightTask(targetEnt *entity.Entity, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) *FightTask {
 	if targetEnt == nil {
@@ -75,10 +66,32 @@ func NewFightTask(targetEnt *entity.Entity, owner *NPC, p defs.TaskPriority, nex
 	}
 	return &FightTask{
 		TaskBase:     NewTaskBase(t, "Fight", "Fight another entity", owner),
-		followTaskMu: &sync.RWMutex{},
 		status:       fightStatusIdle,
 		targetEntity: targetEnt,
 	}
+}
+
+func init() {
+	registerTask(TaskFight, taskMeta{
+		build: func(def defs.TaskDef, owner *NPC) Task {
+			fightParams, ok := def.Params.(FightTaskParams)
+			if !ok {
+				logz.Println("FightTask", def.Params)
+				logz.Panicln("FightTask", "tried to run a fight task, but the params could not be converted into FightTaskParams. make sure you are using the right struct")
+			}
+			return NewFightTask(fightParams.TargetEntity, owner, def.Priority, def.NextTask)
+		},
+		validateParams: func(def defs.TaskDef) error {
+			params, ok := def.Params.(FightTaskParams)
+			if !ok {
+				return fmt.Errorf("FightTask params must be FightTaskParams, got %T", def.Params)
+			}
+			if params.TargetEntity == nil {
+				return fmt.Errorf("FightTask params has a nil TargetEntity")
+			}
+			return nil
+		},
+	})
 }
 
 /*
@@ -99,7 +112,8 @@ func (t *FightTask) Start() {
 		panic("owner entity must not be nil")
 	}
 	if t.status != fightStatusIdle {
-		logz.Panicf("Start: fight task should be idle when (re)starting. (%s)", t.status)
+		logz.Println("FightTask", "status:", t.status)
+		logz.Panicf("Start: fight task should be idle when (re)starting")
 	}
 
 	t.Status = TaskInProg
@@ -119,48 +133,25 @@ func (t *FightTask) startFollowing() {
 	if t.status != fightStatusIdle {
 		panic("fight status should be idle before trying to follow")
 	}
-	t.followTaskMu.RLock()
-	existing := t.followTask
-	t.followTaskMu.RUnlock()
-	if existing != nil && existing.IsActive() {
-		// if the follow task appears to already be active, then that's also a problem
-		logz.Panicf("follow subtask appears to already be active (%v). It should've ended (or not started yet) before Start was called.", existing.GetStatus())
+	if !t.ChildDone() {
+		logz.Panicf("follow subtask appears to already be active. It should've ended (or not started yet) before Start was called.")
 	}
 	logz.Println(t.Owner.DisplayName(), "start follow")
 
-	newTask := NewFollowTask(t.targetEntity, 0, t.Owner, Emergency, nil)
-	newTask.Start()
-	if !newTask.IsActive() {
-		logz.Panicf("follow subtask should've started, but appears inactive (%s)", newTask.GetStatus())
-	}
-
-	t.followTaskMu.Lock()
-	t.followTask = newTask
+	t.RunChild(NewFollowTask(t.targetEntity, 0, t.Owner, Emergency, nil))
 	t.status = fightStatusFollow
-	t.followTaskMu.Unlock()
 }
 
 func (t *FightTask) stopFollowing() {
 	if t.status != fightStatusFollow {
 		logz.Panic("trying to stop following, but not in the following state")
 	}
-	t.followTaskMu.RLock()
-	ft := t.followTask
-	t.followTaskMu.RUnlock()
-	if ft == nil {
-		logz.Panic("trying to stop following, but follow task is nil")
-	}
-	if !ft.IsActive() {
-		// if the follow task appears to already be inactive, then that's also a problem
-		logz.Panicf("trying to stop following, but follow task appears to not be active (%v)", ft.GetStatus())
+	if !t.HasChild() || t.ChildDone() {
+		logz.Panic("trying to stop following, but the follow child is not active")
 	}
 	logz.Println(t.Owner.DisplayName(), "stop follow")
-	ft.End()
-
-	t.followTaskMu.Lock()
-	t.followTask = nil
+	t.EndChild()
 	t.status = fightStatusIdle
-	t.followTaskMu.Unlock()
 }
 
 func (t *FightTask) startCombat() {
@@ -178,7 +169,7 @@ func (t *FightTask) Update() {
 	}
 
 	if t.targetEntity.IsDead() {
-		t.Status = TaskEnded
+		t.FinishSuccess()
 		return
 	}
 
@@ -192,16 +183,13 @@ func (t *FightTask) Update() {
 
 	switch t.status {
 	case fightStatusFollow:
-		t.followTaskMu.RLock()
-		ft := t.followTask
-		t.followTaskMu.RUnlock()
-		if ft == nil {
-			logz.Panic("supposed to be following, but follow task is nil")
+		if !t.HasChild() {
+			logz.Panic("supposed to be following, but no follow child is set")
 		}
-		if !ft.IsActive() {
-			logz.Panicf("supposed to be following, but follow task is inactive? (followTask status=%s)", ft.GetStatus())
+		if t.ChildDone() {
+			logz.Panicf("supposed to be following, but the follow child is inactive?")
 		}
-		ft.Update()
+		t.TaskBase.Update()
 		// check if we are close enough to end follow stage. note: this uses actual distance rather
 		// than path length, since a freshly-started follow may not have a path yet (it's computed by
 		// background assist), and a path-length check would collapse straight into combat.
@@ -266,7 +254,7 @@ func (t *FightTask) handleCombat() {
 	if !aligned || dist > config.TileSize*1.8 {
 		// creep towards the enemy, moving along the axis with the greater tile offset
 		// this both approaches the enemy and lines us up so our attacks can land
-		if !t.Owner.Entity.Movement.IsMoving {
+		if !t.Owner.Entity.IsMoving() {
 			speed := t.Owner.CharacterStateRef.WalkSpeed() / 2
 			tickInterval := t.Owner.Entity.Movement.WalkAnimationTickInterval * 2
 			var moveError entity.MoveError
@@ -299,25 +287,20 @@ func (t *FightTask) handleCombat() {
 	t.nextAttackTime = time.Now().Add(time.Second + time.Duration(rand.Intn(1000))*time.Millisecond)
 }
 
-func (t *FightTask) End() {
-	t.Status = TaskEnded
-}
-
-func (t FightTask) IsComplete() bool {
-	return false
-}
-
-func (t FightTask) IsFailure() bool {
-	return false
-}
-
-func (t *FightTask) BackgroundAssist() {
-	t.followTaskMu.RLock()
-	ft := t.followTask
-	t.followTaskMu.RUnlock()
-	if ft != nil {
-		ft.BackgroundAssist()
+// Finish stops the follow child if it's still running (so its path and target cleanup run), then records the result.
+// This runs whether the fight ends naturally (target died) or the task is preempted.
+func (t *FightTask) Finish(result TaskResult) {
+	if t.status == fightStatusFollow {
+		t.stopFollowing()
 	}
+	t.TaskBase.Finish(result)
+}
+
+// BackgroundAssist forwards to the active follow child. The child is read from the atomic slot and the
+// follow child's own BackgroundAssist only touches atomic mailboxes (see FollowTask), so this is safe to
+// run on the background goroutine.
+func (t *FightTask) BackgroundAssist() {
+	t.TaskBase.BackgroundAssist()
 }
 
 func (t *FightTask) SimulationUpdate() {}

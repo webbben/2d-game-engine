@@ -91,7 +91,8 @@ func (bps BodyPartSet) validate() {
 		// animation index is oddly high; is there a bug in detecting the end of an animation?
 		// Note: if we want to support really long animations that have 20+ frames, just increase this upper threshold number
 		logz.Println(bps.Name, bps.animationDebugString())
-		logz.Panicln(bps.Name, "anim index is oddly high (>20). either we have an animation with a lot of frames, or something is going wrong with anim index.")
+		logz.Println(bps.Name, "anim index is oddly high (>20). either we have an animation with a lot of frames, or something is going wrong with anim index.")
+		logz.Panicln("BodyPart", "anim index is oddly high (>20). either we have an animation with a lot of frames, or something is going wrong with anim index.")
 	}
 }
 
@@ -175,7 +176,8 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 
 	anim, ok := set.Animations[animationName]
 	if !ok {
-		logz.Panicln(set.Name, "nextFrame: animation name has no registered animation sequence:", animationName)
+		logz.Println(set.Name, animationName)
+		logz.Panicln("BodyPart", "nextFrame: animation name has no registered animation sequence")
 	}
 
 	set.reachedLastFrame = false
@@ -191,7 +193,8 @@ func (set *BodyPartSet) nextFrame(animationName string) {
 	set.animIndex++
 
 	if numSteps == 0 {
-		logz.Panicln(set.Name, "anim: ", animationName, "num steps is somehow 0")
+		logz.Println(set.Name, animationName, "num steps is somehow 0")
+		logz.Panicln("BodyPart", "num steps is somehow 0")
 	}
 	// ensure we don't go past the last frame - and mark this body part as done with the animation, if it has.
 	if set.animIndex >= numSteps {

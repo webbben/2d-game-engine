@@ -13,15 +13,12 @@ type BartenderTask struct {
 	TaskBase
 	taskAreaObj     *object.Object
 	reachedTaskArea bool
-	gotoTask        *GotoTask
 
 	timer         idleTimer
 	isIdlyWalking bool
 }
 
-func (t BartenderTask) ZzInterfaceCheck() {
-	_ = append([]Task{}, &t)
-}
+var _ Task = (*BartenderTask)(nil)
 
 func NewBartenderTask(n *NPC, def defs.TaskDef) *BartenderTask {
 	if def.TaskID != TaskBartender {
@@ -37,9 +34,16 @@ func NewBartenderTask(n *NPC, def defs.TaskDef) *BartenderTask {
 	}
 }
 
+func init() {
+	registerTask(TaskBartender, taskMeta{
+		build: func(def defs.TaskDef, owner *NPC) Task {
+			return NewBartenderTask(owner, def)
+		},
+	})
+}
+
 func (t *BartenderTask) Update() {
 	if t.IsDone() {
-		// When would this happen anyway? I don't think we set the status to TaskEnded anywhere
 		return
 	}
 	t.Status = TaskInProg
@@ -54,14 +58,11 @@ func (t *BartenderTask) Update() {
 	if t.taskAreaObj == nil {
 		logz.Println("BartenderTask", "finding task area")
 		// find task area
-		t.findTaskArea()
-		if t.taskAreaObj == nil {
-			logz.Panicln("BartenderTask", "failed to find task area:", TaskBartender, t.Owner.WhoAmI())
-		}
+		t.taskAreaObj = findTaskArea(t.Owner, TaskBartender)
 	}
 	if !t.reachedTaskArea {
 		// go to task area
-		if t.gotoTask == nil {
+		if !t.HasChild() {
 			objPos := t.taskAreaObj.TilePos()
 			if objPos.Equals(t.Owner.Entity.TilePos()) {
 				// well, apparently we are already at the task area position! interesting...
@@ -74,13 +75,14 @@ func (t *BartenderTask) Update() {
 				logz.Panicln("BartenderTask", "object position (tile position) came back as 0 0, which seems wrong.")
 			}
 
-			t.gotoTask = NewGotoTask(GotoTaskParams{TileX: objPos.X, TileY: objPos.Y}, t.Owner, defs.TaskDef{
+			t.RunChild(NewGotoTask(GotoTaskParams{TileX: objPos.X, TileY: objPos.Y}, t.Owner, defs.TaskDef{
 				TaskID:   TaskGoto,
 				Priority: t.GetPriority(),
-			})
+			}))
 		}
-		if !t.gotoTask.IsDone() {
-			t.gotoTask.Update()
+		if !t.ChildDone() {
+			// advance the goto child
+			t.TaskBase.Update()
 			return
 		}
 		// reached the task area
@@ -89,7 +91,7 @@ func (t *BartenderTask) Update() {
 	}
 
 	// at the task area; just stand there, and maybe move around to other tiles within the task area periodically
-	if t.Owner.Entity.Movement.IsMoving {
+	if t.Owner.Entity.IsMoving() {
 		t.timer.setChangeTimer()
 		return
 	} else {
@@ -118,22 +120,6 @@ func (t *BartenderTask) Update() {
 	t.isIdlyWalking = true
 }
 
-func (t *BartenderTask) findTaskArea() {
-	for _, obj := range t.Owner.ActiveMapCtx.GetAllObjects() {
-		if obj.Type == object.TypeTaskArea {
-			if obj.TaskArea.TaskID == string(TaskBartender) {
-				if !t.Owner.SatisfiesObjectOwnership(*obj) {
-					continue
-				}
-				// found the task area
-				t.taskAreaObj = obj
-				return
-			}
-		}
-	}
-	logz.Panicln("BartenderTask", "failed to find task area:", TaskBartender, t.Owner.WhoAmI())
-}
-
 func (t *BartenderTask) SetupActiveState() {
 	if !t.InStartMap() {
 		// if we aren't in start map at this function call, then we should already be routing there; setupActiveState for underlying routing task.
@@ -141,7 +127,7 @@ func (t *BartenderTask) SetupActiveState() {
 		return
 	}
 
-	t.findTaskArea()
+	t.taskAreaObj = findTaskArea(t.Owner, TaskBartender)
 	if t.taskAreaObj == nil {
 		panic("task area obj was nil")
 	}
@@ -155,7 +141,7 @@ func (t *BartenderTask) SetupActiveState() {
 }
 
 func (t *BartenderTask) BackgroundAssist() {
-	t.RouteToStartMapBgAssist()
+	t.TaskBase.BackgroundAssist()
 }
 
 func (t *BartenderTask) SimulationUpdate() {

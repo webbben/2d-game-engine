@@ -53,7 +53,8 @@ func (m *ActiveMap) GetValidMapPosition(n npc.NPC) model.Coords {
 	// use a starting position of the main spawn point in the map (index=0)
 	x, y, found := m.GetSpawnPosition(0)
 	if !found {
-		logz.Panicln("GetValidMapPosition", "no spawn point (index=0) found in map. mapID:", m.MapID)
+		logz.Println("GetValidMapPosition", m.MapID)
+		logz.Panicln("GetValidMapPosition", "no spawn point (index=0) found in map")
 	}
 	startPos := model.ConvertPxToTilePos(x, y)
 
@@ -64,7 +65,8 @@ func (m *ActiveMap) GetValidMapPosition(n npc.NPC) model.Coords {
 		// and NPC schedules well enough that this could never happen.
 		// One theoretically possible one that comes to mind, though, is if there were a task like "go to tavern" in a big city. What if 50 NPCs all try to go to the same tavern?
 		// I guess, the logic for choosing a tavern would need to figure out what the maximum capacity of a given map is, and skip maps that are already too crowded.
-		logz.Panicln("GetValidMapPosition", "no reachable positions found! mapID:", m.MapID, "npcID:", n.ID())
+		logz.Println("GetValidMapPosition", m.MapID, "npcID:", n.ID())
+		logz.Panicln("GetValidMapPosition", "no reachable positions found!")
 	}
 
 	i := rand.Intn(len(reachable))
@@ -107,7 +109,8 @@ func (mi *ActiveMap) StartDialog(dialogProfileID defs.DialogProfileID, npcID str
 
 func (m *ActiveMap) StartBookSession(bookID defs.BookID, playerInfo defs.PlayerInfo, params config.BookSessionParams) {
 	if m.bookSession != nil {
-		logz.Panicln("StartBookSession", "a book session was already active. make sure the previous book was closed before starting a new book session.", m.bookSession.GetBookID())
+		logz.Println("StartBookSession", m.bookSession.GetBookID())
+		logz.Panicln("StartBookSession", "a book session was already active. make sure the previous book was closed before starting a new book session.")
 	}
 	if bookID == "" {
 		logz.Panic("bookID was empty!")
@@ -132,7 +135,8 @@ func (m *ActiveMap) GetAllNPCs() []*npc.NPC {
 
 func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMap defs.MapID) {
 	if toMap == m.MapID {
-		logz.Panicln("RemoveNPCFromActiveMap", "toMap matches active map ID!", toMap)
+		logz.Println("RemoveNPCFromActiveMap", toMap)
+		logz.Panicln("RemoveNPCFromActiveMap", "toMap matches active map ID!")
 	}
 	logz.Println("RemoveNPCFromActiveMap", "npc char state id:", charStateID, "to map:", toMap)
 
@@ -149,7 +153,8 @@ func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMa
 			return
 		}
 	}
-	logz.Panicln("RemoveNPCFromActiveMap", "NPC not found in active map:", charStateID)
+	logz.Println("RemoveNPCFromActiveMap", charStateID)
+	logz.Panicln("RemoveNPCFromActiveMap", "NPC not found in active map")
 }
 
 func (m *ActiveMap) GetOverlayManager() *overlay.OverlayManager {

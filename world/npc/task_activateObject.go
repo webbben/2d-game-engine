@@ -13,19 +13,10 @@ import (
 // ActivateObjectTask is a smaller "sub-task" that simply directs an NPC to go to an object and activate it.
 type ActivateObjectTask struct {
 	TaskBase
-	NoActiveState
 	targetObj *object.Object
 
 	gotoTask *GotoTask
 	skipGoto bool
-
-	Success    bool                     // if true, we successfully activated the target object
-	FailReason activateObjectFailReason // if failed, this should tell you what went wrong
-}
-
-type activateObjectFailReason struct {
-	failedToReachObject bool
-	activationFailed    bool
 }
 
 func NewActivateObjectTask(n *NPC, obj *object.Object) *ActivateObjectTask {
@@ -35,16 +26,21 @@ func NewActivateObjectTask(n *NPC, obj *object.Object) *ActivateObjectTask {
 	if obj.GetTargetingNPC() != "" {
 		// some objects, like doors, don't matter if they're already targeted; multiple NPCs can use the same door simultaneously to switch maps
 		if obj.Type != object.TypeDoor {
-			logz.Panicln("NewActivateObjectTask", "object is already being targeted by another NPC; ensure the object is not targeted before setting activateObjectTask. obj:", obj.ID, obj.Type, "npc:", n.WhoAmI())
+			logz.Println("NewActivateObjectTask", obj.ID, obj.Type, "npc:", n.WhoAmI())
+			logz.Panicln("NewActivateObjectTask", "object is already being targeted by another NPC; ensure the object is not targeted before setting activateObjectTask")
 		}
 	}
 	if !n.SatisfiesObjectOwnership(*obj) {
-		logz.Panicln("ActivateObjectTask", "tried to create activate object task, but NPC is not authorized to use this object. objID:", obj.ID, n.WhoAmI())
+		logz.Println("ActivateObjectTask", obj.ID, n.WhoAmI())
+		logz.Panicln("ActivateObjectTask", "tried to create activate object task, but NPC is not authorized to use this object")
 	}
 	obj.SetTargetingNPC(n.Entity.ID())
 	return &ActivateObjectTask{
 		targetObj: obj,
 		TaskBase: TaskBase{
+			Def: defs.TaskDef{
+				TaskID: TaskActivateObj,
+			},
 			Name:        "Activate Object",
 			Description: "NPC goes to an object and tries to activate it",
 			Owner:       n,
@@ -52,8 +48,17 @@ func NewActivateObjectTask(n *NPC, obj *object.Object) *ActivateObjectTask {
 	}
 }
 
-func (t ActivateObjectTask) ZzInterfaceCheck() {
-	_ = append([]Task{}, &t)
+var _ Task = (*ActivateObjectTask)(nil)
+
+// Finish releases the object's targeting reservation before recording the result. The object is reserved the
+// moment the task is created, and only cleared on the reachable success/failure paths inside Update; a Finish
+// (e.g. ResultAborted when a parent task is preempted mid-route) previously left the object reserved forever
+// (bed/door/chair soft-locks). Clearing here makes the release unconditional.
+func (t *ActivateObjectTask) Finish(result TaskResult) {
+	if t.targetObj != nil {
+		t.targetObj.ClearTargetingNPC()
+	}
+	t.TaskBase.Finish(result)
 }
 
 func (t *ActivateObjectTask) Update() {
@@ -93,21 +98,20 @@ func (t *ActivateObjectTask) Update() {
 	}
 
 	if t.gotoTask == nil {
-		logz.Panicln("ActivateObjectTask", "goto task was unexpectedly nil... this shouldn't be possible, right?", t.Owner.WhoAmI())
+		logz.Println("ActivateObjectTask", t.Owner.WhoAmI())
+		logz.Panicln("ActivateObjectTask", "goto task was unexpectedly nil... this shouldn't be possible, right?")
 	}
 
 	// 2. once next to the object, try to activate it
 	// confirm we are next to the target object now
 	objPos := t.targetObj.TilePos()
-	if !t.gotoTask.ReachedTarget {
+	if t.gotoTask.Result.Status != ResultSuccess {
 		dist := utils.EuclideanDistCoords(t.Owner.Entity.TilePos(), objPos)
 		if dist > 2 {
 			// it seems we didn't manage to get close enough to the object...
 			logz.Println("ActivateObjectTask", "failed to reach object; didn't get close enough. distance to object:", dist, "objPos:", objPos, "objID:", t.targetObj.ID, "whoami:", t.Owner.WhoAmI())
-			t.Status = TaskEnded
 			t.targetObj.ClearTargetingNPC()
-			t.Success = false
-			t.FailReason.failedToReachObject = true
+			t.FinishFail("failed to reach object")
 			return
 		}
 	}
@@ -121,11 +125,10 @@ func (t *ActivateObjectTask) Update() {
 	})
 	if res.UpdateOccurred {
 		t.Owner.handleObjectUpdate(t.targetObj, res)
-		t.Success = true
-	} else {
-		t.FailReason.activationFailed = true
+		t.FinishSuccess()
+		return
 	}
-	t.Status = TaskEnded
+	t.FinishFail("activation failed")
 }
 
 func (t *ActivateObjectTask) BackgroundAssist() {

@@ -45,24 +45,38 @@ func (n *NPC) Update() {
 	n.Entity.Update()
 }
 
-func (mgmt *TaskMGMT) Update() {
-	// NOTE: as of now, this function doesn't really do anything besides check for next tasks and/or remove ended tasks.
+func (mgmt *TaskMGMT) Update(n *NPC) {
+	// NOTE: as of now, this function doesn't really do anything besides check for next tasks and/or run the next scheduled task.
 
-	if mgmt.CurrentTask != nil {
-		if mgmt.CurrentTask.IsDone() {
-			// check if there's a chained task
-			nextTask := mgmt.CurrentTask.GetNextTaskDef()
-			if nextTask != nil {
-				mgmt.RunTask(*nextTask, mgmt.CurrentTask.GetOwner())
-				return
-			}
-			// no next task, so disconnect this one.
-			mgmt.taskStateMu.Lock()
-			mgmt.CurrentTask = nil
-			mgmt.taskStateMu.Unlock()
-			return
-		}
+	current := mgmt.getCurrentTask()
+	if current == nil || !current.IsDone() {
+		return
 	}
+
+	owner := current.GetOwner()
+
+	// 1. an explicitly chained task (e.g. from a quest) runs before anything else.
+	if nextTask := current.GetNextTaskDef(); nextTask != nil {
+		mgmt.RunTask(*nextTask, owner)
+		return
+	}
+
+	// 2. otherwise, decide if the NPC should return to a scheduled task for the current hour, or resume a
+	//    task that was preempted earlier. The hourly schedule wins; a preempted task is only resumed for
+	//    NPCs that have no scheduled task for this hour.
+	hour := n.WorldCtx.GetCurrentGameTime().Hour
+	if taskDef, ok := mgmt.Schedule.Hourly[hour]; ok && taskDef.TaskID != "" {
+		mgmt.clearInterruptedTask()
+		mgmt.RunTask(taskDef, owner)
+		return
+	}
+	if taskDef := mgmt.takeInterruptedTask(); taskDef != nil {
+		mgmt.RunTask(*taskDef, owner)
+		return
+	}
+
+	// 3. nothing to chain, schedule, or resume: just clear the task (do nothing).
+	mgmt.clearTask()
 }
 
 // OnHourChange handles NPC updates that should occur on hour change. mainly consideration about if scheduled tasks should run.
@@ -75,9 +89,7 @@ func (n *NPC) OnHourChange(hour int) {
 }
 
 func (mgmt *TaskMGMT) RunScheduleTask(hour int, n *NPC) {
-	mgmt.taskStateMu.Lock()
-	mgmt.CurrentTask = nil
-	mgmt.taskStateMu.Unlock()
+	mgmt.clearTask()
 
 	taskDef := mgmt.Schedule.Hourly[hour]
 
@@ -91,79 +103,115 @@ func (mgmt *TaskMGMT) RunScheduleTask(hour int, n *NPC) {
 // On the other hand, some quests or scenarios might make use of assigning smaller tasks one at a time to get a sequence of behaviors.
 // Like how the prison ship scenario goes, where a guard is assigned the Goto task, startdialog task, and goto tasks as a series of chained tasks.
 func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
+	logz.Println(n.ID(), "attempting to run task:", taskDef.TaskID)
+
+	if taskDef.TaskID == TaskDoNothing {
+		// do nothing tasks are just a way for the schedule to tell an NPC to... do nothing. be frozen in one spot.
+		// Decision: keep the nil shortcut rather than a hollow "do nothing" task. A nil current task naturally
+		// falls through to the decision loop (schedule/resume/interrupted) each tick, which is exactly the
+		// "frozen" behavior the schedule wants, with no extra task type to maintain.
+		mgmt.clearTask()
+		return
+	}
+
+	mgmt.switchTask(mgmt.buildTask(taskDef, n))
+}
+
+// buildTask constructs a task from its def via the registry, without running it. This lets callers that need the
+// built task's start map (e.g. NPC placement in initializeNpcWorldState) build once, resolve, place, and then run
+// the same task. RunTask is builtTask + switchTask.
+func (mgmt *TaskMGMT) buildTask(taskDef defs.TaskDef, n *NPC) Task {
 	if taskDef.TaskID == "" {
 		panic("taskID was empty. if this is a 'do nothing' task, use the task ID for that.")
 	}
 
-	logz.Println(n.ID(), "attempting to run task:", taskDef.TaskID)
-
-	var t Task
-
-	switch taskDef.TaskID {
-	case TaskDoNothing:
-		// do nothing tasks are just a way for the schedule to tell an NPC to... do nothing. be frozen in one spot.
-		// TODO: should we still make a task for this? it can just be an empty task with no logic in its update functions, of course.
-		mgmt.taskStateMu.Lock()
-		n.CurrentTask = nil
-		mgmt.taskStateMu.Unlock()
-		return
-	case TaskIdle:
-		t = NewIdleTask(n, taskDef)
-	case TaskLounge:
-		t = NewLoungeTask(n, taskDef)
-	case TaskSleep:
-		// Note: not passing whole task def because sleep task doesn't have things (as of now) like start location and such. that's just assumed to be home map.
-		t = NewSleepTask(n, taskDef.Priority)
-	case TaskGoto:
-		gotoParams, ok := taskDef.Params.(GotoTaskParams)
-		if !ok {
-			logz.Panicln("RunTask", "tried to run a task, but the params could not be converted into the right type. make sure you are using the right struct.")
-		}
-		t = NewGotoTask(gotoParams, n, taskDef)
-	case TaskStartDialog:
-		params, ok := taskDef.Params.(StartDialogTaskParams)
-		if !ok {
-			logz.Panicln("RunTask", "tried to run a task, but the params could not be converted into the right type. make sure you are using the right struct.")
-		}
-		t = NewStartDialogTask(params, n, taskDef)
-	case TaskBartender:
-		t = NewBartenderTask(n, taskDef)
-	case TaskShopkeeper:
-		t = NewShopkeeperTask(n, taskDef)
-	case TaskGoToTavern:
-		t = NewGotoTavernTask(n, taskDef)
-	case TaskRoute:
-		// we don't plan to allow this as a "top level" task (it's considered a "sub-task" that should be used inside other tasks' logic)
-		// TODO: if we decide for sure that a task (like routing) should never be "top level", maybe we should make it private (lowercase) so that schedules can't add it.
-		logz.Panicln("TaskMGMT", "This task is not intended to use as a top-level task:", taskDef.TaskID, "If this is a mistake, we can always change that of course.")
-	case TaskFight:
-		fightParams, ok := taskDef.Params.(FightTaskParams)
-		if !ok {
-			logz.Panicln("RunTask", "failed to parse fight params.", taskDef.Params)
-		}
-		t = NewFightTask(fightParams.TargetEntity, n, taskDef.Priority, taskDef.NextTask)
-	default:
-		logz.Panicln("TaskMGMT", "unknown task ID:", taskDef.TaskID)
+	meta, ok := taskRegistry[taskDef.TaskID]
+	if !ok {
+		logz.Println("TaskMGMT", taskDef.TaskID)
+		logz.Panicln("TaskMGMT", "unknown task ID (not registered, or a child-only task like ROUTE/FOLLOW/ACTIVATE_OBJECT)")
 	}
+	t := meta.build(taskDef, n)
 
-	// TODO: just add this to a validation function for Task?
 	if t.GetOwner() == nil {
 		logz.Panicln("SetTask", "task owner was empty; it should've been set in the task creation function")
 	}
+	return t
+}
 
-	if n.CurrentTask != nil {
-		// compare priorities
-		currentTaskPriority := n.CurrentTask.GetPriority()
+// switchTask makes t the NPC's current task, ending any task currently in progress.
+//
+// This is the single place task switching happens. It holds taskStateMu for the whole transition
+// (priority comparison, finishing the old task, starting the new one, and the pointer swap), so
+// the background jobs goroutine can never observe a torn switch or a half-started/finished task.
+//
+// Concurrency contract:
+//   - The main game loop is the only writer of CurrentTask, interruptedTask, task Status/Result,
+//     and all NPC/entity/character state.
+//   - The background jobs goroutine's only entry points into task state are GetCurrentTaskForBgAssist
+//     (an RLock-protected pointer read) and Task.BackgroundAssist. BackgroundAssist may read only
+//     atomic slots (TaskBase.child, FollowTask.pathRequest/pathResult) and must never read or write
+//     task Status/Result or NPC/entity state; anything else that crosses threads should use an atomic
+//     mailbox in the FollowTask style.
+//   - Known residual reads (pre-existing, not part of this pass): a few bg assists still read
+//     main-owned fields directly, e.g. RouteTask.pathCalculated / CharacterStateRef.CurrentMap
+//     (RouteTask/SleepTask bg assist) and ActivateObjectTask's set-once gotoTask pointer. These are
+//     set-once or single-header reads that don't tear in practice; proper hardening of character-state
+//     access belongs to a follow-up pass.
+//
+// Returns true if the switch happened; false if the current task has a higher priority and the
+// new task was rejected.
+func (mgmt *TaskMGMT) switchTask(t Task) bool {
+	mgmt.taskStateMu.Lock()
+	defer mgmt.taskStateMu.Unlock()
+
+	if mgmt.CurrentTask != nil && !mgmt.CurrentTask.IsDone() {
+		currentTaskPriority := mgmt.CurrentTask.GetPriority()
 		if currentTaskPriority > t.GetPriority() {
-			// can't override current task
+			// can't override current task; it has higher priority
 			logz.Warnln("TaskMGMT", "unable to run task; existing task has higher priority. existing task:", mgmt.CurrentTask.GetID(), "task to run:", t.GetID())
+			return false
 		}
+		prevDef := mgmt.CurrentTask.GetDef()
+		mgmt.interruptedTask = &prevDef
+		mgmt.CurrentTask.Finish(TaskResult{Status: ResultAborted, Reason: "preempted by " + string(t.GetID())})
 	}
 
-	logz.Println(n.ID(), "setting task:", t.GetID())
+	t.Start()
+	mgmt.CurrentTask = t
+	logz.Println(t.GetOwner().ID(), "setting task:", t.GetID())
+	return true
+}
+
+// getCurrentTask returns the current task pointer, or nil. Safe for concurrent use; the background
+// jobs goroutine uses this to peek at the task before calling BackgroundAssist.
+func (mgmt *TaskMGMT) getCurrentTask() Task {
+	mgmt.taskStateMu.RLock()
+	defer mgmt.taskStateMu.RUnlock()
+	return mgmt.CurrentTask
+}
+
+// clearTask nils out the current task. Main-loop only.
+func (mgmt *TaskMGMT) clearTask() {
 	mgmt.taskStateMu.Lock()
-	n.CurrentTask = t
+	mgmt.CurrentTask = nil
 	mgmt.taskStateMu.Unlock()
+}
+
+// clearInterruptedTask clears any recorded preempted-task def. Main-loop only.
+func (mgmt *TaskMGMT) clearInterruptedTask() {
+	mgmt.taskStateMu.Lock()
+	mgmt.interruptedTask = nil
+	mgmt.taskStateMu.Unlock()
+}
+
+// takeInterruptedTask atomically returns and clears the recorded preempted-task def (if any).
+// Main-loop only.
+func (mgmt *TaskMGMT) takeInterruptedTask() *defs.TaskDef {
+	mgmt.taskStateMu.Lock()
+	defer mgmt.taskStateMu.Unlock()
+	taskDef := mgmt.interruptedTask
+	mgmt.interruptedTask = nil
+	return taskDef
 }
 
 // Updates related to NPC behavior or tasks
@@ -172,13 +220,13 @@ func (n *NPC) npcUpdates() {
 		return
 	}
 	if n.waitUntilDoneMoving {
-		if n.Entity.Movement.IsMoving {
+		if n.Entity.IsMoving() {
 			return
 		}
 		n.waitUntilDoneMoving = false
 	}
 
-	n.TaskMGMT.Update()
+	n.TaskMGMT.Update(n)
 
 	if n.IsActive() {
 		if n.CurrentTask == nil {

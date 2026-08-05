@@ -118,7 +118,8 @@ func (w *World) QueueScenario(id defs.ScenarioID) {
 	// ensure this scenario is not already queued up
 	for _, scenarioID := range mapState.QueuedScenarios {
 		if scenarioID == id {
-			logz.Panicln("QueueScenario", "tried to queue a scenario, but its ID was already in the scenario queue for this map:", id)
+			logz.Println("QueueScenario", id)
+			logz.Panicln("QueueScenario", "tried to queue a scenario, but its ID was already in the scenario queue for this map")
 		}
 	}
 
@@ -133,7 +134,8 @@ func (w *World) UnlockMapLock(mapID defs.MapID, lockID string) {
 	mapState := w.Dataman.GetMapState(mapID)
 	lockState, exists := mapState.MapLocks[lockID]
 	if !exists {
-		logz.Panicln("UnlockMapLock", "given lock ID was not found in map. mapID:", mapID, "lockID:", lockID)
+		logz.Println("UnlockMapLock", mapID, "lockID:", lockID)
+		logz.Panicln("UnlockMapLock", "given lock ID was not found in map")
 	}
 	lockState.Unlocked = true
 	mapState.MapLocks[lockID] = lockState
@@ -153,7 +155,8 @@ func (w *World) SetMapLock(mapID defs.MapID, lockID string, lockLevel int) {
 	mapState := w.Dataman.GetMapState(mapID)
 	lockState, exists := mapState.MapLocks[lockID]
 	if !exists {
-		logz.Panicln("UnlockMapLock", "given lock ID was not found in map. mapID:", mapID, "lockID:", lockID)
+		logz.Println("UnlockMapLock", mapID, "lockID:", lockID)
+		logz.Panicln("UnlockMapLock", "given lock ID was not found in map")
 	}
 	// if lockLevel is 0, we just set the lock to the original value
 	if lockLevel == 0 {

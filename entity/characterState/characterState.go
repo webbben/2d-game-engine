@@ -129,7 +129,8 @@ func SpendMoney(inv *state.StandardInventory, value int, dataman *datamanager.Da
 		coinsToRemove := dataman.NewItemState(defs.ItemID(itemID), numCoins)
 		success, remaining := item.RemoveItemFromStandardInventory(inv, *coinsToRemove, dataman)
 		if !success || remaining.Quantity != 0 {
-			logz.Panicf("failed to pay all coins. remaining unpaid coins: %s", remaining.String())
+			logz.Println("SpendMoney", "remaining unpaid coins:", remaining.String())
+			logz.Panicf("failed to pay all coins")
 		}
 	}
 
@@ -253,7 +254,8 @@ func CalculateCoins(value int) map[int]int {
 	}
 
 	if value != 0 {
-		logz.Panicln("CalculateCoins", "remaining value ended up not being zero... is the logic here broken? remaining value:", value)
+		logz.Println("CalculateCoins", value)
+		logz.Panicln("CalculateCoins", "remaining value ended up not being zero... is the logic here broken?")
 	}
 
 	return coins
@@ -270,7 +272,8 @@ func EquipItem(cs *state.CharacterState, i *state.ItemState, dataman *datamanage
 	itemDef := dataman.GetItemDef(i.DefID)
 
 	if !itemDef.IsEquipable() {
-		logz.Panicln(cs.DisplayName, "tried to equip an inequipable item:", i.DefID)
+		logz.Println(cs.DisplayName, i.DefID)
+		logz.Panicln("CharacterState", "tried to equip an inequipable item")
 	}
 
 	switch itemDef.Type {
@@ -417,7 +420,8 @@ func ActivateItem(itemState *state.ItemState, dataman *datamanager.DataManager, 
 	switch itemDef.Type {
 	case defs.TypeBook:
 		if itemDef.BookID == "" {
-			logz.Panicln("ActivateItem", "book item didn't have a bookID:", itemState.DefID)
+			logz.Println("ActivateItem", itemState.DefID)
+			logz.Panicln("ActivateItem", "book item didn't have a bookID")
 		}
 		bookDef := dataman.GetBookDef(itemDef.BookID)
 		for _, topic := range bookDef.KnowledgeTopics {

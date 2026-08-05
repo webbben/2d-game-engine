@@ -92,15 +92,15 @@ func (e *Entity) Update() {
 			panic("entity is not moving but hasn't met its goal yet. hint: if you are setting the entity position, use the SetPosition function to ensure Target is updated too.")
 		}
 		if e.Body.IsMoving() {
-			logz.Panicln(e.DisplayName(), "entity is not moving, but body is still doing movement animations")
+			logz.Println(e.DisplayName(), "entity is not moving, but body is still doing movement animations")
+			logz.Panicln("Entity", "entity is not moving, but body is still doing movement animations")
 		}
 	}
 
 	movementResult := e.updateMovement()
 
 	if movementResult.UnexpectedCollision {
-		e.Movement.Interrupted = true
-		e.StopMovement()
+		e.markInterrupted()
 	} else if movementResult.ReachedTarget {
 		e.Movement.IsMoving = false
 
@@ -115,10 +115,10 @@ func (e *Entity) Update() {
 				// failed to set next path
 				logz.Println(e.DisplayName(), "failed to set next target path:", res)
 				if res.AlreadyMoving {
-					logz.Panicf("movement failed because we are already moving... but IsMoving is false? %s", res)
+					logz.Println(e.DisplayName(), "movement failed; already moving. res:", res)
+					logz.Panicf("movement failed because we are already moving... but IsMoving is false")
 				}
-				e.Movement.Interrupted = true
-				e.StopMovement()
+				e.markInterrupted()
 			}
 		}
 	} else if movementResult.ContinuingTowardsTarget {

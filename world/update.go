@@ -100,21 +100,21 @@ func (w *World) initializeNpcWorldState() {
 
 	for id, n := range w.NPCs {
 		if n.CharacterStateRef.Temp {
-			logz.Panicln("SIMULATION", "temp character found in NPC task initialization:", id)
+			logz.Println("SIMULATION", id)
+			logz.Panicln("SIMULATION", "temp character found in NPC task initialization")
 		}
-		// move NPCs to their scheduled map (they are created at first in their home maps where their beds are located)
-		startMap := n.GetScheduledMap(gameTime)
+		// build the task scheduled for this hour, resolve where it places the NPC, and run it (keeping the same
+		// built task). DO_NOTHING hours set no task. Placement happens here via ChangeMapOccupancy.
+		n.ClearCurrentTask()
+		startMap := n.SetupScheduledTaskForPlacement(gameTime)
 		if startMap == "" {
 			// No start map? strange...
-			logz.Panicln("SIMULATION", "NPC didn't have a start map:", id)
+			logz.Println("SIMULATION", id)
+			logz.Panicln("SIMULATION", "NPC didn't have a start map")
 		}
 		if startMap != n.CharacterStateRef.CurrentMap {
 			w.ChangeMapOccupancy(id, n.CharacterStateRef.CurrentMap, startMap, -1)
 		}
-
-		// clear any existing task from this NPC and set the one scheduled for the current hour
-		n.ClearCurrentTask()
-		n.SetupTaskState(gameTime, nil)
 	}
 }
 
@@ -130,7 +130,8 @@ func (w *World) timeLapse(newTime clock.GameTime) {
 
 	currentTime := w.Clock.GetCurrentGameTime()
 	if !newTime.IsAfter(currentTime) {
-		logz.Panicln("WORLD", "attempted time lapse, but new time was not after current time. new time:", newTime, "current time:", currentTime)
+		logz.Println("WORLD", newTime, "current time:", currentTime)
+		logz.Panicln("WORLD", "attempted time lapse, but new time was not after current time")
 	}
 
 	w.Clock.SetGameTime(newTime)

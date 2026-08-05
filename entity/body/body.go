@@ -352,7 +352,8 @@ func (eb *EntityBodySet) SetHair(def defs.SelectedPartDef) {
 
 func (eb *EntityBodySet) ReloadHair() {
 	if !eb.HairSet.HasLoaded() {
-		logz.Panicln(eb.Name, "tried to reload hair, but hair hasn't been loaded yet")
+		logz.Println(eb.Name, "tried to reload hair, but hair hasn't been loaded yet")
+		logz.Panicln("Body", "tried to reload hair, but hair hasn't been loaded yet")
 	}
 
 	eb.HairSet.load(eb.stretchX, 0, eb.IsAuxEquipped())
@@ -388,7 +389,8 @@ func (eb *EntityBodySet) SetEquipFeet(def defs.SelectedPartDef) {
 
 func (eb *EntityBodySet) ReloadArms() {
 	if !eb.ArmsSet.HasLoaded() {
-		logz.Panicln(eb.Name, "trying to reload arms, but they haven't been loaded yet")
+		logz.Println(eb.Name, "trying to reload arms, but they haven't been loaded yet")
+		logz.Panicln("Body", "trying to reload arms, but they haven't been loaded yet")
 	}
 
 	eb.ArmsSet.load(0, 0, eb.IsAuxEquipped())
@@ -400,28 +402,32 @@ func (eb *EntityBodySet) ReloadArms() {
 
 func (eb *EntityBodySet) EquipBodyItem(i defs.ItemDef) {
 	if i.Type != defs.TypeBodywear {
-		logz.Panicln("EquipBodyItem", "item is not bodywear:", i.ID)
+		logz.Println("EquipBodyItem", i.ID)
+		logz.Panicln("EquipBodyItem", "item is not bodywear")
 	}
 	eb.SetEquipBody(*i.BodyPartDef, *i.ArmsPartDef)
 }
 
 func (eb *EntityBodySet) EquipHeadItem(i defs.ItemDef) {
 	if i.Type != defs.TypeHeadwear {
-		logz.Panicln("EquipHeadItem", "item is not headwear:", i.ID)
+		logz.Println("EquipHeadItem", i.ID)
+		logz.Panicln("EquipHeadItem", "item is not headwear")
 	}
 	eb.SetEquipHead(*i.BodyPartDef)
 }
 
 func (eb *EntityBodySet) EquipAuxItem(i defs.ItemDef) {
 	if i.Type != defs.TypeAuxiliary {
-		logz.Panicln("EquipAuxItem", "item is not aux:", i.ID)
+		logz.Println("EquipAuxItem", i.ID)
+		logz.Panicln("EquipAuxItem", "item is not aux")
 	}
 	eb.SetAuxiliary(*i.BodyPartDef)
 }
 
 func (eb *EntityBodySet) EquipWeaponItem(i defs.ItemDef) {
 	if i.Type != defs.TypeWeapon {
-		logz.Panicln("EquipWeaponItem", "item is not weapon:", i.ID)
+		logz.Println("EquipWeaponItem", i.ID)
+		logz.Panicln("EquipWeaponItem", "item is not weapon")
 	}
 	weaponPart, fxPart := item.GetWeaponParts(i)
 	eb.SetWeapon(weaponPart, fxPart)
@@ -429,7 +435,8 @@ func (eb *EntityBodySet) EquipWeaponItem(i defs.ItemDef) {
 
 func (eb *EntityBodySet) EquipFootItem(i defs.ItemDef) {
 	if i.Type != defs.TypeFootwear {
-		logz.Panicln("EquipFootItem", "item is not footwear:", i.ID)
+		logz.Println("EquipFootItem", i.ID)
+		logz.Panicln("EquipFootItem", "item is not footwear")
 	}
 	eb.SetEquipFeet(*i.BodyPartDef)
 }
@@ -474,7 +481,8 @@ func (eb *EntityBodySet) RemoveAuxiliary() {
 	}
 
 	if eb.IsAuxEquipped() {
-		logz.Panicln(eb.Name, "sanity check: just removed auxiliary, but IsAuxEquipped returned true...")
+		logz.Println(eb.Name, "sanity check: just removed auxiliary, but IsAuxEquipped returned true...")
+		logz.Panicln("Body", "sanity check: just removed auxiliary, but IsAuxEquipped returned true...")
 	}
 }
 
@@ -501,7 +509,8 @@ func (eb EntityBodySet) IsAuxEquipped() bool {
 
 func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef defs.SelectedPartDef) {
 	if weaponDef.None != weaponFxDef.None {
-		logz.Panicln("SetWeapon", "weapon and weaponFx should have the same None value (so they always equip or unequip together)", "weapon:", weaponDef.None, "weaponFx:", weaponFxDef.None)
+		logz.Println("SetWeapon", weaponDef.None, "weaponFx:", weaponFxDef.None)
+		logz.Panicln("SetWeapon", "weapon and weaponFx should have the same None value (so they always equip or unequip together)")
 	}
 
 	// as of now, we are assuming that weaponFx will never have an idle animation, so setting it to skip here.

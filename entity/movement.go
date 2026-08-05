@@ -92,6 +92,52 @@ func (e *Entity) CancelCurrentPath() {
 	e.Movement.TargetPath = []model.Coords{}
 }
 
+// IsMoving returns whether the entity is currently in motion towards its target.
+func (e *Entity) IsMoving() bool {
+	return e.Movement.IsMoving
+}
+
+// HasPath returns whether the entity currently has a target path queued up.
+func (e *Entity) HasPath() bool {
+	return len(e.Movement.TargetPath) > 0
+}
+
+// PathAhead returns the tile at position i in the entity's current target path, if it exists.
+func (e *Entity) PathAhead(i int) (model.Coords, bool) {
+	if i < 0 || i >= len(e.Movement.TargetPath) {
+		return model.Coords{}, false
+	}
+	return e.Movement.TargetPath[i], true
+}
+
+// HasStoppedUnexpectedly returns whether the entity's movement was stopped unexpectedly
+// (e.g. by a collision) rather than by reaching its target or being told to stop.
+func (e *Entity) HasStoppedUnexpectedly() bool {
+	return e.Movement.Interrupted
+}
+
+// ResumePath resumes movement along a path that stalled unexpectedly. The entity must still have a
+// target path; this re-engages movement towards the current target. The interrupted flag is cleared
+// here rather than by consumers, so HasStoppedUnexpectedly stays accurate until a resume is issued.
+func (e *Entity) ResumePath() {
+	if !e.HasPath() {
+		panic("ResumePath called for an entity with no target path")
+	}
+	e.Movement.Interrupted = false
+	e.Movement.IsMoving = true
+}
+
+// SuggestPath offers a path for the entity to consider merging into its current target path (or to
+// adopt if idle). Used by tasks to hand background-computed paths to the entity.
+func (e *Entity) SuggestPath(path []model.Coords) {
+	e.Movement.SuggestedTargetPath = path
+}
+
+// Direction returns the direction the entity is facing.
+func (e *Entity) Direction() byte {
+	return e.Movement.Direction
+}
+
 const (
 	fullOpen = iota
 	partialOpen
@@ -198,10 +244,12 @@ func (e *Entity) TryMoveMaxPx(dx, dy, speed float64) MoveError {
 
 		// ensure nothing weird happened like changing directions entirely, etc...
 		if utils.DifferentSigns(originalDx, dx) {
-			logz.Panicln("TryMoveMaxPx", "dx changed directions after adjustment. dx:", dx, "original:", originalDx, "cx:", cx)
+			logz.Println("TryMoveMaxPx", dx, "original:", originalDx, "cx:", cx)
+			logz.Panicln("TryMoveMaxPx", "dx changed directions after adjustment")
 		}
 		if utils.DifferentSigns(originalDy, dy) {
-			logz.Panicln("TryMoveMaxPx", "dy changed directions after adjustment. dy:", dy, "original:", originalDy, "cy:", cy)
+			logz.Println("TryMoveMaxPx", dy, "original:", originalDy, "cy:", cy)
+			logz.Panicln("TryMoveMaxPx", "dy changed directions after adjustment")
 		}
 
 		// TODO: there's a case that has caused some trouble with the "adjustment" logic:
@@ -534,7 +582,8 @@ func (e *Entity) updateMovement() updateMovementResult {
 
 	res := e.Collides(e.CollisionRect())
 	if res.Collides() {
-		logz.Panicf("[%s] updateMovement: current position is colliding!", e.DisplayName())
+		logz.Println("Movement", "current position is colliding. entity:", e.DisplayName())
+		logz.Panicf("updateMovement: current position is colliding")
 	}
 	if collides, dist := e.CollidesWithEntity(e.CollisionRect()); collides {
 		// currently colliding with entity; move slower
@@ -615,14 +664,29 @@ func (e *Entity) StopMovement() {
 	}
 }
 
+// markInterrupted records that the entity's movement was stopped unexpectedly (e.g. by a closed gate,
+// or a player walking into a wall), stopping the entity and setting the interrupted flag.
+// HasStoppedUnexpectedly() reports this to consumers (e.g. tasks), and the flag is cleared again the
+// next time movement resumes along a target path. This is the single place the interrupted flag is set.
+//
+// Note: a path is NOT required here. Interruptions also occur for pathless, input-driven movement (the
+// player running into a wall sets no TargetPath). Whether being interrupted without a next path step is an
+// error is a concern of the consumer (e.g. HandleNPCCollision), which knows a path is expected.
+func (e *Entity) markInterrupted() {
+	e.StopMovement()
+	e.Movement.Interrupted = true
+}
+
 func (e *Entity) trySetNextTargetPath() MoveError {
 	if len(e.Movement.TargetPath) == 0 {
-		panic("tried to set next target along path for entity that has no set target path")
+		logz.Println(string(e.ID()))
+		logz.Panic("tried to set next target along path for entity that has no set target path")
 	}
 	nextTarget := e.Movement.TargetPath[0]
 	tilePos := e.TilePos()
 	if nextTarget.Equals(tilePos) {
-		panic("trySetNextTargetPath: next target is the same tile as current position")
+		logz.Println(string(e.ID()))
+		logz.Panic("trySetNextTargetPath: next target is the same tile as current position")
 	}
 
 	if e.IsStunned() {

@@ -1,6 +1,8 @@
 package npc
 
 import (
+	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -29,6 +31,7 @@ const (
 	TaskRoute       defs.TaskID = "ROUTE"
 	TaskFollow      defs.TaskID = "FOLLOW"
 	TaskFight       defs.TaskID = "FIGHT"
+	TaskActivateObj defs.TaskID = "ACTIVATE_OBJECT"
 	TaskStartDialog defs.TaskID = "START_DIALOG"
 	TaskFaceDir     defs.TaskID = "FACE_DIR" // TODO
 	TaskBartender   defs.TaskID = "BARTENDER"
@@ -41,6 +44,80 @@ const (
 	Assign
 	Emergency
 )
+
+// taskMeta describes how a task type is constructed and validated.
+//
+// build constructs the task on the main loop, given its def and owner. For tasks that take params, the
+// build closure performs the def.Params type assertion (panicking with a clear message on a mismatch) and
+// passes the extracted params to the task's existing constructor.
+//
+// validateParams performs data-level validation of a task def without needing an NPC at runtime. It is used
+// by ValidateTaskDef so that malformed TaskDefs (wrong param struct, impossible param combos) are caught at
+// data-validation/CI time rather than mid-playtest. nil means the task takes no params.
+type taskMeta struct {
+	build          func(def defs.TaskDef, owner *NPC) Task
+	validateParams func(def defs.TaskDef) error
+}
+
+// taskRegistry is the single source of truth for which task types exist. Each task_*.go file registers its
+// own entry in init(), so adding a task means editing one file instead of a shared switch.
+var taskRegistry = map[defs.TaskID]taskMeta{}
+
+func registerTask(id defs.TaskID, meta taskMeta) {
+	if _, exists := taskRegistry[id]; exists {
+		panic("registerTask: task already registered: " + string(id))
+	}
+	if meta.build == nil {
+		panic("registerTask: build fn is nil for task: " + string(id))
+	}
+	taskRegistry[id] = meta
+}
+
+// ValidateTaskDef checks a TaskDef for data correctness: the task ID is known, the params have the right
+// concrete type (and pass any cheap data-level rules the task defines), and the start location is
+// structurally sound. It recurses through NextTask chains. It returns an error rather than panicking so
+// that data validation tooling can collect and report all issues at once.
+func ValidateTaskDef(def defs.TaskDef) error {
+	if def.TaskID == "" {
+		return fmt.Errorf("task ID is empty")
+	}
+	if def.TaskID == TaskDoNothing {
+		// do-nothing tasks have no logic of their own; nothing further to validate.
+		return nil
+	}
+	meta, ok := taskRegistry[def.TaskID]
+	if !ok {
+		return fmt.Errorf("unknown task ID %q (not registered; child-only tasks like ROUTE/FOLLOW/ACTIVATE_OBJECT can't be top-level)", def.TaskID)
+	}
+	if meta.validateParams != nil {
+		if err := meta.validateParams(def); err != nil {
+			return err
+		}
+	}
+	if err := validateTaskStartLocation(def.StartLocation); err != nil {
+		return err
+	}
+	if def.NextTask != nil {
+		return ValidateTaskDef(*def.NextTask)
+	}
+	return nil
+}
+
+// validateTaskStartLocation checks the structural sanity of a task's start location. Resolving whether the
+// referenced map actually exists is out of scope here (see issue #11), so this only catches conflicts that
+// require no runtime context.
+func validateTaskStartLocation(sl *defs.TaskStartLocation) error {
+	if sl == nil {
+		return nil
+	}
+	if sl.UseHomeMap && sl.MapID != "" {
+		return fmt.Errorf("start location sets both UseHomeMap and an explicit MapID; use only one")
+	}
+	if (sl.TileX == nil) != (sl.TileY == nil) {
+		return fmt.Errorf("start location must set both TileX and TileY, or neither")
+	}
+	return nil
+}
 
 func (ts TaskStatus) String() string {
 	switch ts {
@@ -55,6 +132,42 @@ func (ts TaskStatus) String() string {
 	}
 }
 
+// TaskResultStatus describes how a task ended. Every task is finished with a result (see TaskBase.Finish).
+type TaskResultStatus int
+
+const (
+	// ResultUndefined means no result has been recorded yet (the task hasn't finished).
+	// It's the zero value so reading Result before Finish is visible as "not finished" rather than looking successful.
+	ResultUndefined TaskResultStatus = iota
+	// ResultSuccess means the task achieved its goal (Goto reached the tile, dialog ended, bed slept in).
+	ResultSuccess
+	// ResultFailed means the task genuinely couldn't do it and should not auto-retry.
+	ResultFailed
+	// ResultAborted means the task was interrupted or invalidated rather than failing (preempted, target died, condition changed).
+	ResultAborted
+)
+
+func (rs TaskResultStatus) String() string {
+	switch rs {
+	case ResultUndefined:
+		return "UNDEFINED (0)"
+	case ResultSuccess:
+		return "SUCCESS (1)"
+	case ResultFailed:
+		return "FAILED (2)"
+	case ResultAborted:
+		return "ABORTED (3)"
+	default:
+		return "(Error: task result status has no string representation yet)"
+	}
+}
+
+// TaskResult is the official outcome of a finished task. Set once, via TaskBase.Finish.
+type TaskResult struct {
+	Status TaskResultStatus
+	Reason string // optional, for logs/telemetry
+}
+
 // Task defines an interface that can be used to implement a task. The functions defined in here are only used
 // by the "outside logic", so we only need to define functions that the general task management logic would need to access.
 // Anything that is task-specific and not needing exposure to the task management system should be left out of this interface.
@@ -62,7 +175,18 @@ type Task interface {
 	GetID() defs.TaskID
 	GetDef() defs.TaskDef
 
-	GetStartLocation() *defs.TaskStartLocation
+	// GetDeclaredStartLocation returns the start location declared in this task's def (map + optional tile),
+	// or nil if the task declares no static start (e.g. dynamic tasks like GO_TO_TAVERN). Sleep tasks with no
+	// location resolve to the character's home map. This is used at runtime by navigation (routing to the start
+	// map, checking if the NPC is in the start map, standing on a start tile). It has no world knowledge and no
+	// notion of the schedule.
+	GetDeclaredStartLocation() *defs.TaskStartLocation
+
+	// ResolveStartMap returns the mapID this task places the NPC in for a scheduled hour. It's the scheduling/placement
+	// counterpart to GetDeclaredStartLocation: dynamic tasks (no declared location) override it to compute their start
+	// map from context, using the anchor (the map the schedule most recently placed the NPC in). Static tasks inherit the
+	// TaskBase default, which returns the declared start location (or the anchor if none is declared).
+	ResolveStartMap(anchor defs.MapID) defs.MapID
 
 	GetNextTaskDef() *defs.TaskDef
 
@@ -80,12 +204,27 @@ type Task interface {
 	IsDone() bool   // flag that indicates this task is finished or ended. causes no further updates to process.
 	IsActive() bool // indicates that the task is currently underway (already started, and hasn't stopped yet)
 
+	// Start is called by the task manager when a task becomes current. It should set up any state the task needs
+	// before its first Update, and mark the task in-progress. Tasks with real start logic override this.
+	Start()
+
+	// Finish is the single way a task ends (natural completion or preemption). It records the result and runs cleanup.
+	// Tasks with resources to release (subscriptions, object targeting, child tasks) override this and call
+	// TaskBase.Finish when done. The task manager calls Finish with an Aborted result when it preempts a task.
+	Finish(result TaskResult)
+
+	// GetResult returns the outcome of a finished task. Only meaningful once the task is done.
+	GetResult() TaskResult
+
 	// logic to execute on each update tick
 	Update()
 
 	// provides access to asynchronous work for this task; this is called in the background for tasks that an NPC runs in a map.
 	// E.g. calculating routes for an NPC that is chasing someone; it might be bad to hold up the update loop with that kind of work, so we can offload it
 	// to another goroutine.
+	//
+	// Runs on the background jobs goroutine (see switchTask's concurrency contract). It must only read
+	// atomic slots and never read/write task Status/Result or NPC/entity/character state.
 	BackgroundAssist()
 
 	// allows a task to update while an NPC is not in the current map. Not meant for most tasks, only ones that do things like move an NPC across their path
@@ -102,36 +241,135 @@ type TaskBase struct {
 	Name        string
 	Status      TaskStatus
 
-	// routing task controlled by TaskBase; other tasks that embed TaskBase should NOT touch this.
-	_baseRouting    *RouteTask
-	_startTime      *time.Time // records the instant this task received its first update of any kind. used for detecting "unplugged" background assist.
-	_bgAssistCalled bool       // records if bg assist has ever been called. used for detecting "unplugged" bg assist.
+	// Result is the official outcome of the task, set by Finish. Only meaningful once the task is done.
+	Result TaskResult
+
+	// child holds the current child task, if any (TaskBase manages a single child slot).
+	// It is written by the main loop (RunChild/EndChild) and read from the background goroutine via
+	// BackgroundAssist's forwarding. It's an atomic slot so a bg-goroutine read can never race a
+	// main-loop swap; this is what made the (formerly hand-rolled + mutex-guarded) FightTask follow
+	// child safe to convert onto this slot — see task_fight.go.
+	child atomic.Value
+}
+
+// childRef boxes the child slot's value so the atomic.Value never holds nil (which atomic.Value
+// forbids). The child itself may be nil, meaning "no child".
+type childRef struct {
+	task Task
 }
 
 func (tb TaskBase) GetDef() defs.TaskDef {
 	return tb.Def
 }
 
-func (tb *TaskBase) RecordBgAssist() {
-	tb._bgAssistCalled = true
+// ---- child task support ----
+//
+// A composite task can delegate to a single "child" task via the child slot. The parent starts the child with
+// RunChild, observes completion with ChildDone()/ChildResult(), and the child's lifecycle is tied to the
+// parent's: when the parent finishes (naturally or by preemption), an active child is ended with an Aborted
+// result (see Finish). This replaces the hand-rolled sub-task fields/forwarding each composite used to keep.
+
+// loadChild returns the current child task, or nil. Safe for concurrent use (atomic read); used by
+// the background goroutine's forwarding and by the main loop.
+func (tb *TaskBase) loadChild() Task {
+	ref, _ := tb.child.Load().(*childRef)
+	if ref == nil {
+		return nil
+	}
+	return ref.task
 }
 
-// BgAssistUnplugged is used for detecting if background assist is "unplugged" (i.e. not being called for a specific task).
-// All you need to do is check this function in your task's Update function and make sure to call RecordBgAssist in your task's BackgroundAssist function.
-//
-// Note: Do NOT use this in SimulationUpdate, because of course, NPCs in the simulation loop should not be receiving Background Assist anyway.
-func (tb *TaskBase) BgAssistUnplugged() bool {
-	if tb._startTime == nil {
-		now := time.Now()
-		tb._startTime = &now
-	}
+// storeChild sets the current child task. Main-loop only.
+func (tb *TaskBase) storeChild(t Task) {
+	tb.child.Store(&childRef{task: t})
+}
 
-	if tb._bgAssistCalled {
-		// if bg assist is ever called, then it should be "plugged in"
-		return false
+// RunChild makes the given task this task's single child, ending any existing child first, and starts it.
+// Children inherit the parent's priority (a child can never interrupt anything). RunChild is main-loop-owned.
+func (tb *TaskBase) RunChild(t Task) {
+	if t == nil {
+		panic("RunChild: child was nil")
 	}
+	if cur := tb.loadChild(); cur != nil && !cur.IsDone() {
+		cur.Finish(TaskResult{Status: ResultAborted, Reason: "replaced by new child"})
+	}
+	tb.storeChild(t)
+	t.Start()
+}
 
-	return time.Since(*tb._startTime) > (time.Second * 10)
+// EndChild ends the current child (if any) with an Aborted result and clears the slot. Safe to call when no
+// child exists. This is the generic cleanup-composition path: it runs whenever a parent finishes, so a
+// preempted parent's child always gets a chance to release its resources.
+func (tb *TaskBase) EndChild() {
+	cur := tb.loadChild()
+	if cur == nil {
+		return
+	}
+	if !cur.IsDone() {
+		cur.Finish(TaskResult{Status: ResultAborted, Reason: "parent ended"})
+	}
+	tb.storeChild(nil)
+}
+
+func (tb *TaskBase) HasChild() bool {
+	return tb.loadChild() != nil
+}
+
+// ChildDone reports whether there is no current child, or the current child has finished.
+func (tb *TaskBase) ChildDone() bool {
+	cur := tb.loadChild()
+	return cur == nil || cur.IsDone()
+}
+
+// ChildResult returns the result of the current child. Only meaningful once the child is done.
+// Returns ResultUndefined if there is no child.
+func (tb *TaskBase) ChildResult() TaskResult {
+	cur := tb.loadChild()
+	if cur == nil {
+		return TaskResult{Status: ResultUndefined}
+	}
+	return cur.GetResult()
+}
+
+// Update advances the current child, if any. A task with its own per-frame logic should call t.TaskBase.Update()
+// at the top of its own Update() and then drive its own state machine off ChildDone()/ChildResult().
+// A task that only runs a child needs no Update() of its own.
+func (tb *TaskBase) Update() {
+	cur := tb.loadChild()
+	if cur == nil || cur.IsDone() {
+		return
+	}
+	cur.Update()
+}
+
+// BackgroundAssist forwards to the current child. A composite that only runs a child inherits this and needs no
+// BackgroundAssist of its own; tasks with their own background work keep their own BackgroundAssist and forward
+// as needed. Runs on the background goroutine; the child is read via the atomic slot, and the child's own
+// BackgroundAssist must only touch atomic slots (see the concurrency contract in switchTask).
+func (tb *TaskBase) BackgroundAssist() {
+	cur := tb.loadChild()
+	if cur == nil || cur.IsDone() {
+		return
+	}
+	cur.BackgroundAssist()
+}
+
+// SimulationUpdate forwards to the current child.
+func (tb *TaskBase) SimulationUpdate() {
+	cur := tb.loadChild()
+	if cur == nil || cur.IsDone() {
+		return
+	}
+	cur.SimulationUpdate()
+}
+
+// SetupActiveState forwards to the current child.
+func (tb *TaskBase) SetupActiveState() {
+	cur := tb.loadChild()
+	if cur == nil || cur.IsDone() {
+		return
+	}
+	cur.SetupActiveState()
 }
 
 // NewTaskBase defines a task base that covers all the bases of the Task interface.
@@ -150,65 +388,69 @@ func NewTaskBase(def defs.TaskDef, name, desc string, owner *NPC) TaskBase {
 	}
 }
 
-// RouteToStartMap handles starting and updating a RouteTask to the starting map of this task (as defined in task def).
-// Returns true if NPC has reached the starting map. You can put this at the top of an Update function for a task and return if this returns false,
-// to ensure that the NPC makes its way to a the start map before starting the rest of the task logic.
+// RouteToStartMap handles routing the NPC to the starting map of this task (as defined in task def) by running a
+// RouteTask through the child slot. Returns true if the NPC has reached the starting map. Put this at the top of
+// an Update function and return early if it returns false, to ensure the NPC makes its way to the start map
+// before running the rest of the task logic.
 //
-// IMPORTANT: your task still needs to pass BackgroundAssist over to TaskBase! BackgroundAssist is the only way for routing to calculate its path
-// when in the active map (since it's somewhat expensive, in order to avoid lag)
+// IMPORTANT: your task still needs to pass BackgroundAssist over to TaskBase (BackgroundAssist is the only way for
+// the route calculation to run when the NPC is in the active map, since it's expensive enough to cause lag).
 func (tb *TaskBase) RouteToStartMap(simulation bool) (reachedStartMap bool) {
 	if tb.InStartMap() {
-		if tb._baseRouting != nil {
-			// the routing task logic may require one extra update to notice its in the destination map, and so its possible for this condition to notice first.
-			// so, just remove it here rather than wasting another update tick to confirm with the routing task logic.
-			tb._baseRouting = nil
+		// if the routing task made it into the start map last tick, it can be dropped now.
+		if child := tb.loadChild(); child != nil && child.GetID() == TaskRoute {
+			tb.EndChild()
 		}
 		return true
 	}
 
-	// NPC is not in the start map yet. Setup the routing task!
-	if tb._baseRouting == nil {
-		startLoc := tb.GetStartLocation()
+	// NPC is not in the start map yet. Set up the routing task as this task's child.
+	if !tb.HasChild() {
+		startLoc := tb.GetDeclaredStartLocation()
 		if startLoc == nil {
 			panic("start location was nil!")
 		}
 		if startLoc.MapID == "" {
 			panic("start map was empty!")
 		}
-		tb._baseRouting = NewRouteTask(RouteTaskParams{DestinationMapID: startLoc.MapID}, tb.Owner, tb.GetPriority())
+		tb.RunChild(NewRouteTask(RouteTaskParams{DestinationMapID: startLoc.MapID}, tb.Owner, tb.GetPriority()))
 	}
 
+	child := tb.loadChild()
 	if simulation {
-		tb._baseRouting.SimulationUpdate()
+		child.SimulationUpdate()
 	} else {
-		tb._baseRouting.Update()
+		child.Update()
 	}
 
-	if tb._baseRouting.IsDone() {
+	if tb.ChildDone() {
 		// double check that NPC is now in correct map
-		if tb.Owner.CharacterStateRef.CurrentMap != tb.GetStartLocation().MapID {
-			logz.Panicln("RouteToStartMap", "RouteTask seems to be done, but the NPC isn't in the starting map still...", tb.Owner.CharacterStateRef.CurrentMap, tb.GetStartLocation().MapID)
+		if tb.Owner.CharacterStateRef.CurrentMap != tb.GetDeclaredStartLocation().MapID {
+			logz.Println("RouteToStartMap", tb.Owner.CharacterStateRef.CurrentMap, tb.GetDeclaredStartLocation().MapID)
+			logz.Panicln("RouteToStartMap", "RouteTask seems to be done, but the NPC isn't in the starting map still...")
 		}
-		tb._baseRouting = nil
+		tb.EndChild()
+		return true
 	}
 
 	return false
 }
 
-// RouteToStartMapBgAssist is for forwarding a BackgroundAssist call to the RouteTask that underlies the RouteToStartMap base task.
-// This is required, or else if the NPC is in the active map they may never get their route calculated.
-// Returns true if the base routing task exists and its BgAssist was called.
+// RouteToStartMapBgAssist forwards a BackgroundAssist call to the routing child, when the NPC is being routed.
+// Returns true if the routing task exists and its bg assist was called. This is required, or else if the NPC is in
+// the active map they may never get their route calculated (pathing is expensive and deferred to background assist).
 func (tb *TaskBase) RouteToStartMapBgAssist() (isRouting bool) {
-	if tb._baseRouting == nil {
+	cur := tb.loadChild()
+	if cur == nil || cur.IsDone() {
 		return false
 	}
-	tb._baseRouting.BackgroundAssist()
+	cur.BackgroundAssist()
 	return true
 }
 
 // InStartMap tells you if the NPC is in the start map or not
 func (tb TaskBase) InStartMap() bool {
-	startLoc := tb.GetStartLocation()
+	startLoc := tb.GetDeclaredStartLocation()
 	if startLoc == nil || startLoc.MapID == "" {
 		// nothing set, so we assume true
 		return true
@@ -223,21 +465,23 @@ func (tb TaskBase) InActiveMap() bool {
 	return tb.Owner.WorldCtx.GetActiveMapID() == tb.Owner.CharacterStateRef.CurrentMap
 }
 
-// RouteToStartMapSetupActiveState handles the SetupActiveState for any base routing task. Returns true if base routing is setting up an active state,
-// to inform the calling task if it should setup its own active state or not.
+// RouteToStartMapSetupActiveState handles the SetupActiveState for the routing child. Returns true if the routing
+// task is setting up an active state, to inform the calling task if it should set up its own active state or not.
 func (tb *TaskBase) RouteToStartMapSetupActiveState() (isRouting bool) {
 	if tb.InStartMap() {
 		return false
 	}
-	if tb._baseRouting == nil {
-		// we expect a routing task to have already started if it's getting called at SetupActiveState
-		logz.Panicln("RouteToStartMap", "SetupActiveState called, and NPC not in start map, but base routing wasn't started yet.", tb.Owner.WhoAmI())
+	if child := tb.loadChild(); child != nil {
+		child.SetupActiveState()
+		return true
 	}
-	tb._baseRouting.SetupActiveState()
-	return true
+	// we expect a routing task to have already started if it's getting called at SetupActiveState
+	logz.Println("RouteToStartMap", tb.Owner.WhoAmI())
+	logz.Panicln("RouteToStartMap", "SetupActiveState called, and NPC not in start map, but routing task wasn't started yet.")
+	return false
 }
 
-func (tb TaskBase) GetStartLocation() *defs.TaskStartLocation {
+func (tb TaskBase) GetDeclaredStartLocation() *defs.TaskStartLocation {
 	startLoc := tb.Def.StartLocation
 	if startLoc == nil {
 		if tb.Def.TaskID == TaskSleep {
@@ -254,17 +498,28 @@ func (tb TaskBase) GetStartLocation() *defs.TaskStartLocation {
 	}
 	if startLoc.UseHomeMap {
 		if startLoc.TileX != nil || startLoc.TileY != nil {
-			logz.Panicln("GetStartLocation", "UseHomeMap set, but TileX or TileY was set too, which seems contradictory or invalid (you don't know which map is home).", tb.Owner.WhoAmI())
+			logz.Println("GetDeclaredStartLocation", tb.Owner.WhoAmI())
+			logz.Panicln("GetDeclaredStartLocation", "UseHomeMap set, but TileX or TileY was set too, which seems contradictory or invalid (you don't know which map is home).")
 		}
 		homeMap := tb.Owner.CharacterStateRef.HomeMapID
 		if homeMap == "" {
-			logz.Panicln("GetStartLocation", "no home map found.", tb.Owner.WhoAmI())
+			logz.Println("GetDeclaredStartLocation", tb.Owner.WhoAmI())
+			logz.Panicln("GetDeclaredStartLocation", "no home map found.")
 		}
 		return &defs.TaskStartLocation{
 			MapID: homeMap,
 		}
 	}
 	return startLoc
+}
+
+// ResolveStartMap is the TaskBase default: static tasks start wherever they declare (see GetDeclaredStartLocation);
+// tasks with no declared start location fall back to the anchor passed in by the scheduler.
+func (tb TaskBase) ResolveStartMap(anchor defs.MapID) defs.MapID {
+	if loc := tb.GetDeclaredStartLocation(); loc != nil {
+		return loc.MapID
+	}
+	return anchor
 }
 
 func (tb TaskBase) GetNextTaskDef() *defs.TaskDef {
@@ -303,17 +558,41 @@ func (tb TaskBase) IsActive() bool {
 	return tb.Status > TaskNotStarted && tb.Status < TaskEnded
 }
 
-// NoBackgroundWork is just a struct that implements the extra, background work related functions (but has them do nothing).
-// For simplicity, you can just put this in another Task struct so that you don't have to fill out the empty functions for all of them.
-type NoBackgroundWork struct{}
+// Start marks the task as in-progress. Tasks with real start logic (setup, positioning, subscribing) override this.
+func (tb *TaskBase) Start() {
+	tb.Status = TaskInProg
+}
 
-func (x NoBackgroundWork) BackgroundAssist() {}
+// Finish is the single way a task ends. It records the result, marks the task as ended, and logs the outcome.
+// Tasks must always finish with a result; this is what makes "every task produces a result" structural.
+func (tb *TaskBase) Finish(result TaskResult) {
+	if tb.Status == TaskEnded {
+		logz.Println("TaskBase.Finish", "task already ended; finishing again:", tb.Name, "new result:", result.Status)
+		return
+	}
+	// if this task has an active child, end it now (Aborted) so its cleanup runs. This is the generic
+	// composition-cleanup path that fixes e.g. the ActivateObjectTask soft-lock when a parent is preempted.
+	tb.EndChild()
+	tb.Result = result
+	tb.Status = TaskEnded
+	logz.Println(tb.Owner.DisplayName(), "task finished:", tb.Name, "result:", result.Status, "reason:", result.Reason)
+}
 
-func (x NoBackgroundWork) SimulationUpdate() {}
+func (tb *TaskBase) FinishSuccess() {
+	tb.Finish(TaskResult{Status: ResultSuccess})
+}
 
-type NoActiveState struct{}
+func (tb *TaskBase) FinishFail(reason string) {
+	tb.Finish(TaskResult{Status: ResultFailed, Reason: reason})
+}
 
-func (x NoActiveState) SetupActiveState() {}
+func (tb *TaskBase) FinishAborted(reason string) {
+	tb.Finish(TaskResult{Status: ResultAborted, Reason: reason})
+}
+
+func (tb *TaskBase) GetResult() TaskResult {
+	return tb.Result
+}
 
 func (n *NPC) HandleTaskUpdate() {
 	if n.CurrentTask.GetOwner() == nil {
@@ -336,27 +615,22 @@ type NPCCollisionResult struct {
 	ReRoute          bool
 }
 
-// HandleNPCCollision handles any collisions that are occurring.
-// Basically, if the NPC has run up into an object, like a gate, they can try to open it.
-// Note: entities don't collide, they should just move slower and incur more "cost" by walking into each other.
+// HandleNPCCollision handles any collision that interrupted the NPC's movement.
+// If the NPC ran up against an object, like a gate, it can try to open it.
+// Note: entity-vs-entity contact doesn't interrupt movement; entities just slow down and incur more
+// "cost" by walking into each other. Interruptions here come from static collidable objects, the
+// main case being closed gates (which are excluded from the pathfinding cost map so NPCs route
+// through them). Since a GotoTask always moves along a target path, an interruption here is expected
+// to have a next path step; this handler only worries about resolving the obstacle.
 func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
-	if !t.Owner.Entity.Movement.Interrupted {
+	if !t.Owner.Entity.HasStoppedUnexpectedly() {
 		return NPCCollisionResult{NoneDetected: true}
 	}
 	logz.Println(t.Owner.DisplayName(), "NPC interrupted; handling collision")
-	// path entity was moving on has been interrupted.
-	// if interrupted by NPC, try to negotiate resolution to collision.
-	// TODO: this probably belongs as validation in the entity movement logic itself
-	if !t.Owner.Entity.TargetTilePos().Equals(t.Owner.Entity.TilePos()) {
-		logz.Println(t.Owner.ID(), "Goto task: since NPC movement was interrupted, we expect its target position to be the same as its current position. target:", t.Owner.Entity.TargetTilePos(), t.Owner.Entity.TilePos())
-		panic("Goto task: since NPC movement was interrupted, we expect its target position to be the same as its current position")
-	}
-	// TODO: same with this?
-	if len(t.Owner.Entity.Movement.TargetPath) == 0 {
+	nextTarget, ok := t.Owner.Entity.PathAhead(0)
+	if !ok {
 		panic("Goto task: npc movement was interrupted, but there is no next step in target path")
 	}
-
-	nextTarget := t.Owner.Entity.Movement.TargetPath[0]
 
 	collidingObjs := t.Owner.ActiveMapCtx.FindObjectsAtPosition(nextTarget)
 	if len(collidingObjs) > 0 {
@@ -386,4 +660,22 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 	// no collidable objects found; should be good to continue?
 	logz.Println("HandleNPCCollision", "unknown collision. did the collision resolve itself?")
 	return NPCCollisionResult{UnknownCollision: true}
+}
+
+// findTaskArea finds the task-area object for the given task type that the NPC is authorized to use.
+// Panics if none is found, since a Bartender/Shopkeeper/etc. task expects its area to exist in the start map.
+func findTaskArea(n *NPC, taskID defs.TaskID) *object.Object {
+	for _, obj := range n.ActiveMapCtx.GetAllObjects() {
+		if obj.Type == object.TypeTaskArea {
+			if obj.TaskArea.TaskID == string(taskID) {
+				if !n.SatisfiesObjectOwnership(*obj) {
+					continue
+				}
+				return obj
+			}
+		}
+	}
+	logz.Println("findTaskArea", taskID, n.WhoAmI())
+	logz.Panicln("findTaskArea", "failed to find task area")
+	return nil
 }

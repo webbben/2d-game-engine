@@ -28,7 +28,8 @@ func (w *World) EnsureMapStateExists(mapID defs.MapID) {
 	def := w.Dataman.GetMapDef(mapID)
 	if def.IsMapGenTemplate {
 		// shouldn't create a map state for this mapID, since it's just a template
-		logz.Panicln("EnsureMapStateExists", "tried to create map state for a template map def. whoever called this should check and handle template map defs separately, and not call this.", mapID)
+		logz.Println("EnsureMapStateExists", mapID)
+		logz.Panicln("EnsureMapStateExists", "tried to create map state for a template map def. whoever called this should check and handle template map defs separately, and not call this.")
 	}
 
 	logz.Println("WORLD", "Map state doesn't exist yet; creating...", mapID)
@@ -42,7 +43,8 @@ func (w *World) EnsureMapStateExists(mapID defs.MapID) {
 // can pass a customMapStateID; only intended for use when generating maps using a map generator.
 func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 	if w.Dataman.MapStateExists(mapID) {
-		logz.Panicln("CreateNewMapState", "tried to create a new map state, but one already exists:", mapID)
+		logz.Println("CreateNewMapState", mapID)
+		logz.Panicln("CreateNewMapState", "tried to create a new map state, but one already exists")
 	}
 
 	mapStateID := mapID
@@ -74,7 +76,8 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 			objectInfo := m.GetObjectPropsAndTile(obj)
 			objType, found := object.GetObjectType(objectInfo.AllProps)
 			if !found {
-				logz.Panicln("CreateNewMapState", "object didn't have a TYPE property:", obj.Name, obj.ID, "mapID:", mapID)
+				logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapID)
+				logz.Panicln("CreateNewMapState", "object didn't have a TYPE property")
 			}
 
 			// check if there is a lock on this object
@@ -83,7 +86,8 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 			lockLevel, found = tiled.GetIntProperty(object.PropLockLevel, objectInfo.AllProps)
 			if found {
 				if lockLevel <= 0 {
-					logz.Panicln("CreateNewMapState", "found lock level property on object, but it had a level of <= 0.", obj.Name, obj.ID, "mapID:", mapID)
+					logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapID)
+					logz.Panicln("CreateNewMapState", "found lock level property on object, but it had a level of <= 0.")
 				}
 				lockID, found = tiled.GetStringProperty(object.PropLockID, objectInfo.AllProps)
 				if !found {
@@ -91,7 +95,8 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 					lockID = object.GetDefaultLockID(obj.ID)
 				}
 				if lockID == "" {
-					logz.Panicln("CreateNewMapState", "lock ID property was empty:", obj.Name, obj.ID, "mapID:", mapID)
+					logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapID)
+					logz.Panicln("CreateNewMapState", "lock ID property was empty")
 				}
 				// add it to the lock map
 				mapState.MapLocks[lockID] = state.LockState{
@@ -104,12 +109,14 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 			switch objType {
 			case object.TypeItem:
 				if lockID != "" {
-					logz.Panicln("CreateNewMapState", "a lock was put on an item, which doesn't make any sense.", obj.Name, obj.ID, "mapID:", mapID)
+					logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapID)
+					logz.Panicln("CreateNewMapState", "a lock was put on an item, which doesn't make any sense.")
 				}
 				// get item ID
 				itemID, found := tiled.GetStringProperty("item_id", objectInfo.AllProps)
 				if !found {
-					logz.Panicln("CreateNewMapState", "found item object, but no item_id property was found:", obj.Name, obj.ID, "mapID:", mapID)
+					logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapID)
+					logz.Panicln("CreateNewMapState", "found item object, but no item_id property was found")
 				}
 				// confirm item exists
 				defID := defs.ItemID(itemID)
@@ -125,7 +132,8 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 				})
 			case object.TypeBed:
 				if lockID != "" {
-					logz.Panicln("CreateNewMapState", "a lock was put on a bed, which doesn't make any sense.", obj.Name, obj.ID, "mapID:", mapID)
+					logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapID)
+					logz.Panicln("CreateNewMapState", "a lock was put on a bed, which doesn't make any sense.")
 				}
 				// instantiate the NPC that is associated with this bed
 				var charStateID id.CharacterStateID
@@ -194,7 +202,8 @@ func (w *World) GenerateMap(mapGeneratorID string, returnMapID defs.MapID, retur
 	// ensure the mapDefID set in the map generator is a template map
 	def := w.Dataman.GetMapDef(mapGen.MapDefID)
 	if !def.IsMapGenTemplate {
-		logz.Panicln("GenerateMap", "map generator linked to a mapDef that wasn't a template map:", mapGen.MapDefID)
+		logz.Println("GenerateMap", mapGen.MapDefID)
+		logz.Panicln("GenerateMap", "map generator linked to a mapDef that wasn't a template map")
 	}
 
 	// first, make the map state according to the def, but using a unique mapStateID
@@ -233,7 +242,8 @@ func (w *World) GenerateMap(mapGeneratorID string, returnMapID defs.MapID, retur
 			objectInfo := m.GetObjectPropsAndTile(obj)
 			objType, found := object.GetObjectType(objectInfo.AllProps)
 			if !found {
-				logz.Panicln("CreateNewMapState", "object didn't have a TYPE property:", obj.Name, obj.ID, "mapID:", mapGen.MapDefID)
+				logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapGen.MapDefID)
+				logz.Panicln("CreateNewMapState", "object didn't have a TYPE property")
 			}
 
 			// DOORS: make sure the following is true:
@@ -242,18 +252,22 @@ func (w *World) GenerateMap(mapGeneratorID string, returnMapID defs.MapID, retur
 			// 3) also doesn't have a map generator ID; not allowed to generate nested maps in another generated map
 			if objType == object.TypeDoor {
 				if doorFound {
-					logz.Panicln("GenerateMap", "more than one door was found in template map; we only allow one door - the door to enter/exit.", mapGen.MapDefID)
+					logz.Println("GenerateMap", mapGen.MapDefID)
+					logz.Panicln("GenerateMap", "more than one door was found in template map; we only allow one door - the door to enter/exit.")
 				}
 				doorFound = true
 
 				if _, found := tiled.GetStringProperty(object.PropDoorTo, objectInfo.AllProps); found {
-					logz.Panicln("GenerateMap", "door had a door_to prop defined; this should be empty, since its filled in during map generation.", obj.ID, mapGen.MapDefID)
+					logz.Println("GenerateMap", obj.ID, mapGen.MapDefID)
+					logz.Panicln("GenerateMap", "door had a door_to prop defined; this should be empty, since its filled in during map generation.")
 				}
 				if _, found := tiled.GetStringProperty(object.PropDoorSpawnIndex, objectInfo.AllProps); found {
-					logz.Panicln("GenerateMap", "door had a to_spawn_index prop defined; this should be empty, since its filled in during map generation.", obj.ID, mapGen.MapDefID)
+					logz.Println("GenerateMap", obj.ID, mapGen.MapDefID)
+					logz.Panicln("GenerateMap", "door had a to_spawn_index prop defined; this should be empty, since its filled in during map generation.")
 				}
 				if _, found := tiled.GetStringProperty(object.PropDoorMapGeneratorID, objectInfo.AllProps); found {
-					logz.Panicln("GenerateMap", "door had a genMapID prop defined; since this is a generated map, we don't allow 'nested generated maps'.", obj.ID, mapGen.MapDefID)
+					logz.Println("GenerateMap", obj.ID, mapGen.MapDefID)
+					logz.Panicln("GenerateMap", "door had a genMapID prop defined; since this is a generated map, we don't allow 'nested generated maps'.")
 				}
 
 				// If this door is valid, then let's set it as the "return door". This door returns to the map that originally linked here.
@@ -271,11 +285,13 @@ func (w *World) GenerateMap(mapGeneratorID string, returnMapID defs.MapID, retur
 			// ensure bed does not have a set owner in tiled props - this isn't allowed in mapGenerator maps, since we fill them in with the map generator's inhabitants.
 			_, found = tiled.GetStringProperty("characterGeneratorID", objectInfo.AllProps)
 			if found {
-				logz.Panicln("GenerateMap", "bed in map had a character generator set; MapGenerator maps should not define bed owners.", mapGen.MapDefID)
+				logz.Println("GenerateMap", mapGen.MapDefID)
+				logz.Panicln("GenerateMap", "bed in map had a character generator set; MapGenerator maps should not define bed owners.")
 			}
 			_, found = tiled.GetStringProperty("characterDefID", objectInfo.AllProps)
 			if found {
-				logz.Panicln("GenerateMap", "bed in map had a character def set; MapGenerator maps should not define bed owners.", mapGen.MapDefID)
+				logz.Println("GenerateMap", mapGen.MapDefID)
+				logz.Panicln("GenerateMap", "bed in map had a character def set; MapGenerator maps should not define bed owners.")
 			}
 
 			// valid bed found; now, instantiate an NPC for this bed and set the bed's state so it knows its owner
@@ -307,7 +323,8 @@ func (w *World) GenerateMap(mapGeneratorID string, returnMapID defs.MapID, retur
 
 	if bedCount < len(mapGen.InhabitantCharacterDefs) || bedCount < len(mapGen.InhabitantCharacterGens) {
 		// it looks like there weren't enough beds for the inhabitants set in the map generator...
-		logz.Panicln("GenerateMap", "not enough beds in map for the inhabitants set in map generator. bed count:", bedCount, "# char defs:", len(mapGen.InhabitantCharacterDefs), "# char gens:", len(mapGen.InhabitantCharacterGens))
+		logz.Println("GenerateMap", bedCount, "# char defs:", len(mapGen.InhabitantCharacterDefs), "# char gens:", len(mapGen.InhabitantCharacterGens))
+		logz.Panicln("GenerateMap", "not enough beds in map for the inhabitants set in map generator")
 	}
 
 	return mapState.ID

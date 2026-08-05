@@ -32,6 +32,7 @@ type WorldContext interface {
 	FindClosestMapType(fromID defs.MapID, mapType defs.MapType) (defs.MapID, bool)
 	ChangeMapOccupancyEvent(charStateID id.CharacterStateID, from, to defs.MapID, toSpawn int)
 	GetPlayerPosition() model.Coords
+	GetCurrentGameTime() clock.GameTime
 }
 
 type ActiveMapContext interface {
@@ -93,13 +94,12 @@ type NPC struct {
 }
 
 // GetCurrentTaskForBgAssist returns the NPC's current task if set, for use by the
-// background jobs goroutine. Safe for concurrent use. Deliberately does NOT check
-// completion status: task.Status is written by the main loop without synchronization,
-// so reading it here would just create another race.
+// background jobs goroutine. Safe for concurrent use: it reads the pointer under taskStateMu.
+// Deliberately does NOT check completion status: task.Status is written by the main loop without
+// synchronization, so reading it here would just create another race. The caller must only invoke
+// BackgroundAssist on the returned task (never its other methods, which are main-loop-owned).
 func (n *NPC) GetCurrentTaskForBgAssist() Task {
-	n.taskStateMu.RLock()
-	defer n.taskStateMu.RUnlock()
-	return n.CurrentTask
+	return n.getCurrentTask()
 }
 
 // PrepareLeaveActiveMap does all things necessary to prepare an NPC to leave the active map; undoes entity active state, unsubscribes
@@ -244,11 +244,13 @@ func (n *NPC) OnEvent(e defs.Event) {
 	case assignTask:
 		taskDefData, exists := e.Data["taskDef"]
 		if !exists {
-			logz.Panicln(n.ID(), "recieved assign task event, but data was missing expected key")
+			logz.Println(n.ID(), "recieved assign task event, but data was missing expected key")
+			logz.Panicln("NPC", "recieved assign task event, but data was missing expected key")
 		}
 		taskDef, ok := taskDefData.(defs.TaskDef)
 		if !ok {
-			logz.Panicln(n.ID(), "failed to type event data as taskDef")
+			logz.Println(n.ID(), "failed to type event data as taskDef")
+			logz.Panicln("NPC", "failed to type event data as taskDef")
 		}
 		n.RunTask(taskDef, n)
 	}
@@ -268,13 +270,16 @@ type TaskMGMT struct {
 	// Useful for if this NPC should always just continuously do one task.
 	Schedule defs.ScheduleDef
 
+	// interruptedTask holds the (reconstructible) def of the task that was preempted by a higher-priority task.
+	// When the current task finishes, if the NPC has no scheduled task for the current hour, this def is resumed
+	// (re-created from the def) so the NPC returns to what it was doing before an interruption.
+	interruptedTask *defs.TaskDef
+
 	dataman *datamanager.DataManager
 }
 
 func (tm *TaskMGMT) ClearCurrentTask() {
-	tm.taskStateMu.Lock()
-	tm.CurrentTask = nil
-	tm.taskStateMu.Unlock()
+	tm.clearTask()
 }
 
 // IsActive checks if the npc is currently working on a task
@@ -298,28 +303,35 @@ func (n *NPC) WaitUntilNotMoving() {
 	n.waitUntilDoneMoving = true
 }
 
-// GetScheduledMap returns the mapID where the NPC is supposed to be, according to their schedule
-func (n *NPC) GetScheduledMap(gameTime clock.GameTime) defs.MapID {
-	hour := gameTime.Hour
+// scheduledMapAt returns the mapID where the NPC is scheduled to be at the given hour, according to their schedule.
+// Static tasks (a declared start location, UseHomeMap, sleep, do nothing) resolve directly. Dynamic tasks (no declared
+// start location) resolve their start map via ResolveStartMap, anchored on the map the schedule placed the NPC in the
+// previous hour. This makes placement schedule-authoritative, so NPCs end up where their schedule says even across a
+// player timeLapse (e.g. an afternoon GO_TO_TAVERN following a harbour task resolves to the harbour tavern, not home).
+func (n *NPC) scheduledMapAt(hour int) defs.MapID {
 	if hour < 0 || hour > 23 {
-		logz.Panicln("GetScheduledMap", "hour was invalid:", hour)
+		// wrapped before the start of day: everyone was asleep at home the prior day
+		return n.CharacterStateRef.HomeMapID
 	}
 	scheduleTask := n.Schedule.Hourly[hour]
 	if scheduleTask.TaskID == "" {
-		logz.Panicln("GetScheduledMap", "task at the given hour has no task ID! hour:", gameTime.Hour, n.WhoAmI())
+		logz.Println("scheduledMapAt", hour, n.WhoAmI())
+		logz.Panicln("scheduledMapAt", "task at the given hour has no task ID")
 	}
-	if scheduleTask.StartLocation == nil {
-		if scheduleTask.TaskID == TaskSleep {
-			// sleep task with no set start location => home bed location
-			return n.CharacterStateRef.HomeMapID
-		}
-		logz.Warnln("GetScheduledMap", "NPC scheduled task doesn't have start map; defaulting to home map. taskID:", scheduleTask.TaskID)
+	if scheduleTask.StartLocation != nil && !scheduleTask.StartLocation.UseHomeMap {
+		return scheduleTask.StartLocation.MapID
+	}
+	if scheduleTask.StartLocation != nil {
+		// UseHomeMap
 		return n.CharacterStateRef.HomeMapID
 	}
-	if scheduleTask.StartLocation.UseHomeMap {
+	if scheduleTask.TaskID == TaskSleep || scheduleTask.TaskID == TaskDoNothing {
 		return n.CharacterStateRef.HomeMapID
 	}
-	return scheduleTask.StartLocation.MapID
+	// dynamic task with no declared start location: ask the task to resolve its start map, anchored on where the
+	// schedule had this NPC the previous hour.
+	t := n.buildTask(scheduleTask, n)
+	return t.ResolveStartMap(n.scheduledMapAt(hour - 1))
 }
 
 // SetupTaskState is for initializing a task for an NPC based on their schedule and the given hour.
@@ -350,6 +362,39 @@ func (n *NPC) SetupTaskState(gameTime clock.GameTime, customStartLocation *defs.
 		}
 		panic("current task is nil")
 	}
+}
+
+// SetupScheduledTaskForPlacement is the placement counterpart to SetupTaskState: it builds the task scheduled for the
+// given hour, resolves the map that task places the NPC in (schedule-authoritative — dynamic tasks resolve against the
+// prior hour's scheduled location as their anchor), runs that same built task as the NPC's current task, and returns
+// the map the NPC should be placed in. Callers must clear the NPC's current task before calling. DO_NOTHING hours run
+// no task and return the NPC's scheduled do-nothing location (home).
+func (n *NPC) SetupScheduledTaskForPlacement(gameTime clock.GameTime) defs.MapID {
+	hour := gameTime.Hour
+	if hour < 0 || hour > 23 {
+		logz.Println("SetupScheduledTaskForPlacement", hour)
+		logz.Panicln("SetupScheduledTaskForPlacement", "hour was invalid")
+	}
+	if n.CurrentTask != nil {
+		logz.Panic("called SetupScheduledTaskForPlacement, but NPC already has a task set. Make sure to clear the current task first.")
+	}
+	def := n.Schedule.Hourly[hour]
+	if def.TaskID == "" {
+		logz.Println("SetupScheduledTaskForPlacement", hour, n.WhoAmI())
+		logz.Panicln("SetupScheduledTaskForPlacement", "scheduled task for the hour has no task ID")
+	}
+
+	if def.TaskID == TaskDoNothing {
+		return n.scheduledMapAt(hour)
+	}
+
+	t := n.buildTask(def, n)
+	startMap := t.ResolveStartMap(n.scheduledMapAt(hour - 1))
+	if !n.switchTask(t) {
+		logz.Println("SetupScheduledTaskForPlacement", n.WhoAmI())
+		logz.Panicln("SetupScheduledTaskForPlacement", "failed to switch to scheduled task; current task was cleared.")
+	}
+	return startMap
 }
 
 // gets the nearest open, unobstructed tile to the given position.
@@ -394,7 +439,8 @@ func (n *NPC) SetupSpeechBubbleReactions(speechBubbleCtx defs.SpeechBubbleContex
 			subID := fmt.Sprintf("%s_speech_bubble_reaction_%v", n.ID(), i)
 			n.eventBus.Subscribe(subID, eventType, n.OnSpeechBubbleEvent)
 			if n.activeMapSubscriptionIDs[subID] {
-				logz.Panicln("NPC", "subscription is already mapped?", subID)
+				logz.Println("NPC", subID)
+				logz.Panicln("NPC", "subscription is already mapped?")
 			}
 			n.activeMapSubscriptionIDs[subID] = true
 			i++
@@ -426,15 +472,9 @@ func (n *NPC) OnSpeechBubbleEvent(e defs.Event) {
 
 func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
 	// TODO: add logic to judge if NPC should retaliate
-	var nextTask *defs.TaskDef
-	if n.CurrentTask != nil {
-		prevDef := n.CurrentTask.GetDef()
-		nextTask = &prevDef
-	}
 	n.RunTask(defs.TaskDef{
 		TaskID:   TaskFight,
 		Priority: Emergency,
 		Params:   FightTaskParams{TargetEntity: attackedBy},
-		NextTask: nextTask,
 	}, n)
 }
