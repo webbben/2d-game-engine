@@ -28,7 +28,6 @@ func (w *World) loadScenario(scenarioDef defs.ScenarioDef) {
 			OverrideDialogProfileID: charDef.DialogProfileID,
 			OverrideScheduleID:      charDef.DefaultSchedule,
 			InitialMapID:            scenarioDef.MapID,
-			LevelSysParams:          w.LevelSysParams,
 		}
 		charStateID := entity.CreateNewCharacterState(
 			charDef.CharDefID,

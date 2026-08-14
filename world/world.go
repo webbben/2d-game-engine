@@ -47,8 +47,6 @@ type World struct {
 
 	OverlayManager *overlay.OverlayManager
 
-	LevelSysParams *defs.LevelSystemParameters // params for handling level and skill related calculations
-
 	// General world information
 
 	Clock clock.Clock
@@ -89,7 +87,6 @@ func NewWorld(
 	questman *quest.QuestManager,
 	gameCtx defs.GameContext,
 	playerMenu screen.Screen,
-	levelSysParams *defs.LevelSystemParameters,
 ) *World {
 	w := &World{
 		Dataman:        dataman,
@@ -100,7 +97,6 @@ func NewWorld(
 		GameCtx:        gameCtx,
 		playerMenu:     playerMenu,
 		OverlayManager: &overlay.OverlayManager{},
-		LevelSysParams: levelSysParams,
 	}
 
 	// no need to setup things like lighting or post events; active map doesn't exist yet,

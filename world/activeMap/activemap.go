@@ -802,6 +802,8 @@ func (mi *ActiveMap) AttackArea(attackInfo entity.AttackInfo) {
 		fmt.Println("no NPCs?")
 	}
 
+	attacker := mi.findEntityByID(attackInfo.Attacker)
+
 	for _, n := range mi.NPCs {
 		if n.Entity.IsDead() {
 			continue
@@ -813,15 +815,18 @@ func (mi *ActiveMap) AttackArea(attackInfo entity.AttackInfo) {
 		fmt.Println("npc rect:", n.Entity.CollisionRect())
 		if attackInfo.TargetRect.Intersects(n.Entity.CollisionRect()) {
 			n.Entity.ReceiveAttack(attackInfo)
-			attacker := mi.findEntityByID(attackInfo.Attacker)
 			if attacker != nil {
 				n.OnAttacked(attacker)
+				attacker.HandleWeaponHit(n.Entity) // wear down the attacker's weapon
 			}
 		}
 	}
 	if mi.PlayerRef != nil && !slices.Contains(attackInfo.ExcludeEntIds, string(mi.PlayerRef.Entity.ID())) {
 		if attackInfo.TargetRect.Intersects(mi.PlayerRef.Entity.CollisionRect()) {
 			mi.PlayerRef.Entity.ReceiveAttack(attackInfo)
+			if attacker != nil {
+				attacker.HandleWeaponHit(mi.PlayerRef.Entity) // wear down the attacker's weapon
+			}
 		}
 	}
 }

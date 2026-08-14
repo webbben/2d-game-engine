@@ -10,6 +10,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity/body"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/pubsub"
@@ -60,7 +61,7 @@ func (e *Entity) updateAttackManager() {
 
 type AttackInfo struct {
 	Attacker      id.CharacterStateID
-	Damage        int
+	Damage        defs.RealDamage
 	StunTicks     int
 	TargetRect    model.Rect
 	ExcludeEntIds []string
@@ -127,9 +128,16 @@ func (e *Entity) StartMeleeAttack() {
 		}
 	}
 
+	weaponID := e.equipedWeapon.ID
+	condition := e.characterStateRef.EquipedWeapon.Durability
+	mult := 1.0
+	weaponType := e.equipedWeapon.GoverningSkill
+	skills, attrs := characterstate.CalculateSkillsAndAttributes(e.characterStateRef.ID, e.dataman)
+	dmg := e.dataman.CombatSystemCalc.MeleeWeaponDamage(weaponID, condition, mult, weaponType, attrs, skills)
+
 	e.queueAttack(AttackInfo{
 		Attacker:      e.ID(),
-		Damage:        10,
+		Damage:        dmg,
 		StunTicks:     20,
 		TargetRect:    e.GetFrontRect(),
 		ExcludeEntIds: []string{string(e.ID())},
@@ -157,11 +165,16 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 		logz.Panicln("ReceiveAttack", "no attacker info")
 	}
 
+	realDamage := attack.Damage
+	finalDamage := e.dataman.CombatSystemCalc.CalculateFinalDamage(realDamage, e.equippedArmorProtection)
+	// damage is applied to health and shown to the player as a whole number; the calculation itself stays in floats.
+	damageDealt := int(finalDamage)
+
 	eventInfo := map[string]any{
 		"attacker":    attack.Attacker,
 		"receiver":    e.ID(),
 		"receiverPos": model.Vec2{X: e.drawX, Y: e.drawY},
-		"damage":      attack.Damage,
+		"damage":      damageDealt,
 	}
 
 	params := FloatTextParams{
@@ -169,9 +182,13 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 		Color:    color.RGBA{255, 0, 0, 0},
 		Duration: time.Second * 2,
 	}
-	txt := fmt.Sprintf("-%v", attack.Damage)
+	txt := fmt.Sprintf("-%v", damageDealt)
 
 	if e.IsUsingShield() {
+		if !e.IsShieldEquiped() {
+			logz.Panicln("ReceiveAttack", "entity is using shield, but no shield is equipped")
+		}
+
 		// attack was blocked; still some bump back, but no other change
 		eventInfo["blocked"] = true
 		moveError := e.TryBumpBack(config.TileSize/2, defaultWalkSpeed, attack.Origin, body.AnimShield, defaultIdleAnimationTickInterval)
@@ -182,7 +199,9 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 
 		// play shield hit sound
 		e.playHitSFX(e.characterStateRef.EquipedAuxiliary)
-		// TODO: damage shield item
+
+		wear := e.dataman.CombatSystemCalc.ShieldBlockDurabilityLoss(realDamage)
+		e.characterStateRef.EquipedAuxiliary.Durability = max(0, e.characterStateRef.EquipedAuxiliary.Durability-wear)
 
 		// TODO: once damage reduction/partial blocks are calculated, the damage dealt (blockedDamage) may be greater than 0.
 		blockedDamage := 0
@@ -210,7 +229,50 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	}
 	e.waitingToAttack = false
 
-	e.characterStateRef.Health -= attack.Damage
+	// apply armor deterioration
+	// each equipped armor item rolls independently to take wear, weighted by its share of the total
+	// base (authored) protection. base protection is used rather than real (condition-scaled) protection,
+	// so the selection probabilities stay stable regardless of each piece's current durability.
+	type armorWearCandidate struct {
+		armorItem *state.ItemState
+		itemDef   defs.ItemDef
+	}
+	var candidates []armorWearCandidate
+	var totalBaseProtection defs.BaseProtection
+	armorItems := []*state.ItemState{
+		e.characterStateRef.EquipedHeadwear,
+		e.characterStateRef.EquipedBodywear,
+		e.characterStateRef.EquipedFootwear,
+		e.characterStateRef.EquipedAuxiliary,
+	}
+	for _, armorItem := range armorItems {
+		if armorItem == nil {
+			continue
+		}
+		itemDef := e.dataman.GetItemDef(armorItem.DefID)
+		if itemDef.Protection <= 0 {
+			// only do armor items
+			continue
+		}
+		candidates = append(candidates, armorWearCandidate{armorItem: armorItem, itemDef: itemDef})
+		totalBaseProtection += itemDef.Protection
+	}
+	armorWorn := false
+	for _, c := range candidates {
+		tookWear, wear := e.dataman.CombatSystemCalc.ArmorDurabilityLoss(c.itemDef.Protection, totalBaseProtection, realDamage)
+		if tookWear {
+			c.armorItem.Durability = max(0, c.armorItem.Durability-wear)
+			armorWorn = true
+			// TODO: add some kind of effect (breaking sfx?) to show that the armor is broken.
+			// we could even unequip it, but not sure if that's the best option or not. Maybe there's some kind of visual effect and/or float text we could show though.
+		}
+	}
+	if armorWorn {
+		// armor protection scales with durability, so refresh the cached value
+		e.equippedArmorProtection = e.calculateArmorProtection()
+	}
+
+	e.characterStateRef.Health -= damageDealt
 	logz.Println(e.DisplayName(), "current health:", e.characterStateRef.Health)
 
 	e.Body.SetDamageFlicker(15)
@@ -318,4 +380,13 @@ func (e *Entity) playHitSFX(equipedItem *state.ItemState) {
 	if config.DefaultHitSfx != "" {
 		e.footstepSFX.AudioMgr.PlaySFX(config.DefaultHitSfx, 0.5)
 	}
+}
+
+func (e *Entity) HandleWeaponHit(target *Entity) {
+	if e.characterStateRef.EquipedWeapon == nil {
+		logz.Println(string(e.ID()))
+		logz.Panicln("HandleWeaponHit", "no weapon was equipped")
+	}
+	wear := e.dataman.CombatSystemCalc.WeaponDurabilityLoss(target.equippedArmorProtection)
+	e.characterStateRef.EquipedWeapon.Durability = max(0, e.characterStateRef.EquipedWeapon.Durability-wear)
 }

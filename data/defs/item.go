@@ -26,14 +26,17 @@ const (
 )
 
 type ItemDef struct {
-	ID            ItemID
-	Name          string
-	Description   string
-	Type          ItemType
-	Value         int
-	Weight        float64
-	MaxDurability float64
-	Groupable     bool
+	ID          ItemID
+	Name        string
+	Description string
+	Type        ItemType
+	// skill that governs this item in its usage; e.g. "long blade", "heavy armor", etc.
+	// only needed for items that are equipped as armor or weapons.
+	GoverningSkill SkillID
+	Value          int
+	Weight         float64
+	MaxDurability  float64
+	Groupable      bool
 
 	TileImgTilesetSrc string // tileset where tile image is found
 	TileImgIndex      int    // index of tile image in tileset
@@ -53,13 +56,13 @@ type ItemDef struct {
 
 	// Weapon
 
-	Damage    int
+	Damage    BaseDamage
 	FxPartDef *SelectedPartDef
 	SwingSFX  SoundID // sound effect played when this weapon swings
 
 	// Armor (body/head/footwear, shield auxes, etc)
 
-	Protection int     // amount of protection this piece of armor gives
+	Protection BaseProtection // amount of protection this piece of armor gives
 	HitSFX     SoundID // sound effect played when this armor is hit
 
 	// Book

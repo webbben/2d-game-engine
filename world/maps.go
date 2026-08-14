@@ -148,10 +148,9 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 					if found {
 						// this bed has a specific character def ID set
 						params := entity.NewCharacterStateParams{
-							InitialMapID:   mapID,
-							HomeMapID:      mapID,
-							HomeMapBedID:   obj.ID,
-							LevelSysParams: w.LevelSysParams,
+							InitialMapID: mapID,
+							HomeMapID:    mapID,
+							HomeMapBedID: obj.ID,
 						}
 						charStateID = entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), params, w.Dataman)
 					}
@@ -300,10 +299,9 @@ func (w *World) GenerateMap(mapGeneratorID string, returnMapID defs.MapID, retur
 			if bedCount < len(mapGen.InhabitantCharacterDefs) {
 				charDefID := mapGen.InhabitantCharacterDefs[bedCount]
 				params := entity.NewCharacterStateParams{
-					InitialMapID:   mapState.ID,
-					HomeMapID:      mapState.ID,
-					HomeMapBedID:   obj.ID,
-					LevelSysParams: w.LevelSysParams,
+					InitialMapID: mapState.ID,
+					HomeMapID:    mapState.ID,
+					HomeMapBedID: obj.ID,
 				}
 				charStateID = entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), params, w.Dataman)
 			} else if bedCount < len(mapGen.InhabitantCharacterGens) {
