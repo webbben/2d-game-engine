@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity/body"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
@@ -52,6 +53,9 @@ type Entity struct {
 	// records the last known equiped item (def) for each spot; if a change is noticed, we should immediately update the body to match
 	// technically we just need the ID to detect changes, but we store the def since we also will want that info too.
 	equipedBodywear, equipedHeadwear, equipedFootwear, equipedWeapon, equipedAuxiliary defs.ItemDef
+
+	// the amount of protection provided by the currently equipped armor
+	equippedArmorProtection defs.RealProtection
 
 	// Character state is only used in an entity in the following ways:
 	//
@@ -98,6 +102,35 @@ type Entity struct {
 
 	Light                      *lights.Light
 	LightOffsetX, LightOffsetY float32
+}
+
+func (e *Entity) calculateArmorProtection() defs.RealProtection {
+	var total defs.RealProtection
+
+	combatSys := e.dataman.CombatSystemCalc
+
+	armor := []*state.ItemState{
+		e.characterStateRef.EquipedHeadwear,
+		e.characterStateRef.EquipedBodywear,
+		e.characterStateRef.EquipedFootwear,
+		e.characterStateRef.EquipedAuxiliary,
+	}
+
+	skills, attrs := characterstate.CalculateSkillsAndAttributes(e.characterStateRef.ID, e.dataman)
+
+	for _, armorItem := range armor {
+		if armorItem == nil {
+			continue
+		}
+		itemDef := e.dataman.GetItemDef(armorItem.DefID)
+		// skip items that don't actually provide protection (e.g. a torch is an aux item, but gives none)
+		if itemDef.Protection <= 0 {
+			continue
+		}
+		total += combatSys.ArmorProtection(armorItem.DefID, armorItem.Durability, itemDef.GoverningSkill, attrs, skills)
+	}
+
+	return total
 }
 
 func (e *Entity) ShowSpeechBubble(s string, params SpeechBubbleParams) {
@@ -335,8 +368,6 @@ type NewCharacterStateParams struct {
 	InitialMapID defs.MapID
 	HomeMapID    defs.MapID
 	HomeMapBedID int
-
-	LevelSysParams *defs.LevelSystemParameters // used to determine initial max health, stamina, etc
 }
 
 // CreateNewCharacterState instantiates a new Character State from a CharacterDef. This should only be done when:
@@ -349,10 +380,6 @@ type NewCharacterStateParams struct {
 //
 // ... Basically, DON'T use this to "load an existing character back into the world". Each character only has this done to them once in their existence.
 func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterStateParams, dataman *datamanager.DataManager) id.CharacterStateID {
-	if params.LevelSysParams == nil {
-		logz.Panicln("CreateNewCharacterState", "LevelSysParams were nil")
-	}
-
 	charDef := dataman.GetCharacterDef(charDefID)
 
 	// find unique ID based on this characterDefID
@@ -399,8 +426,8 @@ func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterS
 		displayName = params.OverwriteDisplayName
 	}
 
-	maxHealth := params.LevelSysParams.CalculateMaxHealth(charDef.BaseAttributes)
-	maxStamina := params.LevelSysParams.CalculateMaxStamina(charDef.BaseAttributes)
+	maxHealth := dataman.LevelSysParams.CalculateMaxHealth(charDef.BaseAttributes)
+	maxStamina := dataman.LevelSysParams.CalculateMaxStamina(charDef.BaseAttributes)
 
 	charState := &state.CharacterState{
 		Temp:        params.Temp,
@@ -628,8 +655,8 @@ func (e *Entity) SyncBodyToState() {
 
 	// if we changed a body part, let's do a full validation to confirm that all body parts match their equiped items
 	if change {
-		logz.Println(e.DisplayName(), "equipment change detected")
 		e.validateEquipment()
+		e.equippedArmorProtection = e.calculateArmorProtection()
 	}
 }
 

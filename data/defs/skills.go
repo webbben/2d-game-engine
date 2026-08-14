@@ -12,6 +12,17 @@ type (
 	SkillID     string
 	TraitID     string
 	CultureID   string
+
+	// BaseDamage represents the base damage value an item has, before any skills, protection or other factors have been processed
+	BaseDamage float64
+	// BaseProtection represents the base protection value an item has, before any skills or other factors have been processed
+	BaseProtection float64
+	// RealDamage represents derived damage after weapon/character factors are applied, but before armor mitigation.
+	RealDamage float64
+	// RealProtection represents derived protection after skills and condition are applied.
+	RealProtection float64
+	// FinalDamage represents the damage actually dealt to a target, after armor mitigation.
+	FinalDamage float64
 )
 
 // LevelSystemParameters defines all the parameters that are used in calculating anything to do with our level system, such as:
@@ -64,6 +75,37 @@ type LevelSystemParameters struct {
 
 	CalculateMaxHealth  func(map[AttributeID]int) int
 	CalculateMaxStamina func(map[AttributeID]int) int
+}
+
+// CombatSystemCalc includes all necessary functions to handle combat related calculation.
+type CombatSystemCalc interface {
+	// Functions for calculating damage. Includes:
+	// 	- weaponID: for knowing which specific weapon was used (in case specific weapons have special cases)
+	// 	- weaponType: in case specific weapon types behave differently in the calculation
+
+	// Calculates how much damage a melee weapon does, before armor mitigation.
+	MeleeWeaponDamage(weaponID ItemID, condition float64, mult float64, weaponType SkillID, attrs map[AttributeID]int, skills map[SkillID]int) RealDamage
+	// Calculates how much damage a ranged weapon does, before armor mitigation.
+	RangedWeaponDamage(weaponID ItemID, condition float64, mult float64, weaponType SkillID, attrs map[AttributeID]int, skills map[SkillID]int) RealDamage
+	// Calculates how much protection a single piece of armor provides.
+	ArmorProtection(armorID ItemID, condition float64, armorType SkillID, attrs map[AttributeID]int, skills map[SkillID]int) RealProtection
+	// Performs the final calculation to determine the damage actually dealt to an entity. totalRealProtection is the sum
+	// of all RealProtection values of all worn armor by the defender. The result is post-mitigation damage.
+	CalculateFinalDamage(realDamage RealDamage, totalRealProtection RealProtection) FinalDamage
+
+	// Calculates how much durability a weapon loses from landing a hit on a target.
+	// targetRealProtection is the total real armor protection of the target that was hit.
+	WeaponDurabilityLoss(targetRealProtection RealProtection) float64
+
+	// Calculates whether a single piece of armor takes wear from an unblocked hit, and how much
+	// durability it loses if it does. itemBaseProtection is the base (authored) protection of that
+	// one armor item, and totalBaseProtection is the sum of base protections over all equipped armor.
+	// attackRealDamage is the raw (pre-mitigation) damage of the attack.
+	ArmorDurabilityLoss(itemBaseProtection, totalBaseProtection BaseProtection, attackRealDamage RealDamage) (tookWear bool, wearAmount float64)
+
+	// Calculates how much durability a shield loses from a successful active block. attackRealDamage is
+	// the raw (pre-mitigation) damage of the blocked attack.
+	ShieldBlockDurabilityLoss(attackRealDamage RealDamage) float64
 }
 
 type (

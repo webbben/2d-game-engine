@@ -22,10 +22,9 @@ func (w *World) GenerateCharacter(chargen defs.CharacterGenerator, initialMap de
 	chargen.Validate()
 
 	params := entity.NewCharacterStateParams{
-		InitialMapID:   initialMap,
-		HomeMapID:      homeMap,
-		HomeMapBedID:   homeMapBedID,
-		LevelSysParams: w.LevelSysParams,
+		InitialMapID: initialMap,
+		HomeMapID:    homeMap,
+		HomeMapBedID: homeMapBedID,
 	}
 
 	if chargen.NameGenFn != nil {
