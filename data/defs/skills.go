@@ -2,6 +2,7 @@ package defs
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/logz"
@@ -85,6 +86,10 @@ type CombatSystemCalc interface {
 
 	// Calculates how much damage a melee weapon does, before armor mitigation.
 	MeleeWeaponDamage(weaponID ItemID, condition float64, mult float64, weaponType SkillID, attrs map[AttributeID]int, skills map[SkillID]int) RealDamage
+	// Determines the damage multiplier of a power attack based on how long the attack was charged.
+	// chargeDuration is the length of time the attack was held in its wind-up; a minimal (uncharged)
+	// attack should return the base multiplier of 1.0.
+	PowerAttackMultiplier(chargeDuration time.Duration) float64
 	// Calculates how much damage a ranged weapon does, before armor mitigation.
 	RangedWeaponDamage(weaponID ItemID, condition float64, mult float64, weaponType SkillID, attrs map[AttributeID]int, skills map[SkillID]int) RealDamage
 	// Calculates how much protection a single piece of armor provides.

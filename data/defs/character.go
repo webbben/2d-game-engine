@@ -33,6 +33,9 @@ type CharacterDef struct {
 
 	// used for identifying the character within places like the DataManager.
 	ID CharacterDefID
+
+	Female bool // if set, character is female
+
 	// A unique ID for this player, that is unique across playthroughs. allows a specific player's save files to be correctly identified.
 	// we can't use display names for this, since more than one character/playthrough might have the same display name.
 	// This should not be defined for non-player characters.

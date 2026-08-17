@@ -153,6 +153,17 @@ func Panicln(category string, args ...any) {
 	panic(msg)
 }
 
+// PanicCtx is the preferred panic call because it allows you to include a category and message, but also variable context all in one call.
+// Category and Msg should not include variables, because they are used in a hash function to dedup specific errors, when logging them by a hash.
+// Ctx will be logged to the console before the panic and crash report, so that it's visible to investigators.
+func PanicCtx(category string, msg string, ctx ...any) {
+	printLogLine(PanicColor.Sprintf("[%s]", category))
+	ctxMsg := fmt.Sprintln(ctx...)
+	fmt.Println(ctxMsg)
+	crashreport.WriteCrashReport(fmt.Sprintf("[%s] %s", category, msg), debug.Stack(), GetRecentLogs())
+	panic(msg)
+}
+
 func Panic(s string) {
 	printLogLine(PanicColor.Sprint("[Panic!]"))
 	crashreport.WriteCrashReport(s, debug.Stack(), GetRecentLogs())

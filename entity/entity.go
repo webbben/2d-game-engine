@@ -335,6 +335,9 @@ func LoadCharacterStateIntoEntity(charStateID id.CharacterStateID, dataman *data
 	// prepare initial image frames
 	ent.Movement.Direction = 'D'
 	ent.Body.Load()
+	if charDef.Female {
+		ent.Body.DecreaseHeight()
+	}
 	ent.Body.SetAnimationTickCount(defaultIdleAnimationTickInterval)
 	ent.Body.Name = charState.DisplayName
 	ent.Movement.IsMoving = false

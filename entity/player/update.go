@@ -153,12 +153,20 @@ func (p *Player) handleActions() bool {
 	}
 
 	if p.Entity.IsWeaponEquiped() {
-		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) && !p.Entity.IsAttacking() {
+		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && !p.Entity.IsAttacking() {
+			// start attack and charge attack as long as mouse is pressed
 			if p.Entity.IsUsingShield() {
 				p.Entity.StopUsingShield()
 			}
-			// attack
 			p.Entity.StartMeleeAttack()
+			return true
+		}
+		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) && p.Entity.IsAttacking() {
+			// released the mouse after starting a power attack; let it fire
+			if p.Entity.IsUsingShield() {
+				logz.Panic("somehow we are using the shield even though we just released an attack?")
+			}
+			p.Entity.FinishMeleeAttack()
 			return true
 		}
 	}

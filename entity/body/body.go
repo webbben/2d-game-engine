@@ -16,27 +16,22 @@ import (
 	"github.com/webbben/2d-game-engine/model"
 )
 
-/*
-
-TODO:
-1) Make a way for legs to be set in "sitting mode" or "riding horse mode".
-- this means that, regardless of what the current animation instructions are for the legs, they simply use their sitting or riding frame.
-- it can probably just be a function that we use to set it or unset it.
-- this way, other animations can be done while, say, riding a horse (swinging a weapon, for example).
-
-*/
-
 var Default defs.HSV = defs.HSV{H: 0.5, S: 0.5, V: 0.5}
 
 type EntityBodySet struct {
 	Name string
 
+	decreaseHeight int // number of pixels by which to decrease body height
+
+	// TODO: do we need these `json:"-"` parts? I don't think these would get put into a json file anyway, right?
+
 	animation                 string `json:"-"`
 	nextAnimation             string `json:"-"`
 	stopAnimationOnCompletion bool   `json:"-"`
-	animationTickCount        int    `json:"-"` // the "duration" of ticks until the next animation frame should trigger
-	ticks                     int    `json:"-"` // number of ticks elapsed
-	currentDirection          byte   `json:"-"` // L R U D
+	holdLastFrame             bool
+	animationTickCount        int  `json:"-"` // the "duration" of ticks until the next animation frame should trigger
+	ticks                     int  `json:"-"` // number of ticks elapsed
+	currentDirection          byte `json:"-"` // L R U D
 
 	dmgFlicker damageFlickerFX `json:"-"`
 
@@ -284,6 +279,115 @@ func NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet,
 	}
 
 	return eb
+}
+
+func (eb *EntityBodySet) DecreaseHeight() {
+	if eb.decreaseHeight != 0 {
+		return
+	}
+	eb.decreaseHeight = 1
+	// when decreasing height, we need to compress the height of the following parts:
+	// - body
+	// - arms?
+	// - equipped body
+	// - equipped arms?
+	//
+	// for the body, we want to clip off some of the vertical space in the **middle**, not at the bottom.
+	// otherwise, we'd be clipping off part of the feet.
+	// same for the arms, since otherwise we'd be clipping off invisible space (since the arms image has transparency around the actual arms image data)
+	//
+	// so, we need to decide the exact places in the middle of these parts to cut out pixel rows.
+	//
+	// for equipped body and arms, we can trim in the exact same locations as we do to the corresponding body and arms.
+	//
+	// for arms, we only trim the idle position. this is because arms go in different angles and directions during some animations, like when swinging a weapon.
+	// so it's not as simple as just cutting off some horizontal pixel rows.
+
+	// TODO: for now we are hardcoding these values assuming a 16x16 tilesize and 2 tiles tall body.
+	// to make this flexible for other body sizes, we'd need to dynamically decide based on the height of the body.
+
+	bodyTrimY := []int{26}
+	armsTrimY := []int{19}
+
+	// configure the trim on the body and equipped body: all animations except dead
+	bodyTrimRows := make(map[string][]int)
+	armsTrimRows := make(map[string][]int)
+	for _, animName := range AllAnimations() {
+		if animName == AnimDead {
+			continue // skip dead frame
+		}
+		bodyTrimRows[animName] = bodyTrimY
+		armsTrimRows[animName] = armsTrimY
+	}
+
+	eb.BodySet.trimRows = bodyTrimRows
+	eb.EquipBodySet.trimRows = bodyTrimRows
+
+	eb.ArmsSet.trimRows = armsTrimRows
+	eb.EquipArmsSet.trimRows = armsTrimRows
+
+	// rebuild the frames so the trims are applied; load() re-applies the configured trimRows
+	eb.BodySet.load(0, 0, eb.IsAuxEquipped())
+	eb.EquipBodySet.load(eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
+	eb.ArmsSet.load(0, 0, eb.IsAuxEquipped())
+	eb.EquipArmsSet.load(eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
+
+	// refresh the current frame images (the body can be drawn without a preceding Update)
+	if eb.animation != "" && eb.currentDirection != 0 {
+		eb.BodySet.setCurrentFrame(eb.currentDirection, eb.animation)
+		eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation)
+		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
+		eb.EquipArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
+	}
+}
+
+func (eb *EntityBodySet) ResetNormalHeight() {
+	if eb.decreaseHeight == 0 {
+		return
+	}
+	eb.decreaseHeight = 0
+	eb.BodySet.trimRows = nil
+	eb.EquipBodySet.trimRows = nil
+	eb.ArmsSet.trimRows = nil
+	eb.EquipArmsSet.trimRows = nil
+
+	// rebuild the frames untrimmed; load() re-applies the (now empty) trimRows
+	eb.BodySet.load(0, 0, eb.IsAuxEquipped())
+	eb.EquipBodySet.load(eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
+	eb.ArmsSet.load(0, 0, eb.IsAuxEquipped())
+	eb.EquipArmsSet.load(eb.stretchX, eb.stretchY, eb.IsAuxEquipped())
+
+	// refresh the current frame images (the body can be drawn without a preceding Update)
+	if eb.animation != "" && eb.currentDirection != 0 {
+		eb.BodySet.setCurrentFrame(eb.currentDirection, eb.animation)
+		eb.EquipBodySet.setCurrentFrame(eb.currentDirection, eb.animation)
+		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
+		eb.EquipArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
+	}
+}
+
+// trimAnimation removes the given pixel row from every frame of an animation, then re-pads the image
+// back to its original height so that dimensions stay consistent (content below the cut stays in place).
+func trimAnimation(anim *Animation, y int) {
+	trimDir := func(frames []*ebiten.Image, y int) []*ebiten.Image {
+		for i, frame := range frames {
+			if frame == nil {
+				continue
+			}
+			img := rendering.RemovePixelRow(frame, y)
+
+			// make the dimensions match the original; shift the content down
+			img2 := ebiten.NewImage(img.Bounds().Dx(), img.Bounds().Dy()+1)
+			rendering.DrawImage(img2, img, 0, 1, 0)
+
+			frames[i] = img2
+		}
+		return frames
+	}
+	anim.L = trimDir(anim.L, y)
+	anim.R = trimDir(anim.R, y)
+	anim.U = trimDir(anim.U, y)
+	anim.D = trimDir(anim.D, y)
 }
 
 func (eb *EntityBodySet) Dimensions() (dx, dy int) {
@@ -545,6 +649,7 @@ type PartDefParams struct {
 	ID        defs.BodyPartID
 	None      bool
 	FlipRForL bool // if true, frames for Right directions will be flipped horizontally and reused for the Left direction.
+	Female    bool
 
 	// Animation params keyed by animation name (use body.AnimIdle, body.AnimWalk, etc.)
 	Anims map[string]*defs.AnimationParams
@@ -563,6 +668,7 @@ func NewPartDef(params PartDefParams) defs.SelectedPartDef {
 	}
 	def := defs.SelectedPartDef{
 		ID:             params.ID,
+		Female:         params.Female,
 		FlipRForL:      params.FlipRForL,
 		StretchX:       params.StretchX,
 		StretchY:       params.StretchY,
@@ -665,6 +771,15 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 	weaponY := bodyY - (config.TileSize) + yOff
 	weaponX := bodyX - (config.TileSize)
 
+	// if decreaseHeight is set, only the head-tracking parts (eyes, hair, equip head) shift down,
+	// since the head content was cut 2px lower in the trimmed body frame. everything else stays:
+	// body/arms/equip_body/equip_arms/equip_feet track the torso (which doesn't move), and
+	// weapon/aux track the hands (which don't move either).
+	if eb.decreaseHeight != 0 {
+		eyesY += float64(eb.decreaseHeight)
+		hairY += float64(eb.decreaseHeight)
+	}
+
 	for _, part := range renderOrder {
 		switch part {
 		case "body":
@@ -739,7 +854,9 @@ func (eb EntityBodySet) getEquipBodyOffsetY() float64 {
 	return 0
 }
 
-func (eb *EntityBodySet) animationFinished() bool {
+// AnimationFinished returns true if all body parts have finished their animation sequences.
+// Not really meant to be used unless HoldLastFrame is true and the outside needs to know if it's on the last frame yet.
+func (eb *EntityBodySet) AnimationFinished() bool {
 	if !eb.BodySet.reachedLastFrame {
 		return false
 	}
@@ -866,8 +983,8 @@ func (eb *EntityBodySet) Update() {
 	// (there was a bug where the body appeared out of place for a single update tick, and the cause was this being after resetCurrentAnimation below)
 	eb.nonBodyYOffset = eb.BodySet.getCurrentYOffset(eb.animation, eb.currentDirection)
 
-	// detect end of animation
-	if eb.animationFinished() {
+	// detect end of animation and reset, unless supposed to hold last frame
+	if eb.AnimationFinished() && !eb.holdLastFrame {
 		eb.resetCurrentAnimation()
 		if eb.stopAnimationOnCompletion {
 			eb.StopAnimation()
@@ -881,7 +998,12 @@ func (eb *EntityBodySet) Update() {
 type SetAnimationOps struct {
 	Force     bool // if the body is not idle (already doing another animation) use this option to forcibly override the existing animation
 	QueueNext bool // if the body is not idle, use this option to queue the animation to run when the current one is finished
-	DoOnce    bool // use this option to specifically only do one iteration of the animation (ex: for sword slashes)
+	// use this option to specifically only do one iteration of the animation before reverting back to idle (ex: for sword slashes). otherwise, animation loops.
+	// Not allowed to be used with HoldLastFrame.
+	DoOnce bool
+	// if set, animation will hold the last frame and not end, until something else explicitly changes the animation again.
+	// Not allowed to be used with DoOnce.
+	HoldLastFrame bool
 }
 
 type SetAnimationResult struct {
@@ -912,6 +1034,9 @@ func (res SetAnimationResult) String() string {
 // SetAnimation sets an animation. returns if animation was successfully set.
 func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) SetAnimationResult {
 	validateAnimation(animation)
+	if ops.DoOnce && ops.HoldLastFrame {
+		logz.Panic("both DoOnce and HoldLastFrame were set to true")
+	}
 	if animation == eb.animation {
 		return SetAnimationResult{AlreadySet: true, Msg: fmt.Sprintf("current animation: %s", eb.animation)}
 	}
@@ -927,6 +1052,7 @@ func (eb *EntityBodySet) SetAnimation(animation string, ops SetAnimationOps) Set
 		return SetAnimationResult{FailedToSet: true, Msg: fmt.Sprintf("current anim: %s, next anim: %s, tried to queue?: %v", eb.animation, eb.nextAnimation, ops.QueueNext)}
 	}
 	eb.stopAnimationOnCompletion = ops.DoOnce
+	eb.holdLastFrame = ops.HoldLastFrame
 	eb.animation = animation
 	eb.resetCurrentAnimation()
 	return SetAnimationResult{Success: true}
