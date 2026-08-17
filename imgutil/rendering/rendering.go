@@ -260,3 +260,37 @@ func StretchMiddle(src *ebiten.Image) *ebiten.Image {
 
 	return dst
 }
+
+// RemovePixelRow removes a "row" of pixels in an image. Essentially for making an image shorter by removing a pixel of vertical size.
+// the `y` value passed in determines where in the image the row of pixels is removed; 0 is the top. -1 can be used to cut the last row, too.
+func RemovePixelRow(src *ebiten.Image, y int) *ebiten.Image {
+	bounds := src.Bounds()
+	w := bounds.Dx()
+	h := bounds.Dy()
+
+	if y < -1 {
+		logz.Panic("y was < -1 (-1 is mapped to the last row, but otherwise negative values are invalid)")
+	}
+	if y > h-1 {
+		logz.Panic("y was greater than height of image")
+	}
+	if y == -1 {
+		y = h - 1
+	}
+
+	dst := ebiten.NewImage(w, h-1)
+
+	// copy part above the removed row
+	if y > 0 {
+		op := &ebiten.DrawImageOptions{}
+		dst.DrawImage(src.SubImage(image.Rect(0, 0, w, y)).(*ebiten.Image), op)
+	}
+	// copy the part below the removed row
+	if y < h-1 {
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(0, float64(y))
+		dst.DrawImage(src.SubImage(image.Rect(0, y+1, w, h)).(*ebiten.Image), op)
+	}
+
+	return dst
+}

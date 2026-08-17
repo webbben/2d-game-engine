@@ -21,6 +21,7 @@ type BodyPartSet struct {
 	animIndex        int                  // index or "step" of the animation we are currently on
 	reachedLastFrame bool                 // used to detect when an animation has finished (if all sets are at last frame, entire animation is done)
 	Animations       map[string]Animation `json:"-"`
+	trimRows         map[string][]int     // pixel rows to remove from frames, keyed by animation name. applied on every load (used for e.g. decreased body height)
 	HasUp            bool                 // if true, this set has an "up" direction animation. some don't since they will be covered by the body (such as eyes)
 
 	img *ebiten.Image `json:"-"`
@@ -132,7 +133,25 @@ func (set *BodyPartSet) load(stretchX, stretchY int, aux bool) {
 		set.Animations[name] = a
 	}
 
+	set.applyTrimRows()
+
 	set.validate()
+}
+
+// applyTrimRows re-applies the configured trim rows to the currently loaded frames.
+// this is called at the end of every load(), so that trims (e.g. decreased body height)
+// survive part reloads (equipping/removing items, aux changes, etc).
+func (set *BodyPartSet) applyTrimRows() {
+	if len(set.trimRows) == 0 {
+		return
+	}
+	for name, rows := range set.trimRows {
+		anim := set.Animations[name]
+		for _, y := range rows {
+			trimAnimation(&anim, y)
+		}
+		set.Animations[name] = anim
+	}
 }
 
 func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string) {

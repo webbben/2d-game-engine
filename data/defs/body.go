@@ -17,6 +17,7 @@ type SelectedPartDef struct {
 	ID        BodyPartID
 	None      bool `json:"-"` // if true, this part will not be shown
 	FlipRForL bool `json:"-"` // if true, instead of using an L source, we just flip the frames for right
+	Female    bool // if true, this body part def is specific to female characters. Not used in the engine, but may be needed for game logic in character design.
 
 	// Animation definitions keyed by animation name (e.g. "idle", "walk", "run", etc.)
 	// See body.AllAnimations() for the canonical list of animation names.

@@ -12,13 +12,15 @@ import (
 )
 
 const (
-	AnimDead      = "dead"
-	AnimIdle      = "idle"
-	AnimWalk      = "walk"
-	AnimRun       = "run"
-	AnimSlash     = "slash"
-	AnimBackslash = "backslash"
-	AnimShield    = "shield"
+	AnimDead        = "dead"
+	AnimIdle        = "idle"
+	AnimWalk        = "walk"
+	AnimRun         = "run"
+	AnimSlash       = "slash"
+	AnimSlashStart  = "slash-start"
+	AnimSlashFinish = "slash-finish"
+	AnimBackslash   = "backslash"
+	AnimShield      = "shield"
 )
 
 // AllAnimations returns the list of all registered animation names.
@@ -26,7 +28,7 @@ const (
 // adding a const and adding it to this list. All iteration over animations
 // should use this function.
 func AllAnimations() []string {
-	return []string{AnimIdle, AnimWalk, AnimRun, AnimSlash, AnimBackslash, AnimShield, AnimDead}
+	return []string{AnimIdle, AnimWalk, AnimRun, AnimSlash, AnimSlashStart, AnimSlashFinish, AnimBackslash, AnimShield, AnimDead}
 }
 
 func validateAnimation(anim string) {
@@ -43,6 +45,10 @@ func validateAnimation(anim string) {
 func (eb EntityBodySet) IsAttacking() bool {
 	switch eb.animation {
 	case AnimSlash:
+		return true
+	case AnimSlashStart:
+		return true
+	case AnimSlashFinish:
 		return true
 	case AnimBackslash:
 		return true
