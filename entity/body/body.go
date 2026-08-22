@@ -164,7 +164,7 @@ func ReadJSON(jsonFilePath string) (EntityBodySet, error) {
 }
 
 func (eb *EntityBodySet) SetBodyHSV(h, s, v float64) {
-	eb.BodyHSV = defs.HSV{h, s, v}
+	eb.BodyHSV = defs.HSV{H: h, S: s, V: v}
 }
 
 func (eb EntityBodySet) GetBodyHSV() (h, s, v float64) {
@@ -172,7 +172,7 @@ func (eb EntityBodySet) GetBodyHSV() (h, s, v float64) {
 }
 
 func (eb *EntityBodySet) SetEyesHSV(h, s, v float64) {
-	eb.EyesHSV = defs.HSV{h, s, v}
+	eb.EyesHSV = defs.HSV{H: h, S: s, V: v}
 }
 
 func (eb EntityBodySet) GetEyesHSV() (h, s, v float64) {
@@ -180,7 +180,7 @@ func (eb EntityBodySet) GetEyesHSV() (h, s, v float64) {
 }
 
 func (eb *EntityBodySet) SetHairHSV(h, s, v float64) {
-	eb.HairHSV = defs.HSV{h, s, v}
+	eb.HairHSV = defs.HSV{H: h, S: s, V: v}
 }
 
 func (eb EntityBodySet) GetHairHSV() (h, s, v float64) {
@@ -306,11 +306,13 @@ func (eb *EntityBodySet) DecreaseHeight() {
 	// TODO: for now we are hardcoding these values assuming a 16x16 tilesize and 2 tiles tall body.
 	// to make this flexible for other body sizes, we'd need to dynamically decide based on the height of the body.
 
-	bodyTrimY := []int{26}
+	bodyTrimY := []int{26}      // trims legs
+	equipBodyTrimY := []int{31} // trim very bottom
 	armsTrimY := []int{19}
 
 	// configure the trim on the body and equipped body: all animations except dead
 	bodyTrimRows := make(map[string][]int)
+	equipBodyTrimRows := make(map[string][]int)
 	armsTrimRows := make(map[string][]int)
 	for _, animName := range AllAnimations() {
 		if animName == AnimDead {
@@ -318,10 +320,11 @@ func (eb *EntityBodySet) DecreaseHeight() {
 		}
 		bodyTrimRows[animName] = bodyTrimY
 		armsTrimRows[animName] = armsTrimY
+		equipBodyTrimRows[animName] = equipBodyTrimY
 	}
 
 	eb.BodySet.trimRows = bodyTrimRows
-	eb.EquipBodySet.trimRows = bodyTrimRows
+	eb.EquipBodySet.trimRows = equipBodyTrimRows
 
 	eb.ArmsSet.trimRows = armsTrimRows
 	eb.EquipArmsSet.trimRows = armsTrimRows
@@ -364,30 +367,6 @@ func (eb *EntityBodySet) ResetNormalHeight() {
 		eb.ArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
 		eb.EquipArmsSet.setCurrentFrame(eb.currentDirection, eb.animation)
 	}
-}
-
-// trimAnimation removes the given pixel row from every frame of an animation, then re-pads the image
-// back to its original height so that dimensions stay consistent (content below the cut stays in place).
-func trimAnimation(anim *Animation, y int) {
-	trimDir := func(frames []*ebiten.Image, y int) []*ebiten.Image {
-		for i, frame := range frames {
-			if frame == nil {
-				continue
-			}
-			img := rendering.RemovePixelRow(frame, y)
-
-			// make the dimensions match the original; shift the content down
-			img2 := ebiten.NewImage(img.Bounds().Dx(), img.Bounds().Dy()+1)
-			rendering.DrawImage(img2, img, 0, 1, 0)
-
-			frames[i] = img2
-		}
-		return frames
-	}
-	anim.L = trimDir(anim.L, y)
-	anim.R = trimDir(anim.R, y)
-	anim.U = trimDir(anim.U, y)
-	anim.D = trimDir(anim.D, y)
 }
 
 func (eb *EntityBodySet) Dimensions() (dx, dy int) {
