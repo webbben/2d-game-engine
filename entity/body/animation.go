@@ -5,6 +5,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/imgutil/imgcache"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
@@ -202,7 +203,7 @@ func (a Animation) getFrame(dir byte, animationIndex int) *ebiten.Image {
 // load loads the frames of an animation, given the animation params and other loading options like flipping, stretch, etc.
 //
 // flipRL: set to true to flip and reuse Right frames for the Left direction
-func (a *Animation) load(params defs.AnimationParams, aux, hasUp, flipRL bool, stretchX, stretchY int) {
+func (a *Animation) load(params defs.AnimationParams, aux, hasUp, flipRL bool, stretchX, stretchY int, trimRows []int) {
 	if params.Name == "" {
 		panic("name is empty")
 	}
@@ -246,17 +247,17 @@ func (a *Animation) load(params defs.AnimationParams, aux, hasUp, flipRL bool, s
 
 	// can flip Right flames to be reused for Left frames
 	if flipRL {
-		a.L = getAnimationFrames(params.TilesetSrc, r, true, stretchX, stretchY)
+		a.L = getAnimationFrames(params.TilesetSrc, r, true, stretchX, stretchY, trimRows)
 	} else {
-		a.L = getAnimationFrames(params.TilesetSrc, l, false, stretchX, stretchY)
+		a.L = getAnimationFrames(params.TilesetSrc, l, false, stretchX, stretchY, trimRows)
 	}
-	a.R = getAnimationFrames(params.TilesetSrc, r, false, stretchX, stretchY)
+	a.R = getAnimationFrames(params.TilesetSrc, r, false, stretchX, stretchY, trimRows)
 	if hasUp {
-		a.U = getAnimationFrames(params.TilesetSrc, u, false, stretchX, stretchY)
+		a.U = getAnimationFrames(params.TilesetSrc, u, false, stretchX, stretchY, trimRows)
 	} else {
 		a.U = []*ebiten.Image{}
 	}
-	a.D = getAnimationFrames(params.TilesetSrc, d, false, stretchX, stretchY)
+	a.D = getAnimationFrames(params.TilesetSrc, d, false, stretchX, stretchY, trimRows)
 }
 
 func (a Animation) GetOffsetY(direction byte, animIndex int) int {
@@ -297,7 +298,7 @@ func (a Animation) GetOffsetY(direction byte, animIndex int) int {
 	return vals[animIndex]
 }
 
-func getAnimationFrames(tilesetSrc string, indices []int, flip bool, stretchX, stretchY int) []*ebiten.Image {
+func getAnimationFrames(tilesetSrc string, indices []int, flip bool, stretchX, stretchY int, trimRows []int) []*ebiten.Image {
 	if tilesetSrc == "" {
 		panic("no tilesetSrc passed")
 	}
@@ -312,20 +313,47 @@ func getAnimationFrames(tilesetSrc string, indices []int, flip bool, stretchX, s
 			frames = append(frames, nil)
 			continue
 		}
-		img := loadFrameImg(tilesetSrc, i, flip, stretchX, stretchY)
+		img := loadFrameImg(tilesetSrc, i, flip, stretchX, stretchY, trimRows)
 		frames = append(frames, img)
 	}
 	return frames
 }
 
-func loadFrameImg(tilesetSrc string, index int, flip bool, stretchX, stretchY int) *ebiten.Image {
+func loadFrameImg(tilesetSrc string, index int, flip bool, stretchX, stretchY int, trimRows []int) *ebiten.Image {
+	// here, we cache a modified image, so that's why we are using the cache here even though there's already caching within GetTileImage.
+	key := imgcache.FrameKey(tilesetSrc, index, flip, stretchX, stretchY, trimRows)
+	if img, ok := imgcache.Get(key); ok {
+		return img
+	}
+
 	// don't panic on empty frames since some animations have empty frames, like when a weapon is hidden by the body
 	img := tiled.GetTileImage(tilesetSrc, index, false)
+
+	// apply image processing options
+	if len(trimRows) != 0 {
+		img = applyTrim(img, trimRows)
+	}
 	if flip {
 		img = rendering.FlipHoriz(img)
 	}
 	if stretchX != 0 || stretchY != 0 {
 		img = stretchImage(img, stretchX, stretchY)
+	}
+
+	imgcache.Put(key, img)
+
+	return img
+}
+
+func applyTrim(img *ebiten.Image, rows []int) *ebiten.Image {
+	if img == nil {
+		return nil
+	}
+	for _, y := range rows {
+		img = rendering.RemovePixelRow(img, y)
+		img2 := ebiten.NewImage(img.Bounds().Dx(), img.Bounds().Dy()+1)
+		rendering.DrawImage(img2, img, 0, 1, 0)
+		img = img2
 	}
 	return img
 }

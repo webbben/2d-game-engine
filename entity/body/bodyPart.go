@@ -129,29 +129,11 @@ func (set *BodyPartSet) load(stretchX, stretchY int, aux bool) {
 		a := set.Animations[name]
 		animParams := set.PartSrc.Animations[name]
 		a.Name = fmt.Sprintf("%s/%s", set.Name, name)
-		a.load(animParams, aux, set.HasUp, set.PartSrc.FlipRForL, stretchX, stretchY)
+		a.load(animParams, aux, set.HasUp, set.PartSrc.FlipRForL, stretchX, stretchY, set.trimRows[name])
 		set.Animations[name] = a
 	}
 
-	set.applyTrimRows()
-
 	set.validate()
-}
-
-// applyTrimRows re-applies the configured trim rows to the currently loaded frames.
-// this is called at the end of every load(), so that trims (e.g. decreased body height)
-// survive part reloads (equipping/removing items, aux changes, etc).
-func (set *BodyPartSet) applyTrimRows() {
-	if len(set.trimRows) == 0 {
-		return
-	}
-	for name, rows := range set.trimRows {
-		anim := set.Animations[name]
-		for _, y := range rows {
-			trimAnimation(&anim, y)
-		}
-		set.Animations[name] = anim
-	}
 }
 
 func (set *BodyPartSet) setCurrentFrame(dir byte, animationName string) {

@@ -8,14 +8,33 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	imagePkg "github.com/webbben/2d-game-engine/imgutil/image"
+	"github.com/webbben/2d-game-engine/imgutil/imgcache"
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 )
+
+var (
+	tsCache      = make(map[string]Tileset)
+	tsCacheMutex sync.RWMutex
+)
+
+func ClearTilesetCache() {
+	tsCacheMutex.Lock()
+	tsCache = make(map[string]Tileset)
+	tsCacheMutex.Unlock()
+}
+
+func ClearCaches() {
+	imgcache.Clear()
+	ClearTilesetCache()
+	ClearMapCache()
+}
 
 func TilesetExists(tilesetName string) bool {
 	return config.FileExists(config.ResolveTilePath(tilesetName))
@@ -83,6 +102,14 @@ func LoadTileset(source string) (Tileset, error) {
 	if source == "" {
 		return Tileset{}, errors.New("no source passed to LoadTileset")
 	}
+
+	tsCacheMutex.RLock()
+	cached, ok := tsCache[source]
+	tsCacheMutex.RUnlock()
+	if ok {
+		return cached, nil
+	}
+
 	t := Tileset{
 		FirstGID: 0,
 		Source:   source,
@@ -93,12 +120,21 @@ func LoadTileset(source string) (Tileset, error) {
 		err = t.generateTiles()
 	}
 
+	tsCacheMutex.Lock()
+	tsCache[source] = t
+	tsCacheMutex.Unlock()
+
 	return t, err
 }
 
 func (tileset *Tileset) generateTiles() error {
 	logz.Warnln("TILED", "generateTiles")
 	debug.StartTimer("generateTiles")
+
+	// clear caches since we don't want stale image caches, since new tile images are loading in
+	// TODO: why do we need to clear all caches? shouldn't we only clear the image cache?
+	ClearCaches()
+
 	if tileset.Image == "" {
 		return errors.New("tileset JSON data not loaded yet")
 	}
@@ -255,6 +291,15 @@ func (t Tileset) GetTileImage(id int, panicOnEmpty bool) (*ebiten.Image, error) 
 	if id > t.TileCount {
 		return nil, fmt.Errorf("tile id (%v) is greater than the tileset's tile count (%v). are we getting a bad tile ID?", id, t.TileCount)
 	}
+
+	key := imgcache.RawKey(t.Source, id)
+	if img, ok := imgcache.Get(key); ok {
+		if panicOnEmpty && img == nil {
+			logz.PanicCtx("GetTileImage", "(cached) tile image was empty (fully transparent or lacking dimensions) when we expected it to have actual data in it.", key)
+		}
+		return img, nil
+	}
+
 	tileDir := config.ResolveTilePath(t.Name)
 	imgFilePath := filepath.Join(tileDir, fmt.Sprintf("%v.png", id))
 	tileImg, err := imagePkg.LoadImage(imgFilePath)
@@ -262,8 +307,11 @@ func (t Tileset) GetTileImage(id int, panicOnEmpty bool) (*ebiten.Image, error) 
 		return nil, fmt.Errorf("failed to load tile image: %w", err)
 	}
 	if panicOnEmpty && tileImg == nil {
-		logz.Panicln("GetTileImage", "tile image was empty (fully transparent or lacking dimensions) when we expected it to have actual data in it:", imgFilePath)
+		logz.PanicCtx("GetTileImage", "tile image was empty (fully transparent or lacking dimensions) when we expected it to have actual data in it.", imgFilePath)
 	}
+
+	imgcache.Put(key, tileImg)
+
 	return tileImg, nil
 }
 
