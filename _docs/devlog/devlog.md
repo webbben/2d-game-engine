@@ -1,3 +1,118 @@
+# 2026-09-03
+
+It's been a hot minute since I did a dev log entry, so let's give some updates:
+
+I believe pretty much everything I planned on doing from the last post has been completed (updating combat,
+adding death frame, adding female characters, etc). Beyond that, I've probably done numerous other little things
+that I'm forgetting right now, but one of the main areas I've made progress in in the last few days has been
+creating the Roman Forum map. It's not completely done yet - I'm sure I'll continue touching it up, adding little
+things and details, etc over time - but I'd say 90% of the core design in terms of building exteriors and layout is done.
+So, I'm pretty satisfied with how the Forum Romanum district is looking; it took a great amount of artwork, referencing
+depictions for these various temples and basilicas, and lots of time. But I'm happy with the investment on the new
+and improved artwork because I'm sure I'll be able to reuse these tiles to make fancier looking buildings and temples
+in future maps.
+
+## Roman Forum
+
+Here's a snapshot of how the Roman Forum map is looking, from inside Tiled:
+
+![Roman forum birds eye view](./20260903.png)
+
+I got started on making the forum because I needed to place the Tabularium - one of the maps involved in the main quest line.
+But, once I got started, I started getting a bit obsessed about what exactly the layout of all the buildings should be, which
+led to deciding what specific buildings will be there anyway, consulting various maps of Augustan Rome (special thanks to
+the website Digital Augustan Rome), and trying to make it all look nice. I even created the "Arcus Augusti" (Arch of Augustus)
+which I based on a rendering I found online, even though it's not necessarily one of the most prominent of the monuments
+in the forum. But, making the art for it turned out to be a great idea, because I can reuse those tiles for other similar
+monuments in the future.
+
+## New Character Cultures
+
+Another significant decision I've made recently is to add new cultures and **culture groups**.
+Before, we had the following cultures:
+
+- Latin/Roman
+- Greek
+- Phoenician/Punic
+- Gallic 
+- Germanic 
+- Egyptian
+
+But, one problem I had been grappling with is, simply, there may need to be more cultures in the future.
+For example, there are various **celtic** cultures that could likely be involved in the Roman world, such as
+Britons and Celtiberians. In fact, I think in the long run these two cultures will gain more and more importance,
+because if I continue to develop this game and add new locations, I think it's likely at some point I could
+even add entire cities/areas from Hispania (Spain) or Britannia (Britain). For example, I could certainly see myself
+adding Londinium (London) as a place you can take a boat to at some point, perhaps as part of a trade mission
+in the Merchant's Guild or something. Similarly, maybe I'd want to add a town in Hispania, perhaps even a formerly
+Punic town like Nova Carthago which could be primarily inhabited by both Punic and Celtiberian characters.
+
+So, I could add new cultures - but one additional thing I was getting hung up on is, some cultures are more closely related
+than others. I'm mainly talking about the various Celtic cultures; if I were to make Gallic, Iberian and Briton cultures,
+one problem that could arise is that they all could be a bit too "similar" to justify being entirely their own cultures.
+One reason I'd think this is, there isn't necessarily that much extant evidence of things like naming conventions, for example.
+When I design a "culture" for the game, while it's of course a generalization of how that culture could be represented in Roman
+times, I also try to base it on actual real-world concepts of things like names attested in sources, knowledge of their
+combat styles, etc. But, from the perspective of the Romans, there wasn't much of a need to pay close attention to the
+differences between various Celtic cultures - they were all "barbarians", after all. Anyway, I'm not just here to complain
+about a lack of sources or something, because I can still use my own creativity and a basis on some historical conceptions
+to fill in the blanks. But, the real challenge is, the more cultures we add, the more "diluted" the differences of each
+culture become. One of the mechanical reasons for cultures is to give players more options for creating different types of
+characters, which encourages replay-ability (which is quite important to me). So, anyway both a symbolic and mechanical reasons
+led me to come up with **culture groups**.
+
+**Culture Groups** are basically used to group related cultures. The main idea here is, each culture is actually 
+primarily defined by its culture group in terms of its skill and attribute buffs. But, if there are multiple cultures 
+in a culture group, each individual one can add a couple minor fine tunings to differentiate itself from the other 
+cultures of its same group. So, for example, the "Celtic" culture group will define all the main body of skill and attribute buffs.
+Then, the "Briton" culture (which is part of this group) can modify it to add some specific features for itself.
+
+So, maybe Iberians can be a Celtic culture that is particularly skilled with swords, while Britons can be more skilled with magic
+or something. But, all the while each celtic culture will recognize each other as a shared culture group and have an opinion boost
+towards each other.
+
+We could theoretically do this with other cultures like the "Italic" culture group. So far, we only have the Latin (now referred
+to as "Roman" actually) culture, but perhaps at some point I'd want to add other Italic cultures like Etruscan, Oscan, etc.
+Not sure if I will, but it opens that up as a possibility so that these two cultures will recognize each other as related
+(and be viewed as one general group by other cultures) but can be differentiated both for lore reasons and in other ways like skills.
+Maybe I'll want to have some random quest eventually where you meet a rare Etruscan character?
+
+It also just generally makes cultures a lot more flexible going forward. I think it will especially be useful for unique quests;
+maybe there should be a quest where the player or someone else is kidnapped by Cilician pirates? Rather than forcing those characters
+to have their culture be displayed as "Greek" or something, we can literally just make a new sub-culture for it. Maybe this culture won't
+be usable by the player or used by other characters in the game, but it adds just a little more creative freedom for game design.
+
+Anyway, on top of creating these culture groups and the new celtic cultures of **Iberian** and **Briton**, I also added a **Persian** culture.
+
+This brings the new body of culture options to:
+
+- Italic
+  - Roman (fka "Latin")
+- Hellenic
+  - Greek
+- Phoenician
+  - Punic
+- Celtic
+  - Gallic
+  - Iberian 
+  - Briton
+- Germanic
+  - Germanic
+- Egyptian
+  - Egyptian
+- Persian
+  - Persian (Or "Parthian"?)
+
+## Next Up 
+
+I've been spending more time writing overviews of the main quest line and the individual quests that will be included,
+which has led to me planning out more of the game world as I realize what maps I'll need. I think next up I'll
+be building the Tabularium's interior, and then I'll be building some forest maps outside of Rome and probably going
+down a major rabbit hole of designing nature and wilderness area tilesets. I've very excited about making the wilderness
+and forest maps because I think that will be a majorly important feature of the game; I want it to feel mysterious and
+interesting to explore, and maybe a bit mystical or magical in atmosphere. But ultimately, I hope to be able to create
+plenty of such areas for the player to explore.
+
 # 2026-07-29
 
 Continuing work on what I outlined last time. Wanted to collect my thoughts a bit and think more about what to

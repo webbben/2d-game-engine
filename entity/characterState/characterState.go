@@ -502,6 +502,18 @@ func CalculateOpinion(opinionHolder, subject *state.CharacterState, currentTime 
 		})
 		opinion += 20
 	} else {
+		// check culture group opinions first
+		if cultureDef.GroupID != "" {
+			cultureGroup := dataman.GetCultureGroup(cultureDef.GroupID)
+			if subjectCultureDef.GroupID != "" {
+				subjectGroup := dataman.GetCultureGroup(subjectCultureDef.GroupID)
+				if mod, exists := cultureGroup.OtherGroupOpinions[subjectGroup.ID]; exists {
+					mods = append(mods, mod)
+					opinion += mod.Mod
+				}
+			}
+		}
+		// also check individual culture opinions (if any)
 		if mod, exists := cultureDef.OtherCultureOpinions[subjectCultureDef.ID]; exists {
 			mods = append(mods, mod)
 			opinion += mod.Mod
@@ -541,6 +553,17 @@ func CalculateSkillsAndAttributes(charStateID id.CharacterStateID, dataman *data
 	charDef := dataman.GetCharacterDef(characterState.DefID)
 	if charDef.CultureID != "" {
 		cultureDef := dataman.GetCultureDef(charDef.CultureID)
+		// apply culture group mods first
+		if cultureDef.GroupID != "" {
+			cultureGroup := dataman.GetCultureGroup(cultureDef.GroupID)
+			for attrID, mod := range cultureGroup.AttrMods {
+				attrLevels[attrID] += mod
+			}
+			for skillID, mod := range cultureGroup.SkillMods {
+				skillLevels[skillID] += mod
+			}
+		}
+		// then apply individual culture mods
 		for attrID, mod := range cultureDef.AttrMods {
 			attrLevels[attrID] += mod
 		}
