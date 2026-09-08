@@ -9,10 +9,11 @@ import (
 )
 
 type (
-	AttributeID string
-	SkillID     string
-	TraitID     string
-	CultureID   string
+	AttributeID    string
+	SkillID        string
+	TraitID        string
+	CultureGroupID string
+	CultureID      string
 
 	// BaseDamage represents the base damage value an item has, before any skills, protection or other factors have been processed
 	BaseDamage float64
@@ -185,14 +186,43 @@ type OpinionFactors struct {
 	Attributes map[AttributeID]int
 }
 
-type CultureDef struct {
-	ID          CultureID
+// CultureGroupDef is the definition of a Culture "Group". A Culture Group is a larger grouping of different cultures that
+// all share a common origin or larger identity. A good example is the "Celtic" cultural group; there are various sub-cultures within
+// that are distinct enough to deserve an explicit culture def, but they are still largely considered part of a similar shared culture group in the game.
+// It also opens up the possibility of making future "cosmetic" culture variants. For example if we wanted a special quest to have "Scottish raiders",
+// We can just make a new CultureDef that relies entirely on the existing Celtic Culture Group for its skill and attribute mods, but has a cosmetic "Scottish" label.
+// It also just makes it easier to add new culture variants without feeling like you're creating an entirely new culture.
+//
+// Notes:
+//
+// - CultureGroup should define the **bulk** of Attribute and Skill mods. CultureDef is only an optional modification.
+type CultureGroupDef struct {
+	ID          CultureGroupID
 	DisplayName string
 	Description string
-	AttrMods    map[AttributeID]int
-	SkillMods   map[SkillID]int
 
-	// baseline opinion modifiers towards other cultures (from this one)
+	AttrMods  map[AttributeID]int
+	SkillMods map[SkillID]int
+
+	// baseline opinion modifiers towards other culture groups (from this one)
+	OtherGroupOpinions map[CultureGroupID]OpinionModifier
+}
+
+// CultureDef is an individual Culture that a character can be. All culture defs are part of a larger "culture group" umbrella.
+// If there are multiple cultures inside of a culture group, each individual culture def can serve to alter them in small ways
+// to differentiate themselves from each other. If a culture is the only one in a group, then all the modifications can be done in the culture group.
+type CultureDef struct {
+	ID          CultureID
+	GroupID     CultureGroupID
+	DisplayName string
+	Description string
+
+	AttrMods  map[AttributeID]int
+	SkillMods map[SkillID]int
+
+	// baseline opinion modifiers towards other cultures (from this one).
+	// Most of this is handled at the Culture Group level; but if within a culture group there is some small modifiers you want to add,
+	// you can put them here.
 	OtherCultureOpinions map[CultureID]OpinionModifier
 }
 

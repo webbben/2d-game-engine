@@ -41,11 +41,12 @@ type DataManager struct {
 	CharacterStates     map[id.CharacterStateID]*state.CharacterState
 	CharacterGenerators map[string]defs.CharacterGenerator
 
-	AttributeDefs map[defs.AttributeID]defs.AttributeDef
-	SkillDefs     map[defs.SkillID]defs.SkillDef
-	TraitDefs     map[defs.TraitID]defs.Trait
-	ClassDefs     map[defs.ClassDefID]defs.ClassDef
-	CultureDefs   map[defs.CultureID]defs.CultureDef
+	AttributeDefs    map[defs.AttributeID]defs.AttributeDef
+	SkillDefs        map[defs.SkillID]defs.SkillDef
+	TraitDefs        map[defs.TraitID]defs.Trait
+	ClassDefs        map[defs.ClassDefID]defs.ClassDef
+	CultureDefs      map[defs.CultureID]defs.CultureDef
+	CultureGroupDefs map[defs.CultureGroupID]defs.CultureGroupDef
 }
 
 func NewDataManager() *DataManager {
@@ -73,9 +74,22 @@ func NewDataManager() *DataManager {
 		CharacterGenerators: make(map[string]defs.CharacterGenerator),
 		NPCSchedules:        make(map[defs.ScheduleID]defs.ScheduleDef),
 		CultureDefs:         make(map[defs.CultureID]defs.CultureDef),
+		CultureGroupDefs:    make(map[defs.CultureGroupID]defs.CultureGroupDef),
 		ClassDefs:           make(map[defs.ClassDefID]defs.ClassDef),
 	}
 	return &dataman
+}
+
+func (dataman *DataManager) LoadCultureGroup(cg defs.CultureGroupDef) {
+	dataman.CultureGroupDefs[cg.ID] = cg
+}
+
+func (dataman *DataManager) GetCultureGroup(id defs.CultureGroupID) defs.CultureGroupDef {
+	cg, exists := dataman.CultureGroupDefs[id]
+	if !exists {
+		logz.Panicln("DataManager", "culture group not found:", id)
+	}
+	return cg
 }
 
 func (dataman *DataManager) LoadLevelSys(lvlSys *defs.LevelSystemParameters) {
