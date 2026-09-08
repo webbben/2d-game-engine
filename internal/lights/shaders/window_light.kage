@@ -1,0 +1,82 @@
+//kage:unit pixels
+package main
+
+var WindowPositions [16]vec2
+var WindowDirections [16]vec2
+var WindowWidths [16]float
+var LightLengths [16]float
+var LightIntensities [16]float
+var LightColors [16]vec3
+
+func Fragment(dstPos vec4, srcPos vec2, _ vec4) vec4 {
+	col := imageSrc0At(srcPos)
+	if col.a == 0 {
+		return vec4(0)
+	}
+
+	pix := dstPos.xy
+
+  // totalLight: "how much brightness does a light beam add to this pixel?"
+	totalLight := vec3(0, 0, 0)
+
+	for i := 0; i < 16; i++ {
+		if LightLengths[i] <= 0.0 {
+			break
+		}
+		// Direction pointing away from the window
+		dir := normalize(WindowDirections[i])
+
+		// Vector from window to this pixel
+		toPixel := pix - WindowPositions[i]
+
+		// Distance along the direction of the light
+		along := dot(toPixel, dir)
+
+		// Distance perpendicular to the light direction
+		perpendicular := abs((toPixel.x * dir.y) - (toPixel.y * dir.x))
+
+		// Light beam gets wider as it travels
+		widthAtPixel := WindowWidths[i] + along*0.25
+		widthAtPixel = max(widthAtPixel, 0.001) // ensure division by 0 can't happen
+
+		// How far inside the beam are we?
+		beamFactor := 1.0 - perpendicular/widthAtPixel
+		beamFactor = clamp(beamFactor, 0.0, 1.0)
+		beamFactor = smoothstep(0.0, 1.0, beamFactor)
+
+		// Fade out as we get farther from the window
+		distanceFactor := 1.0 - along/LightLengths[i]
+		distanceFactor = clamp(distanceFactor, 0.0, 1.0)
+
+		// Soft transition through the window plane
+		frontFactor := smoothstep(-8.0, 8.0, along)
+
+		// round off the area immediately around the window
+		windowDist := distance(WindowPositions[i], pix)
+		sourceRadius := WindowWidths[i] // this is used as the radius of the rounding effect
+
+		sourceFactor := 1.0 - windowDist/sourceRadius
+		sourceFactor = clamp(sourceFactor, 0.0, 1.0)
+		sourceFactor = smoothstep(0.0, 1.0, sourceFactor)
+
+		sourceFade := 1.0 - clamp(along/16.0, 0.0, 1.0)
+
+		frontFactor = frontFactor * mix(1.0, sourceFactor, sourceFade)
+
+		beamFactor = beamFactor * beamFactor
+		distanceFactor = distanceFactor * distanceFactor
+
+		beam := beamFactor * distanceFactor * frontFactor * LightIntensities[i]
+
+		// A soft ambient glow around the window itself
+		ambient := 1.0 - windowDist/(WindowWidths[i]*1.5)
+		ambient = clamp(ambient, 0.0, 1.0)
+		ambient = ambient * ambient * LightIntensities[i] * 0.25
+
+		totalLight += (beam + ambient) * LightColors[i]
+	}
+
+  // return just the addition of light to the pixel, not the original pixel itself plus the brightness.
+  // this is because this shader is used with an additive blend mode, so it adds itself on top of whatever is already in the destination.
+  return vec4(totalLight, 1)
+}

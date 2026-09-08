@@ -104,6 +104,7 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 	}
 
 	m.daylightFader.SetOverallFactor(float32(m.daylightFactor))
+
 	lights.DrawMapLighting(
 		screen,
 		m.worldScene,
@@ -113,6 +114,18 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 		offsetX,
 		offsetY,
 	)
+
+	drawWindows := []*lights.WindowLight{}
+	for _, o := range m.WindowObjects {
+		drawWindows = append(drawWindows, o.Window.Light)
+	}
+
+	lights.DrawWindowLighting(
+		screen,
+		m.worldScene,
+		drawWindows,
+		offsetX,
+		offsetY)
 
 	if m.dialogSession != nil {
 		m.dialogSession.Draw(screen)

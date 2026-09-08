@@ -22,7 +22,8 @@ const (
 	TypeDoor       defs.ObjectType = "DOOR" // a door/portal to another map
 	TypeGate       defs.ObjectType = "GATE" // a "gate" is a openable/closable barrier (e.g. a physical door, or gate) in a map
 	TypeSpawnPoint defs.ObjectType = "SPAWN_POINT"
-	TypeLight      defs.ObjectType = "LIGHT"     // lights can be embedded in objects too
+	TypeLight      defs.ObjectType = "LIGHT" // lights can be embedded in objects too
+	TypeWindow     defs.ObjectType = "WINDOW"
 	TypeContainer  defs.ObjectType = "CONTAINER" // a container is essentially an inventory that you can open and move items to/from
 	TypeMisc       defs.ObjectType = "MISC"      // general purpose; just takes up space
 
@@ -109,6 +110,7 @@ type Object struct {
 	Container  Container
 	Sign       Sign
 	Light      Light
+	Window     Window
 	Bed        Bed
 	Chair      Chair
 	SpawnPoint SpawnPoint
@@ -492,6 +494,8 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 			o.addDefaultCollision()
 		}
 		o.loadLightObject(allProps)
+	case TypeWindow:
+		o.loadWindowObject(allProps)
 	case TypeContainer:
 		if !noCollision {
 			o.addDefaultCollision()
@@ -653,6 +657,8 @@ func resolveObjectType(objType string) defs.ObjectType {
 		return TypeGate
 	case TypeLight:
 		return TypeLight
+	case TypeWindow:
+		return TypeWindow
 	case TypeContainer:
 		return TypeContainer
 	case TypeMisc:

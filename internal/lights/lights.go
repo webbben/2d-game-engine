@@ -18,9 +18,15 @@ import (
 //go:embed shaders/light.kage
 var lightShaderSrc []byte
 
+//go:embed shaders/window_light.kage
+var windowLightShaderSrc []byte
+
 var (
 	lightShader     *ebiten.Shader
 	lightShaderInit bool // if this shader has been loaded
+
+	windowLightShaderInit bool
+	windowLightShader     *ebiten.Shader
 )
 
 func LoadShaders() error {
@@ -31,15 +37,13 @@ func LoadShaders() error {
 		return err
 	}
 	lightShaderInit = true
+	windowLightShader, err = ebiten.NewShader(windowLightShaderSrc)
+	if err != nil {
+		return err
+	}
+	windowLightShaderInit = true
 	fmt.Println("All shaders successfully loaded.")
 	return nil
-}
-
-func LightShader() *ebiten.Shader {
-	if !lightShaderInit {
-		panic("tried to use light shader before it was successfully loaded! Did an error occur when loading shaders?")
-	}
-	return lightShader
 }
 
 type LightFader struct {
@@ -138,6 +142,21 @@ type Light struct {
 	currentRadius   float32
 }
 
+type WindowLight struct {
+	X float32
+	Y float32
+
+	// Direction the sunlight travels into the room
+	DirectionX float32
+	DirectionY float32
+
+	Width        float32
+	Length       float32
+	MaxIntensity float32
+
+	Color [3]float32
+}
+
 func (l Light) String() string {
 	return fmt.Sprintf("pos=(%.2f, %.2f) radius=(%v, %v)", l.X, l.Y, l.MinRadius, l.MaxRadius)
 }
@@ -204,6 +223,33 @@ func NewLightFromTiledProps(x, y int, lightProp tiled.LightProps) Light {
 	return NewLight(x, y, lightDef)
 }
 
+func NewWindowFromTiledProps(x, y int, windowProps tiled.WindowProps) WindowLight {
+	if windowProps.Length <= 0 {
+		logz.Panicln("NewWindow", "length was <= 0")
+	}
+	if windowProps.Width <= 0 {
+		logz.Panicln("NewWindow", "width was <= 0")
+	}
+	if windowProps.MaxIntensity <= 0 {
+		logz.Panicln("NewWindow", "max intensity was <= 0")
+	}
+
+	return WindowLight{
+		X:            float32(x),
+		Y:            float32(y),
+		DirectionX:   0,
+		DirectionY:   1,
+		Width:        float32(windowProps.Width),
+		Length:       float32(windowProps.Length),
+		MaxIntensity: float32(windowProps.MaxIntensity),
+		Color: [3]float32{
+			1.0,
+			0.85,
+			0.65,
+		},
+	}
+}
+
 func (l *Light) calculateNextRadius() {
 	if l.glowing {
 		l.flickerProgress++
@@ -226,7 +272,16 @@ func (l *Light) calculateNextRadius() {
 
 const MaxLights = 16
 
-func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight defs.LightColor, nightFx float32, offsetX, offsetY float64) {
+func DrawMapLighting(
+	dst, scene *ebiten.Image,
+	lights []*Light,
+	daylight defs.LightColor,
+	nightFx float32,
+	offsetX, offsetY float64,
+) {
+	if !lightShaderInit {
+		logz.Panic("shaders weren't initialized!")
+	}
 	if len(lights) > MaxLights {
 		logz.Panicln("DrawMapLighting", "number of lights exceeded max light count! max lights:", MaxLights, "num lights:", len(lights))
 	}
@@ -282,7 +337,62 @@ func DrawMapLighting(screen, scene *ebiten.Image, lights []*Light, daylight defs
 		"ExtraDarken":             nightFx,
 		"MaxBrightness":           maxBrightness,
 	}
-	screen.DrawRectShader(display.SCREEN_WIDTH, display.SCREEN_HEIGHT, lightShader, op)
+	dst.DrawRectShader(display.SCREEN_WIDTH, display.SCREEN_HEIGHT, lightShader, op)
+}
+
+const MaxWindowLights = 16
+
+func DrawWindowLighting(
+	dst, scene *ebiten.Image,
+	windows []*WindowLight,
+	offsetX, offsetY float64,
+) {
+	if !windowLightShaderInit {
+		logz.Panic("shaders weren't initialized!")
+	}
+
+	if len(windows) > MaxWindowLights {
+		logz.Panicln("DrawWindowLighting", "too many window lights! max windows:", MaxWindowLights, "num windows:", len(windows))
+	}
+
+	windowPositions := make([]float32, MaxWindowLights*2)
+	windowDirections := make([]float32, MaxWindowLights*2)
+	windowWidths := make([]float32, MaxWindowLights)
+	lightLengths := make([]float32, MaxWindowLights)
+	lightIntensities := make([]float32, MaxWindowLights)
+	lightColors := make([]float32, MaxWindowLights*3)
+
+	for i, window := range windows {
+		windowPositions[i*2] = (window.X - float32(offsetX)) * float32(config.GameScale)
+		windowPositions[i*2+1] = (window.Y - float32(offsetY)) * float32(config.GameScale)
+
+		windowDirections[i*2] = window.DirectionX
+		windowDirections[i*2+1] = window.DirectionY
+
+		windowWidths[i] = window.Width * float32(config.GameScale)
+		lightLengths[i] = window.Length * float32(config.GameScale)
+
+		lightIntensities[i] = window.MaxIntensity
+
+		lightColors[i*3] = window.Color[0]
+		lightColors[i*3+1] = window.Color[1]
+		lightColors[i*3+2] = window.Color[2]
+	}
+
+	op := &ebiten.DrawRectShaderOptions{}
+	op.Images[0] = scene
+	op.Blend = ebiten.BlendLighter
+
+	op.Uniforms = map[string]any{
+		"WindowPositions":  windowPositions,
+		"WindowDirections": windowDirections,
+		"WindowWidths":     windowWidths,
+		"LightLengths":     lightLengths,
+		"LightIntensities": lightIntensities,
+		"LightColors":      lightColors,
+	}
+
+	dst.DrawRectShader(display.SCREEN_WIDTH, display.SCREEN_HEIGHT, windowLightShader, op)
 }
 
 func CalculateDaylight(hour int) (defs.LightColor, float32) {

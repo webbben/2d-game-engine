@@ -341,6 +341,12 @@ type LightProps struct {
 	CoreRadiusFactor  float64
 }
 
+type WindowProps struct {
+	Length       int
+	Width        int
+	MaxIntensity float64
+}
+
 func GetTileType(tile Tile) string {
 	for _, prop := range tile.Properties {
 		if prop.Name == "TYPE" {
@@ -378,6 +384,23 @@ func GetLightProps(p []Property) LightProps {
 			props.CoreRadiusFactor = prop.GetFloatValue()
 		case "light_preset":
 			logz.Panicln("GetLightProps", "light_preset prop is deprecated; use light_color_r/g/b props instead.")
+		}
+	}
+
+	return props
+}
+
+func GetWindowProps(p []Property) WindowProps {
+	props := WindowProps{}
+
+	for _, prop := range p {
+		switch prop.Name {
+		case "window_width":
+			props.Width = prop.GetIntValue()
+		case "window_length":
+			props.Length = prop.GetIntValue()
+		case "window_max_intensity":
+			props.MaxIntensity = prop.GetFloatValue()
 		}
 	}
 

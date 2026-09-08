@@ -98,8 +98,9 @@ type ActiveMap struct {
 
 	sortedRenderables []sortedRenderable
 
-	Lights       []*lights.Light  // permanent lights that are not controlled by an object
-	LightObjects []*object.Object // lights controlled by an object
+	Lights        []*lights.Light  // permanent lights that are not controlled by an object
+	LightObjects  []*object.Object // lights controlled by an object
+	WindowObjects []*object.Object // window objects that emit light
 
 	daylightFactor float64
 	daylightFader  lights.LightFader
@@ -477,6 +478,8 @@ func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
 	mi.Objects = append(mi.Objects, o)
 	if o.Light.On {
 		mi.LightObjects = append(mi.LightObjects, o)
+	} else if o.Window.Light != nil {
+		mi.WindowObjects = append(mi.WindowObjects, o)
 	}
 }
 
