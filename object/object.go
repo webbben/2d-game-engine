@@ -14,6 +14,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/particle"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/tiled"
 )
@@ -26,6 +27,7 @@ const (
 	TypeWindow     defs.ObjectType = "WINDOW"
 	TypeContainer  defs.ObjectType = "CONTAINER" // a container is essentially an inventory that you can open and move items to/from
 	TypeMisc       defs.ObjectType = "MISC"      // general purpose; just takes up space
+	TypeCollision  defs.ObjectType = "COLLISION" // invisible block; marks every tile underneath it as a full collision
 
 	TypeSign defs.ObjectType = "SIGN" // a sign that you can read (opens a BookDef)
 
@@ -114,6 +116,9 @@ type Object struct {
 	Bed        Bed
 	Chair      Chair
 	SpawnPoint SpawnPoint
+
+	Emitter        *particle.Emitter
+	emitterOffsetY float64
 
 	World WorldContext
 
@@ -472,6 +477,17 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		logz.Panicln("LoadObject", "object has both an owner and role ID; this can cause problems with NPCs correctly identifying who should use this object. only set one of these.")
 	}
 
+	// check for emitter
+	emitterID, found := tiled.GetStringProperty("emitter_id", allProps)
+	if found {
+		emitterParams := dataman.GetEmitter(emitterID)
+		o.Emitter = particle.NewEmitter(emitterParams)
+		emitterOffsetY, found := tiled.GetIntProperty("emitter_offset_y", allProps)
+		if found {
+			o.emitterOffsetY = float64(emitterOffsetY)
+		}
+	}
+
 	// load data for specific object type
 	switch o.Type {
 	case TypeDoor:
@@ -495,6 +511,9 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		}
 		o.loadLightObject(allProps)
 	case TypeWindow:
+		if !noCollision {
+			o.addDefaultCollision()
+		}
 		o.loadWindowObject(allProps)
 	case TypeContainer:
 		if !noCollision {
@@ -663,6 +682,8 @@ func resolveObjectType(objType string) defs.ObjectType {
 		return TypeContainer
 	case TypeMisc:
 		return TypeMisc
+	case TypeCollision:
+		return TypeCollision
 	case TypeItem:
 		return TypeItem
 	case TypeBed:

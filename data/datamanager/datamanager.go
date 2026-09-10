@@ -21,6 +21,7 @@ type DataManager struct {
 	ContainerDefs       map[string]defs.ContainerDef
 	ContainerGenerators map[string]defs.ContainerGenerator
 	BookDefs            map[defs.BookID]defs.BookDef
+	Emitters            map[string]defs.EmitterParams
 
 	ScenarioDef map[defs.ScenarioID]defs.ScenarioDef
 
@@ -56,6 +57,7 @@ func NewDataManager() *DataManager {
 		MapDefs:             make(map[defs.MapID]defs.MapDef),
 		MapStates:           make(map[defs.MapID]*state.MapState),
 		MapGenerators:       make(map[string]defs.MapGenerator),
+		Emitters:            make(map[string]defs.EmitterParams),
 		ContainerDefs:       make(map[string]defs.ContainerDef),
 		ContainerGenerators: make(map[string]defs.ContainerGenerator),
 		ScenarioDef:         make(map[defs.ScenarioID]defs.ScenarioDef),
@@ -78,6 +80,21 @@ func NewDataManager() *DataManager {
 		ClassDefs:           make(map[defs.ClassDefID]defs.ClassDef),
 	}
 	return &dataman
+}
+
+func (dataman *DataManager) LoadEmitter(params defs.EmitterParams) {
+	if params.ID == "" {
+		logz.Panic("id was empty")
+	}
+	dataman.Emitters[params.ID] = params
+}
+
+func (dataman *DataManager) GetEmitter(id string) defs.EmitterParams {
+	e, exists := dataman.Emitters[id]
+	if !exists {
+		logz.Panicln("DataManager", "emitter doesn't exist:", id)
+	}
+	return e
 }
 
 func (dataman *DataManager) LoadCultureGroup(cg defs.CultureGroupDef) {

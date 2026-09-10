@@ -1,6 +1,10 @@
 package defs
 
-import "github.com/webbben/2d-game-engine/logz"
+import (
+	"image/color"
+
+	"github.com/webbben/2d-game-engine/logz"
+)
 
 type (
 	MapID    string
@@ -136,4 +140,53 @@ type LightDef struct {
 	MaxBrightness     float64
 	Color             LightColor
 	OffsetX, OffsetY  int // how much this light is offset when drawn
+}
+
+type EmitterParams struct {
+	ID string
+
+	// particles spawned per second
+	SpawnRate float64
+
+	// Particle lifetime
+	LifetimeMin, LifetimeMax float64
+
+	// Initial velocity
+	VelXMin, VelXMax, VelYMin, VelYMax float64
+
+	// How much random movement is applied while alive
+	Turbulence float64
+
+	// Particle size
+	StartScale, EndScale float64
+
+	// Particle opacity
+	StartAlpha, EndAlpha float64
+
+	// an initial fade in when spawning a particle
+	FadeInDurationMin, FadeInDurationMax float64
+
+	// How quickly particles rotate
+	RotationSpeedMin, RotationSpeedMax float64
+
+	// Colors for particle sprites
+	PixelColors []color.RGBA
+
+	Wave WaveParams
+}
+
+type WaveParams struct {
+	Enabled bool
+
+	// How far the wave pushes particles horizontally
+	Amplitude float64
+
+	// How quickly the wave changes as we move vertically
+	Frequency float64
+
+	// How quickly the wave pattern moves over time
+	Speed float64
+
+	// How quickly particles respond to the wave
+	Strength float64
 }
