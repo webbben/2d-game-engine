@@ -104,12 +104,13 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 	}
 
 	m.daylightFader.SetOverallFactor(float32(m.daylightFactor))
+	daylight := m.daylightFader.GetCurrentColor()
 
 	lights.DrawMapLighting(
 		screen,
 		m.worldScene,
 		drawLights,
-		m.daylightFader.GetCurrentColor(),
+		daylight,
 		m.daylightFader.GetDarknessFactor(),
 		offsetX,
 		offsetY,
@@ -117,6 +118,7 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 
 	drawWindows := []*lights.WindowLight{}
 	for _, o := range m.WindowObjects {
+		o.Window.Light.Color = daylight
 		drawWindows = append(drawWindows, o.Window.Light)
 	}
 

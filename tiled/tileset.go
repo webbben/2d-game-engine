@@ -345,6 +345,7 @@ type WindowProps struct {
 	Length       int
 	Width        int
 	MaxIntensity float64
+	DirX, DirY   int
 }
 
 func GetTileType(tile Tile) string {
@@ -401,6 +402,10 @@ func GetWindowProps(p []Property) WindowProps {
 			props.Length = prop.GetIntValue()
 		case "window_max_intensity":
 			props.MaxIntensity = prop.GetFloatValue()
+		case "window_dir_x":
+			props.DirX = prop.GetIntValue()
+		case "window_dir_y":
+			props.DirY = prop.GetIntValue()
 		}
 	}
 

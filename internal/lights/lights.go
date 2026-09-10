@@ -154,7 +154,7 @@ type WindowLight struct {
 	Length       float32
 	MaxIntensity float32
 
-	Color [3]float32
+	Color defs.LightColor
 }
 
 func (l Light) String() string {
@@ -233,12 +233,15 @@ func NewWindowFromTiledProps(x, y int, windowProps tiled.WindowProps) WindowLigh
 	if windowProps.MaxIntensity <= 0 {
 		logz.Panicln("NewWindow", "max intensity was <= 0")
 	}
+	if windowProps.DirX == 0 && windowProps.DirY == 0 {
+		windowProps.DirY = 1
+	}
 
 	return WindowLight{
 		X:            float32(x),
 		Y:            float32(y),
-		DirectionX:   0,
-		DirectionY:   1,
+		DirectionX:   float32(windowProps.DirX),
+		DirectionY:   float32(windowProps.DirY),
 		Width:        float32(windowProps.Width),
 		Length:       float32(windowProps.Length),
 		MaxIntensity: float32(windowProps.MaxIntensity),

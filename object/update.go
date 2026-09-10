@@ -50,6 +50,13 @@ func (obj *Object) Update(blockChanges bool, hovering bool) ObjectUpdateResult {
 	case TypeContainer:
 		return obj.updateContainer()
 	}
+
+	if obj.Emitter != nil {
+		emitX := obj.xPos + float64(obj.Width/2)
+		emitY := obj.yPos + float64(obj.Height/2) + obj.emitterOffsetY
+		obj.Emitter.Update(emitX, emitY)
+	}
+
 	return ObjectUpdateResult{}
 }
 
@@ -167,5 +174,13 @@ func (obj *Object) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 	if obj.PlayerHovering {
 		ops.ColorScale.Scale(1.2, 1.2, 1.2, 1)
 	}
+	if img == nil {
+		// Note: this can happen if you added new tileset art, but haven't allowed the tile images to be reloaded on game startup
+		logz.Panicln("Draw Object", "img was nil!", "objID:", obj.ID, "imgFrameIndex:", obj.imgFrameIndex, "numFrames:", len(obj.imgFrames), "(try reloading all tile images)")
+	}
 	rendering.DrawImageWithOps(screen, img, obj.DrawX, obj.DrawY, config.GameScale, &ops)
+
+	if obj.Emitter != nil {
+		obj.Emitter.Draw(screen, offsetX, offsetY)
+	}
 }

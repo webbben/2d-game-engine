@@ -137,6 +137,8 @@ func (m *Map) load(regenerateImages bool) error {
 		m.Layers[i].Validate()
 	}
 
+	m.findCollisionBlockObjects()
+
 	m.CalculateCostMap()
 
 	m.Loaded = true
@@ -195,6 +197,33 @@ func (m *Map) findTilePropertiesInLayer(layer Layer) {
 	case LayerTypeGroup:
 		for _, l := range layer.Layers {
 			m.findTilePropertiesInLayer(l)
+		}
+	}
+}
+
+// findCollisionBlockObjects marks every tile underneath a COLLISION object as a full collision.
+// COLLISION objects are invisible (no tile image); they exist to block movement and NPC pathfinding.
+// It runs after findTilePropertiesInLayer so that tile-layer reset logic can't wipe the stamps.
+func (m *Map) findCollisionBlockObjects() {
+	for _, l := range m.Layers {
+		for _, obj := range GetAllObjectsFromLayer(l) {
+			objProps := m.GetObjectPropsAndTile(obj)
+			objType, found := GetStringProperty("TYPE", objProps.AllProps)
+			if !found || objType != "COLLISION" {
+				continue
+			}
+
+			tl := model.ConvertPxToTilePos(obj.X, obj.Y)
+			br := model.ConvertPxToTilePos(obj.X+obj.Width-1, obj.Y+obj.Height-1)
+
+			for y := tl.Y; y <= br.Y; y++ {
+				for x := tl.X; x <= br.X; x++ {
+					if y < 0 || y >= m.Height || x < 0 || x >= m.Width {
+						continue
+					}
+					m.CollisionRects[y][x] = NewCollisionRect("WHOLE")
+				}
+			}
 		}
 	}
 }
