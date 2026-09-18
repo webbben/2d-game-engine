@@ -91,7 +91,48 @@ type NPC struct {
 	speechBubbleOriginIndex int
 	speechBubbleFont        font.Face
 
-	activeMapSubscriptionIDs map[string]bool // subscription IDs for events only listened to when NPC is in active map
+	// subscription IDs for events only listened to when NPC is in active map.
+	// mapped booleans in this map are always expected to be true; to unsubscribe, the value must be removed from the map entirely.
+	//
+	// Note: avoid directly manipulating this, and instead use the subscribe and unsubscribe functions
+	activeMapSubscriptionIDs map[string]bool
+}
+
+func (n *NPC) unsubscribe(subID string) {
+	if subID == "" {
+		panic("subID was empty")
+	}
+	n.eventBus.Unsubscribe(subID)
+
+	if _, exists := n.activeMapSubscriptionIDs[subID]; !exists {
+		logz.PanicCtx("NPC unsubscribe", "tried to unsubscribe from event, but subID doesn't exist in active map subscriptions", subID, n.WhoAmI())
+	}
+	delete(n.activeMapSubscriptionIDs, subID)
+}
+
+func (n *NPC) unsubscribeAll() {
+	for subID := range n.activeMapSubscriptionIDs {
+		n.eventBus.Unsubscribe(subID)
+	}
+	n.activeMapSubscriptionIDs = make(map[string]bool)
+}
+
+func (n *NPC) subscribeToEvent(subID string, eventType defs.EventType, subFn func(e defs.Event)) {
+	if n.activeMapSubscriptionIDs[subID] {
+		logz.PanicCtx("NPC subscribeToEvent", "NPC already has subID in subscription map", subID, n.WhoAmI())
+	}
+	if !n.inActiveMap() {
+		logz.PanicCtx("NPC subscribeToEvent", "NPC is not in active map", subID, n.WhoAmI())
+	}
+	n.activeMapSubscriptionIDs[subID] = true
+	n.eventBus.Subscribe(subID, eventType, subFn)
+}
+
+func (n *NPC) inActiveMap() bool {
+	if n.WorldCtx == nil {
+		logz.Panic("WorldCtx was nil")
+	}
+	return n.WorldCtx.GetActiveMapID() == n.CharacterStateRef.CurrentMap
 }
 
 // GetCurrentTaskForBgAssist returns the NPC's current task if set, for use by the
@@ -107,12 +148,8 @@ func (n *NPC) GetCurrentTaskForBgAssist() Task {
 // active map event subscriptions, etc.
 func (n *NPC) PrepareLeaveActiveMap() {
 	n.Entity.ResetActiveMapRuntimeState()
-
-	for subID := range n.activeMapSubscriptionIDs {
-		n.eventBus.Unsubscribe(subID)
-	}
-
-	n.activeMapSubscriptionIDs = make(map[string]bool)
+	n.unsubscribeAll()
+	n.ActiveMapCtx = nil
 }
 
 func (n NPC) GetInfo() defs.NPCInfo {
@@ -438,12 +475,7 @@ func (n *NPC) SetupSpeechBubbleReactions(speechBubbleCtx defs.SpeechBubbleContex
 	for _, speechBubbleReaction := range dialogProfileDef.SpeechBubbles {
 		for _, eventType := range speechBubbleReaction.SubscribeEvents {
 			subID := fmt.Sprintf("%s_speech_bubble_reaction_%v", n.ID(), i)
-			n.eventBus.Subscribe(subID, eventType, n.OnSpeechBubbleEvent)
-			if n.activeMapSubscriptionIDs[subID] {
-				logz.Println("NPC", subID)
-				logz.Panicln("NPC", "subscription is already mapped?")
-			}
-			n.activeMapSubscriptionIDs[subID] = true
+			n.subscribeToEvent(subID, eventType, n.OnSpeechBubbleEvent)
 			i++
 		}
 	}

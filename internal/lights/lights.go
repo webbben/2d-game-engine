@@ -140,6 +140,8 @@ type Light struct {
 	flickerProgress int
 	glowing         bool
 	currentRadius   float32
+
+	DebugInfo string
 }
 
 type WindowLight struct {
@@ -158,7 +160,7 @@ type WindowLight struct {
 }
 
 func (l Light) String() string {
-	return fmt.Sprintf("pos=(%.2f, %.2f) radius=(%v, %v)", l.X, l.Y, l.MinRadius, l.MaxRadius)
+	return fmt.Sprintf("pos=(%.2f, %.2f) radius=(%v, %v) info=(%s)", l.X, l.Y, l.MinRadius, l.MaxRadius, l.DebugInfo)
 }
 
 func NewLight(x, y int, lightDef defs.LightDef) Light {

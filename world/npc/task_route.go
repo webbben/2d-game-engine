@@ -162,6 +162,9 @@ func (t *RouteTask) SimulationUpdate() {
 		nextMap := nextEdge.To
 		toSpawn := nextEdge.ToSpawn
 
+		// ensure child task is ended
+		t.EndChild()
+
 		if nextMap == "" {
 			panic("next map was empty...")
 		}
@@ -188,6 +191,11 @@ func (t *RouteTask) handleAwaitMapChange() {
 		return
 	}
 
+	// confirm there are no stale child tasks
+	if t.HasChild() {
+		logz.PanicCtx("RouteTask", "advanced to next map segment with a stale child task; children must be ended before the map chang is confirmed", t.Owner.WhoAmI())
+	}
+
 	// we've reached the next map (main Update loop processed the event)
 	t.awaitingMapChange = false
 	t.awaitMapChangeTo = ""
@@ -200,6 +208,7 @@ func (t *RouteTask) handleAwaitMapChange() {
 		if !t.inDestinationMap() {
 			panic("route task finished, but NPC's current map doesn't match destination map!")
 		}
+		t.EndChild()
 		t.FinishSuccess()
 		return
 	}

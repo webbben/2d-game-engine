@@ -84,8 +84,7 @@ func (t *StartDialogTask) Start() {
 	}
 	t.started = true
 	t.subID = fmt.Sprintf("%s_%s", t.Owner.ID(), t.Def.TaskID)
-	t.Owner.eventBus.Subscribe(t.subID, pubsub.EventDialogEnded, t.OnDialogEnd)
-	t.Owner.activeMapSubscriptionIDs[t.subID] = true
+	t.Owner.subscribeToEvent(t.subID, pubsub.EventDialogEnded, t.OnDialogEnd)
 	t.TaskBase.Start()
 }
 
@@ -99,10 +98,9 @@ func (t *StartDialogTask) Finish(result TaskResult) {
 // unsubscribe removes this task's dialog-ended subscription, if any. Safe to call more than once.
 func (t *StartDialogTask) unsubscribe() {
 	if t.subID == "" {
-		return
+		logz.PanicCtx("StartDialogTask", "unsubscribe was called, but subID was empty", t.Owner.WhoAmI())
 	}
-	delete(t.Owner.activeMapSubscriptionIDs, t.subID)
-	t.Owner.eventBus.Unsubscribe(t.subID)
+	t.Owner.unsubscribe(t.subID)
 	t.subID = ""
 }
 
@@ -121,15 +119,15 @@ func (t *StartDialogTask) OnDialogEnd(e defs.Event) {
 	if !ok {
 		panic("tried to get profileID, but data didn't include the key")
 	}
-	if profileID == t.dialogProfileID {
-		// dialog has ended; mark the task done (Finish cleans up the subscription).
-		t.FinishSuccess()
-	} else {
-		logz.Warnln(t.Owner.ID(), "dialogStartTask is listening for a dialog ended event, and one came - but it was the wrong profile ID.",
-			"Unless there are multiple NPCs with this task type running, there might be a problem.")
+	if profileID != t.dialogProfileID {
+		logz.PanicCtx("OnDialogEnd", "dialogStartTask is listening for a dialog ended event, and one came - but it was the wrong profile ID.", profileID, t.dialogProfileID, t.Owner.WhoAmI())
 	}
+
+	t.FinishSuccess()
 }
 
 func (t *StartDialogTask) SetupActiveState() {
-	panic("not yet implemented!")
+	// this will never be implemented because this task should never be running in the background anyway.
+	// it would only ever get triggered while the NPC is already in the active map.
+	logz.Panic("this shouldn't be getting called!")
 }

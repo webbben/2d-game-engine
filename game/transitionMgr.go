@@ -1,6 +1,8 @@
 package game
 
 import (
+	"sync/atomic"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/cutscene"
@@ -23,8 +25,7 @@ type TransitionManager struct {
 	OpenTransition, CloseTransition defs.Transition
 	LoadingScreen                   screen.Screen
 	loadingScreenViewer             screen.ScreenViewer
-	LoadingProgress                 float64 // progress, updated by loadFunction, to indicate the percentage of progress made.
-	LoadingComplete                 bool    // set by loadFunction when loading has finished
+	LoadingComplete                 atomic.Bool // set by loadFunction when loading has finished
 	loadFunc                        func(ctx defs.GameContext)
 	runLoadFuncSync                 bool // if true, the load function will NOT be launched in a separate go routine; it will just run in the same process synchronously.
 }
@@ -41,8 +42,7 @@ func (g *Game) StartCustomLoadScreen(scrID defs.ScreenID, open, close defs.Trans
 	}
 
 	// reset loading flags and start up the loading process
-	g.TransitionManager.LoadingProgress = 0
-	g.TransitionManager.LoadingComplete = false
+	g.TransitionManager.LoadingComplete.Store(false)
 	g.TransitionManager.TransitionInProgress = true
 
 	g.TransitionManager.loadFunc = loadFunction
@@ -68,8 +68,7 @@ func (g *Game) StartLoadScreen(loadFunction func(ctx defs.GameContext)) {
 	}
 
 	// reset loading flags and start up the loading process
-	g.TransitionManager.LoadingProgress = 0
-	g.TransitionManager.LoadingComplete = false
+	g.TransitionManager.LoadingComplete.Store(false)
 	g.TransitionManager.TransitionInProgress = true
 
 	g.TransitionManager.loadFunc = loadFunction
@@ -85,7 +84,7 @@ func (g *Game) StartLoadScreen(loadFunction func(ctx defs.GameContext)) {
 
 func (tm *TransitionManager) runLoadFunction(ctx defs.GameContext) {
 	tm.loadFunc(ctx)
-	tm.LoadingComplete = true
+	tm.LoadingComplete.Store(true)
 	// we leave it up to the load screen to actually notice this, and set Loading to false.
 	// the reason is, we want to allow it to do things like fade out transitions, instead of immediately cutting the load screen from view.
 	logz.Println("TransitionManager", "Loading function completed.")
@@ -107,7 +106,7 @@ func (g *Game) StartSyncTransition(open, close defs.Transition, lightWeightSetup
 	}
 
 	// reset loading flags and start up the loading process
-	g.TransitionManager.LoadingComplete = true // initialize this to true, since we aren't waiting on any loading function
+	g.TransitionManager.LoadingComplete.Store(true) // initialize this to true, since we aren't waiting on any loading function
 	g.TransitionManager.TransitionInProgress = true
 	g.TransitionManager.OpenTransition = open
 	g.TransitionManager.CloseTransition = close
@@ -116,8 +115,8 @@ func (g *Game) StartSyncTransition(open, close defs.Transition, lightWeightSetup
 	g.TransitionManager.runLoadFuncSync = true
 }
 
-func (g Game) GetLoadingStatus() (complete bool, progress float64) {
-	return g.TransitionManager.LoadingComplete, g.TransitionManager.LoadingProgress
+func (g *Game) GetLoadingStatus() (complete bool) {
+	return g.TransitionManager.LoadingComplete.Load()
 }
 
 func (tm *TransitionManager) Update(gameCtx defs.GameContext) {
@@ -140,14 +139,14 @@ func (tm *TransitionManager) Update(gameCtx defs.GameContext) {
 					go tm.runLoadFunction(gameCtx)
 				}
 			} else {
-				tm.LoadingComplete = true
+				tm.LoadingComplete.Store(true)
 			}
 		}
 		return
 	}
 
 	// show the loading screen while loading is still working or the screen isn't finished yet
-	if !tm.LoadingComplete || !tm.loadingScreenViewer.IsDone() {
+	if !tm.LoadingComplete.Load() || !tm.loadingScreenViewer.IsDone() {
 		tm.ShowingLoadingScreen = true
 		tm.loadingScreenViewer.Update()
 		return
@@ -173,7 +172,7 @@ func (tm *TransitionManager) Draw(screen *ebiten.Image) {
 		tm.loadingScreenViewer.Draw(screen)
 		return
 	}
-	if !tm.LoadingComplete {
+	if !tm.LoadingComplete.Load() {
 		logz.Panicln("TransitionManager", "why are we not showing a loading screen, but loading isn't completed yet?")
 	}
 

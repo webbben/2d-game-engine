@@ -167,6 +167,11 @@ func (m *ActiveMap) IsDialogActive() bool {
 	return m.dialogSession != nil
 }
 
+// IsBookSessionActive tells you if a book session is currently active
+func (m *ActiveMap) IsBookSessionActive() bool {
+	return m.bookSession != nil
+}
+
 func (m *ActiveMap) GetDialogNPC() id.CharacterStateID {
 	if !m.IsDialogActive() {
 		return ""
@@ -244,6 +249,7 @@ func NewActiveMap(
 					x := (pos.X * config.TileSize) + (config.TileSize / 2)
 					y := (pos.Y * config.TileSize) + (config.TileSize / 2)
 					l := lights.NewLightFromTiledProps(x, y, lightProps)
+					l.DebugInfo = fmt.Sprintf("embedded in tile (GID=%v)", gid)
 					m.Lights = append(m.Lights, &l)
 					fmt.Printf("light found at x: %v y: %v\n", x, y)
 				}
@@ -261,7 +267,7 @@ func NewActiveMap(
 		panic("backgroundJobsRunning flag is already true while initializing map")
 	}
 	m.refreshPathfindingSnapshot() // ensure the snapshot is never nil
-	m.RunBackgroundJobs = true
+	m.RunBackgroundJobs.Store(true)
 	m.startBackgroundNPCManager()
 
 	m.Loaded = true
@@ -349,10 +355,9 @@ type NPCManager struct {
 	mapRef       *tiled.Map // map info so we can get map size, tile adjacency, etc
 	nextPriority int        // the next priority value to assign to an NPC
 
-	// if true, the background jobs goroutine will run.
-	// if false, the background jobs goroutine will stop.
-	RunBackgroundJobs     bool
-	backgroundJobsRunning bool // flag that indicates if background jobs loop already running.
+	RunBackgroundJobs     atomic.Bool    // when set false, the background jobs loop stops
+	backgroundJobsRunning bool           // flag that indicates if background jobs loop already running.
+	bgLoopWait            sync.WaitGroup // joined by CloseMap so teardown can't race a live NPC loop
 }
 
 func (mi *ActiveMap) ResetNPCs() {
@@ -741,15 +746,23 @@ func (mi *ActiveMap) GetLights() []*lights.Light {
 }
 
 func (mi *ActiveMap) GetSpawnPosition(index int) (x, y float64, found bool) {
+	x, y, _, found = mi.GetSpawnPointInfo(index)
+	return x, y, found
+}
+
+// GetSpawnPointInfo returns the position and optional facing direction of the spawn point with the
+// given index. FaceDirection is 0 when the spawn point has no face_direction property set, which
+// means entities should keep their current facing when spawned here.
+func (mi *ActiveMap) GetSpawnPointInfo(index int) (x, y float64, faceDir byte, found bool) {
 	for _, obj := range mi.Objects {
 		if obj.Type == object.TypeSpawnPoint {
 			if obj.SpawnPoint.SpawnIndex == index {
 				x, y := obj.Pos()
-				return x, y, true
+				return x, y, obj.SpawnPoint.FaceDirection, true
 			}
 		}
 	}
-	return -1, -1, false
+	return -1, -1, 0, false
 }
 
 func (mi *ActiveMap) GetPlayerRect() model.Rect {
@@ -967,12 +980,15 @@ func (mi *ActiveMap) RectCollidesWithOthers(r model.Rect, excludeEntID string, e
 }
 
 func (m *ActiveMap) PlacePlayerAtSpawnPoint(p *player.Player, spawnIndex int) {
-	x, y, found := m.GetSpawnPosition(spawnIndex)
+	x, y, faceDir, found := m.GetSpawnPointInfo(spawnIndex)
 	if !found {
 		logz.Println("ActiveMap", "spawn index:", spawnIndex)
 		logz.Panicf("given spawn point index not found in map")
 	}
 	m.PlacePlayerAtPosition(p, x, y)
+	if faceDir != 0 {
+		p.Entity.SetDirection(faceDir)
+	}
 }
 
 func (m *ActiveMap) PlacePlayerAtPosition(p *player.Player, x, y float64) {

@@ -99,7 +99,7 @@ func (m *ActiveMap) Draw(screen *ebiten.Image, om *overlay.OverlayManager) {
 		}
 	}
 	if skippedLight {
-		logz.Warnln("Map Lights", "MaxLights reached; some lights were skipped")
+		logz.Warnln("Map Lights", "MaxLights reached; some lights were skipped. MaxLights:", lights.MaxLights)
 		logz.Println("", drawLights)
 	}
 

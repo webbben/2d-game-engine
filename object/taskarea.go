@@ -8,6 +8,8 @@ import (
 type TaskArea struct {
 	TaskID string
 	Dir    byte
+	// optional; used by the PATROL task to order waypoints; default 0
+	PatrolOrder int
 }
 
 func (o *Object) loadTaskAreaObject(allProps []tiled.Property) {
@@ -30,5 +32,9 @@ func (o *Object) loadTaskAreaObject(allProps []tiled.Property) {
 		}
 	} else {
 		o.TaskArea.Dir = 'D'
+	}
+	patrolOrder, found := tiled.GetIntProperty("patrol_order", allProps)
+	if found {
+		o.TaskArea.PatrolOrder = patrolOrder
 	}
 }
