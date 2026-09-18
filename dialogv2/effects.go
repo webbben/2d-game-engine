@@ -13,3 +13,13 @@ type SetDialogMemoryEffect struct {
 func (e SetDialogMemoryEffect) Apply(ctx defs.DialogEffectContext) {
 	ctx.RecordMiscDialogMemory(e.MemoryKey)
 }
+
+// SetTimedMemoryEffect records a dialog memory key that expires after the given number of in-game hours.
+type SetTimedMemoryEffect struct {
+	MemoryKey string
+	Hours     int // in-game hours until the memory expires
+}
+
+func (e SetTimedMemoryEffect) Apply(ctx defs.DialogEffectContext) {
+	ctx.RecordTimedMemory(e.MemoryKey, e.Hours)
+}

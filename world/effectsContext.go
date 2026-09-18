@@ -6,9 +6,11 @@ import (
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/world/npc"
 )
 
 // This file holds all the actual implementations for the WorldEffectContext interface.
@@ -101,6 +103,51 @@ func (w *World) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef, re
 
 	// send an event to the NPC, assuming he exists...
 	w.EventBus.Publish(pubsub.NPCAssignTask(string(id), taskDef))
+}
+
+func (w *World) InitiateCombat(charStateID, targetCharStateID id.CharacterStateID) {
+	npcRef := w.getInWorldNPC(charStateID)
+	if npcRef == nil {
+		logz.Panicln("InitiateCombat", "initiating NPC is not a current in-world NPC:", charStateID)
+	}
+
+	var targetEntity *entity.Entity
+	if targetCharStateID == id.CharacterStateID(defs.PlayerID) {
+		if w.Player == nil {
+			logz.Panicln("InitiateCombat", "target is the player, but the player is nil")
+		}
+		targetEntity = w.Player.Entity
+	} else {
+		targetNPC := w.getInWorldNPC(targetCharStateID)
+		if targetNPC == nil {
+			logz.Panicln("InitiateCombat", "target NPC is not a current in-world NPC:", targetCharStateID)
+		}
+		targetEntity = targetNPC.Entity
+	}
+
+	taskDef := defs.TaskDef{
+		TaskID:   npc.TaskFight,
+		Priority: npc.Emergency,
+		Params:   npc.FightTaskParams{TargetEntity: targetEntity},
+	}
+
+	w.EventBus.Publish(pubsub.NPCAssignTask(string(charStateID), taskDef))
+}
+
+// getInWorldNPC resolves an NPC by char state ID, first from the world's regular
+// NPC registry, and falling back to temp scenario NPCs placed in the active map.
+func (w *World) getInWorldNPC(charStateID id.CharacterStateID) *npc.NPC {
+	if n, exists := w.NPCs[charStateID]; exists {
+		return n
+	}
+	if w.ActiveMap != nil {
+		for _, n := range w.ActiveMap.GetAllNPCs() {
+			if n.CharacterStateRef.ID == charStateID {
+				return n
+			}
+		}
+	}
+	return nil
 }
 
 func (w *World) QueueScenario(id defs.ScenarioID) {

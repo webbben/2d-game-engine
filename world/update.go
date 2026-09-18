@@ -12,26 +12,17 @@ import (
 )
 
 func (w *World) Update(showingLoadScreen bool) {
-	if w.ActiveMap == nil {
-		// If ActiveMap is nil, we assume that the game world is not "active" (i.e. it's in a loading screen, or something)
-		// So, we can just quit out of world updates in this case.
-		// We don't want NPC's to be doing things in the background world simulation while the player is just waiting on a load screen.
-		return
-	}
-	// when ActiveMap is defined, that means the player is actively in a map.
-	// this also means that background world simulation can occur, since the game world at large is also "active".
-
 	// allow time lapses to occur while in a screen, so a "sleep screen" can have time lapses take effect while still in screen.
-	if w.AwaitingTimeLapse {
+	if w.AwaitingTimeLapse.Load() {
 		if !w.SimPaused.Load() {
 			logz.Panicln("WORLD", "awaiting time lapse, but simulation hasn't been signaled to pause yet")
 		}
-		if w.TimeLapseTo == nil {
+		if w.TimeLapseTo.Load() == nil {
 			logz.Panicln("WORLD", "awaiting time lapse, but TimeLapseTo was nil!")
 		}
 		if w.SimPauseEffected.Load() {
 			// simulation has acknowledged the pause, so we can proceed with the time lapse.
-			w.timeLapse(*w.TimeLapseTo)
+			w.timeLapse(*w.TimeLapseTo.Load())
 			w.SimPaused.Store(false) // unpause simulation now that time lapse has occurred
 		}
 	}
@@ -41,10 +32,25 @@ func (w *World) Update(showingLoadScreen bool) {
 		return
 	}
 
+	if w.ActiveMap == nil {
+		// If ActiveMap is nil, we assume that the game world is not "active" (i.e. it's in a loading screen, or something)
+		// So, we can just quit out of world updates in this case.
+		// We don't want NPC's to be doing things in the background world simulation while the player is just waiting on a load screen.
+		logz.TODO("World.Update", "Does this ever get hit? Should we add a panic here? AI says this is dead code, so I was considering adding a panic here.")
+		return
+	}
+	// when ActiveMap is defined, that means the player is actively in a map.
+	// this also means that background world simulation can occur, since the game world at large is also "active".
+
 	// Note: making this a separate variable since I don't want to control w.BlockPlayerChanges by dialog.
 	// other places handle setting that variable (transitions, for example) so shouldn't touch it here.
 	blockPlayerChanges := w.BlockPlayerChanges
 	if w.ActiveMap.IsDialogActive() {
+		blockPlayerChanges = true
+	}
+	if w.ActiveMap.IsBookSessionActive() {
+		// don't let the player move or activate objects while reading a book;
+		// otherwise the activate key re-triggers the sign and double-starts the session.
 		blockPlayerChanges = true
 	}
 
@@ -167,8 +173,8 @@ func (w *World) timeLapse(newTime clock.GameTime) {
 		},
 	})
 
-	w.AwaitingTimeLapse = false
-	w.TimeLapseTo = nil
+	w.AwaitingTimeLapse.Store(false)
+	w.TimeLapseTo.Store(nil)
 }
 
 func (w *World) HandleMapDoor(result object.ObjectUpdateResult) {

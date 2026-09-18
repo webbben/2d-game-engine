@@ -796,7 +796,8 @@ type Movement struct {
 	SuggestedTargetPath []model.Coords `json:"-"` // a suggested path for this entity to consider merging into the target path
 }
 
-// SetPosition sets a tile position
+// SetPosition sets a tile position. This is essentially treated as a "teleport", so we also stop all movement
+// related behavior (if an entity's position is set/teleported, any ongoing movement should be cancelled).
 func (e *Entity) SetPosition(c model.Coords) {
 	mapWidth, mapHeight := e.World.MapDimensions()
 	if c.X > mapWidth {
@@ -809,6 +810,16 @@ func (e *Entity) SetPosition(c model.Coords) {
 	e.Y = float64(c.Y) * float64(config.TileSize)
 	e.TargetX = e.X
 	e.TargetY = e.Y
+
+	// also cancel all movement related behavior/flags
+	e.Movement.TargetPath = nil
+	e.Movement.SuggestedTargetPath = nil
+	e.Movement.IsMoving = false
+	e.Movement.Interrupted = false
+	e.Movement.Speed = 0
+	if e.Body.IsMoving() {
+		e.Body.StopAnimation()
+	}
 }
 
 func (e *Entity) SetPositionPx(x, y float64) {

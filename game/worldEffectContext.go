@@ -3,6 +3,7 @@ package game
 import (
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
@@ -38,6 +39,11 @@ func (g *Game) AddItem(itemID defs.ItemID, quantity int) {
 func (g *Game) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef, requireListener bool) {
 	g.requireWorld()
 	g.World.AssignTaskToNPC(id, taskDef, requireListener)
+}
+
+func (g *Game) InitiateCombat(charStateID, targetCharStateID id.CharacterStateID) {
+	g.requireWorld()
+	g.World.InitiateCombat(charStateID, targetCharStateID)
 }
 
 func (g *Game) QueueScenario(id defs.ScenarioID) {

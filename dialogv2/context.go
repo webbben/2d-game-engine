@@ -180,8 +180,36 @@ func (ctx DialogContext) RecordMiscDialogMemory(key string) {
 	ctx.Profile.Memory[key] = true
 }
 
+// RecordTimedMemory records a dialog memory key that will expire after the given number of in-game hours.
+func (ctx DialogContext) RecordTimedMemory(memoryKey string, hours int) {
+	if ctx.Profile.TimedMemory == nil {
+		ctx.Profile.TimedMemory = map[string]string{}
+	}
+	now := ctx.GameState.GetCurrentGameTime()
+	expiry := now
+	expiry.AddTime(hours)
+	ctx.Profile.TimedMemory[memoryKey] = string(expiry.GetTimestamp())
+}
+
+// HasMemory checks if a dialog memory key is remembered.
+// Timed memories are only visible while their expiry is still in the future; once the game time
+// passes the expiry, the key is treated as forgotten (and is lazily cleaned up from the profile state).
 func (ctx DialogContext) HasMemory(key string) bool {
-	return ctx.Profile.Memory[key]
+	if ctx.Profile.Memory[key] {
+		return true
+	}
+	expiryStr, exists := ctx.Profile.TimedMemory[key]
+	if !exists {
+		return false
+	}
+	expiry := clock.TimestampToGameTime(clock.GameTimestamp(expiryStr))
+	now := ctx.GameState.GetCurrentGameTime()
+	if !now.IsAfter(expiry) {
+		return true
+	}
+	// expired: lazily delete the key (it should no longer be remembered)
+	delete(ctx.Profile.TimedMemory, key)
+	return false
 }
 
 func (ctx DialogContext) GetCharacterSocialRank(id id.CharacterStateID) defs.SocialRank {
@@ -273,17 +301,15 @@ func (ctx DialogContext) PlayerHasItem(itemID defs.ItemID) bool {
 }
 
 func (ctx DialogContext) GetPlayerSkillLevel(skillID defs.SkillID) int {
-	playerState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	skills, _ := characterstate.CalculateSkillsAndAttributes(id.CharacterStateID(defs.PlayerID), ctx.dataman)
 
-	// TODO: need to factor in other things like traits, enchanted items (future), etc
-	return playerState.BaseSkills[skillID]
+	return skills[skillID]
 }
 
 func (ctx DialogContext) GetPlayerAttributeLevel(attrID defs.AttributeID) int {
-	playerState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	_, attrs := characterstate.CalculateSkillsAndAttributes(id.CharacterStateID(defs.PlayerID), ctx.dataman)
 
-	// TODO: need to factor in other things like traits, enchanted items (future), etc
-	return playerState.BaseAttributes[attrID]
+	return attrs[attrID]
 }
 
 func (ctx DialogContext) SetMapLock(mapID defs.MapID, lockID string, lockLevel int) {
@@ -307,4 +333,8 @@ func (ctx DialogContext) AddOpinionModifier(holder, subject id.CharacterStateID,
 
 func (ctx DialogContext) GetDialogNPC() id.CharacterStateID {
 	return id.CharacterStateID(ctx.NPCID)
+}
+
+func (ctx DialogContext) InitiateCombat(charStateID, targetCharStateID id.CharacterStateID) {
+	ctx.GameState.InitiateCombat(charStateID, targetCharStateID)
 }

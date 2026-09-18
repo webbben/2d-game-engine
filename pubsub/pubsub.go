@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/utils"
@@ -188,7 +189,9 @@ func (eb *EventBus) ScheduleFutureEvent(e defs.Event, futureTime clock.GameTime)
 	}
 	eb.futureEventSchedule[futureTime] = append(eb.futureEventSchedule[futureTime], e)
 
-	logz.Println("EVENT BUS", "Queued future event:", e.Type, "Scheduled for:", futureTime)
+	if config.Logging.EventBus <= config.LogLevelInfo {
+		logz.Println("EVENT BUS", "Queued future event:", e.Type, "Scheduled for:", futureTime)
+	}
 }
 
 func (eb *EventBus) FireScheduledEvents(currentTime clock.GameTime) {
@@ -205,7 +208,9 @@ func (eb *EventBus) FireScheduledEvents(currentTime clock.GameTime) {
 // Unsubscribe removes an event subscription. Panics if the subscriber ID isn't registered, so only use this if you are sure
 // the subscription exists.
 func (eb *EventBus) Unsubscribe(subID string) {
-	logz.Println("EVENT BUS", "unsubscribing:", subID)
+	if config.Logging.EventBus <= config.LogLevelInfo {
+		logz.Println("EVENT BUS", "unsubscribing:", subID)
+	}
 
 	eventID, exists := eb.alreadySubscribed[subID]
 	if !exists {

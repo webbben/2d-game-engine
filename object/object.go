@@ -337,6 +337,8 @@ type WorldContext interface {
 
 type SpawnPoint struct {
 	SpawnIndex int
+	// the direction an entity should face when spawned here; 0 (unset) means "keep current facing".
+	FaceDirection byte
 }
 
 func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dataman *datamanager.DataManager, eventBus *pubsub.EventBus, mapID defs.MapID, world WorldContext) *Object {
@@ -645,7 +647,8 @@ func (obj *Object) addDefaultCollision() {
 }
 
 const (
-	PropSpawnIndex string = "spawn_index"
+	PropSpawnIndex    string = "spawn_index"
+	PropFaceDirection string = "face_direction"
 )
 
 func (obj *Object) loadSpawnObject(props []tiled.Property) {
@@ -653,7 +656,27 @@ func (obj *Object) loadSpawnObject(props []tiled.Property) {
 		switch prop.Name {
 		case PropSpawnIndex:
 			obj.SpawnPoint.SpawnIndex = prop.GetIntValue()
+		case PropFaceDirection:
+			obj.SpawnPoint.FaceDirection = parseSpawnFaceDirection(prop.GetStringValue())
 		}
+	}
+}
+
+func parseSpawnFaceDirection(dir string) byte {
+	switch dir {
+	case "":
+		return 0
+	case "L":
+		return model.Directions.Left
+	case "R":
+		return model.Directions.Right
+	case "U":
+		return model.Directions.Up
+	case "D":
+		return model.Directions.Down
+	default:
+		logz.Panicln("loadSpawnObject", "invalid face_direction value:", dir)
+		return 0
 	}
 }
 

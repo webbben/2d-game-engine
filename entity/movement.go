@@ -261,11 +261,13 @@ func (e *Entity) TryMoveMaxPx(dx, dy, speed float64) MoveError {
 		moveError2 := e.TryMovePx(dx, dy, speed)
 		if moveError2.Collision {
 			// still colliding after adjustment, so report this case
-			logz.Warnln("TryMoveMaxPx", "failed to adjust movement to avoid collision. delta:", delta)
-			logz.Warnln("", "origDx:", originalDx, "origDy:", originalDy)
-			logz.Warnln("", "cx:", cx, "cy:", cy, "newDx:", dx, "newDy:", dy)
-			logz.Warnln("", "curPos:", curPos, "collision point:", moveError.CollisionPoint)
-			logz.Warnln("", "collision result:", moveError.CollisionResult)
+			if config.Logging.Movement <= config.LogLevelWarning {
+				logz.Warnln("TryMoveMaxPx", "failed to adjust movement to avoid collision. delta:", delta)
+				logz.Warnln("", "origDx:", originalDx, "origDy:", originalDy)
+				logz.Warnln("", "cx:", cx, "cy:", cy, "newDx:", dx, "newDy:", dy)
+				logz.Warnln("", "curPos:", curPos, "collision point:", moveError.CollisionPoint)
+				logz.Warnln("", "collision result:", moveError.CollisionResult)
+			}
 
 			// at this point, just try to move in one of the two directions
 			// TODO: I think this produces an effect where the player doesn't fully touch the wall sometimes, since one direction's movement is cancelled

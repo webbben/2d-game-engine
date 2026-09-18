@@ -252,6 +252,8 @@ type DialogEffectContext interface {
 	RecordTopicSeen(id TopicID)
 	RecordTopicUnlocked(id TopicID)
 	RecordMiscDialogMemory(key string)
+	// RecordTimedMemory records a dialog memory key that will expire after the given number of in-game hours.
+	RecordTimedMemory(memoryKey string, hours int)
 }
 
 type SetMemoryEffect struct {

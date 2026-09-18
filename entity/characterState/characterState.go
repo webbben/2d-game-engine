@@ -531,6 +531,31 @@ func AddOpinionModifier(holder, subject id.CharacterStateID, mod defs.OpinionMod
 	holderState.OpinionMods[subject] = append(holderState.OpinionMods[subject], mod)
 }
 
+// GetCultureMods returns the net skill and attribute modifiers from a culture group and its individual culture.
+// The group carries the bulk of the mods; the culture def is an optional per-culture tweak.
+func GetCultureMods(cultureDef defs.CultureDef, cultureGroup defs.CultureGroupDef) (skillMods map[defs.SkillID]int, attrMods map[defs.AttributeID]int) {
+	skillMods = make(map[defs.SkillID]int)
+	attrMods = make(map[defs.AttributeID]int)
+
+	// apply culture group mods first
+	for attrID, mod := range cultureGroup.AttrMods {
+		attrMods[attrID] += mod
+	}
+	for skillID, mod := range cultureGroup.SkillMods {
+		skillMods[skillID] += mod
+	}
+
+	// then apply individual culture mods
+	for attrID, mod := range cultureDef.AttrMods {
+		attrMods[attrID] += mod
+	}
+	for skillID, mod := range cultureDef.SkillMods {
+		skillMods[skillID] += mod
+	}
+
+	return skillMods, attrMods
+}
+
 func CalculateSkillsAndAttributes(charStateID id.CharacterStateID, dataman *datamanager.DataManager) (skills map[defs.SkillID]int, attrs map[defs.AttributeID]int) {
 	// get base skill levels
 	characterState := dataman.GetCharacterState(charStateID)
@@ -553,21 +578,15 @@ func CalculateSkillsAndAttributes(charStateID id.CharacterStateID, dataman *data
 	charDef := dataman.GetCharacterDef(characterState.DefID)
 	if charDef.CultureID != "" {
 		cultureDef := dataman.GetCultureDef(charDef.CultureID)
-		// apply culture group mods first
+		var cultureGroup defs.CultureGroupDef
 		if cultureDef.GroupID != "" {
-			cultureGroup := dataman.GetCultureGroup(cultureDef.GroupID)
-			for attrID, mod := range cultureGroup.AttrMods {
-				attrLevels[attrID] += mod
-			}
-			for skillID, mod := range cultureGroup.SkillMods {
-				skillLevels[skillID] += mod
-			}
+			cultureGroup = dataman.GetCultureGroup(cultureDef.GroupID)
 		}
-		// then apply individual culture mods
-		for attrID, mod := range cultureDef.AttrMods {
+		skillMods, attrMods := GetCultureMods(cultureDef, cultureGroup)
+		for attrID, mod := range attrMods {
 			attrLevels[attrID] += mod
 		}
-		for skillID, mod := range cultureDef.SkillMods {
+		for skillID, mod := range skillMods {
 			skillLevels[skillID] += mod
 		}
 	}

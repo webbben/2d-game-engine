@@ -37,6 +37,7 @@ const (
 	TaskBartender   defs.TaskID = "BARTENDER"
 	TaskShopkeeper  defs.TaskID = "SHOPKEEPER"
 	TaskGoToTavern  defs.TaskID = "GO_TO_TAVERN"
+	TaskPatrol      defs.TaskID = "PATROL"
 )
 
 const (

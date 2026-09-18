@@ -27,14 +27,23 @@ func (nm *NPCManager) getNextNPCPriority() int {
 	return nextPriority
 }
 
+func (nm *NPCManager) StopBackgroundNPCManager() {
+	if !nm.RunBackgroundJobs.Load() {
+		return
+	}
+	nm.RunBackgroundJobs.Store(false)
+	nm.bgLoopWait.Wait()
+}
+
 func (nm *NPCManager) startBackgroundNPCManager() {
-	if !nm.RunBackgroundJobs {
+	if !nm.RunBackgroundJobs.Load() {
 		panic("NPC Manager: tried to start background jobs loop even though flag is set to false.")
 	}
 	if nm.backgroundJobsRunning {
 		panic("NPC Manager: tried to start more than one background jobs loop!")
 	}
 	nm.backgroundJobsRunning = true
+	nm.bgLoopWait.Add(1)
 	go nm._asyncJobs()
 }
 
@@ -50,6 +59,7 @@ const maxBgLoopSpeed = time.Millisecond * 100
 func (nm *NPCManager) _asyncJobs() {
 	defer func() {
 		nm.backgroundJobsRunning = false
+		nm.bgLoopWait.Done()
 		logz.Println("NPC Manager", "stopping background jobs loop")
 	}()
 
@@ -57,7 +67,7 @@ func (nm *NPCManager) _asyncJobs() {
 
 	for {
 		start := time.Now()
-		if !nm.RunBackgroundJobs {
+		if !nm.RunBackgroundJobs.Load() {
 			return
 		}
 

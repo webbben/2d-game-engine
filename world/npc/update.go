@@ -114,8 +114,6 @@ func (mgmt *TaskMGMT) RunScheduleTask(hour int, n *NPC) {
 // On the other hand, some quests or scenarios might make use of assigning smaller tasks one at a time to get a sequence of behaviors.
 // Like how the prison ship scenario goes, where a guard is assigned the Goto task, startdialog task, and goto tasks as a series of chained tasks.
 func (mgmt *TaskMGMT) RunTask(taskDef defs.TaskDef, n *NPC) {
-	logz.Println(n.ID(), "attempting to run task:", taskDef.TaskID)
-
 	if taskDef.TaskID == TaskDoNothing {
 		// do nothing tasks are just a way for the schedule to tell an NPC to... do nothing. be frozen in one spot.
 		// Decision: keep the nil shortcut rather than a hollow "do nothing" task. A nil current task naturally

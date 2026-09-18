@@ -13,7 +13,28 @@ type DefaultBox struct {
 	OriginIndex int
 }
 
+type LogLevel int
+
+const (
+	LogLevelAll     LogLevel = iota // show all logs, no matter what priority
+	LogLevelInfo                    // show all logs, include logs that display information during runtime
+	LogLevelWarning                 // only show logs of priority warning or above
+	LogLevelNone                    // will show no logs, unless a crash occurs
+)
+
+type LogLevels struct {
+	Movement LogLevel
+	EventBus LogLevel
+}
+
 var (
+	// Determines how much logging should happen for different parts of the game engine
+	// TODO: I'll need to gradually incorporate this over time, because there is a lot of logging in this engine.
+	Logging = LogLevels{
+		Movement: LogLevelWarning,
+		EventBus: LogLevelWarning,
+	}
+
 	// If true, all tiles generated during previous game sessions will be deleted and will have to be regenerated.
 	// This is meant for dev, when tilesets are changing frequently, but comes with a hefty performance cost.
 	DeletePreviousSessionTiles bool = true

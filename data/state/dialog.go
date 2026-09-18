@@ -20,4 +20,8 @@ type DialogProfileState struct {
 	// Note: avoid using directly. better to use the specific functions for setting and reading memory map.
 	// This is profile specific - global knowledge of things like world lore topics should be stored in the Player instead.
 	Memory map[string]bool
+
+	// TimedMemory holds dialog memory keys that expire: key -> game timestamp at which it expires.
+	// Unlike Memory, these are not permanent; once the game time passes the stored timestamp, the key is no longer remembered.
+	TimedMemory map[string]string
 }

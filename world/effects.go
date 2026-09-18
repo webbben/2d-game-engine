@@ -210,3 +210,22 @@ func (e AddOpinionModEffect) Apply(ctx defs.WorldEffectContext) {
 	}
 	ctx.AddOpinionModifier(e.Holder, e.Subject, e.Mod)
 }
+
+type InitiateCombatEffect struct {
+	CharStateID       id.CharacterStateID // if left empty, assumed to be the NPC in a dialog
+	TargetCharStateID id.CharacterStateID // if left empty, assumed to be the player
+}
+
+func (e InitiateCombatEffect) Apply(ctx defs.WorldEffectContext) {
+	if e.CharStateID == "" {
+		e.CharStateID = ctx.GetDialogNPC()
+		if e.CharStateID == "" {
+			logz.Println("InitiateCombatEffect", e)
+			logz.Panicln("InitiateCombatEffect", "CharStateID was empty, so we tried to get the current dialog NPC, but that came back as empty too. CharStateID should only be empty if being called from a dialog")
+		}
+	}
+	if e.TargetCharStateID == "" {
+		e.TargetCharStateID = id.CharacterStateID(defs.PlayerID)
+	}
+	ctx.InitiateCombat(e.CharStateID, e.TargetCharStateID)
+}

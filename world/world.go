@@ -49,7 +49,7 @@ type World struct {
 
 	// General world information
 
-	Clock clock.Clock
+	Clock *clock.Clock
 
 	WorldGraph *worldgraph.WorldGraph
 
@@ -66,8 +66,8 @@ type World struct {
 
 	// time lapse - for things like sleeping or waiting in-game.
 
-	AwaitingTimeLapse bool            // when a time lapse action comes in, set this flag and then wait until sim pause has been effected before doing time lapse.
-	TimeLapseTo       *clock.GameTime // the time we should lapse to
+	AwaitingTimeLapse atomic.Bool                    // when a time lapse action comes in, set this flag and then wait until sim pause has been effected before doing time lapse.
+	TimeLapseTo       atomic.Pointer[clock.GameTime] // the time we should lapse to
 
 	// Map Information
 
@@ -258,7 +258,8 @@ func (w *World) setupNewMap(mapID defs.MapID) {
 
 	// initialize day light and send out hour event
 	// skip NPC check since that is handled below in the NPC loading functions
-	w.OnHourChange(w.Clock.Hour, true, true, true)
+	currentTime := w.Clock.GetCurrentGameTime()
+	w.OnHourChange(currentTime.Hour, true, true, true)
 
 	// figure out which NPCs should be added to the map
 	// check if a scenario should be loaded into the map
@@ -322,10 +323,10 @@ func (w *World) CloseMap() {
 	for _, n := range w.ActiveMap.NPCs {
 		n.PrepareLeaveActiveMap()
 	}
-
 	for _, obj := range w.ActiveMap.Objects {
 		obj.OnMapClose()
 	}
+	w.ActiveMap.StopBackgroundNPCManager()
 	w.ActiveMap = nil
 }
 
@@ -409,7 +410,6 @@ func (w *World) GetPlayerPosition() model.Coords {
 }
 
 func (w *World) OnEvent(e defs.Event) {
-	logz.Println("WORLD", "Incoming event:", e.Type)
 	switch e.Type {
 	case pubsub.SysEventChangeMapOccupancy:
 		if _, ok := e.Data["params"]; ok {
@@ -548,13 +548,16 @@ func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to def
 		if n == nil {
 			panic("npc was nil")
 		}
-		x, y, found := w.ActiveMap.GetSpawnPosition(toSpawn)
+		x, y, faceDir, found := w.ActiveMap.GetSpawnPointInfo(toSpawn)
 		if !found {
 			logz.Println("ChangeMapOccupancy", toSpawn)
 			logz.Panicln("ChangeMapOccupancy", "spawn point not found")
 		}
 		startPos := model.ConvertPxToTilePos(x, y)
 		w.ActiveMap.AddNPCToMap(n, startPos)
+		if faceDir != 0 {
+			n.Entity.SetDirection(faceDir)
+		}
 	}
 
 	// send event to notify map movement
@@ -588,7 +591,7 @@ func (w *World) getNPC(id id.CharacterStateID) *npc.NPC {
 // This is because this function is used to allow NPCs to enter the map that the player is already in - so it's like they're walking into the map from the doorway.
 func (w *World) AddNPCToActiveMap(charStateID id.CharacterStateID, spawnIndex int) {
 	n := w.getNPC(charStateID)
-	x, y, found := w.ActiveMap.GetSpawnPosition(spawnIndex)
+	x, y, faceDir, found := w.ActiveMap.GetSpawnPointInfo(spawnIndex)
 	if !found {
 		logz.Println("AddNPCToActiveMap", spawnIndex, "mapID:", w.ActiveMap.MapID)
 		logz.Panicln("AddNPCToActiveMap", "given spawn index doesn't exist in active map")
@@ -596,6 +599,9 @@ func (w *World) AddNPCToActiveMap(charStateID id.CharacterStateID, spawnIndex in
 	spawnPos := model.ConvertPxToTilePos(x, y)
 
 	w.ActiveMap.AddNPCToMap(n, spawnPos)
+	if faceDir != 0 {
+		n.Entity.SetDirection(faceDir)
+	}
 }
 
 func (w *World) TogglePlayerMenu() {

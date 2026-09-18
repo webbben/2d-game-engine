@@ -103,6 +103,10 @@ type WorldEffectContext interface {
 	AssignTaskToNPC(id CharacterDefID, taskDef TaskDef, requireListener bool)
 	AddOpinionModifier(holder, subject id.CharacterStateID, mod OpinionModifier)
 	GetDialogNPC() id.CharacterStateID // if not in a dialog, returns empty string
+
+	// InitiateCombat makes the given NPC start a fight against the given character (can be an NPC or the player).
+	// The initiator must be a current in-world NPC. Entity resolution happens inside the world; no entity pointers are exposed.
+	InitiateCombat(charStateID id.CharacterStateID, targetCharStateID id.CharacterStateID)
 }
 
 type EventContext interface {
@@ -123,7 +127,7 @@ type GameScreenContext interface {
 	// until the simulation loop is successfully paused.
 	StartTimeLapse(newTime clock.GameTime)
 
-	GetLoadingStatus() (complete bool, progress float64)
+	GetLoadingStatus() (complete bool)
 	GetGameStage() GameStage
 	SetGameStage(stage GameStage)
 

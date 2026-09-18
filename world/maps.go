@@ -76,8 +76,7 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 			objectInfo := m.GetObjectPropsAndTile(obj)
 			objType, found := object.GetObjectType(objectInfo.AllProps)
 			if !found {
-				logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapID)
-				logz.Panicln("CreateNewMapState", "object didn't have a TYPE property")
+				logz.PanicCtx("CreateNewMapState", "object didn't have a TYPE property", obj.ID, "mapID:", mapID)
 			}
 
 			// check if there is a lock on this object

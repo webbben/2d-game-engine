@@ -1,6 +1,8 @@
 package object
 
 import (
+	"fmt"
+
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/tiled"
@@ -15,6 +17,8 @@ func (obj *Object) loadLightObject(props []tiled.Property) {
 	lightProps := tiled.GetLightProps(props)
 
 	l := lights.NewLightFromTiledProps(int(obj.xPos+float64(obj.Width/2)), int(obj.yPos+float64(obj.Height/2)), lightProps)
+
+	l.DebugInfo = fmt.Sprintf("obj %v", obj.ID)
 
 	obj.Light = Light{
 		Light: &l,
