@@ -36,7 +36,7 @@ func (g *Game) AddItem(itemID defs.ItemID, quantity int) {
 	g.World.AddItem(itemID, quantity)
 }
 
-func (g *Game) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef, requireListener bool) {
+func (g *Game) AssignTaskToNPC(id id.CharacterDefID, taskDef defs.TaskDef, requireListener bool) {
 	g.requireWorld()
 	g.World.AssignTaskToNPC(id, taskDef, requireListener)
 }
@@ -68,7 +68,7 @@ func (g *Game) EnterMap(mapID defs.MapID, spawnIndex int, doTransition bool) {
 	g.World.EnterMap(mapID, spawnIndex, doTransition)
 }
 
-func (g Game) GetCurrentGameTime() clock.GameTime {
+func (g *Game) GetCurrentGameTime() clock.GameTime {
 	g.requireWorld()
 	return g.World.GetCurrentGameTime()
 }

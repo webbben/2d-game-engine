@@ -55,6 +55,9 @@ type ActiveMap struct {
 	MapID     defs.MapID
 	MapDef    defs.MapDef
 
+	// booleans that can be set to restrict player or map updates (these are just mirroring what's set in Update)
+	blockMapUpdates, blockPlayerChanges bool
+
 	InScenario bool // if set, this active map is part of a scenario. changes behavior about things like hourly task schedules.
 
 	dialogSession *dialogv2.DialogSession
@@ -101,6 +104,8 @@ type ActiveMap struct {
 	Lights        []*lights.Light  // permanent lights that are not controlled by an object
 	LightObjects  []*object.Object // lights controlled by an object
 	WindowObjects []*object.Object // window objects that emit light
+
+	lightIntensityGrid [][]float32
 
 	daylightFactor float64
 	daylightFader  lights.LightFader
@@ -262,6 +267,9 @@ func NewActiveMap(
 		m.addAllObjectsToMap(layer)
 	}
 
+	// setup light intensity grid cache
+	m.buildLightIntensityGrid()
+
 	// start up background jobs loop
 	if m.backgroundJobsRunning {
 		panic("backgroundJobsRunning flag is already true while initializing map")
@@ -283,6 +291,41 @@ func NewActiveMap(
 	debug.StopTimer("NewActiveMap")
 
 	return m
+}
+
+func (m *ActiveMap) buildLightIntensityGrid() {
+	debug.StartTimer("buildLightIntensityGrid")
+	if m.Map.Width <= 0 || m.Map.Height <= 0 {
+		logz.Panic("map dimensions were invalid!")
+	}
+
+	m.lightIntensityGrid = make([][]float32, m.Map.Height)
+	for y := range m.lightIntensityGrid {
+		m.lightIntensityGrid[y] = make([]float32, m.Map.Width)
+	}
+
+	for y := 0; y < m.Map.Height; y++ {
+		tileY := float64(y) * config.TileSize
+		for x := 0; x < m.Map.Width; x++ {
+			tileX := float64(x) * config.TileSize
+			var intensity float32
+			for _, light := range m.Lights {
+				intensity += light.CalculateIllumination(tileX, tileY)
+			}
+			for _, obj := range m.LightObjects {
+				if obj.Light.On {
+					intensity += obj.Light.Light.CalculateIllumination(tileX, tileY)
+				}
+			}
+			for _, obj := range m.WindowObjects {
+				if obj.Window.Light != nil {
+					intensity += obj.Window.Light.CalculateIllumination(tileX, tileY)
+				}
+			}
+			m.lightIntensityGrid[y][x] = intensity
+		}
+	}
+	debug.StopTimer("buildLightIntensityGrid")
 }
 
 // OnHourChange just handles adjusting the lighting based on the current hour
@@ -949,6 +992,9 @@ func (mi *ActiveMap) HandleObjectUpdate(result object.ObjectUpdateResult, obj *o
 			panic("signBookID was empty!")
 		}
 		mi.StartBookSession(result.SignBookID, mi.PlayerRef.GetPlayerInfo(), config.DefaultBookSessionParams)
+	case object.TypeLight:
+		// a light was turned on or off; recalculate light intensity grid
+		mi.buildLightIntensityGrid()
 	}
 }
 
@@ -994,4 +1040,33 @@ func (m *ActiveMap) PlacePlayerAtSpawnPoint(p *player.Player, spawnIndex int) {
 func (m *ActiveMap) PlacePlayerAtPosition(p *player.Player, x, y float64) {
 	m.AddPlayerToMap(p, x, y)
 	m.Camera.SetCameraPosition(x, y)
+}
+
+func (m *ActiveMap) GetLightIntensity(pos model.Coords) float32 {
+	if m.lightIntensityGrid == nil {
+		logz.Panic("light intensity grid is nil!")
+	}
+	if pos.X < 0 || pos.X >= m.Map.Width || pos.Y < 0 || pos.Y >= m.Map.Height {
+		logz.PanicCtx("GetLightIntensity", "pos is invalid", pos)
+	}
+
+	// get cached light intensity
+	staticIntensity := m.lightIntensityGrid[pos.Y][pos.X]
+
+	// factor in daylight
+	daylight := m.daylightFader.GetLightIntensity()
+
+	return min(staticIntensity+daylight, 1.0)
+}
+
+func (m *ActiveMap) PlayerIsHidden() bool {
+	if m.PlayerRef == nil {
+		logz.Panic("player is nil!")
+	}
+	for _, n := range m.NPCs {
+		if n.CanSeeEntity(id.PlayerStateID) {
+			return false
+		}
+	}
+	return true
 }

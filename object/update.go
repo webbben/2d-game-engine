@@ -83,7 +83,7 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 			if !slices.Contains(params.LockIDs, obj.lockID) {
 				// door is locked; cannot enter
 				// only play it if the player is locked out, not NPCs
-				if config.LockedSfx != "" && params.ActivatorID == id.CharacterStateID(defs.PlayerID) {
+				if config.LockedSfx != "" && params.ActivatorID == id.PlayerStateID {
 					obj.AudioMgr.PlaySFX(config.LockedSfx, 0.5)
 				}
 				return ObjectUpdateResult{}

@@ -145,7 +145,7 @@ func (e EventEffect) Apply(ctx defs.WorldEffectContext) {
 }
 
 type AssignTaskEffect struct {
-	CharDefID         defs.CharacterDefID
+	CharDefID         id.CharacterDefID
 	TaskDef           defs.TaskDef
 	PanicIfNoListener bool // if no NPC receives this assign task event, set this to trigger a panic
 }
@@ -197,7 +197,7 @@ func (e AddOpinionModEffect) Apply(ctx defs.WorldEffectContext) {
 		}
 	}
 	if e.Subject == "" {
-		e.Subject = id.CharacterStateID(defs.PlayerID)
+		e.Subject = id.PlayerStateID
 	}
 	if e.RelHours > 0 {
 		if e.Mod.Until != nil {
@@ -225,7 +225,7 @@ func (e InitiateCombatEffect) Apply(ctx defs.WorldEffectContext) {
 		}
 	}
 	if e.TargetCharStateID == "" {
-		e.TargetCharStateID = id.CharacterStateID(defs.PlayerID)
+		e.TargetCharStateID = id.PlayerStateID
 	}
 	ctx.InitiateCombat(e.CharStateID, e.TargetCharStateID)
 }

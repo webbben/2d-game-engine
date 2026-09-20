@@ -85,7 +85,7 @@ func NewDialogContext(npcID string, profile *state.DialogProfileState, profDef d
 	}
 
 	// find intersection of knowledge topics that both the player and NPC know about
-	playerCharState := dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	playerCharState := dataman.GetCharacterState(id.PlayerStateID)
 	for _, topicID := range profDef.KnowledgeTopics {
 		if playerCharState.Knowledge[topicID] {
 			ds.knowledgeTopics[topicID] = true
@@ -159,12 +159,12 @@ func (ctx *DialogContext) GetNPCID() string {
 	return ctx.NPCID
 }
 
-func (ctx DialogContext) GetCharacterDef(id defs.CharacterDefID) defs.CharacterDef {
+func (ctx DialogContext) GetCharacterDef(id id.CharacterDefID) defs.CharacterDef {
 	return ctx.dataman.GetCharacterDef(id)
 }
 
 func (ctx DialogContext) GetPlayerGold() int {
-	playerState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	playerState := ctx.dataman.GetCharacterState(id.PlayerStateID)
 	return item.CountMoney(playerState.StandardInventory, ctx.dataman)
 }
 
@@ -231,12 +231,12 @@ func (ctx DialogContext) GetQuestStage(qid defs.QuestID) (defs.QuestStageDef, de
 }
 
 func (ctx DialogContext) IsItemEquipped(itemID defs.ItemID) bool {
-	playerCharState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	playerCharState := ctx.dataman.GetCharacterState(id.PlayerStateID)
 	return characterstate.IsItemEquipped(itemID, *playerCharState)
 }
 
 func (ctx DialogContext) PlayerHasKnowledge(topicID defs.TopicID) bool {
-	playerCharState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	playerCharState := ctx.dataman.GetCharacterState(id.PlayerStateID)
 	return playerCharState.Knowledge[topicID]
 }
 
@@ -270,7 +270,7 @@ func (ctx DialogContext) RemoveRole(roleID defs.RoleID) {
 	ctx.GameState.RemoveRole(roleID)
 }
 
-func (ctx DialogContext) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef, requireListener bool) {
+func (ctx DialogContext) AssignTaskToNPC(id id.CharacterDefID, taskDef defs.TaskDef, requireListener bool) {
 	ctx.GameState.AssignTaskToNPC(id, taskDef, requireListener)
 }
 
@@ -287,7 +287,7 @@ func (ctx DialogContext) TravelToMap(mapID defs.MapID, spawnIndex int, hours int
 }
 
 func (ctx DialogContext) PlayerHasItem(itemID defs.ItemID) bool {
-	playerState := ctx.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	playerState := ctx.dataman.GetCharacterState(id.PlayerStateID)
 
 	for _, itemState := range playerState.InventoryItems {
 		if itemState != nil {
@@ -301,13 +301,13 @@ func (ctx DialogContext) PlayerHasItem(itemID defs.ItemID) bool {
 }
 
 func (ctx DialogContext) GetPlayerSkillLevel(skillID defs.SkillID) int {
-	skills, _ := characterstate.CalculateSkillsAndAttributes(id.CharacterStateID(defs.PlayerID), ctx.dataman)
+	skills, _ := characterstate.CalculateSkillsAndAttributes(id.PlayerStateID, ctx.dataman)
 
 	return skills[skillID]
 }
 
 func (ctx DialogContext) GetPlayerAttributeLevel(attrID defs.AttributeID) int {
-	_, attrs := characterstate.CalculateSkillsAndAttributes(id.CharacterStateID(defs.PlayerID), ctx.dataman)
+	_, attrs := characterstate.CalculateSkillsAndAttributes(id.PlayerStateID, ctx.dataman)
 
 	return attrs[attrID]
 }

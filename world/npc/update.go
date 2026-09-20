@@ -6,7 +6,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/utils"
 )
 
 const (
@@ -37,23 +36,6 @@ func (n *NPC) Update() {
 
 	n.npcUpdates()
 	n.Entity.Update()
-}
-
-func (n *NPC) updatePlayerSighting() {
-	n.initialPlayerSightingThisTick = false
-
-	// check if in sight range
-	n.playerInSightRange = utils.EuclideanDistCoords(n.WorldCtx.GetPlayerPosition(), n.Entity.TilePos()) < SightDist
-	if n.playerInSightRange {
-		n.lastPlayerSightingTime = time.Now()
-
-		// detect if this is the initial sighting
-		if !n.hasSeenPlayerYet {
-			n.initialPlayerSightingThisTick = true
-			logz.Println(n.ID(), "first player sighting")
-		}
-		n.hasSeenPlayerYet = true
-	}
 }
 
 func (mgmt *TaskMGMT) Update(n *NPC) {
@@ -235,7 +217,7 @@ func (n *NPC) npcUpdates() {
 		n.waitUntilDoneMoving = false
 	}
 
-	n.updatePlayerSighting()
+	n.updateVisibility()
 
 	// if there is no task, or if the task allows it, do default speech bubble behavior
 	if n.CurrentTask == nil || !n.CurrentTask.DisableDefaultSpeechBubbles() {

@@ -84,6 +84,11 @@ type Entity struct {
 	chairPosition         model.Vec2
 	positionBeforeSitting model.Vec2
 
+	IsSneaking bool
+
+	// TODO: would it make more sense to put VisibleEntities in the NPC instead? I just realized that it's only going to be used
+	// by NPCs, so there's no reason to put it here (player doesn't need to track this of course)
+
 	Loaded   bool     `json:"-"` // if the entity has been loaded into memory fully yet
 	Movement Movement `json:"movement"`
 	Position
@@ -102,6 +107,23 @@ type Entity struct {
 
 	Light                      *lights.Light
 	LightOffsetX, LightOffsetY float32
+}
+
+// EntityInfo holds information that NPCs can see about a specific entity
+type EntityInfo struct {
+	ID        id.CharacterStateID
+	TilePos   model.Coords
+	Sneaking  bool
+	Direction byte
+}
+
+func (e *Entity) GetEntityInfo() EntityInfo {
+	return EntityInfo{
+		ID:        e.ID(),
+		TilePos:   e.TilePos(),
+		Sneaking:  e.IsSneaking,
+		Direction: e.Direction(),
+	}
 }
 
 func (e *Entity) calculateArmorProtection() defs.RealProtection {
@@ -382,7 +404,7 @@ type NewCharacterStateParams struct {
 // - Or, perhaps a "generic" characterDef is being used to dynamically generate certain types of characters. In which case, this might go on later in the game.
 //
 // ... Basically, DON'T use this to "load an existing character back into the world". Each character only has this done to them once in their existence.
-func CreateNewCharacterState(charDefID defs.CharacterDefID, params NewCharacterStateParams, dataman *datamanager.DataManager) id.CharacterStateID {
+func CreateNewCharacterState(charDefID id.CharacterDefID, params NewCharacterStateParams, dataman *datamanager.DataManager) id.CharacterStateID {
 	charDef := dataman.GetCharacterDef(charDefID)
 
 	// find unique ID based on this characterDefID

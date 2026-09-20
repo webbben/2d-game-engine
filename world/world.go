@@ -111,7 +111,7 @@ func NewWorld(
 		config.DaysInSeason,
 	)
 
-	playerEnt := entity.LoadCharacterStateIntoEntity(id.CharacterStateID(defs.PlayerID), w.Dataman, w.Audioman, w.EventBus)
+	playerEnt := entity.LoadCharacterStateIntoEntity(id.PlayerStateID, w.Dataman, w.Audioman, w.EventBus)
 	p := player.NewPlayer(w.Dataman, playerEnt)
 	w.Player = &p
 
@@ -151,7 +151,7 @@ func (w *World) populateNPCMap() {
 	w.MapOccupancy = make(map[defs.MapID][]id.CharacterStateID)
 
 	for charID, charState := range w.Dataman.CharacterStates {
-		if charID == id.CharacterStateID(defs.PlayerID) {
+		if charID == id.PlayerStateID {
 			// we don't want to make an NPC for the player
 			continue
 		}

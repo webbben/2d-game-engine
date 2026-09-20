@@ -27,7 +27,7 @@ type Player struct {
 }
 
 func (p Player) GetPlayerInfo() defs.PlayerInfo {
-	charDef := p.dataman.GetCharacterDef(defs.PlayerID)
+	charDef := p.dataman.GetCharacterDef(id.PlayerDefID)
 	return defs.PlayerInfo{
 		PlayerName:    p.CharacterStateRef.DisplayName,
 		PlayerCulture: charDef.CultureID,
@@ -57,7 +57,7 @@ func NewPlayer(dataman *datamanager.DataManager, ent *entity.Entity) Player {
 		panic("player must have entity")
 	}
 
-	charState := dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	charState := dataman.GetCharacterState(id.PlayerStateID)
 
 	return Player{
 		CharacterStateRef: charState,

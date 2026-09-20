@@ -1,10 +1,12 @@
 package defs
 
-import "github.com/webbben/2d-game-engine/logz"
+import (
+	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/logz"
+)
 
 type (
 	EntityDefID    string
-	CharacterDefID string
 	UniquePlayerID string
 	RoleID         string
 	SocialRank     int
@@ -19,9 +21,6 @@ const (
 )
 
 const (
-	// This is used to identify the player's state and def. It is the only CharacterDefID that should be defined in the engine.
-	PlayerID CharacterDefID = "player"
-
 	// Whenever a breaking change is made to CharacterDef, increment this version number
 	CharacterDefVersion int = 1
 )
@@ -32,7 +31,7 @@ type CharacterDef struct {
 	Version int // for ensuring old character defs dont slip by unnoticed. use the version const when creating new character def JSONs.
 
 	// used for identifying the character within places like the DataManager.
-	ID CharacterDefID
+	ID id.CharacterDefID
 
 	Female bool // if set, character is female
 
@@ -90,8 +89,8 @@ func (cd CharacterDef) Validate() {
 // It is only used for dynamically generated characters; unique characters will have their character def ID directly set in a bed object (in Tiled).
 type CharacterGenerator struct {
 	ID              string
-	CharacterDefIDs []CharacterDefID // list of character defs that can be used when generating this character.
-	NameGenFn       func() string    // a function that returns a name that the character will use for its name.
+	CharacterDefIDs []id.CharacterDefID // list of character defs that can be used when generating this character.
+	NameGenFn       func() string       // a function that returns a name that the character will use for its name.
 	// list of dialog profiles that can be assigned to a character when generated. If nothing set here, defaults to the one in the character def.
 	// the reason we allow multiple is, it allows for some generated characters to have different "attitudes" perhaps. e.g. a friendly town guard vs a grumpy one.
 	DialogProfileIDs []DialogProfileID

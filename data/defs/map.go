@@ -3,6 +3,7 @@ package defs
 import (
 	"image/color"
 
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
@@ -94,7 +95,7 @@ type MapGenerator struct {
 	// Character Defs are given priority; if any are defined, only these will be assigned to beds
 	// Warning: CharacterDefs should represent unique NPCs; to reuse a character def, use/make a character generator for it.
 	// (assignment is just based on the order in which bed objects are found)
-	InhabitantCharacterDefs []CharacterDefID
+	InhabitantCharacterDefs []id.CharacterDefID
 
 	// If no character defs are defined, then any character gens defined here will get assigned to beds.
 	InhabitantCharacterGens []string

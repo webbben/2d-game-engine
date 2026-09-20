@@ -1,6 +1,10 @@
 package defs
 
-import "time"
+import (
+	"time"
+
+	"github.com/webbben/2d-game-engine/data/id"
+)
 
 type ScenarioID string
 
@@ -37,7 +41,7 @@ type ScenarioCharDef struct {
 	// we load a character def and instantiate it into a new, temporary state. we don't load existing character states for scenarios.
 	// this is because, scenarios are supposed to be completely cut off from the rest of the "game world", so we don't want anything that happens in it
 	// to be influenced by or influence the outside world.
-	CharDefID CharacterDefID
+	CharDefID id.CharacterDefID
 
 	// defines what the character is doing. if not set, the character will just stand there, doing nothing.
 	DefaultSchedule ScheduleID
@@ -91,7 +95,7 @@ func (step CutsceneStepDef) Validate() {
 }
 
 type CutsceneAssignTaskDef struct {
-	CharDefID CharacterDefID
+	CharDefID id.CharacterDefID
 	TaskDef   TaskDef
 }
 

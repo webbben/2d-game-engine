@@ -244,7 +244,7 @@ func (ds *DialogSession) dialogSetup(params DialogSessionParams) {
 	npcDef := ds.dataman.GetCharacterDef(npcState.DefID)
 	cultureDef := ds.dataman.GetCultureDef(npcDef.CultureID)
 	ds.Ctx.culture = cultureDef
-	playerState := ds.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	playerState := ds.dataman.GetCharacterState(id.PlayerStateID)
 	currentTime := ds.Ctx.GetCurrentGameTime()
 	// TODO: add some kind of hover window to show the specific opinion modifiers
 	// Also, if anything during dialog can cause a new opinion modifier, we need to recalculate this
@@ -268,7 +268,7 @@ func (ds *DialogSession) refreshOpinion() {
 		return
 	}
 	npcState := ds.dataman.GetCharacterState(id.CharacterStateID(ds.Ctx.NPCID))
-	playerState := ds.dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	playerState := ds.dataman.GetCharacterState(id.PlayerStateID)
 	currentTime := ds.Ctx.GetCurrentGameTime()
 	ds.opinionMods, ds.Ctx.opinion = characterstate.CalculateOpinion(npcState, playerState, currentTime, ds.dataman)
 	ds.buildOpinionHoverBox()

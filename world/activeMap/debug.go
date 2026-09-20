@@ -239,5 +239,20 @@ func (m *ActiveMap) ShowEntityCoords() string {
 func (m *ActiveMap) GetDaylightData(s *strings.Builder) {
 	lightColor := m.daylightFader.GetCurrentColor()
 	fmt.Fprintf(s, "daylight (RGB scales): [%v %v %v]\n", lightColor[0], lightColor[1], lightColor[2])
-	fmt.Fprintf(s, "darkness factor: %v", m.daylightFader.GetDarknessFactor())
+	fmt.Fprintf(s, "darkness factor: %v\n", m.daylightFader.GetDarknessFactor())
+
+	if m.PlayerRef != nil {
+		fmt.Fprint(s, "LIGHT\n")
+		playerInfo := m.PlayerRef.Entity.GetEntityInfo()
+		staticLighting := m.lightIntensityGrid[playerInfo.TilePos.Y][playerInfo.TilePos.X]
+		daylight := m.daylightFader.GetLightIntensity()
+		fmt.Fprintf(s, "staticLighting: %.2f | daylight: %.2f | combined: %.2f\n", staticLighting, daylight, staticLighting+daylight)
+		fmt.Fprintf(s, "IsSneaking: %v | hidden: %v\n", playerInfo.Sneaking, m.PlayerIsHidden())
+	}
+}
+
+func (m *ActiveMap) ActiveMapDebugData(s *strings.Builder) {
+	s.WriteString("ACTIVE MAP\n")
+	fmt.Fprintf(s, "blockPlayerChanges: %v | blockMapUpdates: %v\n", m.blockPlayerChanges, m.blockMapUpdates)
+	fmt.Fprintf(s, "scenario: %v\n", m.InScenario)
 }

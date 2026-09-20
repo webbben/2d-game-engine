@@ -8,7 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/model"
 )
 
-func (g Game) SaveGame() (saveFilePath string) {
+func (g *Game) SaveGame() (saveFilePath string) {
 	mapCoords := g.World.Player.Entity.TilePos()
 	if g.World.Player.Entity.IsSleeping {
 		// if the player is in a bed, get the position they'd be standing in if they left the bed
@@ -47,6 +47,6 @@ func (g *Game) LoadGame(saveFilePath string) {
 	g.gameStage = InGameWorld
 }
 
-func (g Game) GetAllExistingCharacters() []defs.ExistingCharacterInfo {
+func (g *Game) GetAllExistingCharacters() []defs.ExistingCharacterInfo {
 	return savegame.GetAllExistingCharacters()
 }

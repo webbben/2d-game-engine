@@ -38,7 +38,7 @@ type DataManager struct {
 	BodyPartDefs    map[defs.BodyPartID]defs.SelectedPartDef // only for body "skin" parts (not for equipment, since those are part of item defs)
 	FootstepSFXDefs map[defs.FootstepSFXDefID]defs.FootstepSFXDef
 
-	CharacterDefs       map[defs.CharacterDefID]defs.CharacterDef
+	CharacterDefs       map[id.CharacterDefID]defs.CharacterDef
 	CharacterStates     map[id.CharacterStateID]*state.CharacterState
 	CharacterGenerators map[string]defs.CharacterGenerator
 
@@ -71,7 +71,7 @@ func NewDataManager() *DataManager {
 		DialogProfiles:      make(map[defs.DialogProfileID]*defs.DialogProfileDef),
 		DialogTopics:        make(map[defs.TopicID]*defs.DialogTopic),
 		DialogProfileStates: make(map[defs.DialogProfileID]*state.DialogProfileState),
-		CharacterDefs:       make(map[defs.CharacterDefID]defs.CharacterDef),
+		CharacterDefs:       make(map[id.CharacterDefID]defs.CharacterDef),
 		CharacterStates:     make(map[id.CharacterStateID]*state.CharacterState),
 		CharacterGenerators: make(map[string]defs.CharacterGenerator),
 		NPCSchedules:        make(map[defs.ScheduleID]defs.ScheduleDef),
@@ -374,7 +374,7 @@ func (dataman *DataManager) LoadCharacterDef(charDef defs.CharacterDef) {
 	dataman.CharacterDefs[charDef.ID] = charDef
 }
 
-func (dataman *DataManager) GetCharacterDef(id defs.CharacterDefID) defs.CharacterDef {
+func (dataman *DataManager) GetCharacterDef(id id.CharacterDefID) defs.CharacterDef {
 	if id == "" {
 		panic("id was empty")
 	}
@@ -411,7 +411,7 @@ func (dataman *DataManager) GetCharacterState(id id.CharacterStateID) *state.Cha
 
 // GetNewCharStateID generates a new and unique CharacterStateID that is guaranteed to not be defined in definitionMgr yet.
 // Also uses the charDefID as its base, for convenience and search-ability
-func (dataman DataManager) GetNewCharStateID(defID defs.CharacterDefID) id.CharacterStateID {
+func (dataman DataManager) GetNewCharStateID(defID id.CharacterDefID) id.CharacterStateID {
 	charDef := dataman.GetCharacterDef(defID)
 	var charID id.CharacterStateID
 	if charDef.Unique {

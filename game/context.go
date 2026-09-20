@@ -58,7 +58,7 @@ func (g *Game) SetGameTime(gt clock.GameTime) {
 	g.World.Clock.SetGameTime(gt)
 }
 
-func (g Game) GetMapID() defs.MapID {
+func (g *Game) GetMapID() defs.MapID {
 	if g.World == nil {
 		return ""
 	}
@@ -68,7 +68,7 @@ func (g Game) GetMapID() defs.MapID {
 	return g.World.ActiveMap.MapID
 }
 
-func (g Game) GetActiveMapDef() defs.MapDef {
+func (g *Game) GetActiveMapDef() defs.MapDef {
 	if g.World == nil {
 		logz.Panicln("GetActiveMapDef", "tried to get active map def, but world is nil")
 	}
@@ -82,7 +82,7 @@ func (g Game) GetActiveMapDef() defs.MapDef {
 	return mapDef
 }
 
-func (g Game) GetPlayerInventoryRef() *state.StandardInventory {
+func (g *Game) GetPlayerInventoryRef() *state.StandardInventory {
 	if g.World == nil {
 		panic("world was nil")
 	}
@@ -130,14 +130,17 @@ func (g *Game) GetEntityAvatar(charStateID id.CharacterStateID, direction byte) 
 
 	tilesize := config.TileSize
 	entityAvatar := ebiten.NewImage(tilesize, tilesize*2)
-	if charStateID == id.CharacterStateID(defs.PlayerID) {
+	if charStateID == id.PlayerStateID {
 		// in case the game is in an inventory menu and entity updates aren't processing, sync the body to state
 		g.World.Player.Entity.SyncBodyToState()
 		entBody := g.World.Player.Entity.Body
 		entBody.SetDirection(direction)
 		entBody.SetAnimation(body.AnimIdle, body.SetAnimationOps{Force: true})
 		entBody.Update()
-		entBody.Draw(entityAvatar, 0, 0, 1)
+		entBody.Draw(entityAvatar, 0, 0, body.DrawBodyParams{
+			Scale:   1.0,
+			Opacity: 1.0,
+		})
 	} else {
 		npcRef := g.World.NPCs[charStateID]
 		if npcRef == nil {
@@ -147,7 +150,10 @@ func (g *Game) GetEntityAvatar(charStateID id.CharacterStateID, direction byte) 
 		entBody.SetDirection(direction)
 		entBody.SetAnimation(body.AnimIdle, body.SetAnimationOps{Force: true})
 		entBody.Update()
-		entBody.Draw(entityAvatar, 0, 0, 1)
+		entBody.Draw(entityAvatar, 0, 0, body.DrawBodyParams{
+			Scale:   1.0,
+			Opacity: 1.0,
+		})
 	}
 
 	return entityAvatar

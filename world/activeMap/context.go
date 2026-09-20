@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/dialogv2"
+	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
@@ -159,4 +160,19 @@ func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMa
 
 func (m *ActiveMap) GetOverlayManager() *overlay.OverlayManager {
 	return m.om
+}
+
+func (m *ActiveMap) GetEntityInfo(charStateID id.CharacterStateID) entity.EntityInfo {
+	if charStateID == id.PlayerStateID {
+		return m.PlayerRef.Entity.GetEntityInfo()
+	}
+
+	for _, n := range m.NPCs {
+		if n.CharacterStateRef.ID == charStateID {
+			return n.Entity.GetEntityInfo()
+		}
+	}
+
+	logz.PanicCtx("GetEntityInfo", "charStateID not found in active map NPCs", charStateID)
+	return entity.EntityInfo{}
 }

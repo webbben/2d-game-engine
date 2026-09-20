@@ -28,7 +28,7 @@ func (w *World) AddItem(itemID defs.ItemID, quantity int) {
 	if quantity <= 0 {
 		panic("item quantity was <= 0")
 	}
-	playerCharState := w.Dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	playerCharState := w.Dataman.GetCharacterState(id.PlayerStateID)
 	itemToAdd := w.Dataman.NewItemState(itemID, quantity)
 	characterstate.AddItemToInventory(playerCharState, *itemToAdd, w.Dataman)
 
@@ -93,7 +93,7 @@ func (w *World) BroadcastEvent(e defs.Event) {
 	w.EventBus.Publish(e)
 }
 
-func (w *World) AssignTaskToNPC(id defs.CharacterDefID, taskDef defs.TaskDef, requireListener bool) {
+func (w *World) AssignTaskToNPC(id id.CharacterDefID, taskDef defs.TaskDef, requireListener bool) {
 	logz.Println("AssignTaskToNPC", "assigning task to NPC", id, ":", taskDef.TaskID)
 	// confirm this is the ID of a unique characterDef
 	charDef := w.Dataman.GetCharacterDef(id)
@@ -112,7 +112,7 @@ func (w *World) InitiateCombat(charStateID, targetCharStateID id.CharacterStateI
 	}
 
 	var targetEntity *entity.Entity
-	if targetCharStateID == id.CharacterStateID(defs.PlayerID) {
+	if targetCharStateID == id.PlayerStateID {
 		if w.Player == nil {
 			logz.Panicln("InitiateCombat", "target is the player, but the player is nil")
 		}

@@ -49,6 +49,11 @@ const (
 	// Entity Interactions
 
 	// data:
+	// 	- "observer" (string/charStateID)
+	// 	- "target" (string/charStateID)
+	EventEntitySpotted defs.EventType = "entity_spotted"
+
+	// data:
 	// 	- "attacker" (string/charStateID)
 	// 	- "receiver" (string/charStateID)
 	// 	- "receiverPos" (model.vec2?)

@@ -4,6 +4,7 @@ package lights
 import (
 	_ "embed"
 	"fmt"
+	"math"
 	"math/rand"
 	"time"
 
@@ -64,6 +65,11 @@ func (l LightFader) GetCurrentColor() defs.LightColor {
 
 func (l LightFader) GetDarknessFactor() float32 {
 	return l.currentDarknessFactor * l.overallFactor
+}
+
+// GetLightIntensity represents the intensity/brightness of the actual daylight.
+func (l LightFader) GetLightIntensity() float32 {
+	return (l.currentColor[0] + l.currentColor[1] + l.currentColor[2]) / 3 * l.overallFactor
 }
 
 func (l *LightFader) SetOverallFactor(val float32) {
@@ -135,7 +141,7 @@ type Light struct {
 
 	// a value between 0 and 1 which is the percent brightness. lower this value for a dimmer light.
 	// defaults to 0.8
-	maxBrightness float32
+	MaxBrightness float32
 
 	flickerProgress int
 	glowing         bool
@@ -199,8 +205,52 @@ func NewLight(x, y int, lightDef defs.LightDef) Light {
 		flickerProgress:     flickerProgress,
 		innerRadiusFactor:   float32(lightDef.InnerRadiusFactor),
 		coreRadiusFactor:    float32(lightDef.CoreRadiusFactor),
-		maxBrightness:       float32(lightDef.MaxBrightness),
+		MaxBrightness:       float32(lightDef.MaxBrightness),
 	}
+}
+
+// CalculateIllumination takes logical x/y positions (not tile coordinates or draw positions) and returns how much this light contributes to illuminating this area.
+func (l Light) CalculateIllumination(x, y float64) float32 {
+	dx := float64(l.X) - x
+	dy := float64(l.Y) - y
+	dist := float32(math.Sqrt(dx*dx + dy*dy))
+
+	if dist > l.MaxRadius {
+		return 0
+	}
+	return (1 - dist/l.MaxRadius) * l.MaxBrightness
+}
+
+// CalculateIllumination takes logical x/y positions (pixel coordinates) and returns how much this directional window light contributes.
+func (w WindowLight) CalculateIllumination(x, y float64) float32 {
+	// Direction vector
+	dx := float64(w.DirectionX)
+	dy := float64(w.DirectionY)
+	dirLen := math.Sqrt(dx*dx + dy*dy)
+	if dirLen == 0 {
+		return 0
+	}
+	nx := dx / dirLen
+	ny := dy / dirLen
+
+	// Vector from window position to point
+	vx := x - float64(w.X)
+	vy := y - float64(w.Y)
+
+	// Distance along beam axis
+	distAlong := vx*nx + vy*ny
+	if distAlong < 0 || distAlong > float64(w.Length) {
+		return 0
+	}
+
+	// Perpendicular offset from beam centerline
+	perp := vx*(-ny) + vy*nx
+	if math.Abs(perp) > float64(w.Width)/2 {
+		return 0
+	}
+
+	// Intensity falloff with distance along beam
+	return float32(w.MaxIntensity) * float32(1-distAlong/float64(w.Length))
 }
 
 func NewLightFromTiledProps(x, y int, lightProp tiled.LightProps) Light {
@@ -313,7 +363,7 @@ func DrawMapLighting(
 		lightCoreRadiusFactors[i] = l.coreRadiusFactor
 
 		// brightness
-		lightMaxBrightness[i] = l.maxBrightness
+		lightMaxBrightness[i] = l.MaxBrightness
 
 		// light color
 		lightColors[i*3] = l.LightColor[0]
@@ -400,7 +450,7 @@ func DrawWindowLighting(
 	dst.DrawRectShader(display.SCREEN_WIDTH, display.SCREEN_HEIGHT, windowLightShader, op)
 }
 
-func CalculateDaylight(hour int) (defs.LightColor, float32) {
+func CalculateDaylight(hour int) (daylightColor defs.LightColor, nightFx float32) {
 	if hour < 0 || hour > 23 {
 		panic("invalid hour!")
 	}

@@ -389,7 +389,7 @@ func GetLockIDs(charState state.CharacterState, dataman *datamanager.DataManager
 }
 
 func AddKnowledge(topicID defs.TopicID, dataman *datamanager.DataManager, eventBus *pubsub.EventBus) {
-	playerState := dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	playerState := dataman.GetCharacterState(id.PlayerStateID)
 	if _, exists := playerState.Knowledge[topicID]; exists {
 		// knowledge already exists, so do nothing
 		logz.Println("AddKnowledge", "topic already known:", topicID)

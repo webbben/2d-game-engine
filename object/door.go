@@ -91,7 +91,7 @@ func (obj *Object) activateDoor(params ObjectActivationParams) ObjectUpdateResul
 
 	// check if this is the player, or an NPC
 	// It doesn't actually change the logic here, since the calling code will handle it, but good to know.
-	if params.ActivatorID == id.CharacterStateID(defs.PlayerID) {
+	if params.ActivatorID == id.PlayerStateID {
 		// player has activated the door
 		logz.Println("activateDoor", "Player going to map:", obj.Door.TargetMapID)
 	} else {
@@ -111,7 +111,7 @@ func (obj *Object) updateDoor() ObjectUpdateResult {
 		// do nothing - object clicks are detected and handled within mapInfo handler function
 	case "step":
 		if obj.World.GetPlayerRect().Intersects(obj.rect) {
-			return obj.activateDoor(ObjectActivationParams{ActivatorID: id.CharacterStateID(defs.PlayerID)})
+			return obj.activateDoor(ObjectActivationParams{ActivatorID: id.PlayerStateID})
 		}
 	default:
 		panic("invalid activation type for door")

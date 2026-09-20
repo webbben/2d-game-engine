@@ -110,10 +110,10 @@ func SaveGame(
 
 	// sanity checks; make sure things exist
 	_ = dataman.GetMapDef(mapID)
-	_ = dataman.GetCharacterState(id.CharacterStateID(defs.PlayerID))
+	_ = dataman.GetCharacterState(id.PlayerStateID)
 
 	// get player def
-	playerDef := dataman.GetCharacterDef(defs.PlayerID)
+	playerDef := dataman.GetCharacterDef(id.PlayerDefID)
 	sf.PlayerCharacterDef = playerDef
 
 	// if the player is using a custom class, save that off too.

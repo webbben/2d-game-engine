@@ -715,7 +715,12 @@ func (eb *EntityBodySet) cropHair() {
 	}
 }
 
-func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64) {
+type DrawBodyParams struct {
+	Scale   float64
+	Opacity float64
+}
+
+func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y float64, params DrawBodyParams) {
 	// Warning: Do not use characterScale anywhere except the bottom - where we draw stagingImg onto screen!
 	// we first make a "staging image" which is drawn without scale, and then we draw that image into screen using characterScale.
 	eb.stagingImg.Clear()
@@ -818,10 +823,13 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y, characterScale float64
 			ops.ColorScale.Scale(10, 1, 1, 1)
 		}
 	}
-	scaledTilesize := config.TileSize * characterScale
+	if params.Opacity < 1 {
+		ops.ColorScale.ScaleAlpha(float32(params.Opacity))
+	}
+	scaledTilesize := config.TileSize * params.Scale
 	drawX := x - (scaledTilesize * 2)
 	drawY := y - scaledTilesize
-	rendering.DrawImageWithOps(screen, eb.stagingImg, drawX, drawY, characterScale, &ops)
+	rendering.DrawImageWithOps(screen, eb.stagingImg, drawX, drawY, params.Scale, &ops)
 }
 
 // made this into a function since it will be needed when subtracting arms by equipBody

@@ -68,7 +68,7 @@ func (p *Player) handleMovement() bool {
 		v.Y += 1
 	}
 
-	running := ebiten.IsKeyPressed(ebiten.KeyShift)
+	running := !p.Entity.IsSneaking && ebiten.IsKeyPressed(ebiten.KeyShift)
 	faceMouse := ebiten.IsMouseButtonPressed(ebiten.MouseButtonRight)
 	if faceMouse {
 		// can't run while sidleing/facing mouse position
@@ -83,6 +83,9 @@ func (p *Player) handleMovement() bool {
 	animationTickInterval := p.Entity.Movement.WalkAnimationTickInterval
 	animation := body.AnimWalk
 	speed := p.CharacterStateRef.WalkSpeed()
+	if p.Entity.IsSneaking {
+		speed *= 0.5
+	}
 	if running {
 		animationTickInterval = p.Entity.Movement.RunAnimationTickInterval
 		animation = body.AnimRun
@@ -145,10 +148,16 @@ func (p *Player) handleActions() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
 		// TODO: commenting this out for now since combat system is out of date. need to fix it since so many updates have happened.
 		// p.CharacterStateRef.UnequipWeapon()
+		logz.TODO("toggle weapon equip")
 		return true
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
 		p.World.TogglePlayerMenu()
+		return true
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyControlLeft) {
+		p.Entity.IsSneaking = !p.Entity.IsSneaking
+		logz.Println("Sneak toggled", p.Entity.IsSneaking)
 		return true
 	}
 

@@ -47,6 +47,8 @@ type ActiveMapContext interface {
 	GetAllObjects() []*object.Object
 	GetAllNPCs() []*NPC
 	GetCostMap() [][]int
+	GetEntityInfo(charStateID id.CharacterStateID) entity.EntityInfo
+	GetLightIntensity(pos model.Coords) float32
 
 	StartDialog(dialogProfileID defs.DialogProfileID, npcID string)
 
@@ -70,10 +72,10 @@ type NPC struct {
 	// priority assigned to this NPC by the map it is added to. used for prioritizing which NPC moves first in a collision.
 	Priority int
 
-	playerInSightRange            bool      // if true, the player is within sight distance of the NPC
-	initialPlayerSightingThisTick bool      // if true, the NPC just saw the player for the first time this update tick
-	hasSeenPlayerYet              bool      // if true, this NPC has seen the player at some point already (in the current map)
-	lastPlayerSightingTime        time.Time // the last time the player was seen
+	visibleEntities               map[id.CharacterStateID]time.Time // maps which characters are visible, and the time they entered visibility
+	initialPlayerSightingThisTick bool                              // if true, the NPC just saw the player for the first time this update tick
+	hasSeenPlayerYet              bool                              // if true, this NPC has seen the player at some point already (in the current map)
+	lastPlayerSightingTime        time.Time                         // the last time the player was seen
 
 	// === World related things ===
 
@@ -268,6 +270,7 @@ func NewNPC(params NPCParams, dataman *datamanager.DataManager, audioMgr *audio.
 		speechBubbleOriginIndex:  params.SpeechBubbleOriginIndex,
 		speechBubbleFont:         params.SpeechBubbleFont,
 		activeMapSubscriptionIDs: make(map[string]bool),
+		visibleEntities:          make(map[id.CharacterStateID]time.Time),
 	}
 
 	n.eventBus.SubscribeToNPCEvents(n.ID(), n.ID(), n.OnEvent)
@@ -510,4 +513,9 @@ func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
 		Priority: Emergency,
 		Params:   FightTaskParams{TargetEntity: attackedBy},
 	}, n)
+}
+
+func (n *NPC) CanSeeEntity(charStateID id.CharacterStateID) bool {
+	_, seen := n.visibleEntities[charStateID]
+	return seen
 }

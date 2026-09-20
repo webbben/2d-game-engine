@@ -68,7 +68,7 @@ func ShowFullDebugReport() {
 	debug.ShowAllReports()
 }
 
-func (g Game) GetGameStage() defs.GameStage {
+func (g *Game) GetGameStage() defs.GameStage {
 	return g.gameStage
 }
 
@@ -146,7 +146,7 @@ func NewGame() *Game {
 //
 // - Loading ALL data definitions (into Datamanager, Questmanager, etc)
 //
-// - Loading the player's character def and character STATE into Datamanager (using the unique ID at defs.PlayerID).
+// - Loading the player's character def and character STATE into Datamanager (using the unique ID at id.PlayerDefID).
 //
 //	Yes, that's right: the player's character STATE should already exist. You need to create your own screen or process to instantiate this before creating the game world.
 //	Other character states should not be made before calling this, however.
@@ -195,7 +195,7 @@ func (g *Game) TogglePlayerMenu() {
 	g.World.TogglePlayerMenu()
 }
 
-func (g Game) LastPlayerUpdate() time.Time {
+func (g *Game) LastPlayerUpdate() time.Time {
 	if g.World.Player == nil {
 		logz.Panicln("LastPlayerUpdate", "player is nil")
 	}

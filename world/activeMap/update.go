@@ -9,6 +9,8 @@ import (
 )
 
 func (m *ActiveMap) Update(blockPlayerChanges bool) {
+	m.blockPlayerChanges = blockPlayerChanges
+
 	m.daylightFader.Update()
 
 	m.refreshPathfindingSnapshot()
@@ -73,6 +75,7 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 
 	m.Camera.MoveCamera(m.PlayerRef.Entity.X, m.PlayerRef.Entity.Y)
 
+	m.blockMapUpdates = blockMapUpdates
 	if blockMapUpdates {
 		return
 	}

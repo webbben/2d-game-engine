@@ -12,7 +12,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/debug"
 )
 
-func (g Game) showGameDebugInfo(screen *ebiten.Image) {
+func (g *Game) showGameDebugInfo(screen *ebiten.Image) {
 	var s strings.Builder
 
 	if config.TrackMemoryUsage {
@@ -42,6 +42,7 @@ func (g Game) showGameDebugInfo(screen *ebiten.Image) {
 
 		s.WriteString(fmt.Sprintf("TIME: %s\n", g.World.Clock))
 		g.World.ActiveMap.GetDaylightData(&s)
+		g.World.ActiveMap.ActiveMapDebugData(&s)
 
 		s.WriteString("\nMAP, CAMERA")
 		s.WriteString(fmt.Sprintf("\nMap ID: %s", g.World.ActiveMap.MapID))

@@ -18,7 +18,7 @@ func (c ConditionDialogMemory) IsMet(ctx defs.ConditionContext) bool {
 
 // ConditionCulture checks if a character has the specified culture
 type ConditionCulture struct {
-	CharDefID defs.CharacterDefID
+	CharDefID id.CharacterDefID
 	IsCulture defs.CultureID
 }
 
@@ -118,7 +118,7 @@ type ConditionSocialRank struct {
 func (c ConditionSocialRank) IsMet(ctx defs.ConditionContext) bool {
 	charStateID := ctx.GetNPCCharStateID()
 	if c.Player {
-		charStateID = id.CharacterStateID(defs.PlayerID)
+		charStateID = id.PlayerStateID
 	}
 	rank := ctx.GetCharacterSocialRank(charStateID)
 
@@ -139,7 +139,7 @@ type ConditionHasRole struct {
 func (c ConditionHasRole) IsMet(ctx defs.ConditionContext) bool {
 	charID := ctx.GetNPCCharStateID()
 	if c.Player {
-		charID = id.CharacterStateID(defs.PlayerID)
+		charID = id.PlayerStateID
 	}
 	return ctx.CharacterHasRole(charID, c.RoleID)
 }

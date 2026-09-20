@@ -151,7 +151,7 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 							HomeMapID:    mapID,
 							HomeMapBedID: obj.ID,
 						}
-						charStateID = entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), params, w.Dataman)
+						charStateID = entity.CreateNewCharacterState(id.CharacterDefID(charDefID), params, w.Dataman)
 					}
 				}
 
@@ -302,7 +302,7 @@ func (w *World) GenerateMap(mapGeneratorID string, returnMapID defs.MapID, retur
 					HomeMapID:    mapState.ID,
 					HomeMapBedID: obj.ID,
 				}
-				charStateID = entity.CreateNewCharacterState(defs.CharacterDefID(charDefID), params, w.Dataman)
+				charStateID = entity.CreateNewCharacterState(id.CharacterDefID(charDefID), params, w.Dataman)
 			} else if bedCount < len(mapGen.InhabitantCharacterGens) {
 				// generate an random NPC for this bed
 				charGenID := mapGen.InhabitantCharacterGens[bedCount]

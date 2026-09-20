@@ -223,7 +223,7 @@ type ConditionContext interface {
 	GetActiveMapDef() MapDef
 	HasSeenTopic(id TopicID) bool
 	HasMemory(key string) bool
-	GetCharacterDef(id CharacterDefID) CharacterDef
+	GetCharacterDef(id id.CharacterDefID) CharacterDef
 	GetCharacterSocialRank(id id.CharacterStateID) SocialRank
 	CharacterHasRole(id id.CharacterStateID, roleID RoleID) bool
 	GetPlayerGold() int

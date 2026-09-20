@@ -16,7 +16,14 @@ func (e *Entity) Draw(screen *ebiten.Image, om *overlay.OverlayManager, offsetX 
 	}
 
 	drawX, drawY := e.drawPos(offsetX, offsetY)
-	e.Body.Draw(screen, drawX, drawY, config.GameScale)
+	opacity := 1.0
+	if e.IsSneaking {
+		opacity = 0.5
+	}
+	e.Body.Draw(screen, drawX, drawY, body.DrawBodyParams{
+		Scale:   config.GameScale,
+		Opacity: opacity,
+	})
 	e.drawX = drawX
 	e.drawY = drawY
 

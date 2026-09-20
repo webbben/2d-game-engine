@@ -140,7 +140,7 @@ func (t *SleepTask) findBed() {
 				continue
 			}
 			if obj.Bed.InUse {
-				if obj.Bed.SleeperID != id.CharacterStateID(defs.PlayerID) {
+				if obj.Bed.SleeperID != id.PlayerStateID {
 					logz.Println("SleepTask", t.Owner.ID(), "bedID:", bedID, "sleeperID:", obj.Bed.SleeperID)
 					logz.Panicln("SleepTask", "Another (non-player) character appears to be sleeping in NPC's bed!")
 				}
@@ -150,7 +150,7 @@ func (t *SleepTask) findBed() {
 			}
 			targetingNPC := obj.GetTargetingNPC()
 			if targetingNPC != "" {
-				if targetingNPC == id.CharacterStateID(defs.PlayerID) {
+				if targetingNPC == id.PlayerStateID {
 					// player is... targeting the bed?  doesn't seem possible, since player doesn't use tasks right?
 					logz.Panicln("SleepTask", "player is apparently targeting the bed... this shouldnt be happening, right?")
 				}
