@@ -42,11 +42,4 @@ So, a completed game will probably look something like this:
   - this engine provides all the concepts needed for building these pages, such as UI components and access to all the relevant data via the root "Game" struct for ebiten, etc.
 - Some amount of code to handle wrapping it all together, loading the definitions into the engine, and starting the game.
 
-## Dev Log 
-
-I have a dev log in the _docs directory, which I use to track how things are going, talk about issues or new things I'm working on, etc.
-Since this engine is still in kind of an early phase of development, it mainly has discussions on technical issues, brainstorming new game concepts, and giving updates 
-on things like the "Character Builder" utility. But it will eventually also be a place to discuss the game I'm working on.
-
-[Dev Log](./_docs/devlog/devlog.md)
 
