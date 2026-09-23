@@ -77,6 +77,13 @@ type LevelSystemParameters struct {
 
 	CalculateMaxHealth  func(map[AttributeID]int) int
 	CalculateMaxStamina func(map[AttributeID]int) int
+
+	// "XP curve": how much XP a skill needs to go from one level to the next.
+	XPToNextSkillLevel func(currentLevel int) int
+
+	// Cap on the level a skill can rach through XP gains (i.e. how high a "base" level can get).
+	// Net skill levels can still exceed this through modifiers
+	SkillLevelCap int
 }
 
 // CombatSystemCalc includes all necessary functions to handle combat related calculation.

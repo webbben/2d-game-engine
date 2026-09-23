@@ -7,12 +7,16 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/utils"
+	"github.com/webbben/2d-game-engine/world/npc"
 )
 
 // MovementMechanics keep track of variables or state related to managing movement mechanics
@@ -37,6 +41,51 @@ func (p *Player) Update(blockPlayerChanges bool) {
 	}
 
 	p.Entity.Update()
+	p.updateSneakXP()
+}
+
+func (p *Player) updateSneakXP() {
+	if p.dataman.StealthSystemCalc == nil {
+		logz.Panic("stealth system calc is nil")
+	}
+
+	p.sneakXPTicks++
+	if p.sneakXPTicks < sneakXPCheckInterval {
+		return
+	}
+	p.sneakXPTicks = 0
+
+	if !p.Entity.IsSneaking || !p.Entity.Movement.IsMoving {
+		return
+	}
+
+	nearby := p.World.GetNearbyNPCs(p.X(), p.Y(), npc.SightDist)
+	if len(nearby) == 0 {
+		return
+	}
+	nearestDist := math.MaxFloat64
+	hidden := true
+	for _, n := range nearby {
+		dist := utils.EuclideanDist(p.X(), p.Y(), n.X(), n.Y())
+		if dist < nearestDist {
+			nearestDist = dist
+		}
+		if n.CanSeeEntity(id.PlayerStateID) {
+			hidden = false
+		}
+	}
+
+	skillID, xp := p.dataman.StealthSystemCalc.SneakXPGain(defs.SneakXPGainContext{
+		CharacterStateID: id.PlayerStateID,
+		Hidden:           hidden,
+		NearestNPCDist:   nearestDist,
+	})
+	if xp < 0 {
+		logz.PanicCtx("updateSneakXP", "xp as negative", xp)
+	}
+	if xp > 0 {
+		characterstate.AddSkillXP(id.PlayerStateID, skillID, xp, p.dataman, p.eventBus)
+	}
 }
 
 func (p *Player) handleMovement() bool {

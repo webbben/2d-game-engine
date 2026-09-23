@@ -51,6 +51,20 @@ type CharacterState struct {
 	BaseSkills     map[defs.SkillID]int     // Base skill levels (not including modifiers from traits, etc)
 	Traits         []defs.TraitID
 
+	SkillXP        map[defs.SkillID]int // Skill XP progression
+	PendingLevelUp bool                 // if true, that means this character is ready for a level up
+
+	// LevelUpWeight tracks weighted skill-level-up progress towards the next character level up.
+	// Each skill level-up adds the weight of its category (major/minor/misc).
+	// Crossing the K constant (see skills.CalculateK) marks a level-up as pending.
+	//
+	// Note: we don't need to store an actual Level field, because that can be calculated deterministically with LevelUpWeight and the K constant
+	// (so, we don't reset this value on each level up; it just keeps getting bigger as the character continues to level up)
+	LevelUpWeight float64
+
+	// tracks which skills have leveled up since the last completed character level up (used to determine level-up attribute increases)
+	SkillLevelUps map[defs.SkillID]int
+
 	Health     int
 	MaxHealth  int
 	Stamina    int

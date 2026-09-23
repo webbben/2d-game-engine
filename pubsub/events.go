@@ -1,6 +1,9 @@
 package pubsub
 
-import "github.com/webbben/2d-game-engine/data/defs"
+import (
+	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
+)
 
 const (
 	// for queueing up an event to broadcast in the future. not noticed by global event subscribers.
@@ -46,6 +49,11 @@ const (
 	EventRoleAdded   defs.EventType = "role_added"   // data: "roleID" (string)
 	EventRoleRemoved defs.EventType = "role_removed" // data: "roleID" (string)
 
+	// Skills
+
+	EventSkillLevelUp defs.EventType = "skill_level_up" // data: "struct" (pubsub.SkillLevelUpEventData)
+	EventLevelUpReady defs.EventType = "level_up_ready" // data: "charID" (string/charStateID)
+
 	// Entity Interactions
 
 	// data:
@@ -71,4 +79,10 @@ const DataKey string = "struct"
 type EventObjectActivatedData struct {
 	ObjectType  string // the type of object that was activated
 	ActivatorID string // who activated the object
+}
+
+type SkillLevelUpEventData struct {
+	CharacterStateID id.CharacterStateID
+	SkillID          defs.SkillID
+	NewLevel         int // new base level, after increase
 }

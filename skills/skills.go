@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"slices"
 
-	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/datamanager"
+	"github.com/webbben/2d-game-engine/data/defs"
 )
 
 const (
@@ -16,10 +16,20 @@ const (
 	SkillCategoryMajor defs.SkillCategory = "major"
 )
 
+// CalculateK calculates the "K Constant" for the level calculations forumla. This is just a wrapper over the actual logic,
+// and allows you to simply pass a level system parameters set for convenience.
+func CalculateK(lvlParams defs.LevelSystemParameters) float64 {
+	return calculateK(
+		lvlParams.MajorCount, lvlParams.MinorCount, lvlParams.MiscCount,
+		lvlParams.MajorRate, lvlParams.MinorRate, lvlParams.MiscRate,
+		lvlParams.MajorWeight, lvlParams.MinorWeight, lvlParams.MiscWeight,
+	)
+}
+
 // CalculateK calculates a "K Constant" for the level calculation formula.
 // It is derived from the rate in which skill levels increase, and how much their increase influence character level progress gain.
 // "If skills grow at the expected rates, how much weighted progress equals one level?"
-func CalculateK(
+func calculateK(
 	majorCount int,
 	minorCount int,
 	miscCount int,
@@ -66,7 +76,7 @@ func CalculateLevelFromSkills(
 		lvlParams.MajorWeight, lvlParams.MinorWeight, lvlParams.MiscWeight,
 	)
 
-	k := CalculateK(
+	k := calculateK(
 		lvlParams.MajorCount, lvlParams.MinorCount, lvlParams.MiscCount,
 		lvlParams.MajorRate, lvlParams.MinorRate, lvlParams.MiscRate,
 		lvlParams.MajorWeight, lvlParams.MinorWeight, lvlParams.MiscWeight,
@@ -131,7 +141,7 @@ func generateSkillsForLevel(
 	randomness float64,
 	rng *rand.Rand,
 ) map[defs.SkillID]int {
-	k := CalculateK(
+	k := calculateK(
 		lvlParams.MajorCount, lvlParams.MinorCount, lvlParams.MiscCount,
 		lvlParams.MajorRate, lvlParams.MinorRate, lvlParams.MiscRate,
 		lvlParams.MajorWeight, lvlParams.MinorWeight, lvlParams.MiscWeight,

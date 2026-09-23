@@ -12,8 +12,9 @@ import (
 )
 
 type DataManager struct {
-	CombatSystemCalc defs.CombatSystemCalc
-	LevelSysParams   *defs.LevelSystemParameters
+	CombatSystemCalc  defs.CombatSystemCalc
+	StealthSystemCalc defs.StealthSystemCalc
+	LevelSysParams    *defs.LevelSystemParameters
 
 	MapDefs             map[defs.MapID]defs.MapDef
 	MapStates           map[defs.MapID]*state.MapState
@@ -115,6 +116,10 @@ func (dataman *DataManager) LoadLevelSys(lvlSys *defs.LevelSystemParameters) {
 
 func (dataman *DataManager) LoadCombatSys(combatSys defs.CombatSystemCalc) {
 	dataman.CombatSystemCalc = combatSys
+}
+
+func (dataman *DataManager) LoadStealthSys(stealthSys defs.StealthSystemCalc) {
+	dataman.StealthSystemCalc = stealthSys
 }
 
 func (dataman *DataManager) LoadMapGenerator(gen defs.MapGenerator) {

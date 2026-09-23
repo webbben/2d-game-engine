@@ -6,13 +6,15 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/entity"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/utils"
 )
 
-func calculateVisibility(observer, target entity.EntityInfo, lightIntensity float32) float64 {
+func calculateVisibility(observer, target entity.EntityInfo, lightIntensity float32, sneakMult float64) float64 {
+	// TODO: factor in target movement speed (movement makes target more visible)
 	dist := utils.EuclideanDistCoords(observer.TilePos, target.TilePos)
 	if dist >= SightDist {
 		return 0
@@ -55,9 +57,8 @@ func calculateVisibility(observer, target entity.EntityInfo, lightIntensity floa
 	}
 
 	// sneak multiplier
-	// TODO: actually factor in sneak skill here
 	if target.Sneaking {
-		visibility *= 0.5
+		visibility *= sneakMult
 	}
 
 	if visibility < 0 {
@@ -74,7 +75,15 @@ func (n *NPC) updateVisibility() {
 	// check if player is visible
 	playerInfo := n.ActiveMapCtx.GetEntityInfo(id.PlayerStateID)
 	lightIntensity := n.ActiveMapCtx.GetLightIntensity(playerInfo.TilePos)
-	vis := calculateVisibility(observer, playerInfo, lightIntensity)
+	sneakMult := 1.0
+	if playerInfo.Sneaking {
+		if n.dataman.StealthSystemCalc == nil {
+			logz.Panic("stealth system calc isn't defined")
+		}
+		skills, attrs := characterstate.CalculateSkillsAndAttributes(playerInfo.ID, n.dataman)
+		sneakMult = n.dataman.StealthSystemCalc.SneakVisibilityMultiplier(playerInfo.ID, attrs, skills)
+	}
+	vis := calculateVisibility(observer, playerInfo, lightIntensity, sneakMult)
 	if vis > 0 {
 		if _, alreadySeen := n.visibleEntities[playerInfo.ID]; !alreadySeen {
 			n.visibleEntities[playerInfo.ID] = time.Now()
@@ -103,7 +112,15 @@ func (n *NPC) updateVisibility() {
 		}
 		target := n.ActiveMapCtx.GetEntityInfo(otherNpc.GetInfo().CharID)
 		lightIntensity := n.ActiveMapCtx.GetLightIntensity(target.TilePos)
-		vis := calculateVisibility(observer, target, lightIntensity)
+		sneakMult := 1.0
+		if target.Sneaking {
+			if n.dataman.StealthSystemCalc == nil {
+				logz.Panic("stealth system calc isn't defined")
+			}
+			skills, attrs := characterstate.CalculateSkillsAndAttributes(target.ID, n.dataman)
+			sneakMult = n.dataman.StealthSystemCalc.SneakVisibilityMultiplier(target.ID, attrs, skills)
+		}
+		vis := calculateVisibility(observer, target, lightIntensity, sneakMult)
 		if vis > 0 {
 			if _, alreadySeen := n.visibleEntities[target.ID]; !alreadySeen {
 				n.visibleEntities[target.ID] = time.Now()

@@ -112,7 +112,7 @@ func NewWorld(
 	)
 
 	playerEnt := entity.LoadCharacterStateIntoEntity(id.PlayerStateID, w.Dataman, w.Audioman, w.EventBus)
-	p := player.NewPlayer(w.Dataman, playerEnt)
+	p := player.NewPlayer(w.Dataman, w.EventBus, playerEnt)
 	w.Player = &p
 
 	// this ensures all map states exist, and also effectively that all NPC states exist, since everytime it encounters a bed for an NPC it ensures that NPC's state

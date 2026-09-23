@@ -2,6 +2,8 @@
 package entity
 
 import (
+	"maps"
+
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
@@ -470,9 +472,12 @@ func CreateNewCharacterState(charDefID id.CharacterDefID, params NewCharacterSta
 
 		StandardInventory: *item.ConvertInitialInventoryDef(charDef.InitialInventory),
 
-		BaseAttributes: charDef.BaseAttributes,
-		BaseSkills:     charDef.BaseSkills,
+		BaseAttributes: maps.Clone(charDef.BaseAttributes),
+		BaseSkills:     maps.Clone(charDef.BaseSkills),
 		Traits:         charDef.InitialTraits,
+
+		SkillXP:       make(map[defs.SkillID]int),
+		SkillLevelUps: make(map[defs.SkillID]int),
 
 		Health:     maxHealth,
 		MaxHealth:  maxHealth,

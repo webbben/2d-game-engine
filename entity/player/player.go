@@ -10,8 +10,13 @@ import (
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/world/npc"
+)
+
+const (
+	sneakXPCheckInterval = 120 // ticks between checks (~every 2s at 60fps)
 )
 
 type Player struct {
@@ -19,11 +24,14 @@ type Player struct {
 	CharacterStateRef *state.CharacterState
 	MovementMechanics
 
-	dataman *datamanager.DataManager
+	dataman  *datamanager.DataManager
+	eventBus *pubsub.EventBus
 
 	World WorldContext
 
 	LastUserInput time.Time // tracks when the user has last made some kind of input (movement, attack, etc)
+
+	sneakXPTicks int // ticks since last passive sneak-XP check
 }
 
 func (p Player) GetPlayerInfo() defs.PlayerInfo {
@@ -52,7 +60,7 @@ func (p Player) X() float64 {
 	return p.Entity.X
 }
 
-func NewPlayer(dataman *datamanager.DataManager, ent *entity.Entity) Player {
+func NewPlayer(dataman *datamanager.DataManager, eventBus *pubsub.EventBus, ent *entity.Entity) Player {
 	if ent == nil {
 		panic("player must have entity")
 	}
@@ -62,6 +70,7 @@ func NewPlayer(dataman *datamanager.DataManager, ent *entity.Entity) Player {
 	return Player{
 		CharacterStateRef: charState,
 		dataman:           dataman,
+		eventBus:          eventBus,
 		Entity:            ent,
 	}
 }

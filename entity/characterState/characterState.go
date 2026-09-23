@@ -16,6 +16,7 @@ import (
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/skills"
 	"github.com/webbben/2d-game-engine/utils"
 )
 
@@ -592,4 +593,100 @@ func CalculateSkillsAndAttributes(charStateID id.CharacterStateID, dataman *data
 	}
 
 	return skillLevels, attrLevels
+}
+
+func AddSkillXP(charStateID id.CharacterStateID, skillID defs.SkillID, xp int, dataman *datamanager.DataManager, eventBus *pubsub.EventBus) {
+	if xp <= 0 {
+		logz.Panic("xp was <= 0")
+	}
+	if skillID == "" {
+		logz.Panic("skillID was empty")
+	}
+	if charStateID == "" {
+		logz.Panic("charStateID was empty")
+	}
+	if eventBus == nil {
+		logz.Panic("event bus was nil")
+	}
+	if dataman == nil {
+		logz.Panic("dataman was nil")
+	}
+
+	lvlSys := dataman.LevelSysParams
+	if lvlSys == nil || lvlSys.XPToNextSkillLevel == nil {
+		logz.Panic("level sys was nil or incorrectly configured")
+	}
+
+	charState := dataman.GetCharacterState(charStateID)
+	if charState.PendingLevelUp {
+		logz.Println("AddSkillXP", "Character is already pending level up; XP gain ignored.", charState.ID)
+		return
+	}
+
+	curLevel := charState.BaseSkills[skillID]
+	if lvlSys.SkillLevelCap <= 0 {
+		logz.Panic("invalid skill level cap! (must be a positive non-zero value)")
+	}
+	if curLevel >= lvlSys.SkillLevelCap {
+		return
+	}
+
+	if charState.SkillXP == nil {
+		// just for backwards compatibility technically... but we should probably just create this in the constructor function for CharacterState
+		charState.SkillXP = make(map[defs.SkillID]int)
+	}
+	charState.SkillXP[skillID] += xp
+
+	nextLevelXP := lvlSys.XPToNextSkillLevel(curLevel)
+	if nextLevelXP <= 0 {
+		logz.PanicCtx("AddSkillXP", "nextLevelXP was invalid; it must be a positive non-zero value:", nextLevelXP)
+	}
+	if charState.SkillXP[skillID] < nextLevelXP {
+		return
+	}
+
+	// skill level up! leftover XP carries into next level
+	charState.SkillXP[skillID] -= nextLevelXP
+	charState.BaseSkills[skillID] += 1
+
+	// weighted progress towards a character level up
+	weight := lvlSys.MiscWeight
+	charDef := dataman.GetCharacterDef(charState.DefID)
+	classDef := dataman.GetClassDef(charDef.ClassDefID)
+	switch classDef.SkillCategories[skillID] {
+	case skills.SkillCategoryMajor:
+		weight = lvlSys.MajorWeight
+	case skills.SkillCategoryMinor:
+		weight = lvlSys.MinorWeight
+	}
+	charState.LevelUpWeight += weight
+
+	// record which skill have leveled up, so that we can determine which attributes are affected later on during character level up.
+	if charState.SkillLevelUps == nil {
+		charState.SkillLevelUps = make(map[defs.SkillID]int)
+	}
+	charState.SkillLevelUps[skillID] += 1
+
+	eventBus.Publish(defs.Event{
+		Type: pubsub.EventSkillLevelUp,
+		Data: map[string]any{
+			pubsub.DataKey: pubsub.SkillLevelUpEventData{
+				CharacterStateID: charStateID,
+				SkillID:          skillID,
+				NewLevel:         curLevel + 1,
+			},
+		},
+	})
+
+	// LevelUpWeight crossing the K constant marks character level up as pending
+	k := skills.CalculateK(*lvlSys)
+	if charState.LevelUpWeight >= k {
+		charState.PendingLevelUp = true
+		eventBus.Publish(defs.Event{
+			Type: pubsub.EventLevelUpReady,
+			Data: map[string]any{
+				"charID": charStateID,
+			},
+		})
+	}
 }
