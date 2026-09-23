@@ -42,6 +42,7 @@ func (g *Game) showGameDebugInfo(screen *ebiten.Image) {
 
 		s.WriteString(fmt.Sprintf("TIME: %s\n", g.World.Clock))
 		g.World.ActiveMap.GetDaylightData(&s)
+		g.World.ActiveMap.SneakDebugData(&s)
 		g.World.ActiveMap.ActiveMapDebugData(&s)
 
 		s.WriteString("\nMAP, CAMERA")

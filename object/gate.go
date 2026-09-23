@@ -3,7 +3,7 @@ package object
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 
 type Gate struct {
@@ -16,10 +16,10 @@ func (g Gate) IsOpen() bool {
 	return g.open && !g.changingState
 }
 
-func (obj *Object) loadGateObject(props []tiled.Property) {
+func (obj *Object) loadGateObject(props []properties.Property) {
 	for _, prop := range props {
 		switch prop.Name {
-		case "SFX":
+		case properties.PropSFX:
 			gateSoundID := defs.SoundID(prop.GetStringValue())
 			if gateSoundID == "" {
 				panic("no gate sound ID found. TODO: should we make a default one?")

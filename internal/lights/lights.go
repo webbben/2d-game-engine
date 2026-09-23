@@ -13,7 +13,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 
 //go:embed shaders/light.kage
@@ -253,7 +253,7 @@ func (w WindowLight) CalculateIllumination(x, y float64) float32 {
 	return float32(w.MaxIntensity) * float32(1-distAlong/float64(w.Length))
 }
 
-func NewLightFromTiledProps(x, y int, lightProp tiled.LightProps) Light {
+func NewLightFromTiledProps(x, y int, lightProp properties.LightProps) Light {
 	var lightColor defs.LightColor
 
 	// otherwise, there must be a light defined in the props
@@ -275,7 +275,7 @@ func NewLightFromTiledProps(x, y int, lightProp tiled.LightProps) Light {
 	return NewLight(x, y, lightDef)
 }
 
-func NewWindowFromTiledProps(x, y int, windowProps tiled.WindowProps) WindowLight {
+func NewWindowFromTiledProps(x, y int, windowProps properties.WindowProps) WindowLight {
 	if windowProps.Length <= 0 {
 		logz.Panicln("NewWindow", "length was <= 0")
 	}

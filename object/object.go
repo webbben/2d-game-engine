@@ -17,6 +17,7 @@ import (
 	"github.com/webbben/2d-game-engine/particle"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 
 const (
@@ -41,18 +42,6 @@ const (
 
 	// TODO: is this even used?
 	TypeEntity defs.ObjectType = "ENTITY" // This shouldn't be used for actual objects - just for static entities in maps that are defined by objects.
-)
-
-const (
-	PropOnObjID     = "on_obj_id" // if set, this object should render on top of another object
-	PropOwnerCharID = "owner_id"  // if set, a unique character of the given ID owns this object. note that this doesn't work for non-unique characters.
-	PropRoleID      = "role_id"   // if set, characters with this role can use this object or effective assume "ownership" (in the absense of a specific owner character.)
-
-	PropContainerDefID = "container_def_id"
-	PropContainerGenID = "container_gen_id"
-
-	PropLockID    = "lock_id"
-	PropLockLevel = "lock_level"
 )
 
 // TODO: *Sigh* this probably could use some refactoring. I've been avoiding admitting it, but it would most likely work cleaner as an interface.
@@ -93,6 +82,7 @@ type Object struct {
 	collisionRect   model.Rect // rect used for collision (e.g. for gates, only covers bottom tiles)
 	collidable      bool       // if set, game will check for collisions with this object
 	collisionHeight int        // number of tiles in height the collision should be. must not be 0 or bigger than object.
+	seeThrough      bool       // if true, this object never blocks line of sight, even if collidable
 
 	tileData tiled.TileData // data of a tile embedded in this object
 
@@ -262,6 +252,11 @@ func (obj Object) IsCollidable() bool {
 	return obj.collidable
 }
 
+// BlocksVisibility determines if this object should block visibility for entities trying to look through it
+func (obj Object) BlocksVisibility() bool {
+	return obj.IsCollidable() && !obj.seeThrough
+}
+
 func (obj Object) IsActivatable() bool {
 	switch obj.Type {
 	case TypeDoor:
@@ -400,7 +395,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 			logz.Warnln("Object", "object y is negative! is this related to the image object y position bug? ID:", o.ID, "yPos:", o.yPos)
 		}
 
-		var tileProps []tiled.Property
+		var tileProps []properties.Property
 		if objectInfo.Tile != nil {
 			tileProps = objectInfo.Tile.Properties
 		}
@@ -420,13 +415,13 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	o.Type = objType
 
 	// display name
-	if displayName, found := tiled.GetStringProperty("displayName", allProps); found {
+	if displayName, found := properties.GetStringProperty(properties.PropDisplayName, allProps); found {
 		o.DisplayName = displayName
 	}
 
 	// check if there's a lock; all locks have a lock level defined, but some don't come with lock IDs
-	if _, found = tiled.GetIntProperty(PropLockLevel, allProps); found {
-		lockID, found := tiled.GetStringProperty(PropLockID, allProps)
+	if _, found = properties.GetIntProperty(properties.PropLockLevel, allProps); found {
+		lockID, found := properties.GetStringProperty(properties.PropLockID, allProps)
 		if !found {
 			lockID = GetDefaultLockID(o.ID)
 		}
@@ -444,7 +439,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	}
 
 	// check for render order stuff
-	onTopOfObj, found := tiled.GetIntProperty(PropOnObjID, allProps)
+	onTopOfObj, found := properties.GetIntProperty(properties.PropOnObjID, allProps)
 	if found {
 		if onTopOfObj < 0 {
 			panic("onTopOfObj was negative!")
@@ -454,8 +449,8 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	}
 
 	// other flags set in objects
-	noCollision, _ := tiled.GetBoolProperty("no_collision", allProps)
-	collisionHeight, found := tiled.GetIntProperty("collision_height", allProps)
+	noCollision, _ := properties.GetBoolProperty(properties.PropNoCollision, allProps)
+	collisionHeight, found := properties.GetIntProperty(properties.PropCollisionHeight, allProps)
 	if found {
 		if collisionHeight*config.TileSize > o.Height {
 			logz.Panicln("Object", "collision height property is too tall for object. collision_height:", collisionHeight, "objID:", obj.ID)
@@ -467,11 +462,11 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	}
 
 	// check ownership and roles
-	ownerID, found := tiled.GetStringProperty(PropOwnerCharID, allProps)
+	ownerID, found := properties.GetStringProperty(properties.PropOwnerCharID, allProps)
 	if found {
 		o.OwnerID = id.CharacterStateID(ownerID)
 	}
-	roleID, found := tiled.GetStringProperty(PropRoleID, allProps)
+	roleID, found := properties.GetStringProperty(properties.PropRoleID, allProps)
 	if found {
 		o.RoleID = defs.RoleID(roleID)
 	}
@@ -480,11 +475,11 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	}
 
 	// check for emitter
-	emitterID, found := tiled.GetStringProperty("emitter_id", allProps)
+	emitterID, found := properties.GetStringProperty(properties.PropEmitterID, allProps)
 	if found {
 		emitterParams := dataman.GetEmitter(emitterID)
 		o.Emitter = particle.NewEmitter(emitterParams)
-		emitterOffsetY, found := tiled.GetIntProperty("emitter_offset_y", allProps)
+		emitterOffsetY, found := properties.GetIntProperty(properties.PropEmitterOffsetY, allProps)
 		if found {
 			o.emitterOffsetY = float64(emitterOffsetY)
 		}
@@ -534,7 +529,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	case TypeTaskArea:
 		o.loadTaskAreaObject(allProps)
 	case TypeItem:
-		itemID, found := tiled.GetStringProperty("item_id", allProps)
+		itemID, found := properties.GetStringProperty(properties.PropItemID, allProps)
 		if !found {
 			logz.Panic("item didn't have item_id")
 		}
@@ -561,14 +556,15 @@ func (obj Object) Validate() {
 	}
 }
 
-func (obj *Object) loadGlobal(props []tiled.Property) {
-	zOffset, found := tiled.GetIntProperty("z_offset", props)
+func (obj *Object) loadGlobal(props []properties.Property) {
+	zOffset, found := properties.GetIntProperty(properties.PropZOffset, props)
 	if found {
 		obj.zOffset = zOffset
 	}
+	obj.seeThrough, _ = properties.GetBoolProperty(properties.PropSeeThrough, props)
 }
 
-func (obj *Object) loadTileData(tileGID int, tileProps []tiled.Property, tileset tiled.Tileset, m tiled.Map) {
+func (obj *Object) loadTileData(tileGID int, tileProps []properties.Property, tileset tiled.Tileset, m tiled.Map) {
 	if !tileset.Loaded {
 		logz.Println("Load Object", "tileset for object tile hasn't been loaded yet; loading now...")
 		err := tileset.LoadJSONData(m.AbsSourcePath)
@@ -597,7 +593,7 @@ func (obj *Object) loadTileData(tileGID int, tileProps []tiled.Property, tileset
 	// load all the tiles in this "nextTile" chain until the "nextTile" property stops appearing
 	var nextTileID int
 	var propFound bool
-	nextTileID, propFound = tiled.GetIntProperty("nextTile", tileProps)
+	nextTileID, propFound = properties.GetIntProperty(properties.PropNextTile, tileProps)
 	numberFound := 0
 	for propFound {
 		numberFound++
@@ -616,7 +612,7 @@ func (obj *Object) loadTileData(tileGID int, tileProps []tiled.Property, tileset
 			// if tile not found, that means no properties exist for this tile; should be the last one in the chain.
 			break
 		}
-		nextTileID, propFound = tiled.GetIntProperty("nextTile", nextTile.Properties)
+		nextTileID, propFound = properties.GetIntProperty(properties.PropNextTile, nextTile.Properties)
 	}
 	if numberFound == 1 {
 		// wait, only one tile was found in the "nextTile" chain? something must be wrong
@@ -646,17 +642,12 @@ func (obj *Object) addDefaultCollision() {
 	obj.collidable = true
 }
 
-const (
-	PropSpawnIndex    string = "spawn_index"
-	PropFaceDirection string = "face_direction"
-)
-
-func (obj *Object) loadSpawnObject(props []tiled.Property) {
+func (obj *Object) loadSpawnObject(props []properties.Property) {
 	for _, prop := range props {
 		switch prop.Name {
-		case PropSpawnIndex:
+		case properties.PropSpawnIndex:
 			obj.SpawnPoint.SpawnIndex = prop.GetIntValue()
-		case PropFaceDirection:
+		case properties.PropFaceDirection:
 			obj.SpawnPoint.FaceDirection = parseSpawnFaceDirection(prop.GetStringValue())
 		}
 	}
@@ -680,8 +671,8 @@ func parseSpawnFaceDirection(dir string) byte {
 	}
 }
 
-func GetObjectType(allObjProperties []tiled.Property) (defs.ObjectType, bool) {
-	objType, found := tiled.GetStringProperty("TYPE", allObjProperties)
+func GetObjectType(allObjProperties []properties.Property) (defs.ObjectType, bool) {
+	objType, found := properties.GetStringProperty(properties.PropType, allObjProperties)
 	if !found {
 		return "", false
 	}

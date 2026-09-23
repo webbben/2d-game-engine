@@ -127,6 +127,8 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 	// sort all sortable renderable things on the map
 	// do this after all entities have updated, so that in case they've moved, we've properly sorted them for drawing next
 	m.updateSortedRenderables()
+
+	m.checkPlayerVisibility()
 }
 
 func (m *ActiveMap) updateSortedRenderables() {

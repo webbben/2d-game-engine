@@ -3,6 +3,7 @@ package activemap
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -10,6 +11,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
+	"github.com/webbben/2d-game-engine/world/npc"
 )
 
 type debugData struct {
@@ -20,7 +22,13 @@ type debugData struct {
 	costTile       *ebiten.Image
 	collisionRects map[string]*ebiten.Image
 
+	visionTile  *ebiten.Image
+	visionRects map[string]*ebiten.Image
+
 	pathTile1, pathTile2 *ebiten.Image
+
+	playerSeenBy  strings.Builder
+	maxVisibility float64
 }
 
 func (m *ActiveMap) drawGridLines(screen *ebiten.Image, offsetX float64, offsetY float64) {
@@ -141,6 +149,103 @@ func (m *ActiveMap) drawCollisions(screen *ebiten.Image, offsetX, offsetY float6
 	}
 }
 
+func (m *ActiveMap) drawVisibility(screen *ebiten.Image, offsetX, offsetY float64) {
+	if m.debugData.visionTile == nil {
+		m.debugData.visionTile = ebiten.NewImage(config.TileSize, config.TileSize)
+		m.debugData.visionTile.Fill(color.RGBA{100, 100, 0, 50})
+	}
+	if m.debugData.visionRects == nil {
+		m.debugData.visionRects = make(map[string]*ebiten.Image)
+	}
+
+	if m.Map.VisionBlockers != nil {
+		for y, row := range m.Map.VisionBlockers {
+			for x, blocked := range row {
+				if !blocked {
+					continue
+				}
+				op := &ebiten.DrawImageOptions{}
+				drawX, drawY := rendering.GetImageDrawPos(m.debugData.visionTile, float64(x)*config.TileSize, float64(y)*config.TileSize, offsetX, offsetY)
+				op.GeoM.Translate(drawX, drawY)
+				op.GeoM.Scale(config.GameScale, config.GameScale)
+				screen.DrawImage(m.debugData.visionTile, op)
+			}
+		}
+	}
+
+	// draw the actual footprints of objects that block vision (they may not be tile-aligned)
+	for _, obj := range m.Objects {
+		if !obj.BlocksVisibility() {
+			continue
+		}
+		objRect := obj.GetRect()
+		key := fmt.Sprintf("obj:%s", objRect)
+		rectImg, exists := m.debugData.visionRects[key]
+		if !exists {
+			rectImg = ebiten.NewImage(int(objRect.W), int(objRect.H))
+			rectImg.Fill(color.RGBA{200, 200, 0, 50})
+			m.debugData.visionRects[key] = rectImg
+		}
+		op := &ebiten.DrawImageOptions{}
+		drawX, drawY := objRect.X-offsetX, objRect.Y-offsetY
+		op.GeoM.Translate(drawX, drawY)
+		op.GeoM.Scale(config.GameScale, config.GameScale)
+		screen.DrawImage(rectImg, op)
+	}
+
+	// draw the vision cones of NPCs (edges of the ~90 deg cone centered on facing direction)
+	coneLen := float64(npc.SightDist * config.TileSize)
+	camRect := m.Camera.GetVisibleScreenRect()
+	halfAngle := npc.VisionConeHalfAngle
+	edgeColor := color.RGBA{200, 200, 50, 40}
+	centerColor := color.RGBA{200, 200, 50, 20}
+
+	for _, n := range m.NPCs {
+		rect := n.Entity.CollisionRect()
+		cx := n.X() + rect.W/2
+		cy := n.Y() + rect.H/2
+
+		// cull NPCs far off-screen
+		if cx < camRect.X-coneLen || cx > camRect.X+camRect.W+coneLen || cy < camRect.Y-coneLen || cy > camRect.Y+camRect.H+coneLen {
+			continue
+		}
+
+		facingAngle, ok := facingAngleForDirection(n.Entity.Direction())
+		if !ok {
+			continue
+		}
+
+		originX := (cx - offsetX) * config.GameScale
+		originY := (cy - offsetY) * config.GameScale
+		for _, a := range []float64{facingAngle - halfAngle, facingAngle + halfAngle} {
+			ex := (cx + math.Cos(a)*coneLen - offsetX) * config.GameScale
+			ey := (cy + math.Sin(a)*coneLen - offsetY) * config.GameScale
+			vector.StrokeLine(screen, float32(originX), float32(originY), float32(ex), float32(ey), 1, edgeColor, true)
+		}
+
+		// faint center ray so the facing direction is visible
+		ex := (cx + math.Cos(facingAngle)*coneLen - offsetX) * config.GameScale
+		ey := (cy + math.Sin(facingAngle)*coneLen - offsetY) * config.GameScale
+		vector.StrokeLine(screen, float32(originX), float32(originY), float32(ex), float32(ey), 1, centerColor, true)
+	}
+}
+
+// facingAngleForDirection maps an entity's facing direction byte to its viewing angle in radians.
+// Screen coordinates: +x is right, +y is down.
+func facingAngleForDirection(dir byte) (float64, bool) {
+	switch dir {
+	case 'R':
+		return 0, true
+	case 'D':
+		return math.Pi / 2, true
+	case 'L':
+		return math.Pi, true
+	case 'U':
+		return -math.Pi / 2, true
+	}
+	return 0, false
+}
+
 func (m *ActiveMap) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY float64) {
 	if m.debugData.positionDot == nil {
 		yellow := color.RGBA{0, 255, 255, 50}
@@ -240,19 +345,26 @@ func (m *ActiveMap) GetDaylightData(s *strings.Builder) {
 	lightColor := m.daylightFader.GetCurrentColor()
 	fmt.Fprintf(s, "daylight (RGB scales): [%v %v %v]\n", lightColor[0], lightColor[1], lightColor[2])
 	fmt.Fprintf(s, "darkness factor: %v\n", m.daylightFader.GetDarknessFactor())
-
-	if m.PlayerRef != nil {
-		fmt.Fprint(s, "LIGHT\n")
-		playerInfo := m.PlayerRef.Entity.GetEntityInfo()
-		staticLighting := m.lightIntensityGrid[playerInfo.TilePos.Y][playerInfo.TilePos.X]
-		daylight := m.daylightFader.GetLightIntensity()
-		fmt.Fprintf(s, "staticLighting: %.2f | daylight: %.2f | combined: %.2f\n", staticLighting, daylight, staticLighting+daylight)
-		fmt.Fprintf(s, "IsSneaking: %v | hidden: %v\n", playerInfo.Sneaking, m.PlayerIsHidden())
-	}
 }
 
 func (m *ActiveMap) ActiveMapDebugData(s *strings.Builder) {
 	s.WriteString("ACTIVE MAP\n")
 	fmt.Fprintf(s, "blockPlayerChanges: %v | blockMapUpdates: %v\n", m.blockPlayerChanges, m.blockMapUpdates)
 	fmt.Fprintf(s, "scenario: %v\n", m.InScenario)
+}
+
+func (m *ActiveMap) SneakDebugData(s *strings.Builder) {
+	if m.PlayerRef == nil {
+		return
+	}
+
+	s.WriteString("STEALTH\n")
+	playerInfo := m.PlayerRef.Entity.GetEntityInfo()
+	staticLighting := m.lightIntensityGrid[playerInfo.TilePos.Y][playerInfo.TilePos.X]
+	daylight := m.daylightFader.GetLightIntensity()
+	fmt.Fprintf(s, "IsSneaking: %v | hidden: %v\n", playerInfo.Sneaking, m.PlayerIsHidden())
+	fmt.Fprintf(s, "staticLighting: %.2f | daylight: %.2f | combined: %.2f\n", staticLighting, daylight, staticLighting+daylight)
+	if config.TrackVisibilityInfo {
+		fmt.Fprintf(s, "%s\n", m.debugData.playerSeenBy.String())
+	}
 }

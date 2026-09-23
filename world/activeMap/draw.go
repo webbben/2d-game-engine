@@ -36,6 +36,9 @@ func (m *ActiveMap) drawWorldScene(screen *ebiten.Image, offsetX, offsetY float6
 	if config.ShowCollisions {
 		m.drawCollisions(screen, offsetX, offsetY)
 	}
+	if config.ShowVisibility {
+		m.drawVisibility(screen, offsetX, offsetY)
+	}
 
 	// draw roof tops
 	m.Map.DrawRooftopLayer(screen, offsetX, offsetY)

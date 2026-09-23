@@ -2,7 +2,7 @@ package object
 
 import (
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 
 type TaskArea struct {
@@ -12,13 +12,13 @@ type TaskArea struct {
 	PatrolOrder int
 }
 
-func (o *Object) loadTaskAreaObject(allProps []tiled.Property) {
-	taskID, found := tiled.GetStringProperty("task_id", allProps)
+func (o *Object) loadTaskAreaObject(allProps []properties.Property) {
+	taskID, found := properties.GetStringProperty(properties.PropTaskID, allProps)
 	if !found {
 		logz.Panicln("TaskArea", "no task_id property found.", o.ID, o.Name)
 	}
 	o.TaskArea.TaskID = taskID
-	taskDir, found := tiled.GetStringProperty("task_dir", allProps)
+	taskDir, found := properties.GetStringProperty(properties.PropTaskDir, allProps)
 	if found {
 		if taskDir == "" {
 			panic("taskdir was empty")
@@ -33,7 +33,7 @@ func (o *Object) loadTaskAreaObject(allProps []tiled.Property) {
 	} else {
 		o.TaskArea.Dir = 'D'
 	}
-	patrolOrder, found := tiled.GetIntProperty("patrol_order", allProps)
+	patrolOrder, found := properties.GetIntProperty(properties.PropPatrolOrder, allProps)
 	if found {
 		o.TaskArea.PatrolOrder = patrolOrder
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/entity"
@@ -59,7 +60,7 @@ func (p *Player) updateSneakXP() {
 		return
 	}
 
-	nearby := p.World.GetNearbyNPCs(p.X(), p.Y(), npc.SightDist)
+	nearby := p.World.GetNearbyNPCs(p.X(), p.Y(), npc.SightDist*config.TileSize)
 	if len(nearby) == 0 {
 		return
 	}
@@ -70,7 +71,7 @@ func (p *Player) updateSneakXP() {
 		if dist < nearestDist {
 			nearestDist = dist
 		}
-		if n.CanSeeEntity(id.PlayerStateID) {
+		if seen, _ := n.CanSeeEntity(id.PlayerStateID); seen {
 			hidden = false
 		}
 	}
@@ -78,7 +79,7 @@ func (p *Player) updateSneakXP() {
 	skillID, xp := p.dataman.StealthSystemCalc.SneakXPGain(defs.SneakXPGainContext{
 		CharacterStateID: id.PlayerStateID,
 		Hidden:           hidden,
-		NearestNPCDist:   nearestDist,
+		NearestNPCDist:   nearestDist / config.TileSize, // reduce back to tiles instead of pixels
 	})
 	if xp < 0 {
 		logz.PanicCtx("updateSneakXP", "xp as negative", xp)

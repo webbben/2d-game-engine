@@ -1,6 +1,7 @@
 package npc
 
 import (
+	"math"
 	"time"
 
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -13,7 +14,21 @@ import (
 	"github.com/webbben/2d-game-engine/utils"
 )
 
-func calculateVisibility(observer, target entity.EntityInfo, lightIntensity float32, sneakMult float64) float64 {
+const (
+	// VisionConeHalfAngle is the half-angle (in radians) of an entity's vision cone.
+	// A target is in the ~90 degree cone when its direction dot product exceeds cos(VisionConeHalfAngle).
+	// Shared with debug rendering so the drawn cone always matches the visibility calculation.
+	VisionConeHalfAngle = math.Pi / 4
+
+	// VisibilityThreshold determines the visibility level when an NPC can see another entity
+	VisibilityThreshold = 0.01
+
+	// OutsideConeFactor is applied to visibility when the target lies outside the observer's
+	// vision cone. Tuned independently from SightBlockFactor; kept as a const so tests track it.
+	OutsideConeFactor float64 = 0.3
+)
+
+func calculateVisibility(observer, target entity.EntityInfo, lightIntensity float32, sneakMult float64, sightBlocked bool) float64 {
 	// TODO: factor in target movement speed (movement makes target more visible)
 	dist := utils.EuclideanDistCoords(observer.TilePos, target.TilePos)
 	if dist >= SightDist {
@@ -50,15 +65,22 @@ func calculateVisibility(observer, target entity.EntityInfo, lightIntensity floa
 	}
 
 	// check if target is outside of vision cone
-	// cos(45 deg) ~= 0.7071: within 90 deg cone iff dot > 0.7071
-	if (norm.X*forward.X)+(norm.Y*forward.Y) <= 0.7071 {
+	// within the ~90 deg cone iff dot > cos(VisionConeHalfAngle)
+	if (norm.X*forward.X)+(norm.Y*forward.Y) <= math.Cos(VisionConeHalfAngle) {
 		// if outside of the main vision cone, reduce visibility further
-		visibility *= 0.5
+		visibility *= OutsideConeFactor
 	}
 
 	// sneak multiplier
 	if target.Sneaking {
 		visibility *= sneakMult
+	}
+
+	// line of sight blocked
+	// TODO: I notice a discrepancy here: why would sightBlocked result in 0 visibility, but being outside of vision cone
+	// only divides it by 3? shouldn't these be the same or at least similar?
+	if sightBlocked {
+		visibility *= SightBlockFactor
 	}
 
 	if visibility < 0 {
@@ -74,36 +96,7 @@ func (n *NPC) updateVisibility() {
 
 	// check if player is visible
 	playerInfo := n.ActiveMapCtx.GetEntityInfo(id.PlayerStateID)
-	lightIntensity := n.ActiveMapCtx.GetLightIntensity(playerInfo.TilePos)
-	sneakMult := 1.0
-	if playerInfo.Sneaking {
-		if n.dataman.StealthSystemCalc == nil {
-			logz.Panic("stealth system calc isn't defined")
-		}
-		skills, attrs := characterstate.CalculateSkillsAndAttributes(playerInfo.ID, n.dataman)
-		sneakMult = n.dataman.StealthSystemCalc.SneakVisibilityMultiplier(playerInfo.ID, attrs, skills)
-	}
-	vis := calculateVisibility(observer, playerInfo, lightIntensity, sneakMult)
-	if vis > 0 {
-		if _, alreadySeen := n.visibleEntities[playerInfo.ID]; !alreadySeen {
-			n.visibleEntities[playerInfo.ID] = time.Now()
-			n.eventBus.Publish(defs.Event{
-				Type: pubsub.EventEntitySpotted,
-				Data: map[string]any{
-					"observer": observer.ID,
-					"target":   playerInfo.ID,
-				},
-			})
-		}
-		if !n.hasSeenPlayerYet {
-			n.initialPlayerSightingThisTick = true
-			logz.Println(n.ID(), "first player sighting")
-		}
-		n.hasSeenPlayerYet = true
-		n.lastPlayerSightingTime = time.Now()
-	} else {
-		delete(n.visibleEntities, playerInfo.ID)
-	}
+	n.updateTargetVisibility(observer, playerInfo)
 
 	// check if other NPCs are visible
 	for _, otherNpc := range n.ActiveMapCtx.GetAllNPCs() {
@@ -111,29 +104,51 @@ func (n *NPC) updateVisibility() {
 			continue
 		}
 		target := n.ActiveMapCtx.GetEntityInfo(otherNpc.GetInfo().CharID)
-		lightIntensity := n.ActiveMapCtx.GetLightIntensity(target.TilePos)
-		sneakMult := 1.0
-		if target.Sneaking {
-			if n.dataman.StealthSystemCalc == nil {
-				logz.Panic("stealth system calc isn't defined")
-			}
-			skills, attrs := characterstate.CalculateSkillsAndAttributes(target.ID, n.dataman)
-			sneakMult = n.dataman.StealthSystemCalc.SneakVisibilityMultiplier(target.ID, attrs, skills)
+		n.updateTargetVisibility(observer, target)
+	}
+}
+
+func (n *NPC) updateTargetVisibility(observer, target entity.EntityInfo) {
+	lightIntensity := n.ActiveMapCtx.GetLightIntensity(target.TilePos)
+	sneakMult := 1.0
+	if target.Sneaking {
+		if n.dataman.StealthSystemCalc == nil {
+			logz.Panic("stealth system calc isn't defined")
 		}
-		vis := calculateVisibility(observer, target, lightIntensity, sneakMult)
-		if vis > 0 {
-			if _, alreadySeen := n.visibleEntities[target.ID]; !alreadySeen {
-				n.visibleEntities[target.ID] = time.Now()
-				n.eventBus.Publish(defs.Event{
-					Type: pubsub.EventEntitySpotted,
-					Data: map[string]any{
-						"observer": observer.ID,
-						"target":   target.ID,
-					},
-				})
-			}
+		skills, attrs := characterstate.CalculateSkillsAndAttributes(target.ID, n.dataman)
+		sneakMult = n.dataman.StealthSystemCalc.SneakVisibilityMultiplier(target.ID, attrs, skills)
+	}
+	sightBlocked := n.ActiveMapCtx.IsLineOfSightBlocked(observer.TilePos, target.TilePos)
+	vis := calculateVisibility(observer, target, lightIntensity, sneakMult, sightBlocked)
+	if vis > VisibilityThreshold {
+		if info, alreadySeen := n.visibleEntities[target.ID]; alreadySeen {
+			// already seen; just update the visibility value
+			info.Visibility = vis
+			n.visibleEntities[target.ID] = info
 		} else {
-			delete(n.visibleEntities, target.ID)
+			// not seen yet; create new entry and publish event
+			n.visibleEntities[target.ID] = VisibleEntityInfo{
+				FirstSeen:  time.Now(),
+				Visibility: vis,
+			}
+			n.eventBus.Publish(defs.Event{
+				Type: pubsub.EventEntitySpotted,
+				Data: map[string]any{
+					"observer": observer.ID,
+					"target":   target.ID,
+				},
+			})
 		}
+		// handle player specific logic
+		if target.ID == id.PlayerStateID {
+			if !n.hasSeenPlayerYet {
+				n.initialPlayerSightingThisTick = true
+				logz.Println(n.ID(), "first player sighting")
+			}
+			n.hasSeenPlayerYet = true
+			n.lastPlayerSightingTime = time.Now()
+		}
+	} else {
+		delete(n.visibleEntities, target.ID)
 	}
 }

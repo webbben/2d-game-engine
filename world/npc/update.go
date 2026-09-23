@@ -9,7 +9,11 @@ import (
 )
 
 const (
+	// SightDist is the distance that NPCs can see (in Tiles, not logical pixels)
 	SightDist float64 = 8
+
+	// SightBlockFactor is applied to visibility when line of sight is blocked.
+	SightBlockFactor float64 = 0
 )
 
 type debug struct {

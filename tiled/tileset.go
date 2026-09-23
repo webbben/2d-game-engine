@@ -17,6 +17,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 
 var (
@@ -330,126 +331,14 @@ func GetTileImage(tilesetSrc string, tileID int, panicOnEmpty bool) *ebiten.Imag
 	return img
 }
 
-type LightProps struct {
-	R, G, B           float64 // must be between 0 and 1
-	GlowFactor        float64
-	InnerRadiusFactor float64
-	OffsetY           int
-	Radius            int
-	FlickerInterval   int
-	MaxBrightness     float64
-	CoreRadiusFactor  float64
-}
-
-type WindowProps struct {
-	Length       int
-	Width        int
-	MaxIntensity float64
-	DirX, DirY   int
-}
-
 func GetTileType(tile Tile) string {
 	for _, prop := range tile.Properties {
-		if prop.Name == "TYPE" {
+		if prop.Name == properties.PropType {
 			return prop.GetStringValue()
 		}
 	}
 
 	return ""
-}
-
-func GetLightProps(p []Property) LightProps {
-	props := LightProps{}
-
-	for _, prop := range p {
-		switch prop.Name {
-		case "light_color_r":
-			props.R = prop.GetFloatValue()
-		case "light_color_g":
-			props.G = prop.GetFloatValue()
-		case "light_color_b":
-			props.B = prop.GetFloatValue()
-		case "light_glow_factor":
-			props.GlowFactor = prop.GetFloatValue()
-		case "light_offset_y":
-			props.OffsetY = prop.GetIntValue()
-		case "light_radius":
-			props.Radius = prop.GetIntValue()
-		case "light_inner_radius_factor":
-			props.InnerRadiusFactor = prop.GetFloatValue()
-		case "light_flicker_interval":
-			props.FlickerInterval = prop.GetIntValue()
-		case "light_max_brightness":
-			props.MaxBrightness = prop.GetFloatValue()
-		case "light_core_radius":
-			props.CoreRadiusFactor = prop.GetFloatValue()
-		case "light_preset":
-			logz.Panicln("GetLightProps", "light_preset prop is deprecated; use light_color_r/g/b props instead.")
-		}
-	}
-
-	return props
-}
-
-func GetWindowProps(p []Property) WindowProps {
-	props := WindowProps{}
-
-	for _, prop := range p {
-		switch prop.Name {
-		case "window_width":
-			props.Width = prop.GetIntValue()
-		case "window_length":
-			props.Length = prop.GetIntValue()
-		case "window_max_intensity":
-			props.MaxIntensity = prop.GetFloatValue()
-		case "window_dir_x":
-			props.DirX = prop.GetIntValue()
-		case "window_dir_y":
-			props.DirY = prop.GetIntValue()
-		}
-	}
-
-	return props
-}
-
-func GetBoolProperty(propName string, props []Property) (value, found bool) {
-	for _, prop := range props {
-		if prop.Name == propName {
-			return prop.GetBoolValue(), true
-		}
-	}
-
-	return false, false
-}
-
-func GetStringProperty(propName string, props []Property) (val string, found bool) {
-	for _, prop := range props {
-		if prop.Name == propName {
-			return prop.GetStringValue(), true
-		}
-	}
-
-	return "", false
-}
-
-func GetFloatProperty(propName string, props []Property) (val float64, found bool) {
-	for _, prop := range props {
-		if prop.Name == propName {
-			return prop.GetFloatValue(), true
-		}
-	}
-
-	return 0, false
-}
-
-func GetIntProperty(propName string, props []Property) (val int, found bool) {
-	for _, prop := range props {
-		if prop.Name == propName {
-			return prop.GetIntValue(), true
-		}
-	}
-
-	return 0, false
 }
 
 func GetTileBoolProperty(tilesetSrc string, tileIndex int, propName string) (val bool, found bool) {
@@ -462,7 +351,7 @@ func GetTileBoolProperty(tilesetSrc string, tileIndex int, propName string) (val
 		if tile.ID != tileIndex {
 			continue
 		}
-		return GetBoolProperty(propName, tile.Properties)
+		return properties.GetBoolProperty(propName, tile.Properties)
 	}
 
 	return false, false

@@ -49,6 +49,7 @@ type ActiveMapContext interface {
 	GetCostMap() [][]int
 	GetEntityInfo(charStateID id.CharacterStateID) entity.EntityInfo
 	GetLightIntensity(pos model.Coords) float32
+	IsLineOfSightBlocked(from, to model.Coords) bool
 
 	StartDialog(dialogProfileID defs.DialogProfileID, npcID string)
 
@@ -72,10 +73,10 @@ type NPC struct {
 	// priority assigned to this NPC by the map it is added to. used for prioritizing which NPC moves first in a collision.
 	Priority int
 
-	visibleEntities               map[id.CharacterStateID]time.Time // maps which characters are visible, and the time they entered visibility
-	initialPlayerSightingThisTick bool                              // if true, the NPC just saw the player for the first time this update tick
-	hasSeenPlayerYet              bool                              // if true, this NPC has seen the player at some point already (in the current map)
-	lastPlayerSightingTime        time.Time                         // the last time the player was seen
+	visibleEntities               map[id.CharacterStateID]VisibleEntityInfo // maps which characters are visible
+	initialPlayerSightingThisTick bool                                      // if true, the NPC just saw the player for the first time this update tick
+	hasSeenPlayerYet              bool                                      // if true, this NPC has seen the player at some point already (in the current map)
+	lastPlayerSightingTime        time.Time                                 // the last time the player was seen
 
 	// === World related things ===
 
@@ -98,6 +99,11 @@ type NPC struct {
 	//
 	// Note: avoid directly manipulating this, and instead use the subscribe and unsubscribe functions
 	activeMapSubscriptionIDs map[string]bool
+}
+
+type VisibleEntityInfo struct {
+	FirstSeen  time.Time
+	Visibility float64
 }
 
 func (n *NPC) unsubscribe(subID string) {
@@ -270,7 +276,7 @@ func NewNPC(params NPCParams, dataman *datamanager.DataManager, audioMgr *audio.
 		speechBubbleOriginIndex:  params.SpeechBubbleOriginIndex,
 		speechBubbleFont:         params.SpeechBubbleFont,
 		activeMapSubscriptionIDs: make(map[string]bool),
-		visibleEntities:          make(map[id.CharacterStateID]time.Time),
+		visibleEntities:          make(map[id.CharacterStateID]VisibleEntityInfo),
 	}
 
 	n.eventBus.SubscribeToNPCEvents(n.ID(), n.ID(), n.OnEvent)
@@ -515,7 +521,7 @@ func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
 	}, n)
 }
 
-func (n *NPC) CanSeeEntity(charStateID id.CharacterStateID) bool {
-	_, seen := n.visibleEntities[charStateID]
-	return seen
+func (n *NPC) CanSeeEntity(charStateID id.CharacterStateID) (bool, VisibleEntityInfo) {
+	info, seen := n.visibleEntities[charStateID]
+	return seen, info
 }

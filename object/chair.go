@@ -3,7 +3,7 @@ package object
 import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 
 type Chair struct {
@@ -13,13 +13,8 @@ type Chair struct {
 	Direction byte                // the direction this chair faces
 }
 
-const (
-	PropChairDirection = "chair_direction"
-	PropChairOwner     = "chair_owner"
-)
-
-func (obj *Object) loadChairObject(allProps []tiled.Property) {
-	chairDirection, found := tiled.GetStringProperty(PropChairDirection, allProps)
+func (obj *Object) loadChairObject(allProps []properties.Property) {
+	chairDirection, found := properties.GetStringProperty(properties.PropChairDirection, allProps)
 	if !found {
 		logz.Panicln("loadChairObject", "chair object didn't have chair_direction set:", obj.ID, obj.Name)
 	}

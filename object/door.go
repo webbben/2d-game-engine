@@ -6,15 +6,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/tiled"
-)
-
-const (
-	PropDoorTo             string = "door_to"
-	PropDoorSpawnIndex     string = "door_spawn_index"
-	PropDoorActivate       string = "door_activate"
-	PropDoorSFX            string = "SFX"
-	PropDoorMapGeneratorID string = "map_generator_id"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 
 type Door struct {
@@ -24,19 +16,19 @@ type Door struct {
 	activateType     string // "click", "step"
 }
 
-func (obj *Object) loadDoorObject(props []tiled.Property) {
+func (obj *Object) loadDoorObject(props []properties.Property) {
 	doorTo := ""
 	var toSpawn int
 
 	for _, prop := range props {
 		switch prop.Name {
-		case PropDoorTo:
+		case properties.PropDoorTo:
 			doorTo = prop.GetStringValue()
-		case PropDoorSpawnIndex:
+		case properties.PropDoorSpawnIndex:
 			toSpawn = prop.GetIntValue()
-		case PropDoorActivate:
+		case properties.PropDoorActivate:
 			obj.Door.activateType = prop.GetStringValue()
-		case PropDoorSFX:
+		case properties.PropSFX:
 			doorSound := prop.GetStringValue()
 			if doorSound == "" {
 				logz.Panicln("Door", "no door sound found (prop SFX). object:", obj.Name, obj.ID)

@@ -623,6 +623,8 @@ func AddSkillXP(charStateID id.CharacterStateID, skillID defs.SkillID, xp int, d
 		return
 	}
 
+	logz.Printf("AddSkillXP", "%s: gained %v XP", skillID, xp)
+
 	curLevel := charState.BaseSkills[skillID]
 	if lvlSys.SkillLevelCap <= 0 {
 		logz.Panic("invalid skill level cap! (must be a positive non-zero value)")
@@ -636,11 +638,13 @@ func AddSkillXP(charStateID id.CharacterStateID, skillID defs.SkillID, xp int, d
 		charState.SkillXP = make(map[defs.SkillID]int)
 	}
 	charState.SkillXP[skillID] += xp
+	logz.Println("AddSkillXP", "current XP:", charState.SkillXP[skillID])
 
 	nextLevelXP := lvlSys.XPToNextSkillLevel(curLevel)
 	if nextLevelXP <= 0 {
 		logz.PanicCtx("AddSkillXP", "nextLevelXP was invalid; it must be a positive non-zero value:", nextLevelXP)
 	}
+	logz.Println("AddSkillXP", "next level up XP:", nextLevelXP)
 	if charState.SkillXP[skillID] < nextLevelXP {
 		return
 	}

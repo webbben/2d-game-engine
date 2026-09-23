@@ -31,6 +31,7 @@ import (
 	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/screen"
 	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/world/npc"
@@ -109,6 +110,8 @@ type ActiveMap struct {
 
 	daylightFactor float64
 	daylightFader  lights.LightFader
+
+	playerIsHidden bool // if true, the player is not visible to any NPCs
 
 	NPCManager
 }
@@ -245,7 +248,7 @@ func NewActiveMap(
 			// determine if this is a light tile
 			tileType := tiled.GetTileType(tile)
 			if tileType == "LIGHT" {
-				lightProps := tiled.GetLightProps(tile.Properties)
+				lightProps := properties.GetLightProps(tile.Properties)
 				gid := tile.ID + tileset.FirstGID
 
 				lightPositions := m.Map.GetAllTilePositions(gid)
@@ -491,9 +494,6 @@ func (mi *ActiveMap) IsTileCollision(coords model.Coords) bool {
 		H: config.TileSize - 1,
 	}
 	res := mi.Collides(r)
-	if res.Collides() {
-		logz.Println("IsTileCollision", "collision:", res)
-	}
 	return res.Collides()
 }
 
@@ -815,6 +815,8 @@ func (mi *ActiveMap) GetPlayerRect() model.Rect {
 	return mi.PlayerRef.Entity.CollisionRect()
 }
 
+// GetNearbyNPCs returns NPCs that are within the given (pixel/logical point) radius.
+// Note that radius is NOT tiles.
 func (mi *ActiveMap) GetNearbyNPCs(posX, posY, radius float64) []*npc.NPC {
 	npcs := []*npc.NPC{}
 
@@ -1060,13 +1062,34 @@ func (m *ActiveMap) GetLightIntensity(pos model.Coords) float32 {
 }
 
 func (m *ActiveMap) PlayerIsHidden() bool {
+	return m.playerIsHidden
+}
+
+func (m *ActiveMap) checkPlayerVisibility() {
 	if m.PlayerRef == nil {
 		logz.Panic("player is nil!")
 	}
+	seen := false
+
+	// guarding this debug tracking behavior behind config since technically it could be a little less efficient
+	// than just doing an early return
+	if config.TrackVisibilityInfo {
+		m.debugData.playerSeenBy.Reset()
+	}
+
 	for _, n := range m.NPCs {
-		if n.CanSeeEntity(id.PlayerStateID) {
-			return false
+		canSeePlayer, info := n.CanSeeEntity(id.PlayerStateID)
+		if canSeePlayer {
+			seen = true
+			if config.TrackVisibilityInfo {
+				fmt.Fprintf(&m.debugData.playerSeenBy, "%s (%.2f), ", n.ID(), info.Visibility)
+			} else {
+				// return early if we are not collecting debug info
+				m.playerIsHidden = false
+				return
+			}
 		}
 	}
-	return true
+
+	m.playerIsHidden = !seen
 }

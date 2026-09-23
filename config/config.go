@@ -31,8 +31,8 @@ var (
 	// Determines how much logging should happen for different parts of the game engine
 	// TODO: I'll need to gradually incorporate this over time, because there is a lot of logging in this engine.
 	Logging = LogLevels{
-		Movement: LogLevelWarning,
-		EventBus: LogLevelWarning,
+		Movement: LogLevelNone,
+		EventBus: LogLevelNone,
 	}
 
 	// If true, all tiles generated during previous game sessions will be deleted and will have to be regenerated.
@@ -60,10 +60,13 @@ var (
 	DrawGridLines       = false
 	ShowEntityPositions = false // show the logical positions and collision boxes of entities
 	ShowCollisions      = false // show the areas that are collisions on the map
+	ShowVisibility      = false // show the areas that block line of sight (vision blockers)
 	ShowPlayerCoords    = false
 	ShowNPCPaths        = false // highlight the paths that NPCs are following
 	TrackMemoryUsage    = false // show a report in the console of memory usage every few seconds
+
 	ShowGameDebugInfo   = false // show a report of various debugging info (like F12 in minecraft)
+	TrackVisibilityInfo = false // record and show info in debug info display about which NPCs can see the player
 
 	// misc
 

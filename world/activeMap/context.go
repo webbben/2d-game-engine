@@ -176,3 +176,13 @@ func (m *ActiveMap) GetEntityInfo(charStateID id.CharacterStateID) entity.Entity
 	logz.PanicCtx("GetEntityInfo", "charStateID not found in active map NPCs", charStateID)
 	return entity.EntityInfo{}
 }
+
+func (m *ActiveMap) IsLineOfSightBlocked(from, to model.Coords) bool {
+	blockingObjects := make([]model.Rect, 0)
+	for _, obj := range m.Objects {
+		if obj.BlocksVisibility() {
+			blockingObjects = append(blockingObjects, obj.GetRect())
+		}
+	}
+	return m.Map.LineOfSightBlocked(from, to, blockingObjects)
+}

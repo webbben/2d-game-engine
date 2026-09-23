@@ -9,6 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/worldgraph"
 )
@@ -99,7 +100,7 @@ func (w *World) buildGraphNode(wg *worldgraph.WorldGraph, mapStateID defs.MapID)
 
 		if objType == object.TypeSpawnPoint {
 			// record spawn point location
-			spawnID, found := tiled.GetIntProperty(object.PropSpawnIndex, obj.Properties)
+			spawnID, found := properties.GetIntProperty(properties.PropSpawnIndex, obj.Properties)
 			if !found {
 				logz.Println("BuildWorldGraph", mapDefID, "objID:", obj.ID)
 				logz.Panicln("BuildWorldGraph", "Tried to get spawn index of spawn point, but property wasn't found")
@@ -136,23 +137,23 @@ func (w *World) buildGraphNode(wg *worldgraph.WorldGraph, mapStateID defs.MapID)
 			toSpawn = *override.OverrideDestinationSpawn
 		} else {
 			// for non-generated maps, we expect to find doorTo and spawn props on door objects
-			doorToProp, found := tiled.GetStringProperty(object.PropDoorTo, objectInfo.AllProps)
+			doorToProp, found := properties.GetStringProperty(properties.PropDoorTo, objectInfo.AllProps)
 			if found {
 				// door to a non-generated map; so, we expect to find a doorTo and toSpawn in props
 				doorTo = defs.MapID(doorToProp)
-				toSpawn, found = tiled.GetIntProperty(object.PropDoorSpawnIndex, objectInfo.AllProps)
+				toSpawn, found = properties.GetIntProperty(properties.PropDoorSpawnIndex, objectInfo.AllProps)
 				if !found {
 					logz.Println("buildGraphNode", obj.ID, mapStateID)
 					logz.Panicln("buildGraphNode", "door object didn't have a spawn index prop.")
 				}
 			} else {
-				mapGenID, found := tiled.GetStringProperty(object.PropDoorMapGeneratorID, objectInfo.AllProps)
+				mapGenID, found := properties.GetStringProperty(properties.PropDoorMapGeneratorID, objectInfo.AllProps)
 				if !found {
 					panic("door object has neither a door_to prop nor a mapGeneratorID")
 				}
 				logz.Println("WorldGraph", "map generator found:", mapGenID)
 
-				returnSpawn, found := tiled.GetIntProperty("return_spawn_index", objectInfo.AllProps)
+				returnSpawn, found := properties.GetIntProperty(properties.PropReturnSpawnIndex, objectInfo.AllProps)
 				if !found {
 					logz.Println("WorldGraph", mapDefID, obj.ID)
 					logz.Panicln("WorldGraph", "found map generator, but the door didn't include the return_spawn_index prop.")

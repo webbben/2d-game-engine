@@ -12,6 +12,7 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 	"github.com/webbben/2d-game-engine/utils"
 )
 
@@ -82,13 +83,13 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 			// check if there is a lock on this object
 			var lockLevel int
 			var lockID string
-			lockLevel, found = tiled.GetIntProperty(object.PropLockLevel, objectInfo.AllProps)
+			lockLevel, found = properties.GetIntProperty(properties.PropLockLevel, objectInfo.AllProps)
 			if found {
 				if lockLevel <= 0 {
 					logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapID)
 					logz.Panicln("CreateNewMapState", "found lock level property on object, but it had a level of <= 0.")
 				}
-				lockID, found = tiled.GetStringProperty(object.PropLockID, objectInfo.AllProps)
+				lockID, found = properties.GetStringProperty(properties.PropLockID, objectInfo.AllProps)
 				if !found {
 					// if no custom lock ID is set, then just generate a default one for this object
 					lockID = object.GetDefaultLockID(obj.ID)
@@ -112,7 +113,7 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 					logz.Panicln("CreateNewMapState", "a lock was put on an item, which doesn't make any sense.")
 				}
 				// get item ID
-				itemID, found := tiled.GetStringProperty("item_id", objectInfo.AllProps)
+				itemID, found := properties.GetStringProperty(properties.PropItemID, objectInfo.AllProps)
 				if !found {
 					logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapID)
 					logz.Panicln("CreateNewMapState", "found item object, but no item_id property was found")
@@ -136,14 +137,14 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 				}
 				// instantiate the NPC that is associated with this bed
 				var charStateID id.CharacterStateID
-				charGenID, found := tiled.GetStringProperty("characterGeneratorID", objectInfo.AllProps)
+				charGenID, found := properties.GetStringProperty(properties.PropCharacterGeneratorID, objectInfo.AllProps)
 				if found {
 					// generate an random NPC for this bed
 					charGen := w.Dataman.GetCharacterGenerator(charGenID)
 					charStateID = w.GenerateCharacter(charGen, mapID, mapID, obj.ID)
 				} else {
 					// create the NPC based on its def
-					charDefID, found := tiled.GetStringProperty("characterDefID", objectInfo.AllProps)
+					charDefID, found := properties.GetStringProperty(properties.PropCharacterDefID, objectInfo.AllProps)
 					if found {
 						// this bed has a specific character def ID set
 						params := entity.NewCharacterStateParams{
@@ -171,10 +172,10 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 				containerState := state.ContainerState{}
 				// find out if this is a predefined container inventory, or if we should generate one
 				// check for container_def_id
-				if containerDefID, found := tiled.GetStringProperty(object.PropContainerDefID, objectInfo.AllProps); found {
+				if containerDefID, found := properties.GetStringProperty(properties.PropContainerDefID, objectInfo.AllProps); found {
 					containerDef := w.Dataman.GetContainerDef(containerDefID)
 					containerState.Inventory = item.ConvertInitialItemStateDefs(containerDef.Inventory)
-				} else if containerGenID, found := tiled.GetStringProperty(object.PropContainerGenID, objectInfo.AllProps); found {
+				} else if containerGenID, found := properties.GetStringProperty(properties.PropContainerGenID, objectInfo.AllProps); found {
 					containerGen := w.Dataman.GetContainerGenerator(containerGenID)
 					containerState.Inventory = item.ConvertInitialItemStateDefs(containerGen.GenerateItems(w.GameCtx))
 				} else {
@@ -255,15 +256,15 @@ func (w *World) GenerateMap(mapGeneratorID string, returnMapID defs.MapID, retur
 				}
 				doorFound = true
 
-				if _, found := tiled.GetStringProperty(object.PropDoorTo, objectInfo.AllProps); found {
+				if _, found := properties.GetStringProperty(properties.PropDoorTo, objectInfo.AllProps); found {
 					logz.Println("GenerateMap", obj.ID, mapGen.MapDefID)
 					logz.Panicln("GenerateMap", "door had a door_to prop defined; this should be empty, since its filled in during map generation.")
 				}
-				if _, found := tiled.GetStringProperty(object.PropDoorSpawnIndex, objectInfo.AllProps); found {
+				if _, found := properties.GetStringProperty(properties.PropDoorSpawnIndex, objectInfo.AllProps); found {
 					logz.Println("GenerateMap", obj.ID, mapGen.MapDefID)
 					logz.Panicln("GenerateMap", "door had a to_spawn_index prop defined; this should be empty, since its filled in during map generation.")
 				}
-				if _, found := tiled.GetStringProperty(object.PropDoorMapGeneratorID, objectInfo.AllProps); found {
+				if _, found := properties.GetStringProperty(properties.PropDoorMapGeneratorID, objectInfo.AllProps); found {
 					logz.Println("GenerateMap", obj.ID, mapGen.MapDefID)
 					logz.Panicln("GenerateMap", "door had a genMapID prop defined; since this is a generated map, we don't allow 'nested generated maps'.")
 				}
@@ -281,12 +282,12 @@ func (w *World) GenerateMap(mapGeneratorID string, returnMapID defs.MapID, retur
 			}
 
 			// ensure bed does not have a set owner in tiled props - this isn't allowed in mapGenerator maps, since we fill them in with the map generator's inhabitants.
-			_, found = tiled.GetStringProperty("characterGeneratorID", objectInfo.AllProps)
+			_, found = properties.GetStringProperty(properties.PropCharacterGeneratorID, objectInfo.AllProps)
 			if found {
 				logz.Println("GenerateMap", mapGen.MapDefID)
 				logz.Panicln("GenerateMap", "bed in map had a character generator set; MapGenerator maps should not define bed owners.")
 			}
-			_, found = tiled.GetStringProperty("characterDefID", objectInfo.AllProps)
+			_, found = properties.GetStringProperty(properties.PropCharacterDefID, objectInfo.AllProps)
 			if found {
 				logz.Println("GenerateMap", mapGen.MapDefID)
 				logz.Panicln("GenerateMap", "bed in map had a character def set; MapGenerator maps should not define bed owners.")

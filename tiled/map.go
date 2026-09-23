@@ -3,6 +3,7 @@ package tiled
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -15,6 +16,7 @@ import (
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 
 var (
@@ -114,19 +116,14 @@ func (m *Map) load(regenerateImages bool) error {
 		m.Tilesets[i] = tileset
 	}
 
-	// TODO: removed this to test.
-	// err := m.loadTileImageMap()
-	// if err != nil {
-	// 	return err
-	// }
-
+	// prep the various caches
 	m.CollisionRects = make([][]CollisionRect, m.Height)
+	m.GroundMaterial = make([][]string, m.Height)
+	m.VisionBlockers = make([][]bool, m.Height)
 	for i := range m.Height {
 		m.CollisionRects[i] = make([]CollisionRect, m.Width)
-	}
-	m.GroundMaterial = make([][]string, m.Height)
-	for i := range m.Height {
 		m.GroundMaterial[i] = make([]string, m.Width)
+		m.VisionBlockers[i] = make([]bool, m.Width)
 	}
 
 	for i, l := range m.Layers {
@@ -153,7 +150,7 @@ func (l *Layer) firstTimeLoad() {
 		return
 	}
 
-	drawOnTop, found := GetBoolProperty("TOP", l.Properties)
+	drawOnTop, found := properties.GetBoolProperty(properties.PropTop, l.Properties)
 	if found {
 		l.DrawOnTop = drawOnTop
 	}
@@ -162,6 +159,7 @@ func (l *Layer) firstTimeLoad() {
 // find all information embedded in tile properties in layers:
 // - collision rects
 // - material types
+// - vision blockers
 func (m *Map) findTilePropertiesInLayer(layer Layer) {
 	switch layer.Type {
 	case LayerTypeTile:
@@ -174,25 +172,35 @@ func (m *Map) findTilePropertiesInLayer(layer Layer) {
 			y := i / layer.Width
 
 			// collision rects
-			collisionVal, found := GetStringProperty("COLLISION", tile.Properties)
+			collisionVal, found := properties.GetStringProperty(properties.PropCollision, tile.Properties)
+			colliding := false
 			if found {
 				cr := NewCollisionRect(collisionVal)
 				m.CollisionRects[y][x] = cr
+				colliding = true
 			} else {
 				// no collision found
 				// since there could be a colliding tile that is covered by a non-colliding tile, we should reset the collision rects map for this position.
 				// for example: a layer of water underneath a layer that has a bridge; we want to be able to walk across the bridge, even though water is below it.
 				m.CollisionRects[y][x] = CollisionRect{IsCollision: false}
 			}
-			if isWater, found := GetBoolProperty("WATER", tile.Properties); found && isWater {
+
+			// water is a collision too
+			if isWater, found := properties.GetBoolProperty(properties.PropWater, tile.Properties); found && isWater {
 				cr := NewCollisionRect("WHOLE")
 				m.CollisionRects[y][x] = cr
 			}
+
 			// ground material
-			materialVal, found := GetStringProperty("MATERIAL", tile.Properties)
+			materialVal, found := properties.GetStringProperty(properties.PropMaterial, tile.Properties)
 			if found {
 				m.GroundMaterial[y][x] = materialVal
 			}
+
+			// determine if see-through
+			// same as collisions, we write it each layer since the top-most layer should ultimately determine if this is a vision blocker or not.
+			seeThrough, _ := properties.GetBoolProperty(properties.PropSeeThrough, tile.Properties)
+			m.VisionBlockers[y][x] = colliding && !seeThrough
 		}
 	case LayerTypeGroup:
 		for _, l := range layer.Layers {
@@ -208,10 +216,13 @@ func (m *Map) findCollisionBlockObjects() {
 	for _, l := range m.Layers {
 		for _, obj := range GetAllObjectsFromLayer(l) {
 			objProps := m.GetObjectPropsAndTile(obj)
-			objType, found := GetStringProperty("TYPE", objProps.AllProps)
+			objType, found := properties.GetStringProperty(properties.PropType, objProps.AllProps)
 			if !found || objType != "COLLISION" {
 				continue
 			}
+			// check if see-through
+			seeThrough, found := properties.GetBoolProperty(properties.PropSeeThrough, objProps.AllProps)
+			blockVision := !found || !seeThrough
 
 			tl := model.ConvertPxToTilePos(obj.X, obj.Y)
 			br := model.ConvertPxToTilePos(obj.X+obj.Width-1, obj.Y+obj.Height-1)
@@ -221,7 +232,12 @@ func (m *Map) findCollisionBlockObjects() {
 					if y < 0 || y >= m.Height || x < 0 || x >= m.Width {
 						continue
 					}
+
 					m.CollisionRects[y][x] = NewCollisionRect("WHOLE")
+
+					if blockVision {
+						m.VisionBlockers[y][x] = true
+					}
 				}
 			}
 		}
@@ -478,7 +494,7 @@ func (m *Map) CalculateCostMap() {
 				tile, _, found := m.GetTileByGID(layer.Data[i])
 				if found {
 					for _, prop := range tile.Properties {
-						if prop.Name == "cost" {
+						if prop.Name == properties.PropCost {
 							m.CostMap[y][x] += prop.GetIntValue()
 						}
 					}
@@ -519,4 +535,55 @@ func (m Map) isWithinMapBounds(c model.Coords) bool {
 		return false
 	}
 	return true
+}
+
+// LineOfSightBlocked detects if there are any vision blockers between two points on the map
+func (m Map) LineOfSightBlocked(from, to model.Coords, blockingObjects []model.Rect) bool {
+	if from.Equals(to) {
+		return false
+	}
+
+	// add half tilesize since we are tracing between tile centers (not from tile origin/top left corner)
+	// NOTE: known limitation: a collision rect smaller than ~half a tile may not be found by this tracing function.
+	// as of now that's not really a problem since most everything uses whole collisions. Also, even if we did have something
+	// sufficiently small to not get found in this tracing function, maybe that's fine - it probably shouldn't be blocking visibility anyway.
+	startX := float64(from.X*config.TileSize) + config.TileSize/2
+	startY := float64(from.Y*config.TileSize) + config.TileSize/2
+	endX := float64(to.X*config.TileSize) + config.TileSize/2
+	endY := float64(to.Y*config.TileSize) + config.TileSize/2
+
+	dx := endX - startX
+	dy := endY - startY
+	dist := math.Hypot(dx, dy)
+	if dist == 0 {
+		return false
+	}
+	stepX := dx / dist
+	stepY := dy / dist
+
+	// step through the segment at half-tile speed
+	stepSize := float64(config.TileSize) / 2
+	for d := stepSize; d < dist; d += stepSize {
+		x := startX + stepX*d
+		y := startY + stepY*d
+
+		t := model.ConvertPxToTilePos(x, y)
+		if t.Equals(from) || t.Equals(to) {
+			continue
+		}
+		if t.X < 0 || t.X >= m.Width || t.Y < 0 || t.Y >= m.Height {
+			continue
+		}
+
+		if m.VisionBlockers[t.Y][t.X] {
+			return true
+		}
+		for _, r := range blockingObjects {
+			if r.Within(int(x), int(y)) {
+				return true
+			}
+		}
+	}
+
+	return false
 }

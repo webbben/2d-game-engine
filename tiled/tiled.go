@@ -2,7 +2,6 @@
 package tiled
 
 import (
-	"encoding/json"
 	"image"
 	"os"
 	"path/filepath"
@@ -10,32 +9,33 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 
 // Map represents the root map structure from Tiled
 type Map struct {
-	Type             string     `json:"type"`
-	Version          string     `json:"version"`
-	TiledVersion     string     `json:"tiledversion"`
-	Orientation      string     `json:"orientation"`               // orthogonal, isometric, staggered, hexagonal
-	RenderOrder      string     `json:"renderorder,omitempty"`     // right-down, right-up, left-down, left-up
-	Width            int        `json:"width"`                     // number of tile columns
-	Height           int        `json:"height"`                    // number of tile rows
-	TileWidth        int        `json:"tilewidth"`                 // map grid width
-	TileHeight       int        `json:"tileheight"`                // map grid height
-	BackgroundColor  string     `json:"backgroundcolor,omitempty"` // Hex color
-	Layers           []Layer    `json:"layers"`
-	Tilesets         []Tileset  `json:"tilesets"`
-	Properties       []Property `json:"properties,omitempty"`
-	NextLayerID      int        `json:"nextlayerid,omitempty"`
-	NextObjectID     int        `json:"nextobjectid,omitempty"`
-	ParallaxOriginX  float64    `json:"parallaxoriginx,omitempty"`
-	ParallaxOriginY  float64    `json:"parallaxoriginy,omitempty"`
-	HexSideLength    int        `json:"hexsidelength,omitempty"`
-	StaggerAxis      string     `json:"staggeraxis,omitempty"`  // x, y
-	StaggerIndex     string     `json:"staggerindex,omitempty"` // odd, even
-	Infinite         bool       `json:"infinite,omitempty"`
-	CompressionLevel int        `json:"compressionlevel,omitempty"`
+	Type             string                `json:"type"`
+	Version          string                `json:"version"`
+	TiledVersion     string                `json:"tiledversion"`
+	Orientation      string                `json:"orientation"`               // orthogonal, isometric, staggered, hexagonal
+	RenderOrder      string                `json:"renderorder,omitempty"`     // right-down, right-up, left-down, left-up
+	Width            int                   `json:"width"`                     // number of tile columns
+	Height           int                   `json:"height"`                    // number of tile rows
+	TileWidth        int                   `json:"tilewidth"`                 // map grid width
+	TileHeight       int                   `json:"tileheight"`                // map grid height
+	BackgroundColor  string                `json:"backgroundcolor,omitempty"` // Hex color
+	Layers           []Layer               `json:"layers"`
+	Tilesets         []Tileset             `json:"tilesets"`
+	Properties       []properties.Property `json:"properties,omitempty"`
+	NextLayerID      int                   `json:"nextlayerid,omitempty"`
+	NextObjectID     int                   `json:"nextobjectid,omitempty"`
+	ParallaxOriginX  float64               `json:"parallaxoriginx,omitempty"`
+	ParallaxOriginY  float64               `json:"parallaxoriginy,omitempty"`
+	HexSideLength    int                   `json:"hexsidelength,omitempty"`
+	StaggerAxis      string                `json:"staggeraxis,omitempty"`  // x, y
+	StaggerIndex     string                `json:"staggerindex,omitempty"` // odd, even
+	Infinite         bool                  `json:"infinite,omitempty"`
+	CompressionLevel int                   `json:"compressionlevel,omitempty"`
 
 	// game engine data - not from Tiled
 	// Properties Ben adds in the Tiled map
@@ -44,6 +44,7 @@ type Map struct {
 	CostMap        [][]int           // each tile's cost (used for path finding and collisions)
 	CollisionRects [][]CollisionRect // collision rects that are embedded in maps (in tiles; using the COLLISION property)
 	GroundMaterial [][]string        // the "material" each tile on the ground represents; used for things like footstep sounds
+	VisionBlockers [][]bool          // per-tile: indicates if tile blocks line of sight
 	MapMeta
 }
 
@@ -97,16 +98,16 @@ const (
 
 // Layer represents a layer in the map
 type Layer struct {
-	ID         int        `json:"id"`
-	Name       string     `json:"name"`
-	Type       string     `json:"type"` // tilelayer, objectgroup, imagelayer, group
-	Visible    bool       `json:"visible"`
-	Opacity    float64    `json:"opacity"`
-	OffsetX    float64    `json:"offsetx,omitempty"`
-	OffsetY    float64    `json:"offsety,omitempty"`
-	ParallaxX  float64    `json:"parallaxx,omitempty"`
-	ParallaxY  float64    `json:"parallaxy,omitempty"`
-	Properties []Property `json:"properties,omitempty"`
+	ID         int                   `json:"id"`
+	Name       string                `json:"name"`
+	Type       string                `json:"type"` // tilelayer, objectgroup, imagelayer, group
+	Visible    bool                  `json:"visible"`
+	Opacity    float64               `json:"opacity"`
+	OffsetX    float64               `json:"offsetx,omitempty"`
+	OffsetY    float64               `json:"offsety,omitempty"`
+	ParallaxX  float64               `json:"parallaxx,omitempty"`
+	ParallaxY  float64               `json:"parallaxy,omitempty"`
+	Properties []properties.Property `json:"properties,omitempty"`
 
 	// Tile layer specific
 	Width       int    `json:"width,omitempty"`
@@ -171,17 +172,17 @@ func GetAllObjectsFromLayer(layer Layer) []Object {
 
 // Object represents an object in an object layer
 type Object struct {
-	ID         int        `json:"id"`
-	Name       string     `json:"name,omitempty"`
-	Type       string     `json:"type,omitempty"` // TODO: is this used anywhere? I don't even know where it would come from in Tiled.
-	Class      string     `json:"class,omitempty"`
-	X          float64    `json:"x"`
-	Y          float64    `json:"y"`
-	Width      float64    `json:"width,omitempty"`
-	Height     float64    `json:"height,omitempty"`
-	Rotation   float64    `json:"rotation,omitempty"`
-	Visible    bool       `json:"visible"`
-	Properties []Property `json:"properties,omitempty"`
+	ID         int                   `json:"id"`
+	Name       string                `json:"name,omitempty"`
+	Type       string                `json:"type,omitempty"` // TODO: is this used anywhere? I don't even know where it would come from in Tiled.
+	Class      string                `json:"class,omitempty"`
+	X          float64               `json:"x"`
+	Y          float64               `json:"y"`
+	Width      float64               `json:"width,omitempty"`
+	Height     float64               `json:"height,omitempty"`
+	Rotation   float64               `json:"rotation,omitempty"`
+	Visible    bool                  `json:"visible"`
+	Properties []properties.Property `json:"properties,omitempty"`
 
 	// Shape-specific fields
 	Ellipse  bool    `json:"ellipse,omitempty"`  // true if ellipse
@@ -231,20 +232,20 @@ type Tileset struct {
 
 	// Embedded tileset properties
 	// Values loaded from a Tileset JSON file
-	Name        string      `json:"name,omitempty"`
-	TileWidth   int         `json:"tilewidth,omitempty"`
-	TileHeight  int         `json:"tileheight,omitempty"`
-	TileCount   int         `json:"tilecount,omitempty"` // FYI: if tileset src image is resized, this may be incorrect
-	Columns     int         `json:"columns,omitempty"`   // FYI: if tileset src image is resized, this may be incorrect
-	Image       string      `json:"image,omitempty"`
-	ImageWidth  int         `json:"imagewidth,omitempty"`  // FYI: if tileset src image is resized, this may be incorrect
-	ImageHeight int         `json:"imageheight,omitempty"` // FYI: if tileset src image is resized, this may be incorrect
-	Margin      int         `json:"margin,omitempty"`
-	Spacing     int         `json:"spacing,omitempty"`
-	Properties  []Property  `json:"properties,omitempty"`
-	Tiles       []Tile      `json:"tiles,omitempty"` // tiles that have animations, properties, etc (not a list of all tile images)
-	TileOffset  *TileOffset `json:"tileoffset,omitempty"`
-	Grid        *Grid       `json:"grid,omitempty"`
+	Name        string                `json:"name,omitempty"`
+	TileWidth   int                   `json:"tilewidth,omitempty"`
+	TileHeight  int                   `json:"tileheight,omitempty"`
+	TileCount   int                   `json:"tilecount,omitempty"` // FYI: if tileset src image is resized, this may be incorrect
+	Columns     int                   `json:"columns,omitempty"`   // FYI: if tileset src image is resized, this may be incorrect
+	Image       string                `json:"image,omitempty"`
+	ImageWidth  int                   `json:"imagewidth,omitempty"`  // FYI: if tileset src image is resized, this may be incorrect
+	ImageHeight int                   `json:"imageheight,omitempty"` // FYI: if tileset src image is resized, this may be incorrect
+	Margin      int                   `json:"margin,omitempty"`
+	Spacing     int                   `json:"spacing,omitempty"`
+	Properties  []properties.Property `json:"properties,omitempty"`
+	Tiles       []Tile                `json:"tiles,omitempty"` // tiles that have animations, properties, etc (not a list of all tile images)
+	TileOffset  *TileOffset           `json:"tileoffset,omitempty"`
+	Grid        *Grid                 `json:"grid,omitempty"`
 
 	// Background color
 	BackgroundColor string `json:"backgroundcolor,omitempty"`
@@ -300,17 +301,17 @@ func (t Tileset) validate() {
 
 // Tile represents individual tile properties within a tileset
 type Tile struct {
-	ID          int        `json:"id"`
-	Type        string     `json:"type,omitempty"`
-	Class       string     `json:"class,omitempty"`
-	Properties  []Property `json:"properties,omitempty"`
-	Image       string     `json:"image,omitempty"`
-	ImageWidth  int        `json:"imagewidth,omitempty"`
-	ImageHeight int        `json:"imageheight,omitempty"`
-	Animation   []Frame    `json:"animation,omitempty"`
-	ObjectGroup *Layer     `json:"objectgroup,omitempty"` // Collision shapes
-	Terrain     []int      `json:"terrain,omitempty"`     // Deprecated
-	Probability float64    `json:"probability,omitempty"`
+	ID          int                   `json:"id"`
+	Type        string                `json:"type,omitempty"`
+	Class       string                `json:"class,omitempty"`
+	Properties  []properties.Property `json:"properties,omitempty"`
+	Image       string                `json:"image,omitempty"`
+	ImageWidth  int                   `json:"imagewidth,omitempty"`
+	ImageHeight int                   `json:"imageheight,omitempty"`
+	Animation   []Frame               `json:"animation,omitempty"`
+	ObjectGroup *Layer                `json:"objectgroup,omitempty"` // Collision shapes
+	Terrain     []int                 `json:"terrain,omitempty"`     // Deprecated
+	Probability float64               `json:"probability,omitempty"`
 }
 
 // Frame represents an animation frame
@@ -332,75 +333,9 @@ type Grid struct {
 	Height      int    `json:"height"`
 }
 
-// Property represents a custom property
-type Property struct {
-	Name         string `json:"name"`
-	Type         string `json:"type,omitempty"` // string, int, float, bool, color, file, object, class
-	Value        any    `json:"value"`
-	PropertyType string `json:"propertytype,omitempty"` // For object/class types
-}
-
-// UnmarshalJSON handles the flexible property value types
-func (p *Property) UnmarshalJSON(data []byte) error {
-	type Alias Property
-	aux := &struct {
-		*Alias
-	}{
-		Alias: (*Alias)(p),
-	}
-
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	// Set default type if not specified
-	if p.Type == "" {
-		p.Type = "string"
-	}
-
-	return nil
-}
-
-// GetStringValue returns the property value as a string
-func (p *Property) GetStringValue() string {
-	if str, ok := p.Value.(string); ok {
-		return str
-	}
-	return ""
-}
-
-// GetIntValue returns the property value as an int
-func (p *Property) GetIntValue() int {
-	switch v := p.Value.(type) {
-	case int:
-		return v
-	case float64:
-		return int(v)
-	}
-	return 0
-}
-
-// GetFloatValue returns the property value as a float64
-func (p *Property) GetFloatValue() float64 {
-	switch v := p.Value.(type) {
-	case float64:
-		return v
-	case int:
-		return float64(v)
-	}
-	return 0.0
-}
-
-// GetBoolValue returns the property value as a bool
-func (p *Property) GetBoolValue() bool {
-	if b, ok := p.Value.(bool); ok {
-		return b
-	}
-	return false
-}
-
 type ObjectInfo struct {
-	AllProps        []Property // all properties in the object or its embedded tile (if one exists)
+	// AllProps holds all properties in the object or its embedded tile (if one exists)
+	AllProps        []properties.Property
 	HasEmbeddedTile bool
 	Tile            *Tile    // if a tile exists (and has properties, custom fields, animations etc) then this will be populated. If it's just a plain tile, then this will be nil.
 	Tileset         *Tileset // if there is an embedded tile, this will be set (even if the Tile itself is returned nil due to lack of extra data).

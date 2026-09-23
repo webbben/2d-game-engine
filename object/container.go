@@ -8,7 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/screen"
-	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 
 type Container struct {
@@ -75,11 +75,11 @@ const (
 	ObjCommandCloseContainer defs.EventType = "obj_cmd_close_container"
 )
 
-func (obj *Object) loadContainerObject(props []tiled.Property) {
-	if openSFX, found := tiled.GetStringProperty("sfx_open", props); found {
+func (obj *Object) loadContainerObject(props []properties.Property) {
+	if openSFX, found := properties.GetStringProperty(properties.PropSFXOpen, props); found {
 		obj.Container.openSFXID = defs.SoundID(openSFX)
 	}
-	if closeSFX, found := tiled.GetStringProperty("sfx_close", props); found {
+	if closeSFX, found := properties.GetStringProperty(properties.PropSFXClose, props); found {
 		obj.Container.closeSFXID = defs.SoundID(closeSFX)
 	}
 

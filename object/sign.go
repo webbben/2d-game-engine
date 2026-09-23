@@ -3,15 +3,15 @@ package object
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 
 type Sign struct {
 	bookID defs.BookID
 }
 
-func (obj *Object) loadSignObject(allProps []tiled.Property) {
-	bookID, found := tiled.GetStringProperty("book_id", allProps)
+func (obj *Object) loadSignObject(allProps []properties.Property) {
+	bookID, found := properties.GetStringProperty(properties.PropBookID, allProps)
 	if !found {
 		logz.Panicln("Object", "sign object didnt' have a book_id property.", obj.ID)
 	}
