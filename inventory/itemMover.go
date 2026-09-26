@@ -257,6 +257,10 @@ func (im *ItemMover) attemptGroupTransfer(originIndex int) {
 			continue
 		}
 
+		if !slot.CanTakeItemType(im.carryItemDef.Type) {
+			continue
+		}
+
 		if slices.Contains(possibleTransfers, slot.groupID) {
 			slot.SetContent(im.carryItem, im.carryItemDef)
 			im.carryItem = nil

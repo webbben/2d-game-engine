@@ -129,10 +129,9 @@ func (t GotoTask) isComplete() bool {
 }
 
 func (t *GotoTask) SetupActiveState() {
-	// TODO(#99): this is actually reachable for a top-level GotoTask (quest/schedule assigns TaskGoto, and
-	// map-loading calls SetupActiveState on the current task). Decide whether to implement a real setup or
-	// confirm the path can't happen; tracked before touching this.
-	panic("not yet implemented! could this ever be called anyway? i think goto tasks are only created when NPC is in same map as player.")
+	// Not possible to get here because GotoTask should only be used by NPCs in an active map; never used in simulation.
+	// NPCs routing between maps in simulation would be using the routing task instead.
+	panic("never should've come here! (GotoTask only used in active map, never in background simulation)")
 }
 
 func (t GotoTask) DisableDefaultSpeechBubbles() bool {

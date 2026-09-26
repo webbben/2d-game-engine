@@ -3,6 +3,7 @@ package inventory
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/state"
+	"github.com/webbben/2d-game-engine/logz"
 )
 
 // ItemTransfer is for moving items from one inventory to another.
@@ -94,11 +95,17 @@ func (it *ItemTransfer) Update() ItemTransferResult {
 }
 
 func transferItem(from []*ItemSlot, fromIndex int, quantity int, to []*ItemSlot) ItemTransferResult {
-	if quantity == 0 {
-		panic("no quantity set for item transfer")
+	if quantity <= 0 {
+		logz.PanicCtx("transferItem", "quantity was 0 or negative", quantity)
 	}
 	itemToMove := *from[fromIndex].Item
 	itemDef := from[fromIndex].ItemDef
+
+	if quantity > itemToMove.Quantity {
+		logz.PanicCtx("transferItem", "quantity was greater than the actual quantity in the item slot.", "quantity:", quantity, "source quantity:", itemToMove.Quantity)
+	}
+
+	itemToMove.Quantity = quantity
 
 	// if groupable, find a matching slot
 	if itemDef.Groupable {
@@ -110,6 +117,7 @@ func transferItem(from []*ItemSlot, fromIndex int, quantity int, to []*ItemSlot)
 				slot.Item.Quantity += quantity
 				from[fromIndex].Item.Quantity -= quantity
 				if from[fromIndex].Item.Quantity == 0 {
+					from[fromIndex].IsSelected = false
 					from[fromIndex].Clear()
 				}
 				return ItemTransferResult{
@@ -127,6 +135,7 @@ func transferItem(from []*ItemSlot, fromIndex int, quantity int, to []*ItemSlot)
 			slot.SetContent(&itemToMove, itemDef)
 			from[fromIndex].Item.Quantity -= quantity
 			if from[fromIndex].Item.Quantity == 0 {
+				from[fromIndex].IsSelected = false
 				from[fromIndex].Clear()
 			}
 			return ItemTransferResult{
