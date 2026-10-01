@@ -20,7 +20,7 @@ type Slider struct {
 	numSteps       int
 	stepDistPx     float64
 
-	x, y         int
+	x, y         float64
 	ballX        float64 // ball x (offset from slider x)
 	currentValue int
 
@@ -124,7 +124,7 @@ func NewSlider(params SliderParams) Slider {
 }
 
 func (s *Slider) Update() {
-	tileSize := int(config.TileSize * config.UIScale)
+	tileSize := config.TileSize * config.UIScale
 	// ballBounds := s.ballImg.Bounds()
 	sliderBounds := s.sliderImg.Bounds()
 	s.MouseBehavior.Update(s.x, s.y, sliderBounds.Dx(), sliderBounds.Dy(), false)
@@ -136,7 +136,7 @@ func (s *Slider) Update() {
 		mouseX, _ := ebiten.CursorPosition()
 		// ballX and stepDistPx need to be maintained as floats since steps may have decimal values, and without those
 		// the ball movement ends up coming up short. but, the value is kept as an int. that's why we have all that conversion going on here.
-		newValue := int(float64(mouseX-s.x-(tileSize/2)) / s.stepDistPx)
+		newValue := int((float64(mouseX) - s.x - (tileSize / 2)) / s.stepDistPx)
 		newValue += s.minVal
 		s.SetValue(newValue)
 	} else {
@@ -174,8 +174,8 @@ func (s *Slider) SetValue(val int) {
 }
 
 func (s *Slider) Draw(screen *ebiten.Image, x, y float64) {
-	s.x = int(x)
-	s.y = int(y)
+	s.x = x
+	s.y = y
 
 	rendering.DrawImage(screen, s.sliderImg, x, y, 0)
 

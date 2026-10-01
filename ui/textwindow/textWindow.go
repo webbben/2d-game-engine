@@ -215,10 +215,10 @@ func (tw *textWindow) Draw(screen *ebiten.Image, x, y float64) {
 
 	rendering.DrawImage(screen, tw.box.windowImage, tw.x, tw.y, 0)
 
-	tileSize := tw.box.TileSize()
-	text.DrawShadowText(screen, tw.Title, tw.titleFont, int(tw.x)+(tileSize/2), int(tw.y)+(tileSize)-5, nil, nil, 0, 0)
+	tileSize := float64(tw.box.TileSize())
+	text.DrawShadowText(screen, tw.Title, tw.titleFont, tw.x+tileSize/2, tw.y+tileSize-5, nil, nil, 0, 0)
 
-	tw.lineWriter.Draw(screen, int(tw.x)+(tileSize/2), int(tw.y)+tileSize+(tileSize/2))
+	tw.lineWriter.Draw(screen, (tw.x)+float64(tileSize/2), (tw.y)+float64(tileSize+(tileSize/2)))
 }
 
 func (tw *textWindow) Update() {

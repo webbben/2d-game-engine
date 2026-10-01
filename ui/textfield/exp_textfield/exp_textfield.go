@@ -69,7 +69,7 @@ func (t *TextField) Focus() {
 func (t *TextField) Blur() { t.field.Blur() }
 
 func (t *TextField) Update() {
-	t.mouseBehavior.Update(t.bounds.Min.X, t.bounds.Min.Y, t.bounds.Dx(), t.bounds.Dy(), false)
+	t.mouseBehavior.Update(float64(t.bounds.Min.X), float64(t.bounds.Min.Y), t.bounds.Dx(), t.bounds.Dy(), false)
 	if t.mouseBehavior.LeftClick.ClickReleased {
 		t.Focus()
 	} else if t.mouseBehavior.LeftClickOutside.ClickReleased {

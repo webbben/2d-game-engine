@@ -3,10 +3,10 @@ package box
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
-	"github.com/webbben/2d-game-engine/ui/text"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/ui/text"
 	"golang.org/x/image/font"
 )
 
@@ -104,11 +104,11 @@ func (bt BoxTitle) GetTitle() string {
 }
 
 func (bt BoxTitle) Draw(screen *ebiten.Image, x, y float64) {
-	tileSize := int(config.TileSize * config.UIScale)
+	tileSize := config.TileSize * config.UIScale
 
 	rendering.DrawImage(screen, bt.builtImage, x, y, 0)
 	titleWidth, _, _ := text.GetStringSize(bt.title, bt.f)
-	titleX := int(x) + (bt.Width() / 2) - (titleWidth / 2)
-	titleY := int(y) + tileSize
+	titleX := x + float64(bt.Width()/2) - float64(titleWidth/2)
+	titleY := y + tileSize
 	text.DrawShadowText(screen, bt.title, bt.f, titleX, titleY, nil, nil, 0, 0)
 }

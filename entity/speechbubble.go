@@ -71,7 +71,7 @@ func NewSpeechBubble(s string, params SpeechBubbleParams) *SpeechBubble {
 
 	// center text in bubble
 	x, y := text.CenterTextInRect(s, params.Font, model.NewRect(0, 0, float64(width), float64(height)))
-	text.DrawShadowText(sb.speechBubbleImg, sb.speechBubbleText, sb.speechBubbleFont, x, y, nil, nil, 0, 0)
+	text.DrawShadowText(sb.speechBubbleImg, sb.speechBubbleText, sb.speechBubbleFont, float64(x), float64(y), nil, nil, 0, 0)
 
 	return sb
 }

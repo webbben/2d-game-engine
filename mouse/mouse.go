@@ -49,21 +49,23 @@ func (cb ClickBehavior) DoubleClicked() bool {
 	return cb.ClickReleased && (time.Duration(cb.lastClickMs) < 250)
 }
 
-func (mouseBehavior *MouseBehavior) Update(drawX, drawY int, boxWidth, boxHeight int, scaleForGameWorld bool) {
+func (mouseBehavior *MouseBehavior) Update(drawX, drawY float64, boxWidth, boxHeight int, scaleForGameWorld bool) {
 	mouseX, mouseY := ebiten.CursorPosition()
+	mX := float64(mouseX)
+	mY := float64(mouseY)
 
 	// adjust to game scale if in world
 	if scaleForGameWorld {
 		boxWidth = int(float64(boxWidth) * config.GameScale)
 		boxHeight = int(float64(boxHeight) * config.GameScale)
-		drawX = int(float64(drawX) * config.GameScale)
-		drawY = int(float64(drawY) * config.GameScale)
+		drawX = float64(drawX) * config.GameScale
+		drawY = float64(drawY) * config.GameScale
 	}
 
 	// detect hovering
 	mouseBehavior.IsHovering = false
-	if mouseX > int(drawX) && mouseX < (drawX+boxWidth) {
-		if mouseY > int(drawY) && mouseY < (drawY+boxHeight) {
+	if mX > drawX && mY < (drawX+float64(boxWidth)) {
+		if mY > drawY && mY < (drawY+float64(boxHeight)) {
 			mouseBehavior.IsHovering = true
 			mouseBehavior.LeftClickOutside.Reset() // not clicking outside, so reset this
 

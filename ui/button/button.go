@@ -20,7 +20,7 @@ type Button struct {
 	init          bool
 	ButtonText    string
 	Width, Height int
-	x, y          int // position of this button. this is set during draw, and only needed here for checking mouse hovers/clicks
+	x, y          float64 // position of this button. this is set during draw, and only needed here for checking mouse hovers/clicks
 	fontFace      font.Face
 
 	mouseBehavior mouse.MouseBehavior
@@ -81,8 +81,8 @@ func NewButton(buttonText string, fontFace font.Face, width, height int, audioma
 	paddingY := dsc * 2
 	dx += paddingX
 	dy += paddingY
-	baselineY := dy - (paddingY / 2)
-	baselineX := paddingX / 2
+	baselineY := float64(dy - (paddingY / 2))
+	baselineX := float64(paddingX / 2)
 
 	// if width or height is 0, that means we should set it to be as small as possible (caller doesn't care about size)
 	// if an actual size is specified but it's too small for the text & font, change it and log a warning
@@ -184,7 +184,7 @@ func (b Button) IsFlashing() bool {
 	return b.flashFactor > 0
 }
 
-func (b *Button) Draw(screen *ebiten.Image, x, y int) {
+func (b *Button) Draw(screen *ebiten.Image, x, y float64) {
 	if !b.init {
 		panic("tried to draw button before it was created!")
 	}
@@ -231,6 +231,6 @@ func (b *Button) Draw(screen *ebiten.Image, x, y int) {
 	}
 	// some buttons may not have text
 	if b.textImg != nil {
-		rendering.DrawImage(screen, b.textImg, float64(x+dx), float64(y+dy), 0)
+		rendering.DrawImage(screen, b.textImg, x+float64(dx), y+float64(dy), 0)
 	}
 }

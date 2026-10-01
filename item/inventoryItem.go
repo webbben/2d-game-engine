@@ -29,13 +29,13 @@ func NewItemIcon(itemDef defs.ItemDef) ItemIcon {
 
 func (ic ItemIcon) Draw(screen *ebiten.Image, x, y float64, quantity int) {
 	rendering.DrawImage(screen, ic.tileImage, x, y, config.UIScale)
-	tileSize := int(config.TileSize * config.UIScale)
+	tileSize := config.TileSize * config.UIScale
 
 	if quantity > 1 {
 		qS := fmt.Sprintf("%v", quantity)
 		qDx, _, _ := text.GetStringSize(qS, config.DefaultFont)
-		qX := int(x) + tileSize - qDx - 3
-		qY := int(y) + tileSize - 5
+		qX := x + tileSize - float64(qDx) - 3
+		qY := y + tileSize - 5
 		text.DrawOutlinedText(screen, qS, config.DefaultFont, qX, qY, color.Black, color.White, 0, 0)
 	}
 }

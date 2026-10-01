@@ -19,7 +19,7 @@ import (
 
 type ItemSlot struct {
 	init              bool
-	x, y              int
+	x, y              float64
 	mouseBehavior     mouse.MouseBehavior
 	hoverWindow       textwindow.HoverWindow
 	hoverWindowParams textwindow.TextWindowParams // since we have to recalculate the hover window when text changes, save the params
@@ -159,8 +159,8 @@ func (is *ItemSlot) Draw(screen *ebiten.Image, x, y float64, om *overlay.Overlay
 	if !is.init {
 		panic("item slot not initialized")
 	}
-	is.x = int(x)
-	is.y = int(y)
+	is.x = x
+	is.y = y
 
 	drawImg := is.itemSlotTiles.EnabledTile
 	if !is.Enabled {

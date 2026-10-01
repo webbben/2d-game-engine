@@ -34,7 +34,7 @@ func NewHoverTooltip(s string, tilesetSrc string, originIndex int, msDelay int, 
 }
 
 func (ht *HoverTooltip) Update(x, y float64, width, height int) {
-	ht.MouseBehavior.Update(int(x), int(y), width, height, false)
+	ht.MouseBehavior.Update(x, y, width, height, false)
 }
 
 func (ht *HoverTooltip) Draw(om *overlay.OverlayManager) {

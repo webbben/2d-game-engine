@@ -50,6 +50,6 @@ func (mb MultilineButton) Dimensions() (dx, dy int) {
 }
 
 func (mb *MultilineButton) Draw(screen *ebiten.Image, x, y float64) {
-	mb.btn.Draw(screen, int(x), int(y))
+	mb.btn.Draw(screen, x, y)
 	mb.ml.Draw(screen, x, y)
 }

@@ -306,15 +306,15 @@ func (ds *DialogSession) buildOpinionHoverBox() {
 	ds.opinionHoverWindow = b.BuildBoxImage(maxDx, totalDy, config.UIScale)
 
 	// now, draw the opinion mod text
-	drawX := int(tilesize)
-	drawY := int(tilesize + float64(lineDy))
+	drawX := tilesize
+	drawY := tilesize + float64(lineDy)
 	for _, mod := range ds.opinionMods {
 		c := color.RGBA{0, 255, 0, 0}
 		if mod.Mod < 0 {
 			c = color.RGBA{255, 0, 0, 0}
 		}
 		text.DrawText(ds.opinionHoverWindow, mod.String(), config.DefaultInfoFont, drawX, drawY, c)
-		drawY += lineDy + marginY
+		drawY += float64(lineDy + marginY)
 	}
 }
 

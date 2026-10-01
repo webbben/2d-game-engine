@@ -64,7 +64,7 @@ func (ml Multiline) Dimensions() (dx, dy int) {
 }
 
 func (ml *Multiline) Draw(screen *ebiten.Image, x, y float64) {
-	ml.lw.Draw(screen, int(x), int(y))
+	ml.lw.Draw(screen, x, y)
 }
 
 func (ml *Multiline) SetWidth(dx int) {

@@ -1,3 +1,4 @@
+// Package stepper is a UI component for stepping between values
 package stepper
 
 import (
@@ -76,19 +77,19 @@ func (s Stepper) Dimensions() (dx, dy int) {
 }
 
 func (s *Stepper) Draw(screen *ebiten.Image, x, y float64) {
-	tilesize := int(config.TileSize * config.UIScale)
-	drawX := int(x)
-	drawY := int(y)
+	tilesize := config.TileSize * config.UIScale
+	drawX := x
+	drawY := y
 
 	s.decrementButton.Draw(screen, drawX, drawY)
-	drawX += s.decrementButton.Width
+	drawX += float64(s.decrementButton.Width)
 
 	// draw the counter
 	drawX += tilesize / 4
 	count := fmt.Sprintf("%v", s.counterVal)
 	sX, sY := text.CenterTextInRect(count, s.counterFont, model.Rect{X: float64(drawX), Y: float64(drawY), W: float64(s.counterMaxWidth), H: float64(tilesize)})
-	text.DrawShadowText(screen, count, s.counterFont, sX, sY, s.counterFg, s.counterBg, 0, 0)
-	drawX += (tilesize / 4) + s.counterMaxWidth
+	text.DrawShadowText(screen, count, s.counterFont, float64(sX), float64(sY), s.counterFg, s.counterBg, 0, 0)
+	drawX += (tilesize / 4) + float64(s.counterMaxWidth)
 
 	s.incrementButton.Draw(screen, drawX, drawY)
 }

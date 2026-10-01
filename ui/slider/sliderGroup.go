@@ -72,12 +72,12 @@ func (sg *SliderGroup) Draw(screen *ebiten.Image, x, y float64) {
 			panic("slider not found: " + name)
 		}
 		sx, sy := text.CenterTextInRect(name, sg.labelFont, model.Rect{X: drawX, Y: drawY, W: tileSize, H: tileSize})
-		text.DrawShadowText(screen, name, sg.labelFont, sx, sy, sg.labelFg, sg.labelBg, 0, 0)
+		text.DrawShadowText(screen, name, sg.labelFont, float64(sx), float64(sy), sg.labelFg, sg.labelBg, 0, 0)
 		slider.Draw(screen, drawX+tileSize, drawY)
 
 		sliderWidth, _ := slider.Dimensions()
 		sx, sy = text.CenterTextInRect(name, sg.labelFont, model.Rect{X: drawX + tileSize + float64(sliderWidth), Y: drawY, W: tileSize, H: tileSize})
-		text.DrawShadowText(screen, fmt.Sprintf("%v", slider.GetValue()), sg.labelFont, sx, sy, sg.labelFg, sg.labelBg, 0, 0)
+		text.DrawShadowText(screen, fmt.Sprintf("%v", slider.GetValue()), sg.labelFont, float64(sx), float64(sy), sg.labelFg, sg.labelBg, 0, 0)
 
 		drawY += tileSize
 	}

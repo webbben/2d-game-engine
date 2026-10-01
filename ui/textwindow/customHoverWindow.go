@@ -79,8 +79,8 @@ func (hw CustomHoverWindow) Draw(om *overlay.OverlayManager) {
 
 	tileSize := config.GetScaledTilesize()
 	// int(tw.x)+(tileSize/2), int(tw.y)+(tileSize)-5,
-	tx := int(tileSize / 2)
-	ty := int(tileSize - 5)
+	tx := (tileSize / 2)
+	ty := (tileSize - 5)
 
 	text.DrawShadowText(hw.placeHolderImage, hw.title, hw.f, tx, ty, nil, nil, 0, 0)
 

@@ -152,7 +152,7 @@ func (m *TextInputModal) Draw(screen *ebiten.Image, x, y float64) {
 	titleX := x + tileSize
 	titleY := y + tileSize
 
-	text.DrawShadowText(screen, m.titleText, m.titleFont, int(titleX), int(titleY), nil, nil, 0, 0)
+	text.DrawShadowText(screen, m.titleText, m.titleFont, titleX, titleY, nil, nil, 0, 0)
 
 	inputX := titleX
 	inputY := titleY + tileSize*2
@@ -163,5 +163,5 @@ func (m *TextInputModal) Draw(screen *ebiten.Image, x, y float64) {
 	btnX := inputX + float64(textInputDx) + 20
 	btnY := inputY
 
-	m.confirmBtn.Draw(screen, int(btnX), int(btnY))
+	m.confirmBtn.Draw(screen, btnX, btnY)
 }

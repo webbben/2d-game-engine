@@ -245,33 +245,33 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 	totalWidth := textBoxBounds.Dx() + topicBoxWidth
 	startX, _ := utils.CenterInScreen(totalWidth, int(tileSize))
 
-	textBoxY := display.SCREEN_HEIGHT - textBoxBounds.Dy()
-	textBoxX := int(startX)
+	textBoxY := float64(display.SCREEN_HEIGHT) - float64(textBoxBounds.Dy())
+	textBoxX := startX
 	rendering.DrawImage(screen, ds.TextBoxImg, float64(textBoxX), float64(textBoxY), 0)
 	ds.nameTitle.Draw(screen, float64(textBoxX), float64(textBoxY)-tileSize)
 
-	lwX := textBoxX + int(tileSize/2)
-	lwY := textBoxY + int(tileSize*2/3) // moved a little further down, since the box title hands down a bit
+	lwX := textBoxX + (tileSize / 2)
+	lwY := textBoxY + (tileSize * 2 / 3) // moved a little further down, since the box title hands down a bit
 	ds.LineWriter.Draw(screen, lwX, lwY)
 	for i, link := range ds.topicLinks {
 		if link.linkButton == nil {
 			// buttons haven't been made yet
 			break
 		}
-		ds.topicLinks[i].linkButton.Draw(screen, lwX+int(link.x), lwY+int(link.y))
+		ds.topicLinks[i].linkButton.Draw(screen, lwX+link.x, lwY+link.y)
 	}
 
 	// if linewriter is waiting to continue, show flashing continue icon
 	if ds.flashContinueIcon {
-		text.DrawShadowText(screen, "", ds.f, textBoxX+textBoxBounds.Dx()-int(tileSize), textBoxY+textBoxBounds.Dy()-int(tileSize/2), nil, nil, 0, 0)
+		text.DrawShadowText(screen, "", ds.f, textBoxX+float64(textBoxBounds.Dx())-tileSize, textBoxY+float64(textBoxBounds.Dy())-(tileSize/2), nil, nil, 0, 0)
 	}
 
 	if len(ds.replyButtons) > 0 && len(ds.topicButtons) > 0 {
 		panic("can't have reply buttons and topic buttons at the same time")
 	}
 
-	optionBoxX := textBoxX + textBoxBounds.Dx()
-	optionBoxY := display.SCREEN_HEIGHT // subtract the height of the option buttons from this
+	optionBoxX := textBoxX + float64(textBoxBounds.Dx())
+	optionBoxY := float64(display.SCREEN_HEIGHT) // subtract the height of the option buttons from this
 	buttonHeight := 0
 
 	// position the topic box
@@ -280,36 +280,36 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 	} else if len(ds.topicButtons) > 0 {
 		buttonHeight = ds.topicButtons[0].Height
 	}
-	optionBoxY -= ds.TopicBoxImg.Bounds().Dy()
+	optionBoxY -= float64(ds.TopicBoxImg.Bounds().Dy())
 	if optionBoxY > textBoxY {
 		optionBoxY = textBoxY // don't let it go lower than the text box
 	}
 	rendering.DrawImage(screen, ds.TopicBoxImg, float64(optionBoxX), float64(optionBoxY), 0)
 
 	if ds.showCharInfo {
-		infoBoxY := 0
+		infoBoxY := 0.0
 		infoBoxX := optionBoxX
 		rendering.DrawImage(screen, ds.charInfoBoxImg, float64(infoBoxX), float64(infoBoxY), 0)
-		infoBoxY += int(tileSize / 2)
+		infoBoxY += tileSize / 2
 		titleDx, titleDy, _ := text.GetStringSize(ds.npcName, config.DefaultTitleFont)
-		infoBoxY += titleDy
-		infoBoxX += (topicBoxWidth / 2) - (titleDx / 2)
+		infoBoxY += float64(titleDy)
+		infoBoxX += float64(topicBoxWidth/2) - float64(titleDx/2)
 		text.DrawShadowText(screen, ds.npcName, config.DefaultTitleFont, infoBoxX, infoBoxY, nil, nil, 0, 0)
-		infoBoxY += int(tileSize)
+		infoBoxY += tileSize
 		text.DrawShadowText(screen, ds.Ctx.culture.DisplayName, config.DefaultFont, infoBoxX, infoBoxY, nil, nil, 0, 0)
-		infoBoxY += int(tileSize)
+		infoBoxY += tileSize
 		opinionString := fmt.Sprintf("%v", ds.Ctx.opinion)
 		opinionStringDx, opinionStringDy, _ := text.GetStringSize(opinionString, config.DefaultInfoFont)
 		text.DrawShadowText(screen, "Opinion:", config.DefaultFont, infoBoxX, infoBoxY, nil, nil, 0, 0)
 		if ds.opinionHoverRect == nil {
 			ds.opinionHoverRect = &model.Rect{
 				X: float64(infoBoxX),
-				Y: float64(infoBoxY - opinionStringDy),
+				Y: infoBoxY - float64(opinionStringDy),
 				W: (tileSize * 2) + float64(opinionStringDx),
 				H: float64(opinionStringDy),
 			}
 		}
-		infoBoxX += int(tileSize * 2)
+		infoBoxX += tileSize * 2
 		c := color.RGBA{255, 255, 0, 0}
 		if ds.Ctx.opinion > 0 {
 			c = color.RGBA{0, 255, 0, 0}
@@ -332,18 +332,18 @@ func (ds *DialogSession) Draw(screen *ebiten.Image) {
 	// handle drawing replies or topics
 	if ds.replyBox != nil {
 		// replies are using the larger reply box, since they are too big
-		ds.replyBox.draw(screen, textBoxY)
+		ds.replyBox.draw(screen, int(textBoxY))
 	} else if len(ds.replyButtons) > 0 {
 		// replies are drawn in the topic box, since they are all small enough to fit
-		replyX := optionBoxX + int(tileSize/2)
-		replyY := optionBoxY + int(tileSize/2)
+		replyX := optionBoxX + (tileSize / 2)
+		replyY := optionBoxY + (tileSize / 2)
 
 		for i, b := range ds.replyButtons {
-			b.Draw(screen, replyX, replyY+(i*buttonHeight))
+			b.Draw(screen, replyX, replyY+float64(i*buttonHeight))
 		}
 	} else if len(ds.topicButtons) > 0 {
 		for i, b := range ds.topicButtons {
-			b.Draw(screen, optionBoxX+int(tileSize/2), optionBoxY+(i*buttonHeight)+(int(tileSize/2)))
+			b.Draw(screen, optionBoxX+(tileSize/2), optionBoxY+float64(i*buttonHeight)+(tileSize/2))
 		}
 	}
 }

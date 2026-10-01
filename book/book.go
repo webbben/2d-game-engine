@@ -221,21 +221,21 @@ func (bs *BookSession) renderPageImage() {
 		bs.pageImg.Clear()
 	}
 
-	drawX := 0
-	drawY := tilesize
+	drawX := 0.0
+	drawY := float64(tilesize)
 
 	if bs.bookDef.Title != "" {
 		titleHeight, desc := text.GetRealisticFontMetrics(bs.titleFont)
-		drawY += titleHeight + desc
+		drawY += float64(titleHeight + desc)
 		middleX := bs.pageImg.Bounds().Dx() / 2
-		drawX = int(text.CenterTextOnXPos(bs.bookDef.Title, bs.titleFont, float64(middleX)))
+		drawX = text.CenterTextOnXPos(bs.bookDef.Title, bs.titleFont, float64(middleX))
 		text.DrawShadowText(bs.pageImg, bs.bookDef.Title, bs.titleFont, drawX, drawY, nil, nil, 0, 0)
-		drawY += tilesize
+		drawY += float64(tilesize)
 	}
 
 	if bs.bookDef.Text != "" {
 		drawX = 0
-		bs.lw.Draw(bs.pageImg, drawX, drawY)
+		bs.lw.Draw(bs.pageImg, float64(drawX), float64(drawY))
 	}
 }
 
@@ -261,5 +261,5 @@ func (bs *BookSession) Draw(screen *ebiten.Image, x, y float64) {
 	btnDx, btnDy := float64(bs.closeBtn.Width), float64(bs.closeBtn.Height)
 	drawX = x + float64(bs.boxImage.Bounds().Dx()) - btnDx - tilesize
 	drawY = y + float64(bs.boxImage.Bounds().Dy()) - btnDy - tilesize
-	bs.closeBtn.Draw(screen, int(drawX), int(drawY))
+	bs.closeBtn.Draw(screen, drawX, drawY)
 }

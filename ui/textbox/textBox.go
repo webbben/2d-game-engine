@@ -1,3 +1,4 @@
+// Package textbox is a textbox UI component
 package textbox
 
 import (
@@ -16,7 +17,7 @@ type TextBox struct {
 	icon             *ebiten.Image
 	highlightOnHover bool
 	mouse.MouseBehavior
-	x, y    int
+	x, y    float64
 	options TextBoxOptions
 	f       font.Face
 }
@@ -75,11 +76,11 @@ func (tb *TextBox) SetText(s string) {
 
 	sx, _, _ := text.GetStringSize(s, tb.f)
 	sy, _ := text.GetRealisticFontMetrics(tb.f)
-	textX := (width / 2) - (sx / 2)
-	textY := (height / 2) + (sy / 2)
+	textX := float64((width / 2) - (sx / 2))
+	textY := float64((height / 2) + (sy / 2))
 
 	if tb.icon != nil {
-		textX += (tb.icon.Bounds().Dx() * int(config.UIScale)) / 2
+		textX += float64(tb.icon.Bounds().Dx()*int(config.UIScale)) / 2
 	}
 
 	text.DrawShadowText(tb.boxImage, s, tb.f, textX, textY, nil, nil, 0, 0)
@@ -93,10 +94,10 @@ func (tb *TextBox) GetImage() *ebiten.Image {
 }
 
 func (tb *TextBox) Draw(screen *ebiten.Image, x, y float64) {
-	tb.x = int(x)
-	tb.y = int(y)
+	tb.x = x
+	tb.y = y
 	ops := ebiten.DrawImageOptions{}
-	if tb.highlightOnHover && tb.MouseBehavior.IsHovering {
+	if tb.highlightOnHover && tb.IsHovering {
 		ops.ColorScale.Scale(1.1, 1.1, 1.1, 1)
 	}
 	rendering.DrawImageWithOps(screen, tb.boxImage, x, y, 0, &ops)

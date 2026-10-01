@@ -4,11 +4,11 @@ package tab
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/mouse"
-	"github.com/webbben/2d-game-engine/ui/overlay"
-	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/ui/textwindow"
 )
 
@@ -92,7 +92,7 @@ func (tc *TabControl) Load() {
 func (tc *TabControl) Update() {
 	tabWidth, tabHeight := tc.Tabs[0].Dimensions()
 	for i, tab := range tc.Tabs {
-		tc.Tabs[i].mouseBehavior.Update(int(tab.x), int(tab.y), tabWidth, tabHeight, false)
+		tc.Tabs[i].mouseBehavior.Update(tab.x, tab.y, tabWidth, tabHeight, false)
 		if tc.Tabs[i].mouseBehavior.LeftClick.ClickReleased {
 			tc.ActivateTab(i)
 		}

@@ -32,8 +32,8 @@ type OptionSelect struct {
 	optionButtons []*button.Button
 	totalWidth    int // used when making buttons. don't change this directly; if you need to, then just recreate the entire OptionSelect.
 
-	drawX, drawY int
-	textX, textY int
+	drawX, drawY float64
+	textX, textY float64
 
 	topBarMouseBehavior mouse.MouseBehavior
 	optionWindowOpen    bool
@@ -212,8 +212,8 @@ func (os *OptionSelect) Update() {
 }
 
 func (os *OptionSelect) Draw(screen *ebiten.Image, x, y float64, om *overlay.OverlayManager) {
-	os.drawX = int(x)
-	os.drawY = int(y)
+	os.drawX = x
+	os.drawY = y
 
 	tileSize := config.TileSize * config.UIScale
 	rendering.DrawImage(screen, os.barImg, x, y, 0)
@@ -223,8 +223,8 @@ func (os *OptionSelect) Draw(screen *ebiten.Image, x, y float64, om *overlay.Ove
 		return
 	}
 	dy, _ := text.GetRealisticFontMetrics(os.f)
-	sY := int(y+(tileSize/2)) + (dy / 2)
-	sX := int(x + (tileSize / 2))
+	sY := y + (tileSize / 2) + float64(dy/2)
+	sX := x + (tileSize / 2)
 	os.textX = sX
 	os.textY = sY
 
@@ -236,7 +236,7 @@ func (os *OptionSelect) Draw(screen *ebiten.Image, x, y float64, om *overlay.Ove
 type DropDownWindow struct {
 	optionSelectRef *OptionSelect
 
-	x, y        int
+	x, y        float64
 	dropDownBox *ebiten.Image
 
 	closed bool
@@ -319,7 +319,7 @@ func (os *OptionSelect) HandleButtonClicks() (buttonWasClicked bool) {
 }
 
 func (ddw DropDownWindow) Draw(screen *ebiten.Image) {
-	tileSize := int(config.TileSize * config.UIScale)
+	tileSize := config.TileSize * config.UIScale
 
 	if ddw.dropDownBox == nil {
 		panic("drop down box is nil")
@@ -334,8 +334,8 @@ func (ddw DropDownWindow) Draw(screen *ebiten.Image) {
 			panic("option button is nil")
 		}
 		marginHeight := (tileSize / 8) / 2
-		bY := ddw.y + (i * tileSize) + marginHeight
-		optionButton.Draw(screen, int(ddw.x+(tileSize/4)), int(bY))
+		bY := ddw.y + float64(i)*tileSize + float64(marginHeight)
+		optionButton.Draw(screen, ddw.x+(tileSize/4), bY)
 	}
 	if ddw.optionSelectRef.inputEnabled {
 		inputX := ddw.optionSelectRef.drawX + (tileSize / 2)
@@ -350,7 +350,7 @@ func (os *OptionSelect) getDropDownWindow() *DropDownWindow {
 	ddw := DropDownWindow{
 		optionSelectRef: os,
 		x:               os.drawX,
-		y:               os.drawY + int(tileSize),
+		y:               os.drawY + tileSize,
 		dropDownBox:     os.dropDownBox,
 	}
 

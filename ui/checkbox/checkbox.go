@@ -16,7 +16,7 @@ type Checkbox struct {
 
 	checked bool
 
-	x, y int
+	x, y float64
 	w, h int
 }
 
@@ -50,8 +50,8 @@ func (cb Checkbox) IsChecked() bool {
 }
 
 func (cb *Checkbox) Draw(screen *ebiten.Image, x, y float64) {
-	cb.x = int(x)
-	cb.y = int(y)
+	cb.x = x
+	cb.y = y
 
 	var img *ebiten.Image
 	if cb.checked {

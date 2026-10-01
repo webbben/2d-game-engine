@@ -257,11 +257,11 @@ func (lw *LineWriter) resetCursor() {
 }
 
 // Draw returns the last written Y position (for reference by other drawing functions)
-func (lw LineWriter) Draw(screen *ebiten.Image, startX, startY int) int {
+func (lw LineWriter) Draw(screen *ebiten.Image, startX, startY float64) int {
 	if lw.textImg == nil {
 		panic("textImg was nil")
 	}
-	rendering.DrawImage(screen, lw.textImg, float64(startX), float64(startY), 0)
+	rendering.DrawImage(screen, lw.textImg, startX, startY, 0)
 
 	return lw.cursorY
 }
@@ -306,9 +306,9 @@ func (lw *LineWriter) drawRune(r, prev rune) {
 	lw.cursorX += kern.Round()
 
 	if lw.currentShadow {
-		DrawShadowText(lw.textImg, string(r), lw.fontFace, lw.cursorX, lw.cursorY, lw.currentFgColor, lw.bgColor, -2, -2)
+		DrawShadowText(lw.textImg, string(r), lw.fontFace, float64(lw.cursorX), float64(lw.cursorY), lw.currentFgColor, lw.bgColor, -2, -2)
 	} else {
-		DrawText(lw.textImg, string(r), lw.fontFace, lw.cursorX, lw.cursorY, lw.currentFgColor)
+		DrawText(lw.textImg, string(r), lw.fontFace, float64(lw.cursorX), float64(lw.cursorY), lw.currentFgColor)
 	}
 
 	adv, ok := lw.fontFace.GlyphAdvance(r)

@@ -10,7 +10,7 @@ import (
 
 // DrawShadowText draws text with a shadow effect. leave colors nil to use defaults (black fg and gray bg).
 // bgOffsets, which adjust the position of the "shadow" text, default to -2 if left at 0.
-func DrawShadowText(screen *ebiten.Image, s string, f font.Face, x, y int, fg color.Color, bg color.Color, bgOffsetX, bgOffsetY int) {
+func DrawShadowText(screen *ebiten.Image, s string, f font.Face, x, y float64, fg color.Color, bg color.Color, bgOffsetX, bgOffsetY float64) {
 	if fg == nil {
 		fg = color.Black
 	}
@@ -31,7 +31,7 @@ func DrawShadowText(screen *ebiten.Image, s string, f font.Face, x, y int, fg co
 //
 // IMPORTANT: the "y" coordinate is actually the position **BELOW** where the text is drawn.
 // NOT the top left corner of the text image.
-func DrawText(screen *ebiten.Image, s string, f font.Face, x, y int, c color.Color) {
+func DrawText(screen *ebiten.Image, s string, f font.Face, x, y float64, c color.Color) {
 	if s == "" {
 		return
 	}
@@ -41,10 +41,17 @@ func DrawText(screen *ebiten.Image, s string, f font.Face, x, y int, c color.Col
 	if f == nil {
 		panic("no font set!")
 	}
-	ebiten_text.Draw(screen, s, f, x, y, c)
+	drawText(screen, s, f, x, y, c)
 }
 
-func DrawOutlinedText(screen *ebiten.Image, s string, f font.Face, x, y int, fg color.Color, bg color.Color, bgOffsetX, bgOffsetY int) {
+func drawText(dst *ebiten.Image, text string, face font.Face, x, y float64, clr color.Color) {
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(x), float64(y))
+	op.ColorScale.ScaleWithColor(clr)
+	ebiten_text.DrawWithOptions(dst, text, face, op)
+}
+
+func DrawOutlinedText(screen *ebiten.Image, s string, f font.Face, x, y float64, fg color.Color, bg color.Color, bgOffsetX, bgOffsetY float64) {
 	if fg == nil {
 		fg = color.Black
 	}

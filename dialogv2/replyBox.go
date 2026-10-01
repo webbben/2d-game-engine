@@ -161,7 +161,7 @@ func (rc *ReplyComponent) Draw(screen *ebiten.Image, x, y float64) {
 		// since drawX is decoX + 10, we need to subtract 10 from decoHeight. also subtract descent
 		drawY += float64(decoHeight) - 10 - float64(dsc)
 		infoColor := color.RGBA{0, 0, 0, 120}
-		text.DrawText(screen, rc.InfoText, config.DefaultInfoFont, int(drawX), int(drawY), infoColor)
+		text.DrawText(screen, rc.InfoText, config.DefaultInfoFont, drawX, drawY, infoColor)
 	}
 
 	switch rc.Decoration {
@@ -173,7 +173,7 @@ func (rc *ReplyComponent) Draw(screen *ebiten.Image, x, y float64) {
 		vector.StrokeRect(screen, float32(decoX), float32(decoY), float32(decoWidth), float32(decoHeight), 1, c, false)
 	}
 
-	rc.btn.Draw(screen, int(x), int(y))
+	rc.btn.Draw(screen, x, y)
 }
 
 func (rc *ReplyComponent) Update() bool {

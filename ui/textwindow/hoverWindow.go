@@ -32,7 +32,7 @@ func NewHoverWindow(title, bodyText string, textWindowParams TextWindowParams) H
 }
 
 func (hw *HoverWindow) Update(x, y float64, width, height int) {
-	hw.MouseBehavior.Update(int(x), int(y), width, height, false)
+	hw.MouseBehavior.Update(x, y, width, height, false)
 
 	if hw.IsHovering {
 		hw.textWindow.Update()
