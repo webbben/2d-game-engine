@@ -25,6 +25,7 @@ type ItemMover struct {
 	possibleTransfers map[string][]string
 
 	playerAvatarRect *model.Rect
+	groundDropZones  []model.Rect // screen areas where releasing a carried item drops it on the ground
 }
 
 func NewItemMover(itemSlots []*ItemSlot) *ItemMover {
@@ -36,6 +37,14 @@ func NewItemMover(itemSlots []*ItemSlot) *ItemMover {
 
 func (im *ItemMover) AddItemSlots(itemSlots []*ItemSlot) {
 	im.dropableSlots = append(im.dropableSlots, itemSlots...)
+}
+
+func (im *ItemMover) GetCarryItem() *state.ItemState {
+	return im.carryItem
+}
+
+func (im *ItemMover) ClearCarryItem() {
+	im.carryItem = nil
 }
 
 // AddPlayerAvatorZone lets you set a zone on the screen where the player avatar is.
@@ -59,6 +68,34 @@ func (im *ItemMover) AddPlayerAvatorZone(x, y float64, dx, dy int) {
 		W: float64(dx),
 		H: float64(dy),
 	}
+
+	// ensure avatar zone doesn't intersect with any drop zones
+	for _, z := range im.groundDropZones {
+		if im.playerAvatarRect.Intersects(z) {
+			logz.PanicCtx("AddPlayerAvatorZone", "player avatar zone intersects with a drop zone.", im.playerAvatarRect.String(), z.String())
+		}
+	}
+}
+
+func (im *ItemMover) SetGroundDropZones(zones []model.Rect) {
+	// make sure these don't overlap with a player avatar
+	if im.playerAvatarRect != nil {
+		for _, z := range zones {
+			if z.Intersects(*im.playerAvatarRect) {
+				logz.PanicCtx("SetGroundDropZones", "drop zone intersects with player avatar zone.", z.String(), im.playerAvatarRect.String())
+			}
+		}
+	}
+	im.groundDropZones = zones
+}
+
+func (im ItemMover) inGroundDropZone(x, y int) bool {
+	for _, z := range im.groundDropZones {
+		if z.Within(x, y) {
+			return true
+		}
+	}
+	return false
 }
 
 func (im *ItemMover) AddPossibleGroupTransfer(fromGroupID string, toGroupID string) {
@@ -150,6 +187,7 @@ type ItemMoverUpdateResult struct {
 	OpenBook     bool
 	BookID       defs.BookID
 	LastHeldItem defs.ItemID
+	DropItem     bool
 }
 
 func (im *ItemMover) Update() ItemMoverUpdateResult {
@@ -313,6 +351,14 @@ func (im *ItemMover) handleItemPlacement() ItemMoverUpdateResult {
 					return result
 				}
 			}
+		}
+	}
+
+	// check if mouse is over a ground drop zone
+	if len(im.groundDropZones) > 0 {
+		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) && im.inGroundDropZone(mouseX, mouseY) {
+			result.DropItem = true
+			return result
 		}
 	}
 

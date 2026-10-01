@@ -15,6 +15,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/entity"
@@ -270,6 +271,9 @@ func NewActiveMap(
 		m.addAllObjectsToMap(layer)
 	}
 
+	// rebuild any items dropped at runtime
+	m.loadDroppedItems()
+
 	// setup light intensity grid cache
 	m.buildLightIntensityGrid()
 
@@ -393,6 +397,30 @@ func (m *ActiveMap) addAllObjectsToMap(layer tiled.Layer) {
 	}
 }
 
+func (m *ActiveMap) loadDroppedItems() {
+	mapState := m.dataman.GetMapState(m.MapID)
+	i := 0
+	for i < len(mapState.MapItems) {
+		st := mapState.MapItems[i]
+		if !st.Dropped {
+			i++
+			continue
+		}
+		// TODO: are only dropped items able to expire? I think as of now, yes. But if authored items also had expiry, we should move this logic elsewhere
+		if st.ExpiresAt != nil {
+			// if the item is expired, then it shouldn't be added. remove it from
+			if m.gameCtx.GetCurrentGameTime().IsAfter(*st.ExpiresAt) {
+				mapState.MapItems = utils.RemoveIndexUnordered(mapState.MapItems, i)
+				logz.Println("loadDroppedItems", "expired item found and removed from map state:", st.ID, st.ItemState.DefID, m.MapID)
+				// don't move forward since there's a new element moved into current index
+				continue
+			}
+		}
+		m.AddDroppedItem(st)
+		i++
+	}
+}
+
 type NPCManager struct {
 	NPCs []*npc.NPC // the NPC entities in the map
 
@@ -455,6 +483,16 @@ func (mi *ActiveMap) GetObjByID(objID int) *object.Object {
 	return nil
 }
 
+func findMapItem(mapState *state.MapState, objID int) (state.MapItemState, bool) {
+	for _, st := range mapState.MapItems {
+		if st.ID == objID {
+			return st, true
+		}
+	}
+
+	return state.MapItemState{}, false
+}
+
 // AddNPCToMap is the official way to add an NPC to a map.
 // Note: uses Tile coordinates - not absolute coordinates!
 func (mi *ActiveMap) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
@@ -508,15 +546,29 @@ func (m *ActiveMap) IsTileEntityCollision(c model.Coords, excludeEntID string) b
 	return collides
 }
 
+// AddObjectToMap is for adding an object from a Tiled map into the active map.
 func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
 	o := object.LoadObject(obj, m, mi.audioman, mi.dataman, mi.eventBus, mi.MapID, mi)
 
-	// check if object is a door and has overrides; if so, we need to edit the door properties
-	if o.Type == object.TypeDoor {
-		mapState := mi.dataman.GetMapState(mi.MapID)
+	mapState := mi.dataman.GetMapState(mi.MapID)
+
+	// ensure no collision with dropped items in map, since those create new artificial object IDs starting from the end of the range used by real authored objects.
+	st, mapItemFound := findMapItem(mapState, o.ID)
+	if mapItemFound && st.Dropped {
+		logz.PanicCtx("AddObjectToMap", "a runtime item's ID collided with an authored object on this map; this save predates a map edit.", o.Name, o.ID, mi.MapID)
+	}
+
+	switch o.Type {
+	case object.TypeDoor:
+		// check if object is a door and has overrides; if so, we need to edit the door properties
 		doorOverride, exists := mapState.DoorOverrides[o.ID]
 		if exists {
 			o.SetDoorTarget(doorOverride.OverrideDestinationMap, doorOverride.OverrideDestinationSpawn)
+		}
+	case object.TypeItem:
+		if !mapItemFound {
+			// an authored item with no state entry means the item was already taken and should no longer appear in this map
+			return
 		}
 	}
 
@@ -529,6 +581,11 @@ func (mi *ActiveMap) AddObjectToMap(obj tiled.Object, m tiled.Map) {
 	} else if o.Window.Light != nil {
 		mi.WindowObjects = append(mi.WindowObjects, o)
 	}
+}
+
+func (m *ActiveMap) AddDroppedItem(st state.MapItemState) {
+	obj := object.NewDroppedItem(st, m.dataman, m.audioman, m.eventBus, m.MapID, m)
+	m.Objects = append(m.Objects, obj)
 }
 
 // CollidesWithEntity checks if the rect collides with an entity. This is meant for detecting if an entity
@@ -997,7 +1054,55 @@ func (mi *ActiveMap) HandleObjectUpdate(result object.ObjectUpdateResult, obj *o
 	case object.TypeLight:
 		// a light was turned on or off; recalculate light intensity grid
 		mi.buildLightIntensityGrid()
+	case object.TypeItem:
+		mapState := mi.dataman.GetMapState(mi.MapID)
+		itemState, found := findMapItem(mapState, result.PickedUpItemObjID)
+		if !found {
+			// picked up an item that doesn't exist?
+			logz.PanicCtx("HandleObjectUpdate", "somehow an item was picked up that doesn't have an item state.", result.PickedUpItemObjID, mi.MapID)
+		}
+		playerCharState := mi.dataman.GetCharacterState(id.PlayerStateID)
+		success, remaining := characterstate.AddItemToInventory(playerCharState, itemState.ItemState, mi.dataman)
+		if !success {
+			// inventory is full; leave the item on the ground.
+			// TODO: post event so that UI can notify player that inventory is full
+			logz.Println("HandleObjectUpdate", "could not pick up item; inventory is full:", itemState.ItemState, remaining)
+			return
+		}
+
+		mi.removeItemObject(result.PickedUpItemObjID)
+
+		mi.eventBus.Publish(defs.Event{
+			Type: pubsub.EventAddItem,
+			Data: map[string]any{
+				"itemID":   itemState.ItemState.DefID,
+				"quantity": itemState.ItemState.Quantity,
+			},
+		})
 	}
+}
+
+func (m *ActiveMap) removeItemObject(objID int) {
+	mapState := m.dataman.GetMapState(m.MapID)
+	found := false
+	for i, st := range mapState.MapItems {
+		if st.ID == objID {
+			mapState.MapItems = utils.RemoveIndexUnordered(mapState.MapItems, i)
+			found = true
+			break
+		}
+	}
+	if !found {
+		logz.PanicCtx("removeItemObject", "objID not found!", objID, m.MapID)
+	}
+
+	for i, obj := range m.Objects {
+		if obj.ID == objID {
+			m.Objects = utils.RemoveIndexUnordered(m.Objects, i)
+			return
+		}
+	}
+	logz.PanicCtx("removeItemObject", "map object wasn't found", objID, m.MapID)
 }
 
 // RectCollidesWithOthers is a general purpose function to see if a rect in a world map collides with anything.

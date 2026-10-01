@@ -24,14 +24,14 @@ type MapState struct {
 
 	// all items that exist in the map. there are two types of items that might be here:
 	//
-	// 1) an item that is "part of the map" and was put there during map creation (but can be picked up by the player).
-	// These will always be there, unless the player or an NPC picks it up.
+	// 1) an item that is "part of the map" and was put there during map creation (i.e. part of the tmj file).
+	// its ID matches the Tiled object ID of the object that represents it, and it stays here until it is taken by the player.
 	//
-	// 2) an item that is dropped by the player or an NPC. these will expire and disappear eventually.
-	// - TODO: once this expiry stuff is implemented, we need to decide how a player can put an item down that shouldn't expire,
-	//   vs putting an item down with the intention of "throwing it away".
+	// 2) an item that was dropped by the player or an NPC at runtime. these will expire and disappear eventually.
 	//
-	// On MapState creation, we should populate the items from category 1 into this map state.
+	// On MapState creation, we should populate the items from category 1 into this map state. Category 2 items are populated at runtime.
+	// ID is the join key in both directions: an Object finds its state with ID, and loadDroppedItems rebuilds an Object from the state.
+	// Dropped records which category an item belongs to, so nothing has to be inferred from ID.
 	MapItems []MapItemState
 
 	// all objects that have a lock in the map have their locks tracked here.
@@ -50,9 +50,24 @@ type MapState struct {
 }
 
 type MapItemState struct {
+	// ID of the object from the Tiled map that represents this item.
+	// 	- authored items: ID is directly derived from an object that is set in the tmj file.
+	// 	- runtime drops: ID is incremented starting from tiled.Map.NextObjectID - the next object ID that *would've* been used for authoring.
+	//
+	// If you edit a map to add a new object and then load an existing save, any existing runtime drop items in that map could have their IDs overlap with
+	// the newly added map objects. So if you edit a map in this way, existing saves should be considered invalid.
+	ID int
+
 	ItemState ItemState
-	X, Y      float64
-	ExpiresAt *clock.GameTime // if set, this item will expire and disappear from the map at the set game time
+
+	// Position where the item exists in the map.
+	X, Y float64
+
+	// if set, this item will expire and disappear from the map at the set game time
+	ExpiresAt *clock.GameTime
+
+	// If true, this item was created at runtime by World.DropItemOnGround; if false, authored in a tmj.
+	Dropped bool
 }
 
 type LockState struct {

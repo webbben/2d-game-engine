@@ -18,6 +18,7 @@ import (
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/tiled/properties"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 const (
@@ -61,7 +62,7 @@ type Object struct {
 
 	mapID defs.MapID // used for knowing which map state to check
 
-	ID         int             // the ID property from Tiled; just a counter I believe.
+	ID         int             // the ID property from Tiled; just a counter.
 	Type       defs.ObjectType // NOT from Tiled; set by our code in Load
 	xPos, yPos float64         // logical position in the map
 	zOffset    int             // for influencing render order
@@ -106,6 +107,7 @@ type Object struct {
 	Bed        Bed
 	Chair      Chair
 	SpawnPoint SpawnPoint
+	Item       Item
 
 	Emitter        *particle.Emitter
 	emitterOffsetY float64
@@ -273,6 +275,8 @@ func (obj Object) IsActivatable() bool {
 		return true
 	case TypeSign:
 		return true
+	case TypeItem:
+		return true
 	default:
 		return false
 	}
@@ -336,6 +340,84 @@ type SpawnPoint struct {
 	FaceDirection byte
 }
 
+// The bare bones scaffolding to use when creating a new object; ensures the minimum details are set properly and consistently.
+// Never instantiate an Object without using this function - if there is a case where we would need to, let's consider why and move from there.
+func newObjectScaffolding(
+	ID int,
+	name string,
+	eventBus *pubsub.EventBus,
+	audioman *audio.AudioManager,
+	dataman *datamanager.DataManager,
+	worldCtx WorldContext,
+	mapID defs.MapID,
+	width, height int, // only required if the object has no images embedded in it
+) *Object {
+	utils.PanicAssert(dataman != nil, "dataman was nil")
+	utils.PanicAssert(audioman != nil, "audioman was nil")
+	utils.PanicAssert(eventBus != nil, "eventBus was nil")
+	utils.PanicAssert(worldCtx != nil, "world ctx was nil")
+
+	return &Object{
+		eventBus:     eventBus,
+		AudioMgr:     audioman,
+		dataman:      dataman,
+		ID:           ID,
+		Name:         name,
+		imgFrames:    make([]*ebiten.Image, 0),
+		World:        worldCtx,
+		mapID:        mapID,
+		OnTopOfObjID: -1,
+
+		Width:  width,
+		Height: height,
+	}
+}
+
+func (o *Object) rebuildRect() {
+	o.rect = model.NewRect(o.xPos, o.yPos, float64(o.Width), float64(o.Height))
+}
+
+func (o *Object) SetPosition(x, y float64, embeddedTileOrigin bool) {
+	// round to prevent a "wiggle" that can happen when drawing. happens with decimal values.
+	o.xPos = math.Round(x)
+	o.yPos = math.Round(y)
+
+	if embeddedTileOrigin {
+		// Weird bug/inconsistency issue that originates in Tiled:
+		// https://discourse.mapeditor.org/t/objects-are-shown-at-the-wrong-position-in-tiled-map/1166
+		// https://github.com/mapeditor/tiled/issues/91
+		// TLDR: when an image is embedded in an object, the object's origin position is the bottom left instead of top left...
+		// workaround is to subtract the height from the y position when an image is embedded
+		o.yPos -= float64(o.Height)
+		if o.yPos < 0 {
+			// an object Y could be negative anyway if it was placed just above the edge of the map - so not a panic, but just a warning for now.
+			logz.Warnln("SetPosition", "object y is negative! is this related to the image object y position bug? ID:", o.ID, "yPos:", o.yPos)
+		}
+	}
+	o.rebuildRect()
+}
+
+func (o *Object) SetImageFrames(frames []*ebiten.Image) {
+	if len(frames) == 0 {
+		logz.Panic("no frames!")
+	}
+	// we assume that all frames are the same dimensions. Note: if this ever changes for a particular use case, we can change this validation.
+	w, h := frames[0].Bounds().Dx(), frames[0].Bounds().Dy()
+	for _, img := range frames {
+		imgW := img.Bounds().Dx()
+		imgH := img.Bounds().Dy()
+		if imgW != w || imgH != h {
+			logz.PanicCtx("SetImageFrames", "all frames are expected to have the same dimensions.", w, h, imgW, imgH)
+		}
+	}
+
+	// set image frames and object dimensions
+	o.imgFrames = frames
+	o.Width = w
+	o.Height = h
+	o.rebuildRect()
+}
+
 func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dataman *datamanager.DataManager, eventBus *pubsub.EventBus, mapID defs.MapID, world WorldContext) *Object {
 	if dataman == nil {
 		panic("dataman was nil")
@@ -352,49 +434,28 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	if obj.Text != nil {
 		panic("object was text; these should only be used for planning, and so they should be ignored")
 	}
-	o := Object{
-		eventBus: eventBus,
-		AudioMgr: audioMgr,
-		dataman:  dataman,
-		Name:     obj.Name,
-		ID:       obj.ID,
-		xPos:     math.Round(obj.X), // round positions, because decimal positions can cause objects to "wiggle"
-		yPos:     math.Round(obj.Y),
-		Width:    int(obj.Width),
-		Height:   int(obj.Height),
-		rect: model.Rect{
-			X: obj.X,
-			Y: obj.Y,
-			W: obj.Width,
-			H: obj.Height,
-		},
-		imgFrames:    make([]*ebiten.Image, 0),
-		World:        world,
-		mapID:        mapID,
-		OnTopOfObjID: -1,
-	}
+
+	o := newObjectScaffolding(
+		obj.ID,
+		obj.Name,
+		eventBus,
+		audioMgr,
+		dataman,
+		world,
+		mapID,
+		int(obj.Width),
+		int(obj.Height),
+	)
 
 	// We need to load all properties for an object. an Object can come in two forms:
 	//
 	// 1) an object with a tile embedded; used when we want to place an object with an image in it somewhere, like placing barrels, or torches, etc.
 	//
 	// 2) an object without a tile; used when we want to just insert data at a certain position, like spawn points, or light sources that don't have tiles, etc.
-	//
-	// if GID is set, there should be a tile embedded in the object.
 
 	objectInfo := m.GetObjectPropsAndTile(obj)
 	allProps := objectInfo.AllProps
 	if objectInfo.HasEmbeddedTile {
-		// Weird bug/inconsistency issue that originates in Tiled:
-		// https://discourse.mapeditor.org/t/objects-are-shown-at-the-wrong-position-in-tiled-map/1166
-		// https://github.com/mapeditor/tiled/issues/91
-		// TLDR: when an image is embedded in an object, the object's origin position is the bottom left instead of top left...
-		// workaround is to subtract the height from the y position when an image is embedded
-		o.yPos -= float64(o.Height)
-		if o.yPos < 0 {
-			logz.Warnln("Object", "object y is negative! is this related to the image object y position bug? ID:", o.ID, "yPos:", o.yPos)
-		}
-
 		var tileProps []properties.Property
 		if objectInfo.Tile != nil {
 			tileProps = objectInfo.Tile.Properties
@@ -403,6 +464,14 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		// also, since there is a tile embedded, load all tile-related info, including tile frames
 		o.loadTileData(obj.GID, tileProps, *objectInfo.Tileset, m)
 	}
+
+	// sanity check: does the runtime object width/height match the actual width/height from the Tiled object?
+	// if there's an embedded object, the runtime object sets its width/height to the actual dimensions of the embedded tile.
+	// if this were ever not true, we'd definitely wanna know and investigate further.
+	utils.PanicAssert(o.Width == int(obj.Width), fmt.Sprintf("widths were not the same: %v vs %v", o.Width, obj.Width))
+	utils.PanicAssert(o.Height == int(obj.Height), fmt.Sprintf("heights were not the same: %v vs %v", o.Height, obj.Height))
+
+	o.SetPosition(obj.X, obj.Y, objectInfo.HasEmbeddedTile)
 
 	// get the type first - so we know what values to parse out
 	objType, found := GetObjectType(allProps)
@@ -529,12 +598,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	case TypeTaskArea:
 		o.loadTaskAreaObject(allProps)
 	case TypeItem:
-		itemID, found := properties.GetStringProperty(properties.PropItemID, allProps)
-		if !found {
-			logz.Panic("item didn't have item_id")
-		}
-		itemDef := dataman.GetItemDef(defs.ItemID(itemID))
-		o.DisplayName = itemDef.Name
+		o.loadItemObject(allProps)
 	case TypeSign:
 		if !noCollision {
 			o.addDefaultCollision()
@@ -544,7 +608,7 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 
 	o.loadGlobal(allProps)
 
-	return &o
+	return o
 }
 
 func (obj Object) Validate() {
@@ -573,20 +637,26 @@ func (obj *Object) loadTileData(tileGID int, tileProps []properties.Property, ti
 		}
 	}
 
+	// gather the image frames in this slice first, then set them all on the object with SetImageFrames
+	imgFrames := make([]*ebiten.Image, 0)
+
 	tileData, exists := m.TileImageMap[tileGID]
 	if !exists {
 		panic("tile attached to object, but tile not found in map's TileImageMap")
 	}
-	obj.imgFrames = append(obj.imgFrames, tileData.CurrentFrame)
+	imgFrames = append(imgFrames, tileData.CurrentFrame)
 
 	// also link the tileData itself, in case it contains a base animation for the tile
 	obj.tileData = tileData
 
 	if len(tileProps) == 0 {
+		// No properties, so no chance for other image frames from things like PropNextTile
+		obj.SetImageFrames(imgFrames)
 		return
 	}
 
-	obj.animSpeedMs = 100 // animation speed for the change-state animation
+	// animation speed for the change-state animation
+	obj.animSpeedMs = 100
 
 	// attached tile has properties
 	// if this tile has a "nextTile" property, that means there is a state change animation
@@ -604,7 +674,7 @@ func (obj *Object) loadTileData(tileGID int, tileProps []properties.Property, ti
 		if !exists {
 			panic("tile attached to object, but tile not found in map's TileImageMap")
 		}
-		obj.imgFrames = append(obj.imgFrames, img.CurrentFrame)
+		imgFrames = append(imgFrames, img.CurrentFrame)
 
 		// load next tile
 		nextTile, _, tileFound := m.GetTileByGID(gid)
@@ -618,6 +688,9 @@ func (obj *Object) loadTileData(tileGID int, tileProps []properties.Property, ti
 		// wait, only one tile was found in the "nextTile" chain? something must be wrong
 		panic("LoadObject: only one tile was found in a nextTile chain; something must be wrong...")
 	}
+
+	// set the image frames onto the object
+	obj.SetImageFrames(imgFrames)
 }
 
 func (obj Object) validateGateObject() {

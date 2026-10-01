@@ -225,6 +225,11 @@ func (r Rect) VecWithin(v Vec2) bool {
 	return r.Within(int(v.X), int(v.Y))
 }
 
+func (r Rect) Contains(other Rect) bool {
+	return r.Within(int(other.X), int(other.Y)) &&
+		r.Within(int(other.X+other.W), int(other.Y+other.H))
+}
+
 // GetOverlappingTiles returns a slice of all tile positions that this rect overlaps with.
 func (r Rect) GetOverlappingTiles() []Coords {
 	result := []Coords{}

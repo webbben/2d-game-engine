@@ -95,6 +95,7 @@ type WorldEffectContext interface {
 	AddGold(amount int)
 	RemoveGold(amount int)
 	AddItem(itemID ItemID, quantity int)
+	DropItemOnGround(itemID ItemID, quantity int, durability float64)
 	AddRole(roleID RoleID)
 	RemoveRole(roleID RoleID)
 

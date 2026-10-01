@@ -36,6 +36,11 @@ func (g *Game) AddItem(itemID defs.ItemID, quantity int) {
 	g.World.AddItem(itemID, quantity)
 }
 
+func (g *Game) DropItemOnGround(itemID defs.ItemID, quantity int, durability float64) {
+	g.requireWorld()
+	g.World.DropItemOnGround(itemID, quantity, durability)
+}
+
 func (g *Game) AssignTaskToNPC(id id.CharacterDefID, taskDef defs.TaskDef, requireListener bool) {
 	g.requireWorld()
 	g.World.AssignTaskToNPC(id, taskDef, requireListener)

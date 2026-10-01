@@ -338,3 +338,7 @@ func (ctx DialogContext) GetDialogNPC() id.CharacterStateID {
 func (ctx DialogContext) InitiateCombat(charStateID, targetCharStateID id.CharacterStateID) {
 	ctx.GameState.InitiateCombat(charStateID, targetCharStateID)
 }
+
+func (ctx DialogContext) DropItemOnGround(itemID defs.ItemID, quantity int, durability float64) {
+	ctx.GameState.DropItemOnGround(itemID, quantity, durability)
+}

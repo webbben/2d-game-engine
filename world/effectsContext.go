@@ -4,12 +4,16 @@ import (
 	"time"
 
 	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/tiled"
+	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/world/npc"
 )
 
@@ -254,4 +258,54 @@ func (w *World) GetDialogNPC() id.CharacterStateID {
 		return ""
 	}
 	return w.ActiveMap.GetDialogNPC()
+}
+
+func (w *World) DropItemOnGround(itemID defs.ItemID, quantity int, durability float64) {
+	utils.PanicAssert(itemID != "", "itemID was empty")
+	utils.PanicAssert(quantity > 0, "quantity was <= 0")
+	utils.PanicAssert(w.ActiveMap != nil, "active map is nil")
+	utils.PanicAssert(w.Player != nil, "player was nil")
+
+	w.EnsureMapStateExists(w.ActiveMap.MapID)
+
+	mapState := w.Dataman.GetMapState(w.ActiveMap.MapID)
+
+	// dropped items land on the player's tile
+	playerTile := w.Player.Entity.GetEntityInfo().TilePos
+	x := float64(playerTile.X * config.TileSize)
+	y := float64(playerTile.Y * config.TileSize)
+
+	expiresAt := w.Clock.GetFutureGameTime(24)
+	st := state.MapItemState{
+		ID:        nextRuntimeItemObjID(mapState, *w.ActiveMap.Map),
+		X:         x,
+		Y:         y,
+		ExpiresAt: &expiresAt,
+		Dropped:   true,
+		ItemState: state.ItemState{
+			DefID:      itemID,
+			Quantity:   quantity,
+			Durability: durability,
+		},
+	}
+	st.ItemState.Validate()
+
+	mapState.MapItems = append(mapState.MapItems, st)
+	w.ActiveMap.AddDroppedItem(st)
+
+	logz.Println("DropItemOnGround", "item dropped:", itemID, quantity)
+	// TODO: publish event
+}
+
+func nextRuntimeItemObjID(ms *state.MapState, m tiled.Map) int {
+	// TODO: if we get to the point that we want to support spawning tons of items at once, we should probably just track NextObjectID
+	// on map state. that way we don't have to iterate over all map items each time.
+	// for example, this could cause noticeable lag if we tried to spawn hundreds of items in a single tick. guessing that will never happen though.
+	id := m.NextObjectID
+	for _, is := range ms.MapItems {
+		if is.ID >= id {
+			id = is.ID + 1
+		}
+	}
+	return id
 }

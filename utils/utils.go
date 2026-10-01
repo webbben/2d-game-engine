@@ -151,3 +151,30 @@ func GetPositionNearMouse(distFromMouse int, dx, dy int) (x, y int) {
 
 	return x, y
 }
+
+// GetFrameRects returns up to 4 non-overlapping rects covering the part of outer that inner does
+// not cover - i.e. the area around inner, as a frame. Use this to express hit zones as "everywhere
+// except this panel", which a single rect can't represent.
+//
+// Panics if inner is not strictly inside outer
+func GetFrameRects(outer, inner model.Rect) []model.Rect {
+	if !outer.Contains(inner) {
+		logz.PanicCtx("GetFrameRects", "outer does not contain inner!", outer.String(), inner.String())
+	}
+
+	var rects []model.Rect
+	if inner.Y > outer.Y {
+		rects = append(rects, model.Rect{X: outer.X, Y: outer.Y, W: outer.W, H: inner.Y - outer.Y})
+	}
+	if bottom := inner.Y + inner.H; bottom < outer.Y+outer.H {
+		rects = append(rects, model.Rect{X: outer.X, Y: bottom, W: outer.W, H: outer.Y + outer.H - bottom})
+	}
+	if inner.X > outer.X {
+		rects = append(rects, model.Rect{X: outer.X, Y: inner.Y, W: inner.X - outer.X, H: inner.H})
+	}
+	if right := inner.X + inner.W; right < outer.X+outer.W {
+		rects = append(rects, model.Rect{X: right, Y: inner.Y, W: outer.X + outer.W - right, H: inner.H})
+	}
+
+	return rects
+}

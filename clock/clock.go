@@ -34,6 +34,10 @@ const (
 	Winter Season = "Wint"
 )
 
+// HoursPerDay is the number of hours in an in-game day. Use this instead of a literal
+// anywhere that does hour/day arithmetic, so it stays consistent with Clock.TickTock.
+const HoursPerDay = 24
+
 var (
 	DaysOfWeek = []DayOfWeek{Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday}
 	Seasons    = []Season{Spring, Summer, Fall, Winter}
@@ -105,6 +109,12 @@ func (c *Clock) minuteSpeed() time.Duration {
 }
 
 // TickTock increments minutes, hours, days, etc. basically handles all ticking time change.
+//
+// This is one of two implementations of the same hour/day/season/year rollover. The other is
+// GameTime.AddTime, which advances a standalone GameTime by a number of hours. They must agree,
+// and they are not interchangeable: AddTime has no notion of minutes, day of week, or tick
+// timing, so it cannot be used to drive the live clock. clock_test.go asserts the two produce
+// identical results so a change to one cannot silently diverge from the other.
 func (c *Clock) TickTock() {
 	c.lastMinuteTick = time.Now()
 	c.mu.Lock()
@@ -211,18 +221,27 @@ func (c *Clock) PassTime(hours int) {
 	c.currentTime.AddTime(hours)
 }
 
+// AddTime advances a GameTime by the given number of in-game hours, carrying through
+// hour -> day of season -> season -> year. The GameTime is mutated in place.
+//
+// Keep this in agreement with Clock.TickTock; see that function's comment. Hour and season
+// counts are derived from HoursPerDay and len(Seasons) rather than hardcoded, so they cannot
+// drift out of sync with the rest of the package.
 func (gt *GameTime) AddTime(hours int) {
 	// TODO: should we just... make GameTime a single integer field representing minutes?
 	// we could calculate all this stuff a lot easier that way...
+	if hours < 0 {
+		logz.Panicln("AddTime", "cannot add a negative number of hours:", hours)
+	}
 	gt.Hour += hours
-	gt.DayOfSeason += gt.Hour / 23
+	gt.DayOfSeason += gt.Hour / HoursPerDay
 	gt.Season += gt.DayOfSeason / DaysInSeason
-	gt.Year += gt.Season / 3
+	gt.Year += gt.Season / len(Seasons)
 
 	// now that we've calculated the amount to push each forward, trim the excess
-	gt.Hour %= 23
+	gt.Hour %= HoursPerDay
 	gt.DayOfSeason %= DaysInSeason
-	gt.Season %= 3
+	gt.Season %= len(Seasons)
 
 	gt.Validate()
 }
@@ -231,11 +250,17 @@ func (gt GameTime) Validate() {
 	if gt.Minute < 0 || gt.Minute > 59 {
 		logz.Panicln("GameTime", "minute was invalid:", gt.Minute)
 	}
-	if gt.Hour < 0 || gt.Hour > 23 {
+	if gt.Hour < 0 || gt.Hour > HoursPerDay-1 {
 		logz.Panicln("GameTime", "hour was invalid:", gt.Hour)
 	}
-	if gt.DayOfSeason < 0 || gt.DayOfSeason > DaysInSeason {
+	if gt.DayOfSeason < 0 || gt.DayOfSeason > DaysInSeason-1 {
 		logz.Panicln("GameTime", "dayOfSeason was invalid:", gt.DayOfSeason)
+	}
+	if gt.Season < 0 || gt.Season >= len(Seasons) {
+		logz.Panicln("GameTime", "season was invalid:", gt.Season)
+	}
+	if gt.Year < 0 {
+		logz.Panicln("GameTime", "year was invalid:", gt.Year)
 	}
 }
 

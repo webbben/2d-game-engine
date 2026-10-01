@@ -26,6 +26,10 @@ type ObjectUpdateResult struct {
 	// Signs
 
 	SignBookID defs.BookID // if set, a sign was activated; this is the ID that should show in the book session
+
+	// Items
+
+	PickedUpItemObjID int // if an item was picked up, the object ID is set here (which can be used to get the item state from the active map)
 }
 
 // Update : blockChanges is just to make sure that no actual changes occur; but, animation changes and stuff can continue.
@@ -49,6 +53,16 @@ func (obj *Object) Update(blockChanges bool, hovering bool) ObjectUpdateResult {
 		return obj.updateGate()
 	case TypeContainer:
 		return obj.updateContainer()
+	case TypeItem:
+		// a dropped item bobs
+		if obj.Item.Dropped && obj.Item.drawYOffsetAmp != 0 {
+			now := time.Now()
+			if !obj.Item.bobLastUpdate.IsZero() {
+				obj.Item.bobPhase += now.Sub(obj.Item.bobLastUpdate).Seconds()
+			}
+			obj.Item.bobLastUpdate = now
+			obj.Item.drawYOffset = bobOffset(obj.Item.bobPhase, obj.Item.drawYOffsetAmp)
+		}
 	}
 
 	if obj.Emitter != nil {
@@ -117,6 +131,8 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 		return obj.activateContainer()
 	case TypeSign:
 		return obj.activateSign()
+	case TypeItem:
+		return obj.activateItem()
 	}
 	return ObjectUpdateResult{}
 }
@@ -161,6 +177,11 @@ func (obj *Object) nextFrame(forwards bool) (done bool) {
 func (obj *Object) Draw(screen *ebiten.Image, offsetX, offsetY float64) {
 	obj.DrawX = (obj.xPos - offsetX) * config.GameScale
 	obj.DrawY = (obj.yPos - offsetY) * config.GameScale
+
+	// handle bobbing items
+	if obj.Type == TypeItem && obj.Item.Dropped {
+		obj.DrawY = (obj.yPos - offsetY + obj.Item.drawYOffset) * config.GameScale
+	}
 
 	if len(obj.imgFrames) == 0 {
 		return

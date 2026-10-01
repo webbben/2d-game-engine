@@ -122,6 +122,8 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 				defID := defs.ItemID(itemID)
 				itemDef := w.Dataman.GetItemDef(defID)
 				mapState.MapItems = append(mapState.MapItems, state.MapItemState{
+					ID:      obj.ID,
+					Dropped: false,
 					ItemState: state.ItemState{
 						DefID:      defs.ItemID(itemID),
 						Quantity:   1,
