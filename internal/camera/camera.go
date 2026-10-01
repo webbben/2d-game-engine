@@ -77,7 +77,18 @@ func (c *Camera) SetCameraPosition(x, y float64) {
 func (c *Camera) GetAbsPos() (float64, float64) {
 	offsetX := (float64(display.SCREEN_WIDTH) / config.GameScale) / 2
 	offsetY := (float64(display.SCREEN_HEIGHT) / config.GameScale) / 2
-	return (c.X * config.TileSize) - float64(offsetX), (c.Y * config.TileSize) - float64(offsetY)
+	return snapToScreenPixel(c.X*config.TileSize - offsetX), snapToScreenPixel(c.Y*config.TileSize - offsetY)
+}
+
+// snaps a world-pixel offset to a whole screen pixel.
+func snapToScreenPixel(offset float64) float64 {
+	// The camera offset is expressed in **world pixels**. But "crispness" is a property of the screen pixel grid,
+	// because that's what Ebiten rasterizes to. At GameScale = 4, one screen pixel is 1/4 of a world pixel.
+	// So, to land the offset on a whole "screen pixel", the world pixel offset has to be a multiple of 0.25 (i.e. divided by GameScale, 4).
+	// If we just rounded offset by itself, it would snap to a **whole** world pixel, which would feel 4 times coarser.
+	//
+	// This was a fix to github issue #177, aka the "wiggle" visual bug
+	return math.Round(offset*config.GameScale) / config.GameScale
 }
 
 func (c Camera) GetVisibleScreenRect() model.Rect {

@@ -3,7 +3,6 @@ package object
 
 import (
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -378,9 +377,8 @@ func (o *Object) rebuildRect() {
 }
 
 func (o *Object) SetPosition(x, y float64, embeddedTileOrigin bool) {
-	// round to prevent a "wiggle" that can happen when drawing. happens with decimal values.
-	o.xPos = math.Round(x)
-	o.yPos = math.Round(y)
+	o.xPos = x
+	o.yPos = y
 
 	if embeddedTileOrigin {
 		// Weird bug/inconsistency issue that originates in Tiled:
