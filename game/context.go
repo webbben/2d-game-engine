@@ -25,14 +25,6 @@ func (g *Game) GetPlayerInfo() defs.PlayerInfo {
 	return g.World.Player.GetPlayerInfo()
 }
 
-func (g *Game) StartTradeSession(shopkeeperID defs.ShopID) {
-	// shopkeeperDef := g.Dataman.GetShopkeeperDef(shopkeeperID)
-	// shopkeeperState := g.Dataman.GetShopkeeperState(shopkeeperID)
-	// g.TradeScreen.SetupTradeSession(*shopkeeperDef, shopkeeperState)
-	// g.ShowTradeScreen = true
-	logz.TODO("StartTradeSession", "is this used? everything in it is commented out")
-}
-
 // StartDialogSession starts a dialog session with the given dialog profile ID
 func (g *Game) StartDialogSession(dialogProfileID defs.DialogProfileID, npcID string) {
 	if npcID == "" {

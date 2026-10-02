@@ -40,7 +40,6 @@ import (
 )
 
 type WorldContext interface {
-	// TODO: is this used here?
 	GenerateCharacter(chargen defs.CharacterGenerator, initialMap defs.MapID, homeMap defs.MapID, homeMapBedID int) id.CharacterStateID
 	HandleMapDoor(result object.ObjectUpdateResult)
 	FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldPath, found bool)
@@ -354,7 +353,6 @@ func (m *ActiveMap) addAllObjectsToMap(layer tiled.Layer) {
 	for _, obj := range allObjs {
 		if obj.Ellipse || obj.Text != nil {
 			// we only use elipses for planning things in maps, so just skip em
-			logz.TODO("Planning Object", "planning object found in map (skipped it though). Should we delete it?", m.MapID, obj.ID)
 			continue
 		}
 		m.AddObjectToMap(obj, *m.mapRef)
@@ -426,8 +424,7 @@ type NPCManager struct {
 
 	npcMu sync.RWMutex // protect changes to the NPCs slice
 
-	mapRef       *tiled.Map // map info so we can get map size, tile adjacency, etc
-	nextPriority int        // the next priority value to assign to an NPC
+	mapRef *tiled.Map // map info so we can get map size, tile adjacency, etc
 
 	RunBackgroundJobs     atomic.Bool    // when set false, the background jobs loop stops
 	backgroundJobsRunning bool           // flag that indicates if background jobs loop already running.
@@ -517,7 +514,6 @@ func (mi *ActiveMap) AddNPCToMap(n *npc.NPC, startPos model.Coords) {
 	n.Entity.World = mi
 	n.ActiveMapCtx = mi // NPC has its own world context it needs, that isn't relevant to entity
 	n.Entity.SetPosition(startPos)
-	n.Priority = mi.getNextNPCPriority() // TODO: not really sure if priority is still used, since there is no collision between entities
 
 	mi.npcMu.Lock()
 	mi.NPCs = append(mi.NPCs, n)

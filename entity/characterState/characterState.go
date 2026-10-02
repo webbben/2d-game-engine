@@ -85,7 +85,6 @@ func SpendMoney(inv *state.StandardInventory, value int, dataman *datamanager.Da
 		logz.Panicln("SpendMoney", "dataman passed was nil")
 	}
 	// first, calculate our wallet
-	// TODO: shouldn't we use CountMoney here??
 	wallet := map[int]int{}
 	for _, coin := range append(inv.CoinPurse, inv.InventoryItems...) {
 		if coin == nil {

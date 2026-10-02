@@ -16,7 +16,6 @@ func RawKey(tilesetSrc string, tileID int) Key {
 }
 
 func FrameKey(tilesetSrc string, tileID int, flip bool, stretchX, stretchY int, trimRows []int) Key {
-	// TODO: should we be using flip in the key? or should consuming code just apply the flip themselves?
 	return Key(fmt.Sprintf("tileset=%s,tileID=%v,flip=%v,stretchX=%v,stretchY=%v,trimRows=%v", tilesetSrc, tileID, flip, stretchX, stretchY, trimRows))
 }
 

@@ -101,8 +101,16 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 		// only handle object update reactions if player is not blocked
 		// we do this to prevent accidentally handling map doors twice in a row, when walking on a map door.
 		// TODO: why don't we use HandleObjectUpdate here?
-		// I guess the only reason we check for object updates here is because door objects with step activation will detect if the player is standing on them,
-		// and report a map change.
+		// 2026-10-02: verified - keep the inline handling. Object.Update only ever returns
+		// UpdateOccurred for step-activated doors: updateGate() and updateContainer() both return an
+		// empty ObjectUpdateResult, and activateDoor() (the only Update-reachable path that sets the
+		// flag) always sets ChangeMapID at the same time. So for doors HandleObjectUpdate behaves
+		// identically to this branch, and swapping gains nothing. The reason to keep it inline is that
+		// the else-panic below is a deliberate invariant check: HandleObjectUpdate also handles
+		// beds/chairs/signs/lights/items, so routing through it would silently accept one of those
+		// types wrongly reporting an update from Update() instead of Activate(), rather than
+		// catching it. It also unconditionally logs "Activate Area", which is wrong for a passive
+		// per-frame update.
 		if result.UpdateOccurred && !blockPlayerChanges {
 			if result.ChangeMapID != "" {
 				m.worldCtx.HandleMapDoor(result)

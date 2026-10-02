@@ -16,8 +16,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/colorm"
 )
 
-// GetImageDrawPos gets the absolute position an image should be drawn at if it is to be centered correctly in the given tile-based coordinates
-// TODO - is this being used right? description indicates x and y should be tile coords I think, but I'm pretty sure we are using abs coords.
+// GetImageDrawPos gets the absolute position an image should be drawn at if it is to be centered correctly in the given logical pixel position
+// TODO: as of 2026-10-01 this is only being used by debug code. consider deleting?
 func GetImageDrawPos(image *ebiten.Image, x float64, y float64, offsetX float64, offsetY float64) (float64, float64) {
 	imgWidth := image.Bounds().Dx()
 	imgHeight := image.Bounds().Dy()

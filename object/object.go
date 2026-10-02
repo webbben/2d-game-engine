@@ -37,25 +37,14 @@ const (
 	TypeChair defs.ObjectType = "CHAIR"
 
 	TypeTaskArea defs.ObjectType = "TASK_AREA"
-
-	// Types that aren't actually supported here (specific cases)
-
-	// TODO: is this even used?
-	TypeEntity defs.ObjectType = "ENTITY" // This shouldn't be used for actual objects - just for static entities in maps that are defined by objects.
 )
-
-// TODO: *Sigh* this probably could use some refactoring. I've been avoiding admitting it, but it would most likely work cleaner as an interface.
-// As it stands right now, we are basically mashing a bunch of different types of objects into this one object struct. This works, but it feels kind of messy.
-// I think it would be smarter to make an interface that has all the methods needed for common things, but then the inner logic can be more cleanly separated.
-// But, not gonna tackle this right now, because I don't want to get diverted on yet another big refactor lol.
 
 type Object struct {
 	eventBus *pubsub.EventBus
 	subIDs   []string
 
-	Name string // TODO: I don't think most objects actually have Names; the name property in Tiled is usually left empty. should we just delete this?
-
-	DisplayName string // Not implemented; create a property in Tiled for this (Name won't work, since you can't give names to tiles in tilesets)
+	Name        string // most objects don't actually have a Name defined in Tiled, but keeping this field anyway.
+	DisplayName string
 
 	targetedByNPC id.CharacterStateID // if set, this means an NPC is currently trying to come and activate this object.
 

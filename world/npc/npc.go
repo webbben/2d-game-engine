@@ -70,9 +70,6 @@ type NPC struct {
 
 	WorldCtx WorldContext
 
-	// priority assigned to this NPC by the map it is added to. used for prioritizing which NPC moves first in a collision.
-	Priority int
-
 	visibleEntities               map[id.CharacterStateID]VisibleEntityInfo // maps which characters are visible
 	initialPlayerSightingThisTick bool                                      // if true, the NPC just saw the player for the first time this update tick
 	hasSeenPlayerYet              bool                                      // if true, this NPC has seen the player at some point already (in the current map)
@@ -304,8 +301,6 @@ func (n *NPC) OnEvent(e defs.Event) {
 }
 
 // TaskMGMT manages all task related stuff, such as schedules and whatnot.
-// TODO:
-// - default to Idle task if no schedule or current task is set?
 type TaskMGMT struct {
 	// protects CurrentTask, since it's used in both the main Update thread and bg assist
 	taskStateMu *sync.RWMutex

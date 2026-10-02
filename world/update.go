@@ -36,7 +36,6 @@ func (w *World) Update(showingLoadScreen bool) {
 		// If ActiveMap is nil, we assume that the game world is not "active" (i.e. it's in a loading screen, or something)
 		// So, we can just quit out of world updates in this case.
 		// We don't want NPC's to be doing things in the background world simulation while the player is just waiting on a load screen.
-		logz.TODO("World.Update", "Does this ever get hit? Should we add a panic here? AI says this is dead code, so I was considering adding a panic here.")
 		return
 	}
 	// when ActiveMap is defined, that means the player is actively in a map.

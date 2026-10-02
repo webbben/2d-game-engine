@@ -11,25 +11,17 @@ import (
 type StartDialogTask struct {
 	TaskBase
 	dialogProfileID defs.DialogProfileID
-	dialogChain     *defs.DialogResponse
 	started         bool
 	subID           string
 }
 
 type StartDialogTaskParams struct {
-	ProfileID   defs.DialogProfileID // if set, dialog will launch with the given profile ID.
-	DialogChain *defs.DialogResponse // if defined (and profileID is empty), then instead of launching a profile you can do an ad-hoc dialog sequence.
+	ProfileID defs.DialogProfileID // if set, dialog will launch with the given profile ID.
 }
 
 func NewStartDialogTask(params StartDialogTaskParams, owner *NPC, def defs.TaskDef) *StartDialogTask {
-	if params.ProfileID != "" && params.DialogChain != nil {
-		logz.Panicln("NewStartDialogTask", "both profileID and dialogChain are defined; it should be only one or the other!")
-	}
-	if params.ProfileID == "" && params.DialogChain == nil {
-		logz.Panicln("NewStartDialogTask", "both profileID and dialogChain were undefined!")
-	}
-	if params.DialogChain != nil {
-		logz.Panicln("TODO", "implement dialog ad-hoc sequences (currently, only profile-based dialog is supported)")
+	if params.ProfileID == "" {
+		logz.Panicln("NewStartDialogTask", "profileID was empty!")
 	}
 	if def.TaskID != TaskStartDialog {
 		panic("task def has wrong ID")
@@ -38,7 +30,6 @@ func NewStartDialogTask(params StartDialogTaskParams, owner *NPC, def defs.TaskD
 	return &StartDialogTask{
 		TaskBase:        NewTaskBase(def, "Start dialog", "Start dialog with the player", owner),
 		dialogProfileID: params.ProfileID,
-		dialogChain:     params.DialogChain,
 	}
 }
 
@@ -57,14 +48,8 @@ func init() {
 			if !ok {
 				return fmt.Errorf("StartDialogTask params must be StartDialogTaskParams, got %T", def.Params)
 			}
-			if params.ProfileID != "" && params.DialogChain != nil {
-				return fmt.Errorf("StartDialogTask params set both ProfileID and DialogChain; it should be only one or the other")
-			}
-			if params.ProfileID == "" && params.DialogChain == nil {
-				return fmt.Errorf("StartDialogTask params set neither ProfileID nor DialogChain; one must be set")
-			}
-			if params.DialogChain != nil {
-				return fmt.Errorf("StartDialogTask ad-hoc DialogChain sequences are not yet supported; use a ProfileID")
+			if params.ProfileID == "" {
+				return fmt.Errorf("StartDialogTask params had no profileID set")
 			}
 			return nil
 		},

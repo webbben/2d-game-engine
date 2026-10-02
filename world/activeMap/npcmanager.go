@@ -21,12 +21,6 @@ func (nm *NPCManager) FindNPCAtPosition(c model.Coords) (npc.NPC, bool) {
 	return npc.NPC{}, false
 }
 
-func (nm *NPCManager) getNextNPCPriority() int {
-	nextPriority := nm.nextPriority
-	nm.nextPriority++
-	return nextPriority
-}
-
 func (nm *NPCManager) StopBackgroundNPCManager() {
 	if !nm.RunBackgroundJobs.Load() {
 		return

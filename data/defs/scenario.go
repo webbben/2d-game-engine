@@ -1,8 +1,6 @@
 package defs
 
 import (
-	"time"
-
 	"github.com/webbben/2d-game-engine/data/id"
 )
 
@@ -51,63 +49,4 @@ type ScenarioCharDef struct {
 
 	SpawnCoordX, SpawnCoordY int  // the spawn point (in tile coords, not abs pixels) for this character
 	SpawnDirection           byte // allows you to set which direction the NPC is facing; defaults to down. Mainly for characters that have no task and just stand in one place.
-}
-
-// A CutsceneDef defines a Cutscene - a moment where the player cannot move, and NPCs do things around them, start dialogs, etc.
-// A cutscene is essentially a scenario where the player's input is restricted and a scripted sequence of events unfolds, without much user intervention.
-//
-// TODO: This is not actually used yet.
-//
-// Notes:
-//
-//   - the scenario is directly embedded here; it is not accessible in the scenarios map in dataman.
-//     this is just for convenience of designing a cutscene. I don't think a cutscene's scenario would ever need to be used elsewhere, so no real
-//     reason to save it as a standalone scenario.
-type CutsceneDef struct {
-	// this defines the initial state of the cutscene (which characters are there, where they stand, their initial tasks, etc)
-	Steps                           []CutsceneStepDef
-	OpenTransition, CloseTransition Transition
-}
-
-type CutsceneStepDef struct {
-	AssignTasks []CutsceneAssignTaskDef
-	Cinematic   []CutsceneCinematicDef
-	DialogDef   *CutsceneDialogDef
-
-	// If this is set (not 0), then we wait until this duration of time expires before moving to the next step.
-	// If this isn't set, then we require a dialog to be set. If this is not set and there is no dialog, then the cutscene will just immediately continue
-	// to the next step of the cutscene, without pausing.
-	Duration time.Duration
-}
-
-type CutsceneDialogDef struct {
-	Dialog      *DialogResponse
-	SpeakerName string
-}
-
-func (step CutsceneStepDef) Validate() {
-	if len(step.AssignTasks) == 0 && len(step.Cinematic) == 0 && step.DialogDef == nil {
-		panic("cutscene step has no content")
-	}
-	if step.DialogDef == nil && step.Duration == 0 {
-		panic("cutscene has nothing that will take time (no duration, and no dialog), so it will fly by without the user noticing.")
-	}
-}
-
-type CutsceneAssignTaskDef struct {
-	CharDefID id.CharacterDefID
-	TaskDef   TaskDef
-}
-
-type CutsceneCinematicDef struct {
-	// TODO: will this just be transitions?
-}
-
-func (cd CutsceneDef) Validate() {
-	if len(cd.Steps) == 0 {
-		panic("cutscene didn't have any steps")
-	}
-	for _, step := range cd.Steps {
-		step.Validate()
-	}
 }

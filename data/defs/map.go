@@ -128,10 +128,6 @@ func (l LightColor) Scale(factor float32) LightColor {
 // A LightDef is for defining the params to create a light in a game map.
 // Most lights are (so far) just defined in properties in Tiled maps, but this has been
 // made to enable item defs to have a light defined on it too.
-//
-// TODO: should we move everything to using this? For example, in Tiled, instead of defining these
-// properties there directly, we could just define a centralized mapping of LightDefs, and just store
-// an LightID in a Tiled property for objects.
 type LightDef struct {
 	Radius            int
 	GlowFactor        float64

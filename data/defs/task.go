@@ -42,8 +42,6 @@ type TaskDef struct {
 	// meant for tasks that are part of daily schedules, or tasks that should take a character to a new map before beginning.
 	StartLocation *TaskStartLocation
 
-	// TODO: should we get rid of this? doesn't seem like we use it really
-	// besides, most tasks will just handle setting up sub-tasks anyway, if they want to chain task behavior together
 	NextTask *TaskDef // OPT: if set, this task will be run right when the parent one finishes
 }
 

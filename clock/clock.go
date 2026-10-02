@@ -47,7 +47,7 @@ var (
 )
 
 type Clock struct {
-	mu sync.RWMutex
+	mu          sync.RWMutex
 	currentTime GameTime
 
 	dowBasisYear int // used to calculate day of week. day 0 season 0 of this year is defined as sunday/first day of week
@@ -228,8 +228,6 @@ func (c *Clock) PassTime(hours int) {
 // counts are derived from HoursPerDay and len(Seasons) rather than hardcoded, so they cannot
 // drift out of sync with the rest of the package.
 func (gt *GameTime) AddTime(hours int) {
-	// TODO: should we just... make GameTime a single integer field representing minutes?
-	// we could calculate all this stuff a lot easier that way...
 	if hours < 0 {
 		logz.Panicln("AddTime", "cannot add a negative number of hours:", hours)
 	}

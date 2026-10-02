@@ -3,7 +3,6 @@ package item
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
@@ -39,13 +38,6 @@ func GetWeaponParts(i defs.ItemDef) (weaponPart defs.SelectedPartDef, fxPart def
 	}
 
 	return *part, *fx
-}
-
-type PotionDef struct {
-	EffectDuration time.Duration
-	// TODO: add an Effect concept, which will encompass potion effects and enchantments on weapons or items
-	// for now, just going to make a "heal amount" value.
-	HealAmount int // how much health will be healed per second
 }
 
 func CountMoney(inv state.StandardInventory, dataman *datamanager.DataManager) int {

@@ -221,6 +221,16 @@ func (e *Entity) TryMoveMaxPx(dx, dy, speed float64) MoveError {
 
 		// TODO: it seems like this could cause dx or dy to go from 0 (originally) to a very, very small number. Not sure how that's possible,
 		// but just recording that here in case its of interest later. For now, it doesn't seem to be causing any major problems.
+		// 2026-10-02: investigated - it's a coordinate-space mismatch, not float error. delta is
+		// collisionPoint.Sub(curPos), where curPos is e.X/e.Y (current, interpolated position) but
+		// CollisionPoint is built from e.TargetX+dx / e.TargetY+dy (target space). X/Y and
+		// TargetX/TargetY only agree once the entity settles (see e.TargetX = e.X in entity.go), so
+		// mid-move the leftover interpolation gap on an axis leaks into delta. Only the second
+		// CollisionPoint path is affected - the "first step" path uses newPos from MoveTowards, where
+		// a 0 component normalizes to exactly 0. Consequence: a caller passing dx == 0 can get a
+		// sub-pixel nonzero dx back, which makes the `if dx != 0` fallback below attempt a sub-pixel
+		// move on an axis it wasn't moving on. Suggested fix: preserve the original axes' zero-ness
+		// when building delta (if originalDx == 0, force dx = 0). Not applied - deliberately left as-is.
 		delta := collisionPoint.Sub(curPos)
 		dx = delta.X
 		dy = delta.Y
@@ -298,8 +308,6 @@ func calculateCollisionAdjustment(dx, dy float64, cr model.CollisionResult) (cx,
 	right := cr.TopRight.Int() + cr.BottomRight.Int()
 	bottom := cr.BottomLeft.Int() + cr.BottomRight.Int()
 
-	// TODO: the below logic seems to work well, but it seems too long and probably can be simplified.
-	// let's try to combine the "one direction" logic into the "bi-direction" section
 	if dx == 0 || dy == 0 {
 		// only moving in one direction; simpler logic
 		if dx < 0 {

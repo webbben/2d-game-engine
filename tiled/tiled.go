@@ -77,11 +77,6 @@ func (td *TileData) UpdateFrame() {
 	td.lastFrameChange = time.Now()
 	td.frameIndex = (td.frameIndex + 1) % len(td.Frames)
 	td.CurrentFrame = td.Frames[td.frameIndex].Image
-
-	if td.CurrentFrame == nil {
-		// logz.Panicln("UpdateFrame", "failed to get tile image (current frame is nil) frameIndex:", td.frameIndex, "tileID:", td.ID)
-		// TODO: this can happen if a frame of an animation has no pixel data. planning to ignore it, but is that safe?
-	}
 }
 
 type MapMeta struct {

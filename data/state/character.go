@@ -108,22 +108,6 @@ func (cd CharacterState) Validate() {
 	cd.StandardInventory.Validate()
 }
 
-// SetInventoryItems sets all the inventory items of an entity
-// TODO: should we move these two functions to characterstate or something?
-// they don't benefit by being here because we can't use the datamanager to confirm types are correct
-
-func (cd *CharacterState) SetInventoryItems(invItems []*ItemState) {
-	cd.StandardInventory.SetInventoryItems(invItems)
-}
-
-func (cd *CharacterState) SetCoinPurseItems(invItems []*ItemState) {
-	cd.StandardInventory.SetCoinPurseItems(invItems)
-}
-
-// func (cd CharacterState) CountMoney() int {
-// 	return cd.StandardInventory.CountMoney()
-// }
-
 func (cd *CharacterState) UnequipHeadwear() {
 	if cd.EquipedHeadwear == nil {
 		logz.Panicln(cd.DisplayName, "tried to unequip headwear, but equiped headwear is nil")

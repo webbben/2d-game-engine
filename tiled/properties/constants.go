@@ -29,8 +29,6 @@ const (
 	PropWater = "WATER"
 	// PropMaterial is the ground material of a tile (used for footstep sounds, etc.).
 	PropMaterial = "MATERIAL"
-	// PropCost is a tile's pathfinding cost. (Currently unused.)
-	PropCost = "cost"
 	// PropNextTile is the next tile in a state-change animation chain.
 	PropNextTile = "nextTile"
 	// PropCoverHair marks an equipment head tile that covers the character's hair.

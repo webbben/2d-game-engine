@@ -127,6 +127,13 @@ func (e *Entity) StartMeleeAttack() {
 	e.chargeStartTick = 0
 
 	// TODO: why are we directly calling Body.SetAnimation instead of the Entity.SetAnimation function?
+	// 2026-10-02: verified - Entity.SetAnimation can't be used here, because it panics on exactly the
+	// failure case combat needs to handle. Entity.SetAnimation panics when SetAnimation returns
+	// !Success && !AlreadySet && the current animation is AnimIdle. Combat instead treats that case as
+	// a cooperative retry (sets waitingToAttack, then waits for the current animation to finish).
+	// The call order also differs: this sets the animation tick count BEFORE the SetAnimation call,
+	// whereas Entity.SetAnimation sets it AFTER, and only on success. So routing this through the
+	// wrapper would panic in combat's designed-for path. Keep calling Body directly.
 	animationInterval := 6
 	e.Body.SetAnimationTickCount(animationInterval)
 	res := e.Body.SetAnimation(body.AnimSlashStart, body.SetAnimationOps{

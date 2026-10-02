@@ -484,26 +484,6 @@ func (m *Map) CalculateCostMap() {
 			}
 		}
 	}
-
-	// Go through each layer and add any 'cost' properties up
-	// TODO: are we using this "cost" property? I think not
-	for _, layer := range m.Layers {
-		i := 0
-		for y := 0; y < layer.Height; y++ {
-			for x := 0; x < layer.Width; x++ {
-				tile, _, found := m.GetTileByGID(layer.Data[i])
-				if found {
-					for _, prop := range tile.Properties {
-						if prop.Name == properties.PropCost {
-							m.CostMap[y][x] += prop.GetIntValue()
-						}
-					}
-				}
-
-				i++
-			}
-		}
-	}
 }
 
 func (m Map) GetAdjTiles(c model.Coords) []model.Coords {
