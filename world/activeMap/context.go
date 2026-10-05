@@ -186,3 +186,12 @@ func (m *ActiveMap) IsLineOfSightBlocked(from, to model.Coords) bool {
 	}
 	return m.Map.LineOfSightBlocked(from, to, blockingObjects)
 }
+
+func (m *ActiveMap) GetMapInfo() defs.MapInfo {
+	return defs.MapInfo{
+		MapID:       m.MapID,
+		DisplayName: m.DisplayName,
+		Width:       m.Map.Width,
+		Height:      m.Map.Height,
+	}
+}

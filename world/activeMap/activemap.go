@@ -757,6 +757,7 @@ func (mi *ActiveMap) MapDimensions() (width int, height int) {
 }
 
 // CostMap gets a cost map for a map. Includes all possible obstructions, from NPCs or objects too.
+// builds the cost map on invocation (not entirely cached), so don't assume this is a completely free call with no cost.
 //
 // Currently includes:
 //

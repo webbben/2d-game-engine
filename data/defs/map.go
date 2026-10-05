@@ -187,3 +187,9 @@ type WaveParams struct {
 	// How quickly particles respond to the wave
 	Strength float64
 }
+
+type MapInfo struct {
+	MapID         MapID
+	DisplayName   string
+	Width, Height int
+}

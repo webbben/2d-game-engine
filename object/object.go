@@ -3,6 +3,7 @@ package object
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -204,6 +205,23 @@ func (obj Object) GetTargetingNPC() id.CharacterStateID {
 
 func (obj Object) GetLockID() string {
 	return obj.lockID
+}
+
+// CanBeOpenedBy reports whether a character holding the given lock IDs can get through this object once
+// it is closed: either the object isn't locked, the map's lock is already unlocked, or the character
+// carries a key for it. Mirrors the check in Activate so the two can't drift apart.
+//
+// This answers "does the character have the means", not "will opening succeed right now": Activate also
+// refuses when something is blocking the object (including the character itself), which is a transient
+// condition that can't be determined from here.
+func (obj Object) CanBeOpenedBy(lockIDs []string) bool {
+	if obj.lockID == "" {
+		return true
+	}
+	if obj.dataman.GetMapState(obj.mapID).MapLocks[obj.lockID].Unlocked {
+		return true
+	}
+	return slices.Contains(lockIDs, obj.lockID)
 }
 
 func (obj Object) IsCurrentlyActivating() bool {

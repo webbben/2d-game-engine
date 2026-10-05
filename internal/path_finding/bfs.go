@@ -2,19 +2,19 @@ package path_finding
 
 import (
 	"github.com/webbben/2d-game-engine/logz"
-	m "github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/utils"
 )
 
 // GetAllReachablePositions finds all tile positions that are reachable starting from the given position.
 // Note: this will not include start in the returned slice of reachable positions, because we don't consider that to be "reachable".
-func GetAllReachablePositions(start m.Coords, costMap [][]int) []m.Coords {
+func GetAllReachablePositions(start model.Coords, costMap [][]int) []model.Coords {
 	// the positions we haven't explored yet
-	open := []m.Coords{start}
+	open := []model.Coords{start}
 	// use this set to track what's in open, so we don't have to do an O(n) search each loop
-	openSet := map[m.Coords]bool{start: true}
+	openSet := map[model.Coords]bool{start: true}
 	// the positions that we've explored already
-	closed := make(map[m.Coords]bool)
+	closed := make(map[model.Coords]bool)
 
 	for len(open) > 0 {
 		// get the current best option to explore
@@ -41,7 +41,7 @@ func GetAllReachablePositions(start m.Coords, costMap [][]int) []m.Coords {
 	// delete start from closed, since the start position shouldn't be included as a "reachable position".
 	delete(closed, start)
 
-	visited := []m.Coords{}
+	visited := []model.Coords{}
 	for c := range closed {
 		visited = append(visited, c)
 	}
@@ -50,7 +50,7 @@ func GetAllReachablePositions(start m.Coords, costMap [][]int) []m.Coords {
 
 // FindNearestOpenPosition does a BFS to find the nearest open position to the given position.
 // If the given position is open, then this will just return that position.
-func FindNearestOpenPosition(c m.Coords, distLimit int, costMap [][]int) (m.Coords, bool) {
+func FindNearestOpenPosition(c model.Coords, distLimit int, costMap [][]int) (model.Coords, bool) {
 	rows := len(costMap)
 	if rows == 0 {
 		panic("costmap had no rows")
@@ -67,11 +67,11 @@ func FindNearestOpenPosition(c m.Coords, distLimit int, costMap [][]int) (m.Coor
 	}
 
 	// the positions we haven't explored yet
-	open := []m.Coords{c}
+	open := []model.Coords{c}
 	// use this set to track what's in open, so we don't have to do an O(n) search each loop
-	openSet := map[m.Coords]bool{c: true}
+	openSet := map[model.Coords]bool{c: true}
 	// the positions that we've explored already
-	closed := make(map[m.Coords]bool)
+	closed := make(map[model.Coords]bool)
 
 	for len(open) > 0 {
 		// get the current best option to explore
@@ -111,5 +111,161 @@ func FindNearestOpenPosition(c m.Coords, distLimit int, costMap [][]int) (m.Coor
 
 	// no open spot found...
 	logz.Println("BFS", "no spot found")
-	return m.Coords{}, false
+	return model.Coords{}, false
+}
+
+// BuildDistanceMap builds a map of how distant every position is from the `from` position.
+// You can optionally supply a center and search radius to limit the area of the distance map, as an optimization.
+//
+// params:
+//   - from: the position we are charting distances from
+//   - center: (OPT) if set, the returned distance map will only be populated in a certain radius based on this position
+//   - searchRadius: (OPT) if center is set, this must be set too (> 0). the search radius around center.
+//   - costMap: the costMap that represents the map we are building the distance map for.
+//
+// returns the distMap and the index of the most distant position.
+func BuildDistanceMap(from model.Coords, center *model.Coords, searchRadius int, costMap [][]int) (distMap []int, farthestIdx int) {
+	height := len(costMap)
+	if height == 0 {
+		logz.Panic("costmap is empty!")
+	}
+	width := len(costMap[0])
+	if width == 0 {
+		logz.Panic("costmap has no width!")
+	}
+
+	if !isValidCoords(from, costMap) {
+		logz.PanicCtx("BuildDistanceMap", "from position was invalid!", from.String())
+	}
+	if center != nil {
+		if !isValidCoords(*center, costMap) {
+			logz.PanicCtx("BuildDistanceMap", "center was invalid!", center.String())
+		}
+		utils.PanicAssert(searchRadius > 0, "search radius must be > 0 if center is defined")
+
+		// ensure that `from` is within the search radius. otherwise no distMap can be created
+		if utils.ManhattanDistCoords(from, *center) > searchRadius {
+			logz.PanicCtx("BuildDistanceMap", "from is outside search radius range of center!", from, center, searchRadius)
+		}
+	}
+
+	size := width * height
+
+	distances := make([]int, size)
+	for i := range distances {
+		distances[i] = -1
+	}
+
+	threatIdx := idx(from, width)
+	distances[threatIdx] = 0
+
+	open := []model.Coords{from}
+
+	best := from
+	bestDistance := 0
+
+	for head := 0; head < len(open); head++ {
+		current := open[head]
+		currentIdx := idx(current, width)
+		currentDist := distances[currentIdx]
+
+		// track the furthest position we've found within the search radius
+		if currentDist > bestDistance {
+			best = current
+			bestDistance = currentDist
+		}
+
+		neighbors := getNeighbors(current, costMap)
+		for _, neighbor := range neighbors {
+			neighborIdx := idx(neighbor, width)
+
+			// already visited
+			if distances[neighborIdx] != -1 {
+				continue
+			}
+
+			if center != nil {
+				// only search the area within the radius
+				if utils.ManhattanDistCoords(*center, neighbor) > searchRadius {
+					continue
+				}
+			}
+
+			distances[neighborIdx] = currentDist + 1
+			open = append(open, neighbor)
+		}
+	}
+
+	return distances, idx(best, width)
+}
+
+func FleeFromPosition(from model.Coords, start model.Coords, searchRadius int, costMap [][]int) (fleePath []model.Coords, reachable bool, cannotFlee bool) {
+	// first, get the distance map
+	distMap, _ := BuildDistanceMap(from, &start, searchRadius, costMap)
+
+	height := len(costMap)
+	utils.PanicAssert(height > 0, "costmap is empty!")
+	width := len(costMap[0])
+	utils.PanicAssert(width > 0, "costmap has no width!")
+
+	startIdx := idx(start, width)
+	startDist := distMap[startIdx]
+	if startDist == -1 {
+		// the distance map never reached the NPC
+		// this implies the position we are fleeing from is not accessible anyway, so fleeing probably isn't necessary
+		return nil, false, false
+	}
+
+	// Do BFS from start, using distMap to guide which path to explore
+	size := width * height
+	parent := make([]int, size)
+	for i := range parent {
+		parent[i] = -1
+	}
+	parent[startIdx] = startIdx
+	open := []model.Coords{start}
+
+	best := start
+	bestDist := startDist
+
+	// explore outward from start, but only along tiles whose distance from the threat is strictly increasing
+	for head := 0; head < len(open); head++ {
+		current := open[head]
+		currentIdx := idx(current, width)
+		currentDist := distMap[currentIdx]
+
+		if currentDist > bestDist {
+			// new furthest tile we've found so far
+			best = current
+			bestDist = currentDist
+		}
+
+		for _, neighbor := range getNeighbors(current, costMap) {
+			neighborIdx := idx(neighbor, width)
+
+			// the neighbor wasn't reached by build distance map
+			if distMap[neighborIdx] == -1 {
+				continue
+			}
+			// only move in directions that are increasing in distance
+			if distMap[neighborIdx] != currentDist+1 {
+				continue
+			}
+			// Already visited
+			if parent[neighborIdx] != -1 {
+				continue
+			}
+
+			parent[neighborIdx] = currentIdx
+			open = append(open, neighbor)
+		}
+	}
+
+	if best == start {
+		// nowhere to move while getting further away from flee target
+		return nil, true, true
+	}
+
+	path := reconstructPath(parent, width, start, best)
+	return path, true, false
 }

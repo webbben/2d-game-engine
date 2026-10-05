@@ -30,19 +30,30 @@ func (w *World) GetCurrentGameTime() clock.GameTime {
 
 func (w *World) AddItem(itemID defs.ItemID, quantity int) {
 	if quantity <= 0 {
-		panic("item quantity was <= 0")
+		logz.Panic("item quantity was <= 0")
 	}
 	playerCharState := w.Dataman.GetCharacterState(id.PlayerStateID)
 	itemToAdd := w.Dataman.NewItemState(itemID, quantity)
-	characterstate.AddItemToInventory(playerCharState, *itemToAdd, w.Dataman)
+	success, remaining := characterstate.AddItemToInventory(playerCharState, *itemToAdd, w.Dataman)
+	addedQuantity := quantity - remaining.Quantity
+	if !success {
+		// inventory must be full
+		w.EventBus.Publish(defs.Event{
+			Type: pubsub.EventInventoryFull,
+		})
+		// drop the remaining items on the ground
+		w.DropItemOnGround(itemID, remaining.Quantity, remaining.Durability)
+	}
 
-	w.EventBus.Publish(defs.Event{
-		Type: pubsub.EventAddItem,
-		Data: map[string]any{
-			"itemID":   itemToAdd.DefID,
-			"quantity": itemToAdd.Quantity,
-		},
-	})
+	if addedQuantity > 0 {
+		w.EventBus.Publish(defs.Event{
+			Type: pubsub.EventAddItem,
+			Data: map[string]any{
+				"itemID":   itemID,
+				"quantity": addedQuantity,
+			},
+		})
+	}
 }
 
 func (w *World) AddGold(amount int) {
@@ -294,7 +305,14 @@ func (w *World) DropItemOnGround(itemID defs.ItemID, quantity int, durability fl
 	w.ActiveMap.AddDroppedItem(st)
 
 	logz.Println("DropItemOnGround", "item dropped:", itemID, quantity)
-	// TODO: publish event
+	w.EventBus.Publish(defs.Event{
+		Type: pubsub.EventDropItem,
+		Data: map[string]any{
+			"itemID":    itemID,
+			"quantity":  quantity,
+			"droppedBy": id.PlayerStateID,
+		},
+	})
 }
 
 func nextRuntimeItemObjID(ms *state.MapState, m tiled.Map) int {

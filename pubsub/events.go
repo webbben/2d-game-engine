@@ -41,8 +41,10 @@ const (
 
 	// Items
 
-	EventAddItem    defs.EventType = "add_item"    // data: "itemID" (string), "quantity" (int)
-	EventGoldChange defs.EventType = "gold_change" // data: "amount" (int, non-zero)
+	EventAddItem       defs.EventType = "add_item"    // data: "itemID" (string/itemID), "quantity" (int)
+	EventGoldChange    defs.EventType = "gold_change" // data: "amount" (int, non-zero)
+	EventInventoryFull defs.EventType = "inventory_full"
+	EventDropItem      defs.EventType = "drop_item" // data: "itemID" (string/itemID), "quantity" (int), "droppedBy" (string/charStateID)
 
 	// Player
 

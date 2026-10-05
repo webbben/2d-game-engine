@@ -64,7 +64,7 @@ func (mouseBehavior *MouseBehavior) Update(drawX, drawY float64, boxWidth, boxHe
 
 	// detect hovering
 	mouseBehavior.IsHovering = false
-	if mX > drawX && mY < (drawX+float64(boxWidth)) {
+	if mX > drawX && mX < (drawX+float64(boxWidth)) {
 		if mY > drawY && mY < (drawY+float64(boxHeight)) {
 			mouseBehavior.IsHovering = true
 			mouseBehavior.LeftClickOutside.Reset() // not clicking outside, so reset this

@@ -16,6 +16,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
+	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
@@ -36,6 +37,7 @@ type WorldContext interface {
 }
 
 type ActiveMapContext interface {
+	GetMapInfo() defs.MapInfo
 	GetOverlayManager() *overlay.OverlayManager
 	RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMap defs.MapID)
 
@@ -46,7 +48,7 @@ type ActiveMapContext interface {
 	IsTileEntityCollision(c model.Coords, excludeEntID string) bool
 	GetAllObjects() []*object.Object
 	GetAllNPCs() []*NPC
-	GetCostMap() [][]int
+	GetCostMap() [][]int // gets cost map (rebuilds it, so not entirely free)
 	GetEntityInfo(charStateID id.CharacterStateID) entity.EntityInfo
 	GetLightIntensity(pos model.Coords) float32
 	IsLineOfSightBlocked(from, to model.Coords) bool
@@ -442,6 +444,11 @@ func (n *NPC) SetupScheduledTaskForPlacement(gameTime clock.GameTime) defs.MapID
 // gets the nearest open, unobstructed tile to the given position.
 // useful for trying to place an NPC somewhere, but handles moving around objects, collisions, or other NPCs.
 // tileDistLimit must not be 0.
+//
+// args:
+//   - c: position where we start the search from for an open tile
+//   - tileDistLimit: the maximum (tile) distance we can search from c
+//   - allowEntityCollision: if false, tiles where entities exist are considered blocked
 func (n NPC) getNearestOpenTile(c model.Coords, tileDistLimit int, allowEntityCollision bool) (model.Coords, bool) {
 	if tileDistLimit <= 0 {
 		panic("tileDistLimit was <= 0")
@@ -508,12 +515,69 @@ func (n *NPC) OnSpeechBubbleEvent(e defs.Event) {
 }
 
 func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
-	// TODO: add logic to judge if NPC should retaliate
+	if attackedBy == nil {
+		return
+	}
+
+	// If we're already running from this particular attacker, leave the flee task alone. Re-starting it
+	// would reset the repath throttle and drop the route we're currently walking, which is the worst
+	// possible response to being hit again mid-escape.
+	if fleeTask, ok := n.getCurrentTask().(*FleeTask); ok && fleeTask.targetEntity == attackedBy {
+		return
+	}
+
+	// Try to arm ourselves first, so an npc carrying a weapon fights rather than runs. Without this an
+	// armed npc would flee purely because its weapon was sitting in its pack.
+	if n.ensureWeaponEquipped() {
+		n.RunTask(defs.TaskDef{
+			TaskID:   TaskFight,
+			Priority: Emergency,
+			Params:   FightTaskParams{TargetEntity: attackedBy},
+		}, n)
+		return
+	}
+
+	// Nothing to fight with, so get away instead.
 	n.RunTask(defs.TaskDef{
-		TaskID:   TaskFight,
+		TaskID:   TaskFlee,
 		Priority: Emergency,
-		Params:   FightTaskParams{TargetEntity: attackedBy},
+		Params:   FleeTaskParams{TargetEntity: attackedBy},
 	}, n)
+}
+
+// ensureWeaponEquipped moves the first weapon found in this npc's inventory into its equipped slot.
+// Returns true if the npc is holding a weapon when it finishes, whether it already was or not.
+func (n *NPC) ensureWeaponEquipped() bool {
+	cs := n.CharacterStateRef
+	if cs == nil {
+		return false
+	}
+	if cs.EquipedWeapon != nil && cs.EquipedWeapon.DefID != "" {
+		return true
+	}
+
+	for _, invItem := range cs.InventoryItems {
+		if invItem == nil || invItem.DefID == "" {
+			continue
+		}
+		if n.dataman.GetItemDef(invItem.DefID).Type != defs.TypeWeapon {
+			continue
+		}
+
+		// Go through RemoveItemFromStandardInventory rather than just assigning EquipedWeapon, so the
+		// item comes out of the pack (and the coin purse, if it was stashed there) properly.
+		if found, _ := item.RemoveItemFromStandardInventory(&cs.StandardInventory, *invItem, n.dataman); !found {
+			continue
+		}
+
+		cs.EquipedWeapon = invItem
+		// Re-sync the body immediately instead of waiting for the next Entity.Update(): task updates run
+		// first, so anything checking IsWeaponEquiped() before then would otherwise see a body that
+		// doesn't match its character state (which panics).
+		n.Entity.SyncBodyToState()
+		return true
+	}
+	return false
 }
 
 func (n *NPC) CanSeeEntity(charStateID id.CharacterStateID) (bool, VisibleEntityInfo) {

@@ -18,6 +18,7 @@ type GotoTask struct {
 }
 
 type GotoTaskParams struct {
+	// TODO: should we just make these model.Coords?
 	TileX, TileY int
 }
 
@@ -88,6 +89,14 @@ func (t *GotoTask) Update() {
 		t.Start()
 		return
 	case TaskInProg:
+		// Check for arrival before resolving collisions. Once we're on the goal there's nothing left to
+		// route around, and ReRoute would call Start, which rejects a goto to the position we're already
+		// on. Reachable: we can be interrupted with our path already consumed the moment we step onto the
+		// goal (e.g. the player is standing there, so the next move collides).
+		if t.isComplete() {
+			t.FinishSuccess()
+			return
+		}
 		result := t.HandleNPCCollision()
 		if result.Wait {
 			return
@@ -105,15 +114,10 @@ func (t *GotoTask) Update() {
 		} else {
 			t.unknownCollision = 0
 		}
-		if t.isComplete() {
-			t.FinishSuccess()
-			return
-		}
 		if !t.Owner.Entity.IsMoving() {
 			if !t.Owner.Entity.HasPath() {
 				// not moving and has no target; shouldn't we have reached our goal then?
-				logz.Println(t.Owner.ID(), "supposed to be going towards a goal, but entity has no target path")
-				logz.Panicln("GotoTask", "supposed to be going towards a goal, but entity has no target path")
+				logz.PanicCtx("GotoTask", "supposed to be going towards a goal, but entity has no target path", t.Owner.WhoAmI())
 			}
 			// entity is not moving, but also is not being blocked (and has a path to follow still).
 			// jump start its path again.

@@ -31,6 +31,7 @@ const (
 	TaskRoute       defs.TaskID = "ROUTE"
 	TaskFollow      defs.TaskID = "FOLLOW"
 	TaskFight       defs.TaskID = "FIGHT"
+	TaskFlee        defs.TaskID = "FLEE"
 	TaskActivateObj defs.TaskID = "ACTIVATE_OBJECT"
 	TaskStartDialog defs.TaskID = "START_DIALOG"
 	TaskFaceDir     defs.TaskID = "FACE_DIR" // TODO
@@ -241,6 +242,8 @@ type Task interface {
 	DisableDefaultSpeechBubbles() bool
 }
 
+// TaskBase is the basic minimal implementation of the Task interface. It has lots of useful shared logic used by tasks,
+// so most tasks can just extend this as a starting point.
 type TaskBase struct {
 	Def         defs.TaskDef
 	Owner       *NPC
@@ -644,7 +647,12 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 	logz.Println(t.Owner.DisplayName(), "NPC interrupted; handling collision")
 	nextTarget, ok := t.Owner.Entity.PathAhead(0)
 	if !ok {
-		panic("Goto task: npc movement was interrupted, but there is no next step in target path")
+		// Interrupted with no path left isn't an obstacle, so there's nothing here to resolve. This
+		// happens when trySetNextTargetPath clears the path and bails -- the entity got bumped off route,
+		// or ended up standing on the step it was walking to -- after which the caller marks the movement
+		// interrupted. ReRoute rather than NoneDetected because the entity genuinely needs a fresh path
+		// from here; tasks decide for themselves whether the current position already satisfies their goal.
+		return NPCCollisionResult{ReRoute: true}
 	}
 
 	collidingObjs := t.Owner.ActiveMapCtx.FindObjectsAtPosition(nextTarget)

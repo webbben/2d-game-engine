@@ -562,19 +562,24 @@ func (e *Entity) updateMovement() updateMovementResult {
 	// check for suggested paths. if the entity is following a path, try to merge the suggestion into
 	// it; if the entity is idle, adopt the suggestion as a new target path (this is how the follow
 	// task picks up paths computed by background assist).
+
 	if len(e.Movement.SuggestedTargetPath) > 0 {
-		if len(e.Movement.TargetPath) > 0 && e.Movement.IsMoving {
-			e.tryMergeSuggestedPath(e.Movement.SuggestedTargetPath)
-		} else if len(e.Movement.TargetPath) == 0 && !e.Movement.IsMoving {
-			// only adopt the suggestion if it starts from a tile other than the current one, since
-			// trySetNextTargetPath panics when the next target equals the current tile (and the
-			// suggestion may be stale if the entity moved since it was computed).
-			path := e.Movement.SuggestedTargetPath
-			if len(path) > 0 && !path[0].Equals(e.TilePos()) {
-				e.Movement.TargetPath = path
-				res := e.trySetNextTargetPath()
-				if !res.Success {
-					e.Movement.TargetPath = []model.Coords{}
+		if len(e.Movement.TargetPath) > 0 {
+			if e.Movement.IsMoving {
+				e.tryMergeSuggestedPath(e.Movement.SuggestedTargetPath)
+			}
+		} else {
+			if !e.Movement.IsMoving {
+				// only adopt the suggestion if it starts from a tile other than the current one, since
+				// trySetNextTargetPath panics when the next target equals the current tile (and the
+				// suggestion may be stale if the entity moved since it was computed).
+				path := e.Movement.SuggestedTargetPath
+				if len(path) > 0 && !path[0].Equals(e.TilePos()) {
+					e.Movement.TargetPath = path
+					res := e.trySetNextTargetPath()
+					if !res.Success {
+						e.Movement.TargetPath = []model.Coords{}
+					}
 				}
 			}
 		}
@@ -692,12 +697,44 @@ func (e *Entity) trySetNextTargetPath() MoveError {
 		logz.Println(string(e.ID()))
 		logz.Panic("tried to set next target along path for entity that has no set target path")
 	}
+
+	// find the actual next step in the target path; sometimes, there's a chance that the entity could be "pushed ahead"
+	// by something like a bump or enemy attack. so, if we've skipped ahead, trim the positions we've passed by
+	// we go in order of each position in the target path and determine which one is the closest to our current position.
+	// once we've found a position that is more distant than the last, we conclude that we've found the closest one and stop searching,
+	// and skip all the previous positions in target path
+	if len(e.Movement.TargetPath) > 1 {
+		skipTo := -1
+		for i, c := range e.Movement.TargetPath {
+			dist := utils.ManhattanDistCoords(e.TilePos(), c)
+			if dist <= 1 {
+				// skip to the first reachable position in target path
+				skipTo = i
+				break
+			}
+		}
+		if skipTo == -1 {
+			// no "salvageable" position found; return MoveError
+			logz.Warnln("trySetNextTargetPath", "entity was not on or near target path. did it get bumped too far away?", e.ID(), e.TilePos(), e.Movement.TargetPath)
+			e.Movement.TargetPath = []model.Coords{}
+			return MoveError{Cancelled: true, Info: "not on or near target path. was entity bumped?"}
+		}
+		e.Movement.TargetPath = e.Movement.TargetPath[skipTo:]
+		utils.PanicAssert(len(e.Movement.TargetPath) != 0, "target path became empty after truncation!")
+	}
+
+	if e.Movement.TargetPath[0].Equals(e.TilePos()) {
+		// if we are now sitting on the next target position, move on to the next step
+		e.Movement.TargetPath = e.Movement.TargetPath[1:]
+		if len(e.Movement.TargetPath) == 0 {
+			// we were sitting on top of the last position in the target path.
+			logz.Warnln("trySetNextTargetPath", "entity ended up at target path destination unexpectedly. did it get bumped into it?")
+			return MoveError{Cancelled: true, Info: "already at destination"}
+		}
+	}
+
 	nextTarget := e.Movement.TargetPath[0]
 	tilePos := e.TilePos()
-	if nextTarget.Equals(tilePos) {
-		logz.Println(string(e.ID()))
-		logz.Panic("trySetNextTargetPath: next target is the same tile as current position")
-	}
 
 	if e.IsStunned() {
 		return MoveError{Cancelled: true, Info: "stunned"}

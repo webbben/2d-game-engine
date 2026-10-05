@@ -80,6 +80,7 @@ func (c Coords) Equals(other Coords) bool {
 }
 
 // Copy returns a copy of the coords struct, to avoid reference ties
+// TODO: is this actually necessary? i.e. can you directly assign another variable to a Coords value and is the value copied rather than referenced/pointer?
 func (c Coords) Copy() Coords {
 	return Coords{X: c.X, Y: c.Y}
 }

@@ -16,6 +16,10 @@ import (
 type followPathRequest struct {
 	goal  model.Coords // the tile to walk toward (behind the target)
 	start model.Coords // the anchor tile the path should begin from
+
+	// Closed gates this npc has no way to open, treated as walls for this search only. Collected by the
+	// main loop, since object open/close state is main-loop state and would race if read here.
+	BlockedTiles []model.Coords
 }
 
 type FollowTask struct {
@@ -171,7 +175,7 @@ func (t *FollowTask) requestPath(goal model.Coords, throttle bool) {
 
 	t.lastPathRequest = time.Now()
 	t.lastGoal = goal
-	t.pathRequest.Store(&followPathRequest{goal: goal, start: start})
+	t.pathRequest.Store(&followPathRequest{goal: goal, start: start, BlockedTiles: unopenableGateTiles(t.Owner)})
 }
 
 // BackgroundAssist runs on the background jobs goroutine and performs the A* search for a requested
@@ -184,7 +188,14 @@ func (t *FollowTask) BackgroundAssist() {
 		return
 	}
 
-	newPath, _ := path_finding.FindPath(req.start, req.goal, t.Owner.ActiveMapCtx.GetPathfindingSnapshot())
+	costMap := t.Owner.ActiveMapCtx.GetPathfindingSnapshot()
+	// Gates we can't open are walls as far as this search is concerned, otherwise the search happily
+	// routes straight through one and the npc stalls against it.
+	if len(req.BlockedTiles) > 0 {
+		costMap = costMapWithBlockedTiles(costMap, req.BlockedTiles)
+	}
+
+	newPath, _ := path_finding.FindPath(req.start, req.goal, costMap)
 	if len(newPath) < 2 {
 		return
 	}

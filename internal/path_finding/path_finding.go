@@ -26,3 +26,7 @@ func FindPath(start, goal model.Coords, costMap [][]int) ([]model.Coords, bool) 
 	foundPath, _, completePathFound := aStar(start, goal, costMap)
 	return foundPath, completePathFound
 }
+
+func idx(c model.Coords, width int) int {
+	return c.Y*width + c.X
+}
