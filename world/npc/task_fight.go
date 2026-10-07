@@ -215,15 +215,20 @@ func (t *FightTask) Update() {
 	}
 }
 
-// In combat, we mainly want to do the following:
-//
-// 1. creep towards the enemy until in striking range
-// 2. slowly waver back and forth a little bit
-// 3. at times, hold up a shield (TODO - shields not implemented yet)
-// 4. strike! then return to 1
 func (t *FightTask) handleCombat() {
 	if t.status != fightStatusCombat {
 		panic("status is not set to combat")
+	}
+
+	if cs := t.Owner.CharacterStateRef; float64(cs.Health) <= float64(cs.MaxHealth)*config.FleeAtHealthPercent {
+		t.Owner.RunTask(defs.TaskDef{
+			TaskID:   TaskFlee,
+			Priority: Emergency,
+			Params:   FleeTaskParams{TargetEntity: t.targetEntity},
+		}, t.Owner)
+		// we don't care to preserve the fight task as interrupted, since the NPC is no longer willing to fight
+		t.Owner.clearInterruptedTask()
+		return
 	}
 
 	if t.Owner.Entity.Body.IsAttacking() {

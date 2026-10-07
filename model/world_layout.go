@@ -2,6 +2,7 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 
@@ -191,6 +192,17 @@ func (pos Vec2) MoveAway(target Vec2, speed float64) Vec2 {
 
 type Rect struct {
 	X, Y, W, H float64
+}
+
+// MarshalJSON writes the rect as a named-field object ({"x":..,"y":..,"w":..,"h":..}) rather than relying on
+// the default field names, so serialized rects are consistent with Coords.
+func (r Rect) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		X float64 `json:"x"`
+		Y float64 `json:"y"`
+		W float64 `json:"w"`
+		H float64 `json:"h"`
+	}{r.X, r.Y, r.W, r.H})
 }
 
 func NewRect(x, y, w, h float64) Rect {

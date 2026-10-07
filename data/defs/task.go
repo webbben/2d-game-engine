@@ -52,17 +52,33 @@ func (td TaskDef) Equals(other TaskDef) bool {
 	if td.Priority != other.Priority {
 		return false
 	}
-	if td.Params != other.Params {
-		return false
+	if td.Params == nil || other.Params == nil {
+		if td.Params != other.Params {
+			return false
+		}
 	}
-	if td.StartLocation != nil && other.StartLocation != nil {
+	if td.StartLocation == nil || other.StartLocation == nil {
+		if td.StartLocation != other.StartLocation {
+			return false
+		}
+	} else {
+		intEqual := func(a, b *int) bool {
+			if a == nil || b == nil {
+				return a == b
+			}
+			return *a == *b
+		}
+		// neither start location is nil, so make sure they are the same location
 		if td.StartLocation.MapID != other.StartLocation.MapID {
 			return false
 		}
-		if td.StartLocation.TileX != other.StartLocation.TileX {
+		if !intEqual(td.StartLocation.TileX, other.StartLocation.TileX) {
 			return false
 		}
-		if td.StartLocation.TileY != other.StartLocation.TileY {
+		if !intEqual(td.StartLocation.TileY, other.StartLocation.TileY) {
+			return false
+		}
+		if td.StartLocation.UseHomeMap != other.StartLocation.UseHomeMap {
 			return false
 		}
 	}

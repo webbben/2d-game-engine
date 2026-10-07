@@ -817,7 +817,12 @@ func (mi *ActiveMap) buildCostMap() [][]int {
 	}
 
 	for _, obj := range mi.Objects {
-		if !obj.IsCollidable() {
+		// doors are a player-only map transition: "step" doors only trigger from Object.updateDoor,
+		// which checks the player's rect, and "click" doors only answer the player's click. NPCs have no
+		// way to use one, so an NPC that walks across is stranded on a side the player can't reach without
+		// being teleported away. Doors are tile-less and so have no collisionRect of their own, which means
+		// they must be allowed through the IsCollidable() check here rather than relying on it.
+		if obj.Type != object.TypeDoor && !obj.IsCollidable() {
 			continue
 		}
 		if obj.Type == object.TypeGate {
@@ -960,56 +965,62 @@ func (mi *ActiveMap) findEntityByID(id id.CharacterStateID) *entity.Entity {
 }
 
 // ActivateArea attempts to activate an object or npc in an area. if an activation occurs, true is returned.
-// NOTE: for now, this is only used by the player. if this becomes a general purpose "activate an area" function,
-// then we need to pass info in about who is activating - so that we know which locks can be opened, for example.
-func (mi *ActiveMap) ActivateArea(r model.Rect, originX, originY float64) bool {
-	// check for activated objects
-	// try to get the object that is the "best match" (i.e. closest to the center of the activated area)
-	var closestObject *object.Object = nil
-	closestObjectDist := float64(config.TileSize * 1000)
-	for _, obj := range mi.Objects {
-		if !obj.IsActivatable() {
-			continue
-		}
-		if r.Intersects(obj.GetRect()) {
-			dist := utils.EuclideanDistCenter(r, obj.GetRect())
-			if closestObject == nil || dist < closestObjectDist {
-				closestObject = obj
-				closestObjectDist = dist
-			}
-		}
-	}
-	if closestObject != nil {
-		activateParams := object.ObjectActivationParams{
-			ActivatorID: mi.PlayerRef.CharacterStateRef.ID,
-			LockIDs:     characterstate.GetLockIDs(*mi.PlayerRef.CharacterStateRef, mi.dataman),
-		}
-		result := closestObject.Activate(originX, originY, activateParams)
-		logz.Println("Activate Area", closestObject.Type, "Activating...")
-
-		if result.UpdateOccurred {
-			mi.HandleObjectUpdate(result, closestObject)
-		}
-
-		return true
+func (mi *ActiveMap) ActivateArea(r model.Rect, originX, originY float64, activateNPC bool, activateObjects []defs.ObjectType) bool {
+	if !activateNPC && len(activateObjects) == 0 {
+		logz.Panic("nothing is activatable")
 	}
 
 	// check for activated entities
 	// if multiple entites are present, activate the closest one to the center of the activation area
-	var closestNPC *npc.NPC = nil
-	closestNPCDist := float64(config.TileSize * 1000)
-	for _, n := range mi.NPCs {
-		if r.Intersects(n.Entity.CollisionRect()) {
-			dist := utils.EuclideanDistCenter(r, n.Entity.CollisionRect())
-			if closestNPC == nil || dist < closestNPCDist {
-				closestNPC = n
-				closestNPCDist = dist
+	if activateNPC {
+		var closestNPC *npc.NPC = nil
+		closestNPCDist := float64(config.TileSize * 1000)
+		for _, n := range mi.NPCs {
+			if r.Intersects(n.Entity.CollisionRect()) {
+				dist := utils.EuclideanDistCenter(r, n.Entity.CollisionRect())
+				if closestNPC == nil || dist < closestNPCDist {
+					closestNPC = n
+					closestNPCDist = dist
+				}
 			}
 		}
+		if closestNPC != nil {
+			closestNPC.Activate()
+			return true
+		}
 	}
-	if closestNPC != nil {
-		closestNPC.Activate()
-		return true
+
+	// check for activated objects
+	// try to get the object that closest to the center of the activated area
+	if len(activateObjects) > 0 {
+		var closestObject *object.Object = nil
+		closestObjectDist := float64(config.TileSize * 1000)
+		for _, obj := range mi.Objects {
+			if !obj.IsActivatable() {
+				continue
+			}
+			if r.Intersects(obj.GetRect()) && slices.Contains(activateObjects, obj.Type) {
+				dist := utils.EuclideanDistCenter(r, obj.GetRect())
+				if closestObject == nil || dist < closestObjectDist {
+					closestObject = obj
+					closestObjectDist = dist
+				}
+			}
+		}
+		if closestObject != nil {
+			activateParams := object.ObjectActivationParams{
+				ActivatorID: mi.PlayerRef.CharacterStateRef.ID,
+				LockIDs:     characterstate.GetLockIDs(*mi.PlayerRef.CharacterStateRef, mi.dataman),
+			}
+			result := closestObject.Activate(originX, originY, activateParams)
+			logz.Println("Activate Area", closestObject.Type, "Activating...")
+
+			if result.UpdateOccurred {
+				mi.HandleObjectUpdate(result, closestObject)
+			}
+
+			return true
+		}
 	}
 
 	return false

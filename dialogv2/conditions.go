@@ -265,3 +265,11 @@ type ConditionSeenTopic struct {
 func (c ConditionSeenTopic) IsMet(ctx defs.ConditionContext) bool {
 	return ctx.HasSeenTopic(c.TopicID)
 }
+
+// ConditionNPCOfferingSurrender is met when the npc being talked to has a surrender offer on the table,
+// so a dialog profile can route the player into it.
+type ConditionNPCOfferingSurrender struct{}
+
+func (c ConditionNPCOfferingSurrender) IsMet(ctx defs.ConditionContext) bool {
+	return ctx.IsNPCOfferingSurrender()
+}

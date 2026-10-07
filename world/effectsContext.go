@@ -149,6 +149,36 @@ func (w *World) InitiateCombat(charStateID, targetCharStateID id.CharacterStateI
 	w.EventBus.Publish(pubsub.NPCAssignTask(string(charStateID), taskDef))
 }
 
+// IsNPCOfferingSurrender reports whether an npc has a surrender offer pending. False if the npc isn't
+// on the map (a dialog could still be closing out as the player changes maps).
+func (w *World) HasNPCSurrenderOffer(charStateID id.CharacterStateID) bool {
+	npcRef := w.getInWorldNPC(charStateID)
+	if npcRef == nil {
+		return false
+	}
+	return npcRef.IsOfferingSurrender()
+}
+
+// AcceptNPCSurrender ends the fight. The npc is flagged as surrendered so it won't take another
+// surrender offer, and gets TaskDoNothing, which clears its current task; the task decision loop then
+// picks up whatever this hour's schedule says next.
+func (w *World) AcceptNPCSurrender(charStateID id.CharacterStateID) {
+	npcRef := w.getInWorldNPC(charStateID)
+	if npcRef == nil {
+		logz.Panicln("AcceptNPCSurrender", "npc is not a current in-world NPC:", charStateID)
+	}
+	npcRef.MarkSurrendered()
+
+	// Finish the surrender task rather than swapping in another one. Once it reports done, the task
+	// decision loop picks this hour's schedule up on its own. Assigning TaskDoNothing instead would go
+	// through clearTask, which nils the task without ever calling Finish -- so the task's dialog-ended
+	// subscription would stay registered, and the next time any dialog with this npc closed it would
+	// react and send them running for no reason.
+	if surrenderTask, ok := npcRef.CurrentTask.(*npc.SurrenderTask); ok {
+		surrenderTask.Finish(npc.TaskResult{Status: npc.ResultSuccess})
+	}
+}
+
 // getInWorldNPC resolves an NPC by char state ID, first from the world's regular
 // NPC registry, and falling back to temp scenario NPCs placed in the active map.
 func (w *World) getInWorldNPC(charStateID id.CharacterStateID) *npc.NPC {

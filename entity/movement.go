@@ -254,12 +254,10 @@ func (e *Entity) TryMoveMaxPx(dx, dy, speed float64) MoveError {
 
 		// ensure nothing weird happened like changing directions entirely, etc...
 		if utils.DifferentSigns(originalDx, dx) {
-			logz.Println("TryMoveMaxPx", dx, "original:", originalDx, "cx:", cx)
-			logz.Panicln("TryMoveMaxPx", "dx changed directions after adjustment")
+			logz.PanicCtx("TryMoveMaxPx", "dx changed directions after adjustment", fmt.Sprintf("dx: %.2f cx: %.2f", dx, cx), e.ID())
 		}
 		if utils.DifferentSigns(originalDy, dy) {
-			logz.Println("TryMoveMaxPx", dy, "original:", originalDy, "cy:", cy)
-			logz.Panicln("TryMoveMaxPx", "dy changed directions after adjustment")
+			logz.PanicCtx("TryMoveMaxPx", "dy changed directions after adjustment", fmt.Sprintf("dy: %.2f cy: %.2f", dy, cy), e.ID())
 		}
 
 		// TODO: there's a case that has caused some trouble with the "adjustment" logic:

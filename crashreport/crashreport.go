@@ -65,9 +65,6 @@ func ReportsDir() string {
 // the message plus the sanitized stack trace. If a file with the same hash
 // already exists, a numbered suffix is appended (e.g. hash_01.json).
 func WriteCrashReport(msg string, stack []byte, logs []string) {
-	mu.Lock()
-	defer mu.Unlock()
-
 	if reportsDir == "" {
 		return
 	}
@@ -85,6 +82,20 @@ func WriteCrashReport(msg string, stack []byte, logs []string) {
 		Submitted:     false,
 	}
 
+	mu.Lock()
+	writeReportFile(hash, report)
+	mu.Unlock()
+
+	// Deliberately outside mu. The state provider gathers live game state on whatever goroutine crashed,
+	// which can be slow, and holding this package's lock across it would serialize every crash. It also
+	// keeps the dump from re-entering WriteCrashReport (and self-deadlocking on mu) if gathering trips a
+	// logz panic, since logz.Panic* funnels back through here.
+	writeStateDump(hash)
+}
+
+// writeReportFile writes report to a non-colliding path derived from hash, adding a numeric suffix if a
+// report for that hash already exists. Callers must hold mu.
+func writeReportFile(hash string, report CrashReport) {
 	basePath := filepath.Join(reportsDir, hash)
 	filePath := basePath + ".json"
 	if _, err := os.Stat(filePath); err == nil {
@@ -106,6 +117,28 @@ func WriteCrashReport(msg string, stack []byte, logs []string) {
 
 // LoadAllReports reads all crash report files from the reports directory.
 func LoadAllReports() ([]CrashReport, error) {
+	pending, err := loadReports()
+	if err != nil {
+		return nil, err
+	}
+	reports := make([]CrashReport, 0, len(pending))
+	for _, p := range pending {
+		reports = append(reports, p.Report)
+	}
+	return reports, nil
+}
+
+// PendingReport is a crash report together with the file it was read from, so callers can update that exact
+// occurrence. Several report files can share a hash (repeat crashes), which makes the hash alone ambiguous as
+// an identifier for "this one".
+type PendingReport struct {
+	Report CrashReport
+	Path   string
+}
+
+// loadReports reads every crash report in the directory. State dumps live in a subdirectory and are skipped,
+// so they are never mistaken for reports.
+func loadReports() ([]PendingReport, error) {
 	if reportsDir == "" {
 		return nil, fmt.Errorf("crash reports directory not configured")
 	}
@@ -113,18 +146,19 @@ func LoadAllReports() ([]CrashReport, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read crash reports directory: %w", err)
 	}
-	var reports []CrashReport
+	var reports []PendingReport
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(reportsDir, e.Name()))
+		path := filepath.Join(reportsDir, e.Name())
+		data, err := os.ReadFile(path)
 		if err != nil {
 			continue
 		}
 		var r CrashReport
 		if json.Unmarshal(data, &r) == nil {
-			reports = append(reports, r)
+			reports = append(reports, PendingReport{Report: r, Path: path})
 		}
 	}
 	return reports, nil
@@ -132,18 +166,26 @@ func LoadAllReports() ([]CrashReport, error) {
 
 // LoadReport loads a single crash report by its hash.
 func LoadReport(hash string) (*CrashReport, error) {
+	r, _, err := LoadReportWithPath(hash)
+	return r, err
+}
+
+// LoadReportWithPath loads a single crash report by its hash and also returns the file it came from, for
+// callers that need to update that exact occurrence (see MarkSubmittedPath).
+func LoadReportWithPath(hash string) (*CrashReport, string, error) {
 	if reportsDir == "" {
-		return nil, fmt.Errorf("crash reports directory not configured")
+		return nil, "", fmt.Errorf("crash reports directory not configured")
 	}
-	data, err := os.ReadFile(filepath.Join(reportsDir, hash+".json"))
+	path := filepath.Join(reportsDir, hash+".json")
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("crash report not found: %s", hash)
+		return nil, "", fmt.Errorf("crash report not found: %s", hash)
 	}
 	var r CrashReport
 	if err := json.Unmarshal(data, &r); err != nil {
-		return nil, fmt.Errorf("failed to parse crash report: %w", err)
+		return nil, "", fmt.Errorf("failed to parse crash report: %w", err)
 	}
-	return &r, nil
+	return &r, path, nil
 }
 
 // hashString returns the SHA256 hex digest of s.
@@ -211,7 +253,35 @@ func sanitizeStackForHash(s string) string {
 	return strings.Join(out, "\n")
 }
 
+// MarkSubmittedPath marks one specific report file as submitted.
+//
+// Prefer this over MarkSubmitted: a hash is not a unique report identifier, since a repeat crash writes
+// hash_01.json, hash_02.json, and so on. Marking by hash prefix marks every one of those at once, including
+// occurrences that haven't been filed yet, so they'd be silently skipped forever.
+func MarkSubmittedPath(filePath string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("crash report not found: %s", filePath)
+	}
+	var r CrashReport
+	if err := json.Unmarshal(data, &r); err != nil {
+		return fmt.Errorf("failed to parse crash report %s: %w", filePath, err)
+	}
+	r.Submitted = true
+	out, err := json.MarshalIndent(r, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filePath, out, 0o644)
+}
+
 // MarkSubmitted marks all crash report files matching the given hash as submitted.
+//
+// Note this marks every occurrence of the hash, not just one. Use MarkSubmittedPath when submitting a single
+// specific occurrence.
 func MarkSubmitted(hash string) error {
 	mu.Lock()
 	defer mu.Unlock()
@@ -246,14 +316,27 @@ func MarkSubmitted(hash string) error {
 
 // LoadUnsubmittedReports returns all crash reports that haven't been submitted yet.
 func LoadUnsubmittedReports() ([]CrashReport, error) {
-	all, err := LoadAllReports()
+	pending, err := LoadUnsubmittedReportsWithPaths()
 	if err != nil {
 		return nil, err
 	}
-	var unsubmitted []CrashReport
-	for _, r := range all {
-		if !r.Submitted {
-			unsubmitted = append(unsubmitted, r)
+	reports := make([]CrashReport, 0, len(pending))
+	for _, p := range pending {
+		reports = append(reports, p.Report)
+	}
+	return reports, nil
+}
+
+// LoadUnsubmittedReportsWithPaths returns the unsubmitted crash reports along with the file each came from.
+func LoadUnsubmittedReportsWithPaths() ([]PendingReport, error) {
+	all, err := loadReports()
+	if err != nil {
+		return nil, err
+	}
+	var unsubmitted []PendingReport
+	for _, p := range all {
+		if !p.Report.Submitted {
+			unsubmitted = append(unsubmitted, p)
 		}
 	}
 	return unsubmitted, nil

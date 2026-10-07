@@ -234,6 +234,9 @@ type ConditionContext interface {
 	GetPlayerSkillLevel(skillID SkillID) int
 	GetPlayerAttributeLevel(attrID AttributeID) int
 	GetOpinionOfPlayer() int
+	// IsNPCOfferingSurrender reports whether the npc this dialog is with currently has a surrender
+	// offer on the table.
+	IsNPCOfferingSurrender() bool
 }
 
 type MemoryCondition struct {

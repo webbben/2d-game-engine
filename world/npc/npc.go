@@ -49,6 +49,8 @@ type ActiveMapContext interface {
 	GetAllObjects() []*object.Object
 	GetAllNPCs() []*NPC
 	GetCostMap() [][]int // gets cost map (rebuilds it, so not entirely free)
+	IsDialogActive() bool
+	GetDialogNPC() id.CharacterStateID // empty if no dialog is active
 	GetEntityInfo(charStateID id.CharacterStateID) entity.EntityInfo
 	GetLightIntensity(pos model.Coords) float32
 	IsLineOfSightBlocked(from, to model.Coords) bool
@@ -98,6 +100,35 @@ type NPC struct {
 	//
 	// Note: avoid directly manipulating this, and instead use the subscribe and unsubscribe functions
 	activeMapSubscriptionIDs map[string]bool
+
+	// combat flags
+
+	// surrenderOfferSpent is a one-way latch: once this npc has offered to surrender, it never will again,
+	// whether the player accepted or turned it down. Set on accept too, not just rejection -- otherwise
+	// an npc whose surrender was accepted could offer again if it later ended up fleeing.
+	surrenderOfferSpent bool
+	// set when the player accepts, and means this npc will no longer fight
+	surrendered bool
+}
+
+// HasSurrendered reports whether the player accepted this npc's surrender, meaning it won't fight again.
+func (n *NPC) HasSurrendered() bool {
+	return n.surrendered
+}
+
+// IsOfferingSurrender reports whether this npc has an offer on the table right now, which is what a
+// dialog needs to know to show a surrender greeting. Distinct from HasSurrendered: this is the pending
+// offer, that one is a deal already struck.
+func (n *NPC) IsOfferingSurrender() bool {
+	_, ok := n.getCurrentTask().(*SurrenderTask)
+	return ok
+}
+
+// MarkSurrendered records that the player accepted this npc's surrender, so it won't fight again and
+// won't offer to surrender a second time.
+func (n *NPC) MarkSurrendered() {
+	n.surrendered = true
+	n.surrenderOfferSpent = true
 }
 
 type VisibleEntityInfo struct {
@@ -160,11 +191,23 @@ func (n *NPC) PrepareLeaveActiveMap() {
 }
 
 func (n NPC) GetInfo() defs.NPCInfo {
+	activateText := "Talk"
+	if n.Entity.IsDead() {
+		activateText = "Loot"
+	}
 	return defs.NPCInfo{
 		CharID:       n.CharacterStateRef.ID,
 		DisplayName:  n.DisplayName(),
-		ActivateText: "Talk",
+		ActivateText: activateText,
+		InCombat:     n.InCombat(),
 	}
+}
+
+func (n NPC) InCombat() bool {
+	if n.CurrentTask == nil {
+		return false
+	}
+	return n.CurrentTask.GetID() == TaskFight
 }
 
 func (n NPC) IsHovering(x, y int) bool {
@@ -198,6 +241,23 @@ func (n *NPC) Activate() {
 		})
 		return
 	}
+
+	// a dialog is already open, so a click here would try to start a second one (which StartDialog
+	// panics on). This can happen if the player clicks an npc mid-conversation.
+	if n.ActiveMapCtx.IsDialogActive() {
+		return
+	}
+
+	// an NPC can't be talked to while they are in combat
+	if !n.surrendered {
+		switch n.getCurrentTask().(type) {
+		case *FightTask:
+			return
+		case *FleeTask:
+			return
+		}
+	}
+
 	if n.dialogProfileID != "" {
 		n.ActiveMapCtx.StartDialog(n.dialogProfileID, n.ID())
 		return
@@ -207,7 +267,7 @@ func (n *NPC) Activate() {
 
 // Y is used for renderables sorting
 func (n NPC) Y() float64 {
-	return n.Entity.Y
+	return n.Entity.RenderOrderY()
 }
 
 func (n NPC) X() float64 {
@@ -516,6 +576,34 @@ func (n *NPC) OnSpeechBubbleEvent(e defs.Event) {
 
 func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
 	if attackedBy == nil {
+		return
+	}
+
+	// attacking an NPC mid-surrender backs out of the offer, and they go to fleeing.
+	// surrender cannot be offered a second time
+	// TODO: (future) should some NPCs instead return to fighting? (based on personality)
+	if _, ok := n.getCurrentTask().(*SurrenderTask); ok {
+		n.surrenderOfferSpent = true
+		n.RunTask(defs.TaskDef{
+			TaskID:   TaskFlee,
+			Priority: Emergency,
+			Params:   FleeTaskParams{TargetEntity: attackedBy},
+		}, n)
+		return
+	}
+
+	// already surrendered, surrender was accepted, and then was betrayed and attacked again
+	// TODO: at some point in the future we might need to track who the NPC surrendered to; I could see a scenario where multiple enemies are attackin
+	// a single NPC, and this logic wouldn't be able to differentiate the person they surrendered to vs the person who attacked again.
+	// go back to fleeing
+	if n.surrendered {
+		n.surrendered = false
+		n.surrenderOfferSpent = true
+		n.RunTask(defs.TaskDef{
+			TaskID:   TaskFlee,
+			Priority: Emergency,
+			Params:   FleeTaskParams{TargetEntity: attackedBy},
+		}, n)
 		return
 	}
 

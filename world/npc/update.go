@@ -185,11 +185,37 @@ func (mgmt *TaskMGMT) getCurrentTask() Task {
 	return mgmt.CurrentTask
 }
 
+// TryGetCurrentTaskForDump is getCurrentTask without the blocking read lock, for use by a crash dump.
+//
+// A dump can run on a goroutine that is already unwinding from a panic, and a panic escaping clearTask()
+// leaves taskStateMu write-locked forever (that function unlocks on the normal path only, not via defer).
+// A blocking RLock on that mutex would hang the process instead of reporting the crash, so this gives up
+// immediately and reports failure instead.
+//
+// The bool reports whether the lock was acquired, not whether there is a current task: a nil Task with ok
+// true means the NPC is simply between tasks.
+func (mgmt *TaskMGMT) TryGetCurrentTaskForDump() (Task, bool) {
+	if !mgmt.taskStateMu.TryLock() {
+		return nil, false
+	}
+	defer mgmt.taskStateMu.Unlock()
+	return mgmt.CurrentTask, true
+}
+
 // clearTask nils out the current task. Main-loop only.
 func (mgmt *TaskMGMT) clearTask() {
 	mgmt.taskStateMu.Lock()
+	defer mgmt.taskStateMu.Unlock()
+
+	// first, do finish cleanup for current task so nothing leaks
+	if mgmt.CurrentTask != nil && !mgmt.CurrentTask.IsDone() {
+		mgmt.CurrentTask.Finish(TaskResult{
+			Status: ResultAborted,
+			Reason: "task cleared",
+		})
+	}
+
 	mgmt.CurrentTask = nil
-	mgmt.taskStateMu.Unlock()
 }
 
 // clearInterruptedTask clears any recorded preempted-task def. Main-loop only.

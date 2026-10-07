@@ -111,6 +111,15 @@ type Entity struct {
 	LightOffsetX, LightOffsetY float32
 }
 
+func (e Entity) RenderOrderY() float64 {
+	if e.characterStateRef.Dead {
+		// change render order so that its based on top of head rather than feet.
+		// this causes the body to always render below other entities that are alive
+		return e.Y - config.TileSize*2
+	}
+	return e.Y
+}
+
 // EntityInfo holds information that NPCs can see about a specific entity
 type EntityInfo struct {
 	ID        id.CharacterStateID

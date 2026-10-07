@@ -181,3 +181,11 @@ func (t *LoungeTask) SimulationUpdate() {
 func (t *LoungeTask) BackgroundAssist() {
 	t.TaskBase.BackgroundAssist()
 }
+
+func (t *LoungeTask) Finish(result TaskResult) {
+	if t.Owner.Entity.IsSitting {
+		t.Owner.Entity.LeaveChair()
+	}
+
+	t.TaskBase.Finish(result)
+}

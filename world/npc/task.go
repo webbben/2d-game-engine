@@ -32,9 +32,9 @@ const (
 	TaskFollow      defs.TaskID = "FOLLOW"
 	TaskFight       defs.TaskID = "FIGHT"
 	TaskFlee        defs.TaskID = "FLEE"
+	TaskSurrender   defs.TaskID = "SURRENDER"
 	TaskActivateObj defs.TaskID = "ACTIVATE_OBJECT"
 	TaskStartDialog defs.TaskID = "START_DIALOG"
-	TaskFaceDir     defs.TaskID = "FACE_DIR" // TODO
 	TaskBartender   defs.TaskID = "BARTENDER"
 	TaskShopkeeper  defs.TaskID = "SHOPKEEPER"
 	TaskGoToTavern  defs.TaskID = "GO_TO_TAVERN"

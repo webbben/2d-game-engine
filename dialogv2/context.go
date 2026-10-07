@@ -221,6 +221,20 @@ func (ctx DialogContext) GetNPCCharStateID() id.CharacterStateID {
 	return id.CharacterStateID(ctx.NPCID)
 }
 
+// IsNPCOfferingSurrender asks about the npc this dialog is actually with, rather than some ambient
+// state, so a surrender offer can't leak into an unrelated conversation.
+func (ctx DialogContext) IsNPCOfferingSurrender() bool {
+	return ctx.GameState.HasNPCSurrenderOffer(id.CharacterStateID(ctx.NPCID))
+}
+
+func (ctx DialogContext) HasNPCSurrenderOffer(charStateID id.CharacterStateID) bool {
+	return ctx.GameState.HasNPCSurrenderOffer(charStateID)
+}
+
+func (ctx DialogContext) AcceptNPCSurrender(charStateID id.CharacterStateID) {
+	ctx.GameState.AcceptNPCSurrender(charStateID)
+}
+
 func (ctx DialogContext) CharacterHasRole(id id.CharacterStateID, roleID defs.RoleID) bool {
 	charState := ctx.dataman.GetCharacterState(id)
 	return charState.Roles[roleID]

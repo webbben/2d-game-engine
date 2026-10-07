@@ -8,6 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/clock"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/crashreport"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
@@ -110,6 +111,24 @@ func NewWorld(
 		initTime.Year,
 		config.DaysInSeason,
 	)
+
+	// Let the crash reporter dump the active map's state alongside any crash report. Registered here rather
+	// than in the active map package because this is the only place that holds the current map, and it also
+	// covers the crash-reporting code without crashreport having to know what a map is.
+	//
+	// A nil map is normal, not an error: the main menu, loading screens, and the moment between maps are all
+	// legitimate times for a crash to happen, and there's simply no world state to report.
+	//
+	// NOTE: w.ActiveMap is an unsynchronized pointer, so a dump triggered from a background goroutine races
+	// with map changes. That is acceptable here for the same reason the object list is (see crashdump.go):
+	// the game is already crashing, and a wrong-but-readable map is better than no dump. snapshot
+	// gathering is itself panic-guarded.
+	crashreport.RegisterStateProvider(func() (any, error) {
+		if w.ActiveMap == nil {
+			return nil, nil
+		}
+		return w.ActiveMap.BuildCrashStateSnapshot(), nil
+	})
 
 	playerEnt := entity.LoadCharacterStateIntoEntity(id.PlayerStateID, w.Dataman, w.Audioman, w.EventBus)
 	p := player.NewPlayer(w.Dataman, w.EventBus, playerEnt)

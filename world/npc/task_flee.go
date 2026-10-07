@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
@@ -186,6 +187,22 @@ func (t *FleeTask) Update() {
 	if t.targetEntity.IsDead() {
 		t.FinishSuccess()
 		return
+	}
+
+	// Last legs: try to end this by giving ourselves up rather than keep running. One-shot -- once
+	// offered, we've spent it whether the player accepted or not.
+	if !t.Owner.surrenderOfferSpent {
+		if cs := t.Owner.CharacterStateRef; float64(cs.Health) <= float64(cs.MaxHealth)*config.NearDeathHealthPercent {
+			t.Owner.RunTask(defs.TaskDef{
+				TaskID:   TaskSurrender,
+				Priority: Emergency,
+				Params:   SurrenderTaskParams{TargetEntity: t.targetEntity},
+			}, t.Owner)
+			// We don't want to be resumed if preempted later; the npc has moved on. Must come after
+			// RunTask, which is what records us as the interrupted task.
+			t.Owner.clearInterruptedTask()
+			return
+		}
 	}
 
 	// While stunned we can't act at all, so stop here. This has to come before the collision handling

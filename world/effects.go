@@ -229,3 +229,23 @@ func (e InitiateCombatEffect) Apply(ctx defs.WorldEffectContext) {
 	}
 	ctx.InitiateCombat(e.CharStateID, e.TargetCharStateID)
 }
+
+// AcceptSurrenderEffect ends a fight because the npc surrendered and the player took the deal. The npc
+// stops fighting and control returns to whatever this hour's schedule says next.
+//
+// The reward itself (gold or a valuable item, transferred out of the npc's inventory) is a later
+// phase; this transfers nothing.
+type AcceptSurrenderEffect struct {
+	CharStateID id.CharacterStateID // if left empty, assumed to be the NPC in the current dialog
+}
+
+func (e AcceptSurrenderEffect) Apply(ctx defs.WorldEffectContext) {
+	if e.CharStateID == "" {
+		e.CharStateID = ctx.GetDialogNPC()
+		if e.CharStateID == "" {
+			logz.Println("AcceptSurrenderEffect", e)
+			logz.Panicln("AcceptSurrenderEffect", "CharStateID was empty, so we tried to get the current dialog NPC, but that came back as empty too. CharStateID should only be empty if being called from a dialog")
+		}
+	}
+	ctx.AcceptNPCSurrender(e.CharStateID)
+}

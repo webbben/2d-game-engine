@@ -108,6 +108,14 @@ type WorldEffectContext interface {
 	// InitiateCombat makes the given NPC start a fight against the given character (can be an NPC or the player).
 	// The initiator must be a current in-world NPC. Entity resolution happens inside the world; no entity pointers are exposed.
 	InitiateCombat(charStateID id.CharacterStateID, targetCharStateID id.CharacterStateID)
+
+	// HasNPCSurrenderOffer reports whether the given npc currently has a surrender offer on the table.
+	// Named distinctly from ConditionContext.IsNPCOfferingSurrender because Go has no overloading, and
+	// dialog contexts satisfy both interfaces.
+	HasNPCSurrenderOffer(charStateID id.CharacterStateID) bool
+	// AcceptNPCSurrender records that the player accepted the given npc's surrender: the npc stops
+	// fighting, and its current task is ended so normal scheduling resumes.
+	AcceptNPCSurrender(charStateID id.CharacterStateID)
 }
 
 type EventContext interface {

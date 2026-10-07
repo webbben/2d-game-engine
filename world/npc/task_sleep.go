@@ -222,3 +222,11 @@ func (t *SleepTask) SimulationUpdate() {
 	// the only thing simulation needs to handle is getting the NPC to the right map
 	t.RouteToStartMap(true)
 }
+
+func (t *SleepTask) Finish(result TaskResult) {
+	if t.Owner.Entity.IsSleeping {
+		t.Owner.Entity.LeaveBed()
+	}
+
+	t.TaskBase.Finish(result)
+}

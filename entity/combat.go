@@ -15,6 +15,7 @@ import (
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 const ticksPerSecond = 60 // ebiten ticks run at 60 per second
@@ -219,24 +220,10 @@ func (e *Entity) FinishMeleeAttack() {
 }
 
 func (e *Entity) ReceiveAttack(attack AttackInfo) {
-	if e.IsDead() {
-		logz.Println(string(e.ID()), "received attack, but entity is dead")
-		logz.Panicln("Combat", "received attack, but entity is dead")
-	}
-	logz.Println(e.DisplayName(), "received attack!")
-	if attack.Damage < 0 {
-		logz.Println(string(e.ID()), attack)
-		logz.Panicln("Combat", "attack can not have negative damage.")
-	}
-	if attack.Damage == 0 {
-		// ineffectual attack
-		logz.Println(string(e.ID()), attack)
-		logz.Panicln("Combat", "attack had 0 damage.")
-	}
-	if attack.Attacker == "" {
-		logz.Println("ReceiveAttack", e.ID())
-		logz.Panicln("ReceiveAttack", "no attacker info")
-	}
+	logz.Printf("ReceiveAttack", "entity %s received an attack", e.ID())
+	utils.PanicAssert(!e.IsDead(), "entity received attack while dead")
+	utils.PanicAssert(attack.Damage > 0, "attack damage was <= 0")
+	utils.PanicAssert(attack.Attacker != "", "no attacker info")
 
 	realDamage := attack.Damage
 	finalDamage := e.dataman.CombatSystemCalc.CalculateFinalDamage(realDamage, e.equippedArmorProtection)
@@ -251,7 +238,7 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	}
 
 	params := FloatTextParams{
-		Font:     config.DefaultInfoFont, // TODO: add new font for float text?
+		Font:     config.DefaultInfoFont,
 		Color:    color.RGBA{255, 0, 0, 0},
 		Duration: time.Second * 2,
 	}
@@ -351,6 +338,12 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 
 	e.Body.SetDamageFlicker(15)
 
+	// if sitting or sleeping, get out of the chair or bed so that collisions are no longer disabled and bump back can be effected
+	if e.IsSitting {
+		e.LeaveChair()
+	} else if e.IsSleeping {
+		e.LeaveBed()
+	}
 	moveError := e.TryBumpBack(config.TileSize, defaultRunSpeed, attack.Origin, body.AnimIdle, defaultIdleAnimationTickInterval)
 	if !moveError.Success {
 		logz.Println(e.DisplayName(), "failed to bump back:", moveError)

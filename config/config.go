@@ -109,6 +109,11 @@ var (
 	// TODO: move other screens here too? I guess trade is just a screen shown during dialog, but maybe player menu can go here?
 
 	DefaultBookSessionParams BookSessionParams
+
+	// combat related
+
+	FleeAtHealthPercent    float64 = 0.5
+	NearDeathHealthPercent float64 = 0.1
 )
 
 const (

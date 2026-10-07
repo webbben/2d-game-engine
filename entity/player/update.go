@@ -257,7 +257,10 @@ func (p *Player) handleActions() bool {
 			return true
 		}
 		x, y := p.Entity.X, p.Entity.Y
-		if p.World.ActivateArea(p.Entity.GetFrontRect(), x, y) {
+		// space bar can only activate NPCs, gates, doors, or containers. These are just the most commonly activated objects,
+		// and adding this limitation stops the player from accidentally activating random misc things like lights
+		// (you have to click on other specific objects directly if you want to activate them)
+		if p.World.ActivateArea(p.Entity.GetFrontRect(), x, y, true, []defs.ObjectType{object.TypeDoor, object.TypeGate, object.TypeContainer}) {
 			return true
 		}
 	}

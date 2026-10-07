@@ -18,4 +18,5 @@ type NPCInfo struct {
 	CharID       id.CharacterStateID
 	DisplayName  string
 	ActivateText string // text that tells you what the activation does (e.g. "Talk", "Pickpocket", etc)
+	InCombat     bool
 }

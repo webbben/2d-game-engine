@@ -51,6 +51,16 @@ func (g *Game) InitiateCombat(charStateID, targetCharStateID id.CharacterStateID
 	g.World.InitiateCombat(charStateID, targetCharStateID)
 }
 
+func (g *Game) HasNPCSurrenderOffer(charStateID id.CharacterStateID) bool {
+	g.requireWorld()
+	return g.World.HasNPCSurrenderOffer(charStateID)
+}
+
+func (g *Game) AcceptNPCSurrender(charStateID id.CharacterStateID) {
+	g.requireWorld()
+	g.World.AcceptNPCSurrender(charStateID)
+}
+
 func (g *Game) QueueScenario(id defs.ScenarioID) {
 	g.requireWorld()
 	g.World.QueueScenario(id)

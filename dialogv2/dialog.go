@@ -186,6 +186,10 @@ func NewDialogSession(
 		Type: pubsub.EventDialogStarted,
 		Data: map[string]any{
 			"profileID": ds.ProfileDef.ProfileID,
+			// npcID is here because profileID alone isn't a unique identifier: dialog profiles are shared
+			// between npcs (legionary01 and legionary02 both use Q001_misc_guard), so a consumer that needs
+			// to know which npc a dialog belongs to has to be told directly.
+			"npcID": ds.Ctx.NPCID,
 		},
 	})
 
@@ -777,6 +781,9 @@ func (ds *DialogSession) End() {
 		Type: pubsub.EventDialogEnded,
 		Data: map[string]any{
 			"profileID": ds.ProfileDef.ProfileID,
+			// see the note on EventDialogStarted: profiles are shared between npcs, so consumers that
+			// care which dialog closed need the npc id too.
+			"npcID": ds.Ctx.NPCID,
 		},
 	})
 }

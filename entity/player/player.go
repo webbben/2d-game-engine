@@ -46,14 +46,14 @@ type WorldContext interface {
 	GetOverlayManager() *overlay.OverlayManager
 	TogglePlayerMenu()
 	GetNearbyNPCs(x, y, radius float64) []*npc.NPC
-	ActivateArea(r model.Rect, originX, originY float64) bool
+	ActivateArea(r model.Rect, originX, originY float64, activateNPC bool, objectTypes []defs.ObjectType) bool
 	HandleObjectUpdate(result object.ObjectUpdateResult, obj *object.Object)
 	GetHoverTarget() (*npc.NPC, *object.Object)
 }
 
 // Y is needed for sorting renderables
 func (p Player) Y() float64 {
-	return p.Entity.Y
+	return p.Entity.RenderOrderY()
 }
 
 func (p Player) X() float64 {
