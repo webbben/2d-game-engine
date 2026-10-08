@@ -78,6 +78,10 @@ func (mgmt *TaskMGMT) Update(n *NPC) {
 
 // OnHourChange handles NPC updates that should occur on hour change. mainly consideration about if scheduled tasks should run.
 func (n *NPC) OnHourChange(hour int) {
+	// A corpse stays dead; don't put it back to work on the hour.
+	if n.Entity.IsDead() {
+		return
+	}
 	nextHourTask := n.Schedule.Hourly[hour]
 	if n.CurrentTask == nil || !n.CurrentTask.GetDef().Equals(nextHourTask) {
 		logz.Println("OnHourChange", "NPC is changing scheduled task.", n.WhoAmI())
@@ -237,6 +241,14 @@ func (mgmt *TaskMGMT) takeInterruptedTask() *defs.TaskDef {
 
 // Updates related to NPC behavior or tasks
 func (n *NPC) npcUpdates() {
+	// A corpse doesn't act. Without this the decision loop below keeps handing a dead NPC whatever its
+	// schedule says, and its old task would keep running to completion -- which is how dead NPCs end up
+	// wandering around a map. Death cleanup (see World.handleEntityDeath) clears the current task, and
+	// this stops anything being assigned to take its place.
+	if n.Entity.IsDead() {
+		return
+	}
+
 	if time.Until(n.waitUntil) > 0 {
 		return
 	}

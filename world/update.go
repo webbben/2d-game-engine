@@ -74,6 +74,11 @@ func (w *World) Update(showingLoadScreen bool) {
 			w.OnHourChange(h, false, false, true)
 		}
 	}
+
+	// Retire fights that have run out of combatants on one side. Most endings go through LeaveCombat,
+	// but a combatant that dies or is removed from the map doesn't go through that path, and a fight
+	// whose last standing member walked off should stop being findable either way.
+	w.pruneEndedCombatSessions()
 }
 
 func (w *World) Draw(screen *ebiten.Image) {

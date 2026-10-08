@@ -60,6 +60,18 @@ type CharacterDef struct {
 
 	SocialRank SocialRank
 
+	// if true, this character will never flee combat, no matter how dire things get or how low their
+	// health drops. Intended for characters whose in-fiction role is to stand and fight -- town guards,
+	// soldiers, the bandits you clear out of a cave -- so the player isn't forced into the "they yielded,
+	// accept or kill?" dilemma every single fight.
+	//
+	// This is a hard override: the engine checks it before consulting the FleeSystem, so it takes
+	// precedence over any bravery the calculation would otherwise produce. A trait that makes someone very
+	// hard to scare (Brave, or an "Unyielding" style trait) is a softer, calculated route to the same outcome.
+	//
+	// Optional: absent from JSON means false, so existing character defs are unaffected.
+	NeverFlee bool
+
 	DialogProfileID  DialogProfileID
 	FootstepSFXDefID FootstepSFXDefID
 	ScheduleID       ScheduleID

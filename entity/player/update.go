@@ -217,10 +217,13 @@ func (p *Player) handleActions() bool {
 			if p.Entity.IsUsingShield() {
 				p.Entity.StopUsingShield()
 			}
-			p.Entity.StartMeleeAttack()
+			res := p.Entity.StartMeleeAttack()
+			if !res.Success {
+				logz.Warnln("handleActions", "failed to start melee attack:", res.Info)
+			}
 			return true
 		}
-		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) && p.Entity.IsAttacking() {
+		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) && p.Entity.AttackQueued() {
 			// released the mouse after starting a power attack; let it fire
 			if p.Entity.IsUsingShield() {
 				logz.Panic("somehow we are using the shield even though we just released an attack?")

@@ -152,6 +152,12 @@ func (e *Entity) Kill() {
 			Force: true,
 		},
 	})
+
+	// Tell the world. Death cleanup has to happen exactly once and in a fixed order -- drop them out of
+	// any fight, stop their tasks, schedule the corpse for removal -- and doing that here would mean the
+	// entity package reaching into world state. The event also puts it on the main loop like every other
+	// sys-event, so cleanup can't land on whichever goroutine happened to run us.
+	e.eventBus.SysEntityDied(e.ID())
 }
 
 func (e Entity) IsDead() bool {

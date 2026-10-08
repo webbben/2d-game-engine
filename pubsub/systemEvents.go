@@ -11,6 +11,15 @@ const (
 	// NOTE: Only used by world to enact map occupancy changes from background threads; not meant for detecting map changes!
 	SysEventChangeMapOccupancy defs.EventType = "SYS_CHANGE_MAP_OCCUPANCY"
 
+	// fires when a character dies. Used by the world to do the cleanup that has to happen exactly once
+	// per death -- dropping them out of any combat session, stopping their tasks, and scheduling the
+	// corpse for removal later.
+	//
+	// Event Data:
+	//
+	// "charID": id.CharacterStateID
+	SysEventEntityDied defs.EventType = "SYS_ENTITY_DIED"
+
 	// data:
 	// 	- "type" (string) the name of the WorldEffect
 	// 	- "effect" (any) the actual struct data for the WorldEffect
@@ -34,10 +43,20 @@ const (
 )
 
 func (eb *EventBus) SubscribeToWorldEvents(subscriberID string, fn func(defs.Event)) {
-	events := []defs.EventType{SysEventChangeMapOccupancy, SysScheduledWorldEffect, SysShowScreen}
+	events := []defs.EventType{SysEventChangeMapOccupancy, SysScheduledWorldEffect, SysShowScreen, SysEventEntityDied}
 	for _, eventType := range events {
 		eb.Subscribe(fmt.Sprintf("%s_%s", subscriberID, eventType), eventType, fn)
 	}
+}
+
+// SysEntityDied announces that a character has died, so the world can run its death cleanup.
+func (eb *EventBus) SysEntityDied(charID id.CharacterStateID) {
+	eb.Publish(defs.Event{
+		Type: SysEventEntityDied,
+		Data: map[string]any{
+			"charID": charID,
+		},
+	})
 }
 
 type SysEventChangeMapOccupancyParams struct {

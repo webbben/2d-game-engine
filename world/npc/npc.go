@@ -9,12 +9,14 @@ import (
 
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/combat"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
@@ -30,10 +32,22 @@ import (
 type WorldContext interface {
 	GetActiveMapID() defs.MapID // this is here instead of activeMapContext so that NPCs can check it without being in the active world
 	FindWorldPath(from, to defs.MapID) (pathToGoal worldgraph.WorldPath, foundPath bool)
-	FindClosestMapType(fromID defs.MapID, mapType defs.MapType) (defs.MapID, bool)
+	FindClosestMapType(fromMapID defs.MapID, mapType defs.MapType) (defs.MapID, bool)
 	ChangeMapOccupancyEvent(charStateID id.CharacterStateID, from, to defs.MapID, toSpawn int)
 	GetPlayerPosition() model.Coords
 	GetCurrentGameTime() clock.GameTime
+
+	// Combat. An NPC can't tell whether being attacked starts a new fight or pulls them into an
+	// existing one, so it hands that decision to the World rather than tracking fights itself.
+	StartCombat(initiator, target id.CharacterStateID, initiatorIntent, targetIntent combat.CombatIntent) combat.SessionView
+	LeaveCombat(charStateID id.CharacterStateID)
+	SessionFor(charStateID id.CharacterStateID) combat.SessionView
+	IsInCombat(charStateID id.CharacterStateID) bool
+	EntityFor(charStateID id.CharacterStateID) *entity.Entity
+	// IsFleeing asks whether a character is currently running from their enemies. Stance isn't
+	// recorded anywhere in a session -- it's live state that changes tick to tick -- so anything that
+	// needs it asks the World, which is also where the sessions get it from.
+	IsFleeing(charStateID id.CharacterStateID) bool
 }
 
 type ActiveMapContext interface {
@@ -124,6 +138,14 @@ func (n *NPC) IsOfferingSurrender() bool {
 	return ok
 }
 
+// IsFleeing reports whether this npc is currently running from whoever they're fighting. Used by
+// combat, which needs to know that a fleeing combatant is still in the fight but is often a lower
+// priority target than one who's standing their ground.
+func (n *NPC) IsFleeing() bool {
+	_, ok := n.getCurrentTask().(*FleeTask)
+	return ok
+}
+
 // MarkSurrendered records that the player accepted this npc's surrender, so it won't fight again and
 // won't offer to surrender a second time.
 func (n *NPC) MarkSurrendered() {
@@ -203,11 +225,13 @@ func (n NPC) GetInfo() defs.NPCInfo {
 	}
 }
 
+// InCombat reports whether this npc is currently involved in a fight, whatever they're doing about it.
+//
+// This used to mean "is running a FightTask", which wrongly reported false for an npc that was
+// fleeing or offering to surrender -- both of which are still mid-fight. That was visible: the HUD
+// offers to talk to any npc not in combat, so a surrendering guard showed as approachable.
 func (n NPC) InCombat() bool {
-	if n.CurrentTask == nil {
-		return false
-	}
-	return n.CurrentTask.GetID() == TaskFight
+	return n.WorldCtx.IsInCombat(n.CharacterStateRef.ID)
 }
 
 func (n NPC) IsHovering(x, y int) bool {
@@ -380,6 +404,60 @@ type TaskMGMT struct {
 	interruptedTask *defs.TaskDef
 
 	dataman *datamanager.DataManager
+
+	// combatProfileCache memoizes resolved CombatProfiles for the fight this npc is currently in,
+	// valid only for combatProfileSessionID.
+	//
+	// Resolving a profile costs a datamanager lookup plus CalculateSkillsAndAttributes, which clones
+	// two maps and walks every trait. Flee decisions are made every tick of every fight, so doing that
+	// per tick per combatant is pure waste. What actually changes mid-fight is only health, and that
+	// is refreshed in place below.
+	//
+	// Only the current fight is tracked rather than every fight this npc has ever had: a character is
+	// in at most one session at a time, and sessions are never reused, so a profile from an old
+	// engagement is dead weight. Tracking the session ID alongside the map retires them for free.
+	combatProfileSessionID combat.CombatSessionID
+	combatProfileCache     map[id.CharacterStateID]defs.CombatProfile
+}
+
+// combatProfile returns a resolved snapshot of a combatant's fighting ability and current condition.
+//
+// Skills and attributes are cached for the life of the session; health and max health are read fresh
+// every call, since those move while the fight is running. Passing sessionID in -- rather than looking
+// it up -- matters because the two call sites that need a profile sit at different moments of a
+// fight: OnAttacked needs one before any FightTask exists, and wants the session that StartCombat
+// just created.
+//
+// A character state that doesn't exist is a bug and panics, consistent with the rest of the
+// datamanager. Note that being *absent from the world* is a different thing entirely and does not
+// panic: an npc unloaded from the map keeps its character state, so callers that need to know whether
+// an enemy is actually still here should check with WorldCtx.EntityFor first.
+func (n *NPC) combatProfile(sessionID combat.CombatSessionID, charStateID id.CharacterStateID) defs.CombatProfile {
+	if sessionID != n.combatProfileSessionID {
+		n.combatProfileSessionID = sessionID
+		n.combatProfileCache = make(map[id.CharacterStateID]defs.CombatProfile)
+	} else if n.combatProfileCache == nil {
+		n.combatProfileCache = make(map[id.CharacterStateID]defs.CombatProfile)
+	}
+
+	charState := n.dataman.GetCharacterState(charStateID)
+	if cached, ok := n.combatProfileCache[charStateID]; ok {
+		cached.Health = charState.Health
+		cached.MaxHealth = charState.MaxHealth
+		n.combatProfileCache[charStateID] = cached
+		return cached
+	}
+
+	skills, attrs := characterstate.CalculateSkillsAndAttributes(charStateID, n.dataman)
+	profile := defs.CombatProfile{
+		ID:              charStateID,
+		SkillLevels:     skills,
+		AttributeLevels: attrs,
+		Health:          charState.Health,
+		MaxHealth:       charState.MaxHealth,
+	}
+	n.combatProfileCache[charStateID] = profile
+	return profile
 }
 
 func (tm *TaskMGMT) ClearCurrentTask() {
@@ -579,6 +657,15 @@ func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
 		return
 	}
 
+	// Being hit is what pulls this npc into the fight, whichever way they end up responding -- the
+	// branches below pick fighting or fleeing, and both leave them a combatant. Recording it up front
+	// means the fight is findable before any task is assigned. It can legitimately do nothing: an npc
+	// already fighting someone else is in that other fight, and switching targets doesn't make a second
+	// one. See combat.StartCombat.
+	//
+	// Intents here are a placeholder until NPCs have a reason for fighting that isn't "you hit me".
+	n.WorldCtx.StartCombat(attackedBy.ID(), n.CharacterStateRef.ID, combat.IntentKill, combat.IntentSelfDefense)
+
 	// attacking an NPC mid-surrender backs out of the offer, and they go to fleeing.
 	// surrender cannot be offered a second time
 	// TODO: (future) should some NPCs instead return to fighting? (based on personality)
@@ -607,21 +694,57 @@ func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
 		return
 	}
 
-	// If we're already running from this particular attacker, leave the flee task alone. Re-starting it
-	// would reset the repath throttle and drop the route we're currently walking, which is the worst
-	// possible response to being hit again mid-escape.
-	if fleeTask, ok := n.getCurrentTask().(*FleeTask); ok && fleeTask.targetEntity == attackedBy {
+	// If we're already fleeing, leave the flee task alone and let it handle this attacker.
+	//
+	// This used to restart the task whenever the attacker was anyone other than the one we were
+	// already running from. That's wrong now: the route is no longer built around a single threat, and
+	// the task re-derives its threat list from the session on every repath, so someone new joining the
+	// fight is picked up on its own. Restarting would reset the repath throttle and drop the route
+	// we're walking, which is the worst possible response to being hit again mid-escape.
+	//
+	// This holds whether or not this particular attacker is worth running from. Someone already beaten
+	// -- dead, surrendered, or fleeing themselves -- isn't a reason to start over either, since the
+	// task would filter them out of the threat list regardless.
+	if _, ok := n.getCurrentTask().(*FleeTask); ok {
 		return
 	}
 
+	// Check if we should start a fight task
 	// Try to arm ourselves first, so an npc carrying a weapon fights rather than runs. Without this an
 	// armed npc would flee purely because its weapon was sitting in its pack.
+	//
+	// This is a separate question from whether they're brave enough to stand their ground: being
+	// unarmed is a reason to run no matter how hard someone, while being outmatched is a judgment the
+	// game data gets to make. So we only ask about bravery once there's actually a fight to be had.
 	if n.ensureWeaponEquipped() {
-		n.RunTask(defs.TaskDef{
-			TaskID:   TaskFight,
-			Priority: Emergency,
-			Params:   FightTaskParams{TargetEntity: attackedBy},
-		}, n)
+		// Fleeing is checked before starting the fight, so a coward can break off at the onset of combat
+		// without landing a swing first -- the game design explicitly wants the weak to give up before
+		// they're beaten bloody, not only after. NeverFlee characters short-circuit inside shouldFlee and
+		// always take the fighting branch here.
+		if n.shouldFlee() {
+			n.RunTask(defs.TaskDef{
+				TaskID:   TaskFlee,
+				Priority: Emergency,
+				Params:   FleeTaskParams{TargetEntity: attackedBy},
+			}, n)
+			return
+		}
+
+		if ft, ok := n.getCurrentTask().(*FightTask); ok {
+			if ft.targetEntity == nil {
+				// TODO: no target entity set?
+			} else if ft.targetEntity.ID() != attackedBy.ID() {
+				// new attacker! should we switch fights?
+				// TODO: for now, we ignore. but in the future we should add logic to consider switching fights.
+				logz.Println("OnAttacked", "attacker is not the same as current fight task target. ignoring for now.", n.ID(), attackedBy.ID())
+			}
+		} else {
+			n.RunTask(defs.TaskDef{
+				TaskID:   TaskFight,
+				Priority: Emergency,
+				Params:   FightTaskParams{TargetEntity: attackedBy},
+			}, n)
+		}
 		return
 	}
 
@@ -671,4 +794,42 @@ func (n *NPC) ensureWeaponEquipped() bool {
 func (n *NPC) CanSeeEntity(charStateID id.CharacterStateID) (bool, VisibleEntityInfo) {
 	info, seen := n.visibleEntities[charStateID]
 	return seen, info
+}
+
+// shouldFlee asks the game's combat calculation whether this npc wants to break off from the fight
+// they're currently in.
+//
+// This is the single place that decision is made, so the tick loop and the moment an npc is first
+// attacked can't drift apart in how they treat an enemy. Callers decide what to do about the answer.
+//
+// Willingness to flee at all is not part of the calculation: NeverFlee is authored data on the
+// character's or class's def, and short-circuits here before the calculation is consulted at all.
+//
+// Returns false when the npc isn't in a fight, since there's nothing to flee from.
+func (n *NPC) shouldFlee() bool {
+	if characterstate.NeverFlees(n.CharacterStateRef.ID, n.dataman) {
+		return false
+	}
+
+	session := n.WorldCtx.SessionFor(n.CharacterStateRef.ID)
+	if session == nil {
+		return false
+	}
+
+	selfID := n.CharacterStateRef.ID
+	enemies := make([]defs.CombatProfile, 0, max(len(session.Sides())-1, 0))
+	for _, enemyID := range session.EnemiesOf(selfID) {
+		// Only count enemies that are genuinely still a threat. One can be unloaded from the map
+		// without ever leaving the session, and a dead one is still present in the world as a corpse
+		// for a while after the fight moved on. This deliberately matches the rules target selection
+		// uses, so fleeing and fighting agree on who counts.
+		enemy := n.WorldCtx.EntityFor(enemyID)
+		if enemy == nil || enemy.IsDead() {
+			continue
+		}
+		enemies = append(enemies, n.combatProfile(session.SessionID(), enemyID))
+	}
+
+	selfProfile := n.combatProfile(session.SessionID(), selfID)
+	return n.dataman.CombatSystemCalc.ShouldFlee(selfProfile, defs.CombatInfo{Enemies: enemies})
 }

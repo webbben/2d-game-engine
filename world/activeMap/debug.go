@@ -130,7 +130,7 @@ func (m *ActiveMap) drawCollisions(screen *ebiten.Image, offsetX, offsetY float6
 	// objects are included in the cost map, but good to have a separate view of the actual rect here too, since cost map just shows which tiles are blocked
 	// for pathfinding algorithms
 	for _, obj := range m.Objects {
-		if !obj.IsCollidable() {
+		if !obj.IsCollidable(false) {
 			continue
 		}
 		objRect := obj.GetRect()

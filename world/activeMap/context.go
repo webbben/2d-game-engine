@@ -134,6 +134,54 @@ func (m *ActiveMap) GetAllNPCs() []*npc.NPC {
 	return append([]*npc.NPC{}, m.NPCs...)
 }
 
+// RemoveNPCFromMap takes an NPC off the active map without moving it anywhere, reporting whether it was
+// here to begin with.
+//
+// Unlike RemoveNPCFromActiveMap this leaves MapOccupancy alone, which is what an expiring corpse needs:
+// the body is going away entirely, so there's no other map to put it on.
+func (m *ActiveMap) RemoveNPCFromMap(charStateID id.CharacterStateID) bool {
+	m.npcMu.RLock()
+	found := false
+	for _, n := range m.NPCs {
+		if n.CharacterStateRef.ID == charStateID {
+			found = true
+			break
+		}
+	}
+	m.npcMu.RUnlock()
+	if !found {
+		return false
+	}
+
+	n := m.getNPCForRemoval(charStateID)
+	if n != nil {
+		n.PrepareLeaveActiveMap()
+	}
+
+	m.npcMu.Lock()
+	for i, onMap := range m.NPCs {
+		if onMap.CharacterStateRef.ID == charStateID {
+			m.NPCs = utils.RemoveIndexUnordered(m.NPCs, i)
+			break
+		}
+	}
+	m.npcMu.Unlock()
+	return true
+}
+
+// getNPCForRemoval returns the NPC object for a character, or nil. Read only; the caller is responsible
+// for deciding whether the map still contains it.
+func (m *ActiveMap) getNPCForRemoval(charStateID id.CharacterStateID) *npc.NPC {
+	m.npcMu.RLock()
+	defer m.npcMu.RUnlock()
+	for _, n := range m.NPCs {
+		if n.CharacterStateRef.ID == charStateID {
+			return n
+		}
+	}
+	return nil
+}
+
 func (m *ActiveMap) RemoveNPCFromActiveMap(charStateID id.CharacterStateID, toMap defs.MapID) {
 	if toMap == m.MapID {
 		logz.Println("RemoveNPCFromActiveMap", toMap)

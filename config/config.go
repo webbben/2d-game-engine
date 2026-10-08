@@ -112,8 +112,19 @@ var (
 
 	// combat related
 
-	FleeAtHealthPercent    float64 = 0.5
+	// Note: there is no "flee at X% health" constant here on purpose. When to give up is per-character
+	// and data-driven now, decided by defs.CombatSystemCalc.ShouldFlee, so that bravery, the enemies
+	// actually present, and relative strength all factor in. See the fleeing section of
+	// data/defs/skills.go.
+
 	NearDeathHealthPercent float64 = 0.1
+
+	// CorpseExpiryHours is how many in-game hours a dead NPC's body sticks around before it's cleaned up.
+	//
+	// This isn't just about tidiness: the corpse is lootable, and a player with a full inventory may well
+	// leave, fight elsewhere, and come back for it later. A day is the floor for that -- bodies vanishing
+	// within a few hours would quietly eat loot the player was entitled to.
+	CorpseExpiryHours int = 24
 )
 
 const (

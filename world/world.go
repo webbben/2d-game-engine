@@ -7,6 +7,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/combat"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/crashreport"
 	"github.com/webbben/2d-game-engine/data/datamanager"
@@ -76,6 +77,11 @@ type World struct {
 
 	// tracks which NPCs are in which maps; this is what is checked to determine if an NPC should show up in an ActiveMap or not.
 	MapOccupancy map[defs.MapID][]id.CharacterStateID
+
+	// Ongoing fights. See combat.go. A slice with a linear scan, since simultaneous fights should be
+	// rare and the alternative (a membership index) would be a second copy of the same fact.
+	combatSessions   []*combat.CombatSession
+	combatSessionSeq uint64
 }
 
 // NewWorld returns a World that is ready to run. Assumes that all data definitions and player state has already been loaded/created.
@@ -430,6 +436,26 @@ func (w *World) GetPlayerPosition() model.Coords {
 
 func (w *World) OnEvent(e defs.Event) {
 	switch e.Type {
+	case pubsub.SysEventEntityDied:
+		charIDData, ok := e.Data["charID"]
+		if !ok {
+			logz.Panicln("WORLD", "SysEventEntityDied event data was missing charID")
+		}
+		charID, ok := charIDData.(id.CharacterStateID)
+		if !ok {
+			logz.Panicln("WORLD", "SysEventEntityDied charID could not be type asserted to CharacterStateID")
+		}
+		w.handleEntityDeath(charID)
+	case sysEventCorpseExpired:
+		charIDData, ok := e.Data["charID"]
+		if !ok {
+			logz.Panicln("WORLD", "corpse expiry event data was missing charID")
+		}
+		charID, ok := charIDData.(id.CharacterStateID)
+		if !ok {
+			logz.Panicln("WORLD", "corpse expiry charID could not be type asserted to CharacterStateID")
+		}
+		w.handleCorpseExpired(charID)
 	case pubsub.SysEventChangeMapOccupancy:
 		if _, ok := e.Data["params"]; ok {
 			params, ok := e.Data["params"].(pubsub.SysEventChangeMapOccupancyParams)

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
@@ -119,6 +120,36 @@ type CombatSystemCalc interface {
 	// Calculates how much durability a shield loses from a successful active block. attackRealDamage is
 	// the raw (pre-mitigation) damage of the blocked attack.
 	ShieldBlockDurabilityLoss(attackRealDamage RealDamage) float64
+
+	// ShouldFlee is used to determine if an NPC should flee from combat at any given moment.
+	// It is called throughout the duration of combat, until either combat ends or transitions to a Flee or Surrender state.
+	// If this returns true at any point during combat, the NPC will switch to fleeing.
+	//
+	// Both self and the enemies are passed in already resolved, because this runs every tick and
+	// resolving a character state is not cheap (it clones the skill/attribute maps and walks every
+	// trait). The engine builds these once per engagement and refreshes them in place; see
+	// world/npc.combatProfile.
+	//
+	// Note this says nothing about willingness to flee at all: characters flagged NeverFlee on their
+	// CharacterDef or ClassDef are a hard override, and the engine short-circuits them before ever
+	// calling this. See characterstate.NeverFlees.
+	ShouldFlee(self CombatProfile, combatInfo CombatInfo) bool
+}
+
+// CombatInfo gives contextual information about the active combat situation that the NPC is involved in
+type CombatInfo struct {
+	Enemies []CombatProfile
+}
+
+// CombatProfile is a resolved snapshot of one combatant's fighting ability plus their current
+// condition. Skill and attribute levels don't change during a fight, so the engine resolves them once
+// per engagement and reuses them; only Health moves, and it's refreshed in place.
+type CombatProfile struct {
+	ID              id.CharacterStateID
+	SkillLevels     map[SkillID]int
+	AttributeLevels map[AttributeID]int
+	Health          int
+	MaxHealth       int
 }
 
 type (
@@ -131,6 +162,15 @@ type ClassDef struct {
 	Name              string
 	SkillCategories   map[SkillID]SkillCategory
 	FavoredAttributes []AttributeID
+
+	// if true, characters of this class will never flee combat. Checked by the engine as a hard override,
+	// and OR'd with CharacterDef.NeverFlee (either one being true is enough).
+	//
+	// This is the right place for a rule that holds for a whole kind of person -- every soldier holds the
+	// line -- rather than for one specific individual, which is what CharacterDef.NeverFlee is for.
+	//
+	// Optional: absent from JSON means false, so existing class defs are unaffected.
+	NeverFlee bool
 }
 
 type AttributeDef struct {

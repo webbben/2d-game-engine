@@ -89,12 +89,12 @@ func TestCalculateVisibility(t *testing.T) {
 			expected: (1 - 2/SightDist) * 0.5,
 		},
 		{
-			name:     "sneaking target uses sneak multiplier",
-			observer: observer,
-			target:   testEntityInfo(pos(2, 0), 'R', true),
-			light:    1.0,
+			name:      "sneaking target uses sneak multiplier",
+			observer:  observer,
+			target:    testEntityInfo(pos(2, 0), 'R', true),
+			light:     1.0,
 			sneakMult: 0.3,
-			expected: (1 - 2/SightDist) * 0.3,
+			expected:  (1 - 2/SightDist) * 0.3,
 		},
 		{
 			name:         "blocked sight uses sight block factor",

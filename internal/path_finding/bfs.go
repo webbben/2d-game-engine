@@ -124,28 +124,36 @@ func FindNearestOpenPosition(c model.Coords, distLimit int, costMap [][]int) (mo
 //   - costMap: the costMap that represents the map we are building the distance map for.
 //
 // returns the distMap and the index of the most distant position.
-func BuildDistanceMap(from model.Coords, center *model.Coords, searchRadius int, costMap [][]int) (distMap []int, farthestIdx int) {
+func BuildDistanceMap(from []model.Coords, center *model.Coords, searchRadius int, costMap [][]int) (distMap []int, farthestIdx int) {
+	utils.PanicAssert(len(from) > 0, "no coordinates passed!")
 	height := len(costMap)
-	if height == 0 {
-		logz.Panic("costmap is empty!")
-	}
+	utils.PanicAssert(height > 0, "costmap was empty!")
 	width := len(costMap[0])
-	if width == 0 {
-		logz.Panic("costmap has no width!")
-	}
+	utils.PanicAssert(width > 0, "costmap has no width!")
 
-	if !isValidCoords(from, costMap) {
-		logz.PanicCtx("BuildDistanceMap", "from position was invalid!", from.String())
-	}
 	if center != nil {
-		if !isValidCoords(*center, costMap) {
-			logz.PanicCtx("BuildDistanceMap", "center was invalid!", center.String())
+		// we don't check isValidPosition here since it's possible for an NPC to slide into a step door object - which, while not technically a collision,
+		// is a pathfinding block, and so isValidPosition returns false. instead, we will do the same as what we do for `from` positions and just
+		// ensure there are positions to travel to from here
+		if len(getNeighbors(*center, costMap)) == 0 {
+			logz.PanicCtx("BuildDistanceMap", "center position was invalid! no way to travel from it", center.String())
 		}
 		utils.PanicAssert(searchRadius > 0, "search radius must be > 0 if center is defined")
 
-		// ensure that `from` is within the search radius. otherwise no distMap can be created
-		if utils.ManhattanDistCoords(from, *center) > searchRadius {
-			logz.PanicCtx("BuildDistanceMap", "from is outside search radius range of center!", from, center, searchRadius)
+	}
+
+	for _, c := range from {
+		// ensure there is a possible path from the start position
+		// note that we don't care if the position itself is invalid/a collision, because the search won't directly check that position.
+		// we only care that it's possible to travel from that position somewhere else.
+		if len(getNeighbors(c, costMap)) == 0 {
+			logz.PanicCtx("BuildDistanceMap", "from position was invalid! no way to travel from it", c.String())
+		}
+		if center != nil {
+			// ensure that `from` is within the search radius. otherwise no distMap can be created
+			if utils.ManhattanDistCoords(c, *center) > searchRadius {
+				logz.PanicCtx("BuildDistanceMap", "from is outside search radius range of center!", c, center, searchRadius)
+			}
 		}
 	}
 
@@ -156,12 +164,15 @@ func BuildDistanceMap(from model.Coords, center *model.Coords, searchRadius int,
 		distances[i] = -1
 	}
 
-	threatIdx := idx(from, width)
-	distances[threatIdx] = 0
+	open := make([]model.Coords, 0, len(from))
 
-	open := []model.Coords{from}
+	for _, threat := range from {
+		threatIdx := idx(threat, width)
+		distances[threatIdx] = 0
+		open = append(open, threat)
+	}
 
-	best := from
+	best := from[0]
 	bestDistance := 0
 
 	for head := 0; head < len(open); head++ {
@@ -199,7 +210,7 @@ func BuildDistanceMap(from model.Coords, center *model.Coords, searchRadius int,
 	return distances, idx(best, width)
 }
 
-func FleeFromPosition(from model.Coords, start model.Coords, searchRadius int, costMap [][]int) (fleePath []model.Coords, reachable bool, cannotFlee bool) {
+func FleeFromPositions(from []model.Coords, start model.Coords, searchRadius int, costMap [][]int) (fleePath []model.Coords, reachable bool, cannotFlee bool) {
 	// first, get the distance map
 	distMap, _ := BuildDistanceMap(from, &start, searchRadius, costMap)
 

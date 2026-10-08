@@ -414,6 +414,25 @@ func (dataman *DataManager) GetCharacterState(id id.CharacterStateID) *state.Cha
 	return charState
 }
 
+// RemoveCharacterState deletes a character state entirely, so that GetCharacterState will no longer
+// find it and a new World built from this DataManager won't recreate an NPC for it.
+//
+// Only for characters that were never meant to be permanent -- scenario NPCs, and anything else created
+// on the fly. A character that exists in the authored world should not be deleted just because it died:
+// its Dead flag is something quests and dialog conditions can ask about. See
+// world.characterStateIsTransient for the rule used at corpse expiry.
+//
+// Panics if the state doesn't exist, since a caller reaching for this thinks the character is there.
+func (dataman *DataManager) RemoveCharacterState(id id.CharacterStateID) {
+	if id == "" {
+		panic("id was empty")
+	}
+	if _, exists := dataman.CharacterStates[id]; !exists {
+		logz.Panicln("DataManager", "tried to remove character state, but ID was not found:", id)
+	}
+	delete(dataman.CharacterStates, id)
+}
+
 // GetNewCharStateID generates a new and unique CharacterStateID that is guaranteed to not be defined in definitionMgr yet.
 // Also uses the charDefID as its base, for convenience and search-ability
 func (dataman DataManager) GetNewCharStateID(defID id.CharacterDefID) id.CharacterStateID {

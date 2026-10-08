@@ -15,14 +15,18 @@ import (
 )
 
 const (
-	// fleeSearchThreshold is how far (in tiles, manhattan) from the threat we bother looking for an
-	// escape route at all. Past this the npc holds still rather than paying for a search it doesn't
+	// fleeSearchThreshold is how far (in tiles, manhattan) from the nearest threat we bother looking for
+	// an escape route at all. Past this the npc holds still rather than paying for a search it doesn't
 	// need, and re-checks the distance once the repath interval expires.
 	//
-	// This doubles as the safety bound for the search radius handed to FleeFromPosition: we only ever
-	// search when dist <= fleeSearchThreshold, and the radius is derived from the distance, so
-	// BuildDistanceMap can never be asked to chart distances from a threat outside its own radius
-	// (which it treats as a caller error and panics on).
+	// This also bounds the search area handed to FleeFromPositions, in two ways. It's the floor for the
+	// radius, so a group of close threats still gets a full-size search. And collectThreats drops any
+	// enemy past this distance, so the radius can never be pushed arbitrarily far out by a distant
+	// enemy -- without that, one enemy on the other side of the map would grow the BFS for nothing, and
+	// BuildDistanceMap panics if asked to chart from a threat outside the radius it's given.
+	//
+	// Judged on the *nearest* threat, not all of them: a distant extra enemy doesn't make the situation
+	// more urgent, and it can't change the route either since it isn't considered one.
 	fleeSearchThreshold int = 10
 
 	// fleeRepathInterval is how long to wait after acting on a search result before looking again. It
@@ -33,7 +37,12 @@ const (
 // fleeRequest is the input to a background-assist escape search. The main loop fills it in, since only
 // the main loop is allowed to read entity state.
 type fleeRequest struct {
-	Me, Them model.Coords
+	Me model.Coords
+	// Them is every position worth running from, not just one. The search treats them as a single
+	// multi-source distance map, so it optimizes distance from the *nearest* of them -- which is the
+	// correct shape for escaping a group. Running one search per enemy would produce a route that
+	// dodges the last bandit while walking straight into the first. See issue #191.
+	Them []model.Coords
 	// Closed gates this npc has no way to open, treated as walls for this search only. Collected by the
 	// main loop, since object open/close state is main-loop state and would race if read here.
 	BlockedTiles []model.Coords
@@ -54,6 +63,11 @@ var _ Task = (*FleeTask)(nil)
 type FleeTask struct {
 	TaskBase
 
+	// targetEntity is who we started running from. It is NOT what the route is built around -- that
+	// comes from the whole threat list, see collectThreats. It's kept because it's the entity this task
+	// was constructed with, so it survives to answer "who started this?" and to stand in for the
+	// nearest threat in the rare case where no threat can be resolved. Prefer collectThreats for
+	// anything that needs an enemy.
 	targetEntity *entity.Entity
 
 	// pathRequest carries a pending search to the background goroutine and pathResult carries the
@@ -80,7 +94,10 @@ type FleeTask struct {
 }
 
 type FleeTaskParams struct {
-	TargetEntity *entity.Entity // the entity to flee from
+	// TargetEntity is whoever provoked the escape. It seeds the task and answers "who started this?",
+	// but it does not bound what we run from: every enemy in the fight is considered, and the route is
+	// chosen against all of them at once. See FleeTask.collectThreats.
+	TargetEntity *entity.Entity
 }
 
 func init() {
@@ -139,15 +156,34 @@ func (t *FleeTask) reset() {
 	t.nextRequestAt = time.Time{}
 }
 
-func (t *FleeTask) distFromThreat() int {
-	return utils.ManhattanDistCoords(t.Owner.Entity.TilePos(), t.targetEntity.TilePos())
+// distFromNearestThreat returns how far away the closest enemy we're running from is, or
+// fleeSearchThreshold+1 when there is no such enemy.
+//
+// That sentinel sits one past the threshold so the "too far to bother searching" comparison in Update
+// reports true without needing a separate empty-threat case at the call site. A threat standing right
+// on top of us has distance 0, so the loop can't use a zero-valued best to detect its first iteration.
+func (t *FleeTask) distFromNearestThreat() int {
+	me := t.Owner.Entity.TilePos()
+	best, found := 0, false
+
+	for _, enemy := range t.threatsWithinReach() {
+		dist := utils.ManhattanDistCoords(me, enemy.TilePos())
+		if !found || dist < best {
+			best, found = dist, true
+		}
+	}
+	if !found {
+		return fleeSearchThreshold + 1
+	}
+	return best
 }
 
 // requestPick asks background assist for a fresh escape route. Main loop only (it reads entity state).
 func (t *FleeTask) requestPick() {
+	threats, _ := t.collectThreats()
 	t.pathRequest.Store(&fleeRequest{
 		Me:           t.Owner.Entity.TilePos(),
-		Them:         t.targetEntity.TilePos(),
+		Them:         threats,
 		BlockedTiles: unopenableGateTiles(t.Owner),
 	})
 	t.awaitingPick.Store(true)
@@ -167,6 +203,82 @@ func (t *FleeTask) cancelFleePath() {
 	t.ownsPath = false
 }
 
+// threatsWithinReach returns every enemy we're still running from: in the fight, alive, present on the
+// map, and not fleeing themselves.
+//
+// A nil result covers both "we're not in a fight any more" and "everyone left is already beaten or
+// running away themselves", and both mean the same thing to the caller: stop fleeing.
+//
+// This is the single definition of "a real enemy" for fleeing, and it deliberately matches the rules
+// target selection and the flee willingness check apply. Presence has to be checked rather than assumed
+// from the session, because an enemy can be unloaded from the map without ever leaving the fight.
+//
+// Deliberately not distance-limited. An enemy too far away to route around is still someone closing in
+// on us, and treating them as gone would end the task while they're still a threat.
+func (t *FleeTask) threatsWithinReach() []*entity.Entity {
+	selfID := t.Owner.CharacterStateRef.ID
+	session := t.Owner.WorldCtx.SessionFor(selfID)
+	if session == nil {
+		return nil
+	}
+
+	var found []*entity.Entity
+	for _, enemyID := range session.EnemiesOf(selfID) {
+		enemy := t.Owner.WorldCtx.EntityFor(enemyID)
+		if enemy == nil || enemy.IsDead() {
+			continue
+		}
+		if t.Owner.WorldCtx.IsFleeing(enemyID) {
+			continue
+		}
+		found = append(found, enemy)
+	}
+	return found
+}
+
+// collectThreats returns the positions worth routing around, and identifies the nearest threat.
+//
+// Same set as threatsWithinReach, minus anyone past fleeSearchThreshold. There's no reason to route
+// around an enemy we can't feel yet, and including one would inflate the search radius to cover them,
+// growing the BFS for no benefit. It also means the radius is bounded no matter how many enemies are
+// involved, which is what keeps the search cheap in a crowded fight.
+//
+// Returning nearest separately is for the consumers that genuinely need one specific enemy -- the
+// surrender handoff. It isn't used for pathing, and it's derived here rather than stored as a field so
+// nothing can mistake it for the route's basis.
+func (t *FleeTask) collectThreats() (threats []model.Coords, nearest *entity.Entity) {
+	me := t.Owner.Entity.TilePos()
+	bestDist := 0
+
+	for _, enemy := range t.threatsWithinReach() {
+		pos := enemy.TilePos()
+		dist := utils.ManhattanDistCoords(me, pos)
+		if dist > fleeSearchThreshold {
+			continue
+		}
+		threats = append(threats, pos)
+		// nearest == nil rather than bestDist == 0 guards the comparison: a threat standing on top of
+		// us has distance 0 and must still be selectable as the nearest
+		if nearest == nil || dist < bestDist {
+			nearest = enemy
+			bestDist = dist
+		}
+	}
+
+	return threats, nearest
+}
+
+// stillWorthFleeing reports whether there's any reason left to keep running.
+//
+// Running from someone who's already beaten -- dead, out of the fight, or broken and running themselves
+// -- isn't escape, it's just running away from nothing, and it keeps the npc from ever getting back to
+// whatever they were doing. So this is a question about the whole fight, not about one enemy: being
+// chased by a second bandit is very much still worth fleeing, so it keeps running as long as any
+// enemy qualifies.
+func (t *FleeTask) stillWorthFleeing() bool {
+	return len(t.threatsWithinReach()) > 0
+}
+
 // applyResult acts on a completed search and schedules the next look.
 func (t *FleeTask) applyResult(res *fleeResult) {
 	if res.Reachable && !res.CannotFlee && len(res.Path) > 0 {
@@ -184,7 +296,7 @@ func (t *FleeTask) Update() {
 	if t.IsDone() {
 		return
 	}
-	if t.targetEntity.IsDead() {
+	if !t.stillWorthFleeing() {
 		t.FinishSuccess()
 		return
 	}
@@ -193,10 +305,16 @@ func (t *FleeTask) Update() {
 	// offered, we've spent it whether the player accepted or not.
 	if !t.Owner.surrenderOfferSpent {
 		if cs := t.Owner.CharacterStateRef; float64(cs.Health) <= float64(cs.MaxHealth)*config.NearDeathHealthPercent {
+			// Surrender names a single person, so hand over whoever's closest. stillWorthFleeing already
+			// guaranteed there's at least one threat, so this can't come back empty in practice.
+			_, nearest := t.collectThreats()
+			if nearest == nil {
+				nearest = t.targetEntity
+			}
 			t.Owner.RunTask(defs.TaskDef{
 				TaskID:   TaskSurrender,
 				Priority: Emergency,
-				Params:   SurrenderTaskParams{TargetEntity: t.targetEntity},
+				Params:   SurrenderTaskParams{TargetEntity: nearest},
 			}, t.Owner)
 			// We don't want to be resumed if preempted later; the npc has moved on. Must come after
 			// RunTask, which is what records us as the interrupted task.
@@ -266,7 +384,10 @@ func (t *FleeTask) Update() {
 		return
 	}
 
-	if t.distFromThreat() > fleeSearchThreshold {
+	// Judged on the *nearest* threat, since that's the one whose distance decides whether running is
+	// currently urgent. A distant extra enemy doesn't make the situation more pressing, and it can't
+	// affect the route either -- collectThreats leaves those out.
+	if t.distFromNearestThreat() > fleeSearchThreshold {
 		// far enough away that searching isn't worth it. Keep walking whatever route we already have
 		// and re-check the distance once the interval expires.
 		t.nextRequestAt = time.Now().Add(fleeRepathInterval)
@@ -290,15 +411,25 @@ func (t *FleeTask) BackgroundAssist() {
 		return
 	}
 
+	// The radius must cover every threat we're asking about, since BuildDistanceMap panics on any
+	// single `from` outside it. The +1 keeps each threat itself inside the radius rather than on its
+	// edge, and we start from fleeSearchThreshold so a group that's all close together still gets the
+	// full search area rather than collapsing to a tiny circle around the nearest one.
+	//
+	// collectThreats already drops anything past fleeSearchThreshold, so this is bounded by
+	// threshold+1 and can't grow with the number of enemies.
+	searchRadius := fleeSearchThreshold
+	for _, them := range req.Them {
+		searchRadius = max(searchRadius, utils.ManhattanDistCoords(req.Me, them)+1)
+	}
+
 	costMap := t.Owner.ActiveMapCtx.GetPathfindingSnapshot()
 	// Gates we can't open are walls as far as this search is concerned, otherwise the BFS happily
 	// routes straight through one and the npc stalls against it.
 	if len(req.BlockedTiles) > 0 {
 		costMap = costMapWithBlockedTiles(costMap, req.BlockedTiles)
 	}
-	// +1 keeps the threat inside the radius we ask about. Safe because requestPick is only reached
-	// when dist <= fleeSearchThreshold, which bounds this.
-	path, reachable, cannotFlee := path_finding.FleeFromPosition(req.Them, req.Me, fleeSearchThreshold, costMap)
+	path, reachable, cannotFlee := path_finding.FleeFromPositions(req.Them, req.Me, searchRadius, costMap)
 
 	t.pathResult.Store(&fleeResult{Path: path, Reachable: reachable, CannotFlee: cannotFlee})
 }

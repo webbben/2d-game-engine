@@ -46,7 +46,7 @@ func unopenableGateTiles(n *NPC) []model.Coords {
 			continue
 		}
 		// IsCollidable is false for an open gate, so this also skips gates we could just walk through.
-		if !obj.IsCollidable() {
+		if !obj.IsCollidable(false) {
 			continue
 		}
 		if !haveLockIDs {

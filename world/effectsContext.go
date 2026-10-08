@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/webbben/2d-game-engine/clock"
+	"github.com/webbben/2d-game-engine/combat"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
@@ -146,10 +147,15 @@ func (w *World) InitiateCombat(charStateID, targetCharStateID id.CharacterStateI
 		Params:   npc.FightTaskParams{TargetEntity: targetEntity},
 	}
 
+	// Record the fight before assigning the task, so that by the time the NPC starts fighting it's
+	// already findable as a combatant. Note this can legitimately do nothing (if the initiator is
+	// already fighting someone else) -- the task assignment below is unchanged either way.
+	w.StartCombat(charStateID, targetCharStateID, combat.IntentKill, combat.IntentSelfDefense)
+
 	w.EventBus.Publish(pubsub.NPCAssignTask(string(charStateID), taskDef))
 }
 
-// IsNPCOfferingSurrender reports whether an npc has a surrender offer pending. False if the npc isn't
+// HasNPCSurrenderOffer returns whether an npc has a surrender offer pending. False if the npc isn't
 // on the map (a dialog could still be closing out as the player changes maps).
 func (w *World) HasNPCSurrenderOffer(charStateID id.CharacterStateID) bool {
 	npcRef := w.getInWorldNPC(charStateID)
@@ -168,6 +174,11 @@ func (w *World) AcceptNPCSurrender(charStateID id.CharacterStateID) {
 		logz.Panicln("AcceptNPCSurrender", "npc is not a current in-world NPC:", charStateID)
 	}
 	npcRef.MarkSurrendered()
+
+	// Accepting ends this character's part in the fight: they've given it up and won't be attacked
+	// again, so they stop being a combatant. Note the *other* side stays in the session -- they may
+	// still be fighting someone else, or the fight may now be over, which LeaveCombat sorts out.
+	w.LeaveCombat(charStateID)
 
 	// Finish the surrender task rather than swapping in another one. Once it reports done, the task
 	// decision loop picks this hour's schedule up on its own. Assigning TaskDoNothing instead would go

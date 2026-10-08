@@ -6,8 +6,10 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/webbben/2d-game-engine/combat"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/logz"
@@ -45,8 +47,19 @@ func (fs fightStatus) String() string {
 type FightTask struct {
 	TaskBase
 
-	status       fightStatus
+	status fightStatus
+	// targetEntity is who we're currently engaging, not the whole enemy list -- the fight session
+	// holds that. This is a field rather than something derived per tick because the melee logic needs
+	// one specific opponent at a time (distance to it, whether it's in reach, where to stand beside it),
+	// and because holding it keeps us from thrashing between equally-close enemies every tick.
+	//
+	// It can change during a fight: see pickTarget.
 	targetEntity *entity.Entity
+
+	// followingTarget is who the active follow child was told to chase, which isn't necessarily
+	// targetEntity any more: the target can switch mid-approach, and the child needs restarting when
+	// it does. Only meaningful while status is fightStatusFollow.
+	followingTarget *entity.Entity
 
 	nextAttackTime time.Time
 	shieldEndTime  time.Time
@@ -116,15 +129,20 @@ Fight Task:
 */
 
 func (t *FightTask) Start() {
-	if t.targetEntity == nil {
-		panic("target entity must not be nil")
-	}
 	if t.Owner == nil {
 		panic("owner entity must not be nil")
 	}
 	if t.status != fightStatusIdle {
 		logz.Println("FightTask", "status:", t.status)
 		logz.Panicf("Start: fight task should be idle when (re)starting")
+	}
+
+	// A fight task means there's someone to fight. The target we're constructed with is only a
+	// starting suggestion -- it may already be dead or gone by the time we get here, and the real
+	// candidate list is whatever the session says.
+	if !t.pickTarget() {
+		logz.Panicln("FightTask", "starting a fight task with no live enemies in the session",
+			"npc:", t.Owner.ID(), "suggested target:", t.targetEntity)
 	}
 
 	t.Status = TaskInProg
@@ -140,6 +158,117 @@ func (t *FightTask) Start() {
 	t.startCombat()
 }
 
+// currentSession returns the fight this npc is part of, or nil once that fight is over.
+func (t *FightTask) currentSession() combat.SessionView {
+	return t.Owner.WorldCtx.SessionFor(t.Owner.CharacterStateRef.ID)
+}
+
+// targetCandidate is one of our enemies in the current fight, reduced to just what target selection
+// actually looks at.
+//
+// This is deliberately plain data rather than *entity.Entity: target selection is the part of the
+// fight logic we most want pinned down by tests, and keeping it free of entities, the world, and
+// physics is what makes that possible without standing up a live npc.
+type targetCandidate struct {
+	ID        id.CharacterStateID
+	Dist      float64
+	Alive     bool
+	InSession bool
+	InWorld   bool
+}
+
+// targetIsValid reports whether we're willing to fight this candidate at all.
+//
+// A candidate has to still be alive, still in the fight with us, and still actually present in the
+// world -- an enemy can be removed from the map without ever leaving the session, and there's nothing
+// left to hit in that case.
+//
+// Note that offering to surrender is deliberately *not* disqualifying. A surrendering enemy is still a
+// legitimate target, because we're free to refuse them, and we shouldn't wander off mid-duel just
+// because they gave in.
+func targetIsValid(c targetCandidate) bool {
+	return c.Alive && c.InSession && c.InWorld
+}
+
+// selectTargetID decides which enemy to fight, returning "" when there's nothing left to fight --
+// which is how a fight task learns that it should end.
+//
+// The rules, in priority order:
+//
+//  1. Stick with the current target while it's still valid. Re-picking every tick would make npcs
+//     dither back and forth between equally-close enemies, which reads as broken.
+//  2. Otherwise take the nearest valid candidate. Invalid candidates are skipped rather than chosen,
+//     so a closer-but-dead enemy never wins just by being closest.
+//
+// Traits and other game data are expected to layer on top of this later -- a character with a
+// particular trait might be expected to chase a fleeing opponent instead of switching away from it.
+// That policy belongs here in the engine, but it has to keep building on these two rules rather than
+// replacing them, since "don't thrash" and "never swing at a corpse" should survive it.
+func selectTargetID(current id.CharacterStateID, candidates []targetCandidate) id.CharacterStateID {
+	if current != "" {
+		for _, c := range candidates {
+			if c.ID == current && targetIsValid(c) {
+				return current
+			}
+		}
+	}
+
+	best := id.CharacterStateID("")
+	bestDist := math.MaxFloat64
+	for _, c := range candidates {
+		if !targetIsValid(c) {
+			continue
+		}
+		if c.Dist < bestDist {
+			bestDist = c.Dist
+			best = c.ID
+		}
+	}
+	return best
+}
+
+// pickTarget points this task at an enemy worth attacking, and reports whether there is one.
+//
+// This is just the adapter that gathers candidates out of the session and resolves the winner back to
+// an entity; the policy itself lives in selectTargetID so it can be tested directly.
+func (t *FightTask) pickTarget() bool {
+	session := t.currentSession()
+	if session == nil {
+		return false
+	}
+
+	ownerEntity := t.Owner.Entity
+	ownerID := t.Owner.CharacterStateRef.ID
+
+	var candidates []targetCandidate
+	for _, enemyID := range session.EnemiesOf(ownerID) {
+		candidate := targetCandidate{
+			ID:        enemyID,
+			Alive:     true,
+			InSession: session.IsCombatant(enemyID),
+		}
+		if enemy := t.Owner.WorldCtx.EntityFor(enemyID); enemy != nil {
+			candidate.InWorld = true
+			candidate.Alive = !enemy.IsDead()
+			candidate.Dist = ownerEntity.DistFromEntity(*enemy)
+		}
+		candidates = append(candidates, candidate)
+	}
+
+	var currentID id.CharacterStateID
+	if t.targetEntity != nil {
+		currentID = t.targetEntity.ID()
+	}
+
+	chosen := selectTargetID(currentID, candidates)
+	if chosen == "" {
+		t.targetEntity = nil
+		return false
+	}
+	t.targetEntity = t.Owner.WorldCtx.EntityFor(chosen)
+	return t.targetEntity != nil
+}
+
 func (t *FightTask) startFollowing() {
 	if t.status != fightStatusIdle {
 		panic("fight status should be idle before trying to follow")
@@ -150,6 +279,10 @@ func (t *FightTask) startFollowing() {
 	logz.Println(t.Owner.DisplayName(), "start follow")
 
 	t.RunChild(NewFollowTask(t.targetEntity, 0, t.Owner, Emergency, nil))
+	// remember who the follow child was told to chase. The target can change mid-approach (the one we
+	// were closing on died or left), and the child has no way to know -- it would keep walking to the old
+	// one while the rest of this task reasons about the new one.
+	t.followingTarget = t.targetEntity
 	t.status = fightStatusFollow
 }
 
@@ -179,7 +312,10 @@ func (t *FightTask) Update() {
 		return
 	}
 
-	if t.targetEntity.IsDead() {
+	// Whoever we were fighting may be dead, fled, surrendered, or simply gone -- and there may be
+	// other enemies still standing. Switching targets is how this task handles all of that, and running
+	// out of targets is how the fight ends.
+	if !t.pickTarget() {
 		t.FinishSuccess()
 		return
 	}
@@ -199,6 +335,13 @@ func (t *FightTask) Update() {
 		}
 		if t.ChildDone() {
 			logz.Panicf("supposed to be following, but the follow child is inactive?")
+		}
+		if t.followingTarget != t.targetEntity {
+			// We switched targets since the follow child started -- whoever we were closing on died or
+			// left the fight. It's still walking the old route, so point it at the new one.
+			t.stopFollowing()
+			t.startFollowing()
+			return
 		}
 		t.TaskBase.Update()
 		// check if we are close enough to end follow stage. note: this uses actual distance rather
@@ -220,7 +363,7 @@ func (t *FightTask) handleCombat() {
 		panic("status is not set to combat")
 	}
 
-	if cs := t.Owner.CharacterStateRef; float64(cs.Health) <= float64(cs.MaxHealth)*config.FleeAtHealthPercent {
+	if t.Owner.shouldFlee() {
 		t.Owner.RunTask(defs.TaskDef{
 			TaskID:   TaskFlee,
 			Priority: Emergency,

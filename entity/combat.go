@@ -35,12 +35,13 @@ func (am *attackManager) clearAttack() {
 	am.chargeStartTick = 0
 }
 
-func (am *attackManager) queueAttack(attackInfo AttackInfo) {
+func (am *attackManager) queueAttack(attackInfo AttackInfo) bool {
 	if am.attackQueued {
-		return
+		return false
 	}
 	am.attackQueued = true
 	am.queuedAttack = attackInfo
+	return true
 }
 
 func (e *Entity) updateAttackManager() {
@@ -112,15 +113,23 @@ func (e Entity) TargetInMeleeReach(target *Entity) bool {
 	return e.GetFrontRect().Intersects(target.CollisionRect())
 }
 
+type StartAttackResult struct {
+	Success bool
+	Info    string
+}
+
 // StartMeleeAttack begins a melee attack. Once started, we await "FinishMeleeAttack" to actually perform the attack and do damage.
 // Until that function is called, it just holds the "start melee attack" pose.
 // This is split into two functions to allow "charge ups" for power attacks.
-func (e *Entity) StartMeleeAttack() {
+func (e *Entity) StartMeleeAttack() StartAttackResult {
 	if !e.IsWeaponEquiped() {
 		logz.PanicCtx("Combat", "tried to swing weapon, but no weapon is equiped", e.DisplayName())
 	}
 	if e.IsStunned() {
-		return
+		return StartAttackResult{
+			Success: false,
+			Info:    "stunned",
+		}
 	}
 	if e.IsAttacking() {
 		logz.PanicCtx("Combat", "tried to start melee attack, but entity is already attacking", e.DisplayName())
@@ -146,18 +155,28 @@ func (e *Entity) StartMeleeAttack() {
 			// if not already attacking, then just wait to do the attack once whatever the current animation is finishes
 			e.waitingToAttack = true
 		}
-		// already attacking - need to wait until the animation is done before attacking again
-		return
+		return StartAttackResult{
+			Success: false,
+			Info:    fmt.Sprintf("SetAnimation failed: %s", res.String()),
+		}
 	}
 
-	e.queueAttack(AttackInfo{
+	if !e.queueAttack(AttackInfo{
 		StartTick:     ebiten.Tick(),
 		Attacker:      e.ID(),
 		StunTicks:     20,
 		TargetRect:    e.GetFrontRect(),
 		ExcludeEntIds: []string{string(e.ID())},
 		Origin:        model.Vec2{X: e.X, Y: e.Y},
-	})
+	}) {
+		return StartAttackResult{
+			Success: false,
+			Info:    "failed to queue attack",
+		}
+	}
+	return StartAttackResult{
+		Success: true,
+	}
 }
 
 func (e *Entity) FinishMeleeAttack() {
@@ -432,8 +451,15 @@ func (e Entity) IsUsingShield() bool {
 	return e.Body.GetCurrentAnimation() == body.AnimShield
 }
 
+// IsAttacking returns true if the entity is currently carrying out an attack.
+// This is determined by the current animation.
 func (e Entity) IsAttacking() bool {
 	return e.Body.IsAttacking()
+}
+
+// AttackQueued returns true if an attack is already queued up to launch (possibly awaiting the "finish" phase)
+func (e Entity) AttackQueued() bool {
+	return e.attackQueued
 }
 
 func (e *Entity) playHitSFX(equipedItem *state.ItemState) {

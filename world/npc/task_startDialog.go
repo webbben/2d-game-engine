@@ -97,6 +97,9 @@ func (t *StartDialogTask) Update() {
 }
 
 func (t *StartDialogTask) OnDialogEnd(e defs.Event) {
+	if t.IsDone() {
+		logz.PanicCtx("OnDialogEnd", "task is done, but event listener was still called. did we not unsubscribe yet?", t.Owner.WhoAmI())
+	}
 	if e.Type != pubsub.EventDialogEnded {
 		return
 	}
@@ -108,7 +111,7 @@ func (t *StartDialogTask) OnDialogEnd(e defs.Event) {
 		logz.PanicCtx("OnDialogEnd", "dialogStartTask is listening for a dialog ended event, and one came - but it was the wrong profile ID.", profileID, t.dialogProfileID, t.Owner.WhoAmI())
 	}
 
-	t.FinishSuccess()
+	t.Finish(TaskResult{Status: ResultSuccess})
 }
 
 func (t *StartDialogTask) SetupActiveState() {

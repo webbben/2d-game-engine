@@ -145,7 +145,7 @@ func TestBuildDistanceMap(t *testing.T) {
 			from, _ := benchEndpoints(size)
 
 			want := refHopDistanceMap(from, costMap)
-			got, _ := BuildDistanceMap(from, nil, 0, costMap)
+			got, _ := BuildDistanceMap([]m.Coords{from}, nil, 0, costMap)
 
 			for y := range costMap {
 				for x := range costMap[y] {
@@ -167,7 +167,7 @@ func TestBuildDistanceMap(t *testing.T) {
 		const radius = 4
 
 		unrestricted := refHopDistanceMap(from, costMap)
-		got, _ := BuildDistanceMap(from, &from, radius, costMap)
+		got, _ := BuildDistanceMap([]m.Coords{from}, &from, radius, costMap)
 
 		for y := range costMap {
 			for x := range costMap[y] {
@@ -193,7 +193,7 @@ func TestBuildDistanceMap(t *testing.T) {
 		for _, size := range []int{8, 20, 50} {
 			costMap := testCostMap(size, 4242)
 			from, _ := benchEndpoints(size)
-			dist, farthestIdx := BuildDistanceMap(from, nil, 0, costMap)
+			dist, farthestIdx := BuildDistanceMap([]m.Coords{from}, nil, 0, costMap)
 
 			maxDist := 0
 			for _, d := range dist {
@@ -212,7 +212,7 @@ func TestBuildDistanceMap(t *testing.T) {
 	})
 
 	t.Run("single tile map", func(t *testing.T) {
-		dist, farthestIdx := BuildDistanceMap(m.Coords{X: 0, Y: 0}, nil, 0, [][]int{{0}})
+		dist, farthestIdx := BuildDistanceMap([]m.Coords{{X: 0, Y: 0}}, nil, 0, [][]int{{0}})
 		if len(dist) != 1 || dist[0] != 0 {
 			t.Errorf("distances = %v, want [0]", dist)
 		}
@@ -227,7 +227,7 @@ func TestBuildDistanceMap(t *testing.T) {
 		for y := range costMap {
 			costMap[y][2] = BlockThreshold
 		}
-		dist, _ := BuildDistanceMap(m.Coords{X: 0, Y: 0}, nil, 0, costMap)
+		dist, _ := BuildDistanceMap([]m.Coords{{X: 0, Y: 0}}, nil, 0, costMap)
 		for y := 0; y < 5; y++ {
 			if dist[idx(m.Coords{X: 3, Y: y}, 5)] != -1 {
 				t.Errorf("tile (3,%d) is behind a wall but got distance %d, want -1", y, dist[idx(m.Coords{X: 3, Y: y}, 5)])
@@ -240,7 +240,7 @@ func TestBuildDistanceMap(t *testing.T) {
 		size := 20
 		costMap := testCostMap(size, 4242)
 		from, _ := benchEndpoints(size)
-		dist, _ := BuildDistanceMap(from, nil, 0, costMap)
+		dist, _ := BuildDistanceMap([]m.Coords{from}, nil, 0, costMap)
 
 		for y := range costMap {
 			for x := range costMap[y] {
@@ -268,25 +268,25 @@ func TestBuildDistanceMap(t *testing.T) {
 		from := m.Coords{X: 1, Y: 1}
 		center := m.Coords{X: 2, Y: 2}
 
-		assertPanicsWith(t, "empty costMap", "costmap is empty!", func() {
-			BuildDistanceMap(from, nil, 0, [][]int{})
+		assertPanicsWith(t, "empty costMap", "costmap was empty!", func() {
+			BuildDistanceMap([]m.Coords{from}, nil, 0, [][]int{})
 		})
 		assertPanicsWith(t, "zero width", "costmap has no width!", func() {
-			BuildDistanceMap(from, nil, 0, [][]int{{}})
+			BuildDistanceMap([]m.Coords{from}, nil, 0, [][]int{{}})
 		})
 		assertPanicsWith(t, "blocked from", "from position was invalid!", func() {
-			BuildDistanceMap(m.Coords{X: 1, Y: 1}, nil, 0, blocked)
+			BuildDistanceMap([]m.Coords{{X: 1, Y: 1}}, nil, 0, blocked)
 		})
 		assertPanicsWith(t, "blocked center", "center was invalid!", func() {
 			// `from` must be valid, otherwise the from check trips first
-			BuildDistanceMap(m.Coords{X: 0, Y: 0}, &m.Coords{X: 1, Y: 1}, 2, blocked)
+			BuildDistanceMap([]m.Coords{{X: 0, Y: 0}}, &m.Coords{X: 1, Y: 1}, 2, blocked)
 		})
 		assertPanicsWith(t, "zero searchRadius with center", "search radius must be > 0", func() {
-			BuildDistanceMap(from, &center, 0, valid)
+			BuildDistanceMap([]m.Coords{from}, &center, 0, valid)
 		})
 		// from sits 2 tiles from center, but the radius is 1. Documented as a caller error.
 		assertPanicsWith(t, "from outside radius", "from is outside search radius range of center", func() {
-			BuildDistanceMap(from, &center, 1, valid)
+			BuildDistanceMap([]m.Coords{from}, &center, 1, valid)
 		})
 	})
 }
@@ -396,7 +396,7 @@ func TestFleeFromPositionScenarios(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			path, reachable, cannotFlee := FleeFromPosition(tc.threat, tc.npc, tc.radius, tc.costMap)
+			path, reachable, cannotFlee := FleeFromPositions([]m.Coords{tc.threat}, tc.npc, tc.radius, tc.costMap)
 
 			if reachable != tc.wantReachable {
 				t.Fatalf("reachable = %v, want %v (cannotFlee=%v, path=%v)", reachable, tc.wantReachable, cannotFlee, path)
@@ -460,7 +460,7 @@ func TestFleeFromPositionGeneratedMaps(t *testing.T) {
 		checked++
 
 		label := fmt.Sprintf("iter %d (%dx%d) threat=%v npc=%v radius=%d", iter, size, size, from, to, radius)
-		path, reachable, cannotFlee := FleeFromPosition(from, to, radius, costMap)
+		path, reachable, cannotFlee := FleeFromPositions([]m.Coords{from}, to, radius, costMap)
 
 		switch {
 		case !reachable:
@@ -503,15 +503,15 @@ func TestFleeFromPositionGeneratedMaps(t *testing.T) {
 // once the npc has reached the radius, treating it as the success condition.
 func TestFleeFromPositionRejectsOutOfRangeThreat(t *testing.T) {
 	costMap := openCostMap(9)
-	threat := m.Coords{X: 1, Y: 4}
+	threat := []m.Coords{{X: 1, Y: 4}}
 	npc := m.Coords{X: 7, Y: 4} // 6 tiles away
 
 	assertPanicsWith(t, "threat beyond search radius", "from is outside search radius range of center", func() {
-		FleeFromPosition(threat, npc, 3, costMap)
+		FleeFromPositions(threat, npc, 3, costMap)
 	})
 
 	// exactly at the radius is fine
-	if _, _, _ = FleeFromPosition(threat, npc, 6, costMap); false {
+	if _, _, _ = FleeFromPositions(threat, npc, 6, costMap); false {
 		t.Fatal("unreachable")
 	}
 }
@@ -528,13 +528,13 @@ func BenchmarkBuildDistanceMap(b *testing.B) {
 			costMap := benchCostMap(size, 1, 0)
 			from, _ := benchEndpoints(size)
 
-			sample, _ := BuildDistanceMap(from, nil, 0, costMap)
+			sample, _ := BuildDistanceMap([]m.Coords{from}, nil, 0, costMap)
 			reached := countReached(sample)
 
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				BuildDistanceMap(from, nil, 0, costMap)
+				BuildDistanceMap([]m.Coords{from}, nil, 0, costMap)
 			}
 			b.StopTimer()
 			b.ReportMetric(float64(reached), "tiles-reached")
@@ -546,13 +546,13 @@ func BenchmarkBuildDistanceMap(b *testing.B) {
 			// threat 6 tiles away from the npc, so it sits comfortably inside the radius
 			from := m.Coords{X: npc.X - 6, Y: npc.Y}
 
-			sample, _ := BuildDistanceMap(from, &npc, 12, costMap)
+			sample, _ := BuildDistanceMap([]m.Coords{from}, &npc, 12, costMap)
 			reached := countReached(sample)
 
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				BuildDistanceMap(from, &npc, 12, costMap)
+				BuildDistanceMap([]m.Coords{from}, &npc, 12, costMap)
 			}
 			b.StopTimer()
 			b.ReportMetric(float64(reached), "tiles-reached")
@@ -560,12 +560,172 @@ func BenchmarkBuildDistanceMap(b *testing.B) {
 	}
 }
 
+// benchThreats places n threats as a loose group on ONE side of the npc, inside `radius`.
+//
+// Two properties matter for the benchmarks to mean anything:
+//
+//   - Every returned tile must be valid and inside the radius. BuildDistanceMap panics on any `from`
+//     that is blocked, out of bounds, or farther from the center than the search radius, so a threat
+//     that missed either would make the benchmark measure the panic path instead of the search.
+//   - Tiles must be distinct. A duplicate would be seeded twice and expand twice, quietly inflating
+//     the cost of an N-threat run without adding a real threat to it.
+//
+// Why a group on one side rather than a ring around the npc: a ring is the tidier-looking layout, and
+// it works fine for BuildDistanceMap, but it makes the flee benchmark measure nothing. With threats
+// adjacent on every side there is no neighbour whose distance-from-threat is one greater than the
+// npc's own, so FleeFromPositions correctly reports cannotFlee and returns a zero-step path at every
+// threat count. That is right behavior and a bad benchmark: it would report a flat, meaningless
+// number. A group on one side is also the situation the game actually produces -- a pack of enemies
+// chasing you -- and it leaves a real escape route, so path-steps stays meaningful as threats grow.
+func benchThreats(costMap [][]int, npc m.Coords, n, radius int) []m.Coords {
+	size := len(costMap)
+	threats := make([]m.Coords, 0, n)
+	seen := map[m.Coords]bool{npc: true} // never place a threat on top of the npc
+
+	// The group sits on the far side of the npc from the map's open interior, at a standoff distance
+	// rather than right on top of it. Two reasons, both about the flee benchmark measuring something:
+	//
+	//   - These benchmarks put the npc in the far corner of the map, so threats pressed against it
+	//     leave it nowhere to go and FleeFromPositions correctly reports cannotFlee with a zero-step
+	//     path at every threat count. A standoff keeps a real escape route open.
+	//   - Threats all at roughly one distance means adding threats changes how many sources the BFS is
+	//     seeded with, not how big the searched area is. Standoff, not a growing spread.
+	const standoff = 6
+	for dx := standoff; dx <= standoff+radius/2 && len(threats) < n; dx++ {
+		// fan out vertically as we go, so threats form a wedge rather than a single file
+		spread := dx - standoff
+		for dy := -spread; dy <= spread && len(threats) < n; dy++ {
+			t := m.Coords{X: npc.X - dx, Y: npc.Y + dy}
+			if t.X < 1 || t.X >= size-1 || t.Y < 1 || t.Y >= size-1 || seen[t] {
+				continue
+			}
+			if !isValidCoords(t, costMap) {
+				continue
+			}
+			seen[t] = true
+			threats = append(threats, t)
+		}
+	}
+	return threats
+}
+
+// benchThreatCounts are the numbers of threats to scale over. 1 is included as the baseline the
+// multi-threat numbers should be read against, and 8 is roughly a worst-case group fight, which is
+// the case that matters most for whether fleeing stays cheap enough to run every repick.
+var benchThreatCounts = []int{1, 2, 4, 8}
+
+// BenchmarkBuildDistanceMapMultipleThreats measures the distance map as the number of threats grows.
+//
+// The question this answers is whether multi-source seeding costs anything beyond the trivial O(n) of
+// reading the extra coordinates. It shouldn't in the worst case: all sources are marked visited
+// before any expansion, so the total work is one pass over the same reachable tiles a single threat
+// would cover, and the only real cost is re-expanding neighbors of each additional seed, which the
+// "already visited" check skips. tiles-reached is reported because it should stay flat as threats are
+// added -- if it starts climbing, extra seeds are unlocking area a single threat couldn't reach, and
+// the timing numbers would no longer be comparable.
+func BenchmarkBuildDistanceMapMultipleThreats(b *testing.B) {
+	const radius = 12
+
+	for _, size := range []int{50, 100, 150} {
+		for _, threats := range benchThreatCounts {
+			b.Run(fmt.Sprintf("%dx%d/threats-%d", size, size, threats), func(b *testing.B) {
+				costMap := benchCostMap(size, 1, 0)
+				_, npc := benchEndpoints(size)
+				from := benchThreats(costMap, npc, threats, radius)
+
+				// the whole point of the benchmark is a real number of threats, so a layout that
+				// couldn't place them all would silently turn this back into a single-threat run
+				if len(from) != threats {
+					b.Fatalf("placed %d threats, wanted %d", len(from), threats)
+				}
+
+				sample, _ := BuildDistanceMap(from, &npc, radius, costMap)
+				reached := countReached(sample)
+
+				b.ReportAllocs()
+				b.ResetTimer()
+				for b.Loop() {
+					BuildDistanceMap(from, &npc, radius, costMap)
+				}
+				b.StopTimer()
+				b.ReportMetric(float64(reached), "tiles-reached")
+			})
+		}
+	}
+}
+
+// BenchmarkBuildDistanceMapThreatsNoRadius is the same scaling question with the radius lifted, which
+// is the case where a single threat would flood the entire map.
+//
+// This is the shape that could plausibly regress with extra seeds: with no radius cap, every source
+// expands across the whole map, so more threats means more redundant neighbor checks over the same
+// tiles. Reported separately because it's the unbounded worst case, not the in-game one.
+func BenchmarkBuildDistanceMapThreatsNoRadius(b *testing.B) {
+	const size = 150
+
+	for _, threats := range benchThreatCounts {
+		b.Run(fmt.Sprintf("%dx%d/threats-%d", size, size, threats), func(b *testing.B) {
+			costMap := benchCostMap(size, 1, 0)
+			_, npc := benchEndpoints(size)
+			from := benchThreats(costMap, npc, threats, size)
+			if len(from) != threats {
+				b.Fatalf("placed %d threats, wanted %d", len(from), threats)
+			}
+
+			sample, _ := BuildDistanceMap(from, nil, 0, costMap)
+			reached := countReached(sample)
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				BuildDistanceMap(from, nil, 0, costMap)
+			}
+			b.StopTimer()
+			b.ReportMetric(float64(reached), "tiles-reached")
+		})
+	}
+}
+
+// BenchmarkFleeFromPositionMultipleThreats measures the full flee search -- distance map plus the
+// outward walk from the npc -- as the number of threats grows.
+//
+// This is the end-to-end number that matters more than BuildDistanceMap on its own, because it's what
+// FleeTask actually calls, and it's the case with the most interesting interaction: with more threats
+// the distance map gets shorter everywhere (you're closer to *something*), so the outward walk has
+// less room to run and should terminate sooner. path-steps is reported to make that visible, since
+// time alone can't tell a faster search from a shorter one.
+func BenchmarkFleeFromPositionMultipleThreats(b *testing.B) {
+	for _, size := range []int{50, 100, 150} {
+		for _, threats := range benchThreatCounts {
+			b.Run(fmt.Sprintf("%dx%d/threats-%d", size, size, threats), func(b *testing.B) {
+				costMap := benchCostMap(size, 1, 0)
+				_, npc := benchEndpoints(size)
+				const radius = 12
+				from := benchThreats(costMap, npc, threats, radius)
+				if len(from) != threats {
+					b.Fatalf("placed %d threats, wanted %d", len(from), threats)
+				}
+
+				sample, _, _ := FleeFromPositions(from, npc, radius, costMap)
+
+				b.ReportAllocs()
+				b.ResetTimer()
+				for b.Loop() {
+					FleeFromPositions(from, npc, radius, costMap)
+				}
+				b.StopTimer()
+				b.ReportMetric(float64(len(sample)), "path-steps")
+			})
+		}
+	}
+}
+
 // fleeBenchCase builds a threat/npc pair that exercises each of FleeFromPosition's three outcomes:
 // a real escape, no monotonic escape available, and an npc the threat cannot reach at all.
-func fleeBenchCase(topo string, size int) (costMap [][]int, threat, npc m.Coords, radius int) {
+func fleeBenchCase(topo string, size int) (costMap [][]int, threat []m.Coords, npc m.Coords, radius int) {
 	costMap = benchCostMap(size, 1, 0)
 	_, npc = benchEndpoints(size)
-	threat = m.Coords{X: npc.X - 6, Y: npc.Y}
+	threat = []m.Coords{{X: npc.X - 6, Y: npc.Y}}
 	radius = 10 // comfortably contains the threat, so the radius never panics
 
 	switch topo {
@@ -595,7 +755,7 @@ func BenchmarkFleeFromPosition(b *testing.B) {
 			b.Run(fmt.Sprintf("%dx%d/%s", size, size, topo), func(b *testing.B) {
 				costMap, threat, npc, radius := fleeBenchCase(topo, size)
 
-				sample, reachable, cannotFlee := FleeFromPosition(threat, npc, radius, costMap)
+				sample, reachable, cannotFlee := FleeFromPositions(threat, npc, radius, costMap)
 				switch topo {
 				case "open":
 					if !reachable || cannotFlee {
@@ -614,7 +774,7 @@ func BenchmarkFleeFromPosition(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 				for b.Loop() {
-					FleeFromPosition(threat, npc, radius, costMap)
+					FleeFromPositions(threat, npc, radius, costMap)
 				}
 				b.StopTimer()
 				b.ReportMetric(float64(len(sample)), "path-steps")

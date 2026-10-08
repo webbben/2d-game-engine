@@ -774,7 +774,7 @@ func (e Entity) CollisionRect() model.Rect {
 }
 
 type WorldContext interface {
-	Collides(r model.Rect) model.CollisionResult
+	Collides(r model.Rect, isPlayer bool) model.CollisionResult
 	CollidesWithEntity(r model.Rect, excludeEntID string) (collides bool, dist float64)
 	FindPath(start, goal model.Coords) ([]model.Coords, bool)
 	MapDimensions() (width int, height int)
@@ -787,7 +787,7 @@ func (e Entity) Collides(r model.Rect) model.CollisionResult {
 	if e.DisableCollisions {
 		return model.CollisionResult{}
 	}
-	return e.World.Collides(r)
+	return e.World.Collides(r, e.ID() == id.PlayerStateID)
 }
 
 func (e Entity) CollidesWithEntity(r model.Rect) (bool, float64) {

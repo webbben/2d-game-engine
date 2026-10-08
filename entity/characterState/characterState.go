@@ -693,3 +693,27 @@ func AddSkillXP(charStateID id.CharacterStateID, skillID defs.SkillID, xp int, d
 		})
 	}
 }
+
+// NeverFlees reports whether a character is authorially incapable of fleeing combat.
+//
+// This is a hard override: it's authored data (a character's in-fiction role, not a calculation),
+// and it's checked before any willingness-to-flee calculation, so no amount of low confidence can
+// talk a soldier out of holding the line. Both flags are OR'd, so a rule declared on a class applies
+// to every character of that class, and a flag on an individual character def covers a specific
+// exception to it.
+//
+// Note this is deliberately separate from traits. A trait that makes someone hard to scare is a
+// softer, calculated route to the same outcome, and stacks additively with other traits. If you're
+// reaching for this function, the question is whether the rule is true of "every soldier" (ClassDef)
+// or of one specific person (CharacterDef) -- not of a kind of person described by traits.
+func NeverFlees(charStateID id.CharacterStateID, dataman *datamanager.DataManager) bool {
+	if dataman == nil {
+		panic("dataman was nil")
+	}
+
+	charState := dataman.GetCharacterState(charStateID)
+	charDef := dataman.GetCharacterDef(charState.DefID)
+	classDef := dataman.GetClassDef(charDef.ClassDefID)
+
+	return charDef.NeverFlee || classDef.NeverFlee
+}

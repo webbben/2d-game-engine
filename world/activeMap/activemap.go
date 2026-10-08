@@ -457,7 +457,7 @@ func (mi *ActiveMap) AddPlayerToMap(p *player.Player, x, y float64) {
 		W: config.TileSize - 1,
 		H: config.TileSize - 1,
 	}
-	if res := mi.Collides(r); res.Collides() {
+	if res := mi.Collides(r, true); res.Collides() {
 		// this also handles placement outside of map bounds
 		logz.Println("AddPlayerToMap", r, res.Note)
 		logz.Panicln("AddPlayerToMap", "player added to map on colliding position")
@@ -527,7 +527,10 @@ func (mi *ActiveMap) IsTileCollision(coords model.Coords) bool {
 		W: config.TileSize - 1,
 		H: config.TileSize - 1,
 	}
-	res := mi.Collides(r)
+	// NOTE: we pass isPlayer=false because it's stricter; yes, this is called by the save code with the player's position,
+	// but I think it's okay because we don't want the player to be saving the game while standing on an ambiguously collidable
+	// position anyway.
+	res := mi.Collides(r, false)
 	return res.Collides()
 }
 
@@ -619,7 +622,7 @@ func (m *ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) (colli
 }
 
 // Collides detects if the given rect collides in the map.
-func (mi *ActiveMap) Collides(r model.Rect) model.CollisionResult {
+func (mi *ActiveMap) Collides(r model.Rect, isPlayer bool) model.CollisionResult {
 	// adding a full tilesize would make you spill over into the next tile's space.
 	// this is because an individual pixel position represents an actual pixel.
 	// so, the space within a tile at tile position 0,0 is:
@@ -695,7 +698,7 @@ func (mi *ActiveMap) Collides(r model.Rect) model.CollisionResult {
 
 	// check for collidable objects (gates, etc)
 	for _, obj := range mi.Objects {
-		if !obj.IsCollidable() {
+		if !obj.IsCollidable(isPlayer) {
 			continue
 		}
 		newCr := checkCornerCollision(r, obj.GetRect())
@@ -822,7 +825,7 @@ func (mi *ActiveMap) buildCostMap() [][]int {
 		// way to use one, so an NPC that walks across is stranded on a side the player can't reach without
 		// being teleported away. Doors are tile-less and so have no collisionRect of their own, which means
 		// they must be allowed through the IsCollidable() check here rather than relying on it.
-		if obj.Type != object.TypeDoor && !obj.IsCollidable() {
+		if obj.Type != object.TypeDoor && !obj.IsCollidable(false) {
 			continue
 		}
 		if obj.Type == object.TypeGate {
@@ -928,11 +931,9 @@ func (mi *ActiveMap) AttackArea(attackInfo entity.AttackInfo) {
 		if n.Entity.IsDead() {
 			continue
 		}
-		logz.Println("Attack Area", "entID:", n.Entity.ID())
 		if slices.Contains(attackInfo.ExcludeEntIds, string(n.Entity.ID())) {
 			continue
 		}
-		fmt.Println("npc rect:", n.Entity.CollisionRect())
 		if attackInfo.TargetRect.Intersects(n.Entity.CollisionRect()) {
 			n.Entity.ReceiveAttack(attackInfo)
 			if attacker != nil {
@@ -1129,7 +1130,7 @@ func (mi *ActiveMap) RectCollidesWithOthers(r model.Rect, excludeEntID string, e
 		if obj.ID == excludeObjID {
 			continue
 		}
-		if !obj.IsCollidable() {
+		if !obj.IsCollidable(false) {
 			continue
 		}
 		if obj.GetRect().Intersects(r) {

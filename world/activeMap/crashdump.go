@@ -233,7 +233,7 @@ func crashDumpObject(obj *object.Object) CrashObjectSnapshot {
 		Type:        obj.Type,
 		DisplayName: obj.DisplayName,
 		Rect:        obj.GetRect(),
-		Collidable:  obj.IsCollidable(),
+		Collidable:  obj.IsCollidable(false),
 		LockID:      obj.GetLockID(),
 		OwnerID:     string(obj.OwnerID),
 	}

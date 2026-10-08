@@ -659,7 +659,7 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 	if len(collidingObjs) > 0 {
 		// see if any of these objects are things like gates, that can be opened.
 		for _, obj := range collidingObjs {
-			if !obj.IsCollidable() {
+			if !obj.IsCollidable(false) {
 				continue
 			}
 			if obj.Type == object.TypeGate {

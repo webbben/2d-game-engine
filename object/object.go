@@ -235,7 +235,7 @@ func (obj Object) IsCurrentlyActivating() bool {
 
 // GetRect is general purpose function to get the rect that this object occupies in the map. does not scale the values.
 func (obj Object) GetRect() model.Rect {
-	if obj.IsCollidable() {
+	if obj.IsCollidable(false) {
 		return obj.collisionRect
 	}
 	return model.Rect{
@@ -251,18 +251,30 @@ func (obj Object) GetDrawRect() model.Rect {
 	return model.NewRect(obj.DrawX, obj.DrawY, float64(obj.Width)*config.GameScale, float64(obj.Height)*config.GameScale)
 }
 
-func (obj Object) IsCollidable() bool {
+// IsCollidable returns if this object can be collided with.
+//
+// toPlayer: set to true if the caller checking for a collision is the player. There is an edge case where the player won't collide,
+// but other entities do collide. For the strictest and generally most "correct" result, set to false unless you are explicitly trying to check for collisions
+// for player movement.
+func (obj Object) IsCollidable(toPlayer bool) bool {
 	if obj.Type == TypeGate {
 		if obj.Gate.IsOpen() {
 			return false
 		}
 	}
+	if obj.Type == TypeDoor && obj.Door.activateType == "step" {
+		// the player does **not** collide with door objects that are step-activated.
+		// but other entities **do** collide.
+		// so: if not the player, then collide
+		return !toPlayer
+	}
+
 	return obj.collidable
 }
 
 // BlocksVisibility determines if this object should block visibility for entities trying to look through it
 func (obj Object) BlocksVisibility() bool {
-	return obj.IsCollidable() && !obj.seeThrough
+	return obj.IsCollidable(false) && !obj.seeThrough
 }
 
 func (obj Object) IsActivatable() bool {
@@ -300,7 +312,7 @@ func (obj Object) IsHoverable() bool {
 }
 
 func (obj Object) Collides(other model.Rect) model.IntersectionResult {
-	if !obj.IsCollidable() {
+	if !obj.IsCollidable(false) {
 		return model.IntersectionResult{}
 	}
 	return obj.collisionRect.IntersectionArea(other)
@@ -562,11 +574,9 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 	// load data for specific object type
 	switch o.Type {
 	case TypeDoor:
-		if objectInfo.HasEmbeddedTile && !noCollision {
-			// if this door object is represented by a tile, then it should probably have built-in collisions.
-			// other doors without tiles are probably just zones that the player can walk into to trigger a map change.
-			o.addDefaultCollision()
-		}
+		// even though step-activated doors are not a collision for the player, we should add the default collision
+		// rect to this object. the player can ignore this with the IsCollidable param.
+		o.addDefaultCollision()
 		o.loadDoorObject(allProps)
 	case TypeSpawnPoint:
 		o.loadSpawnObject(allProps)
