@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/webbben/2d-game-engine/clock"
-	"github.com/webbben/2d-game-engine/combat"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
@@ -150,9 +149,27 @@ func (w *World) InitiateCombat(charStateID, targetCharStateID id.CharacterStateI
 	// Record the fight before assigning the task, so that by the time the NPC starts fighting it's
 	// already findable as a combatant. Note this can legitimately do nothing (if the initiator is
 	// already fighting someone else) -- the task assignment below is unchanged either way.
-	w.StartCombat(charStateID, targetCharStateID, combat.IntentKill, combat.IntentSelfDefense)
+	//
+	// Both intents are hardcoded for now because nothing else has a reason to start a fight yet. The
+	// initiator is assumed to mean it, and the target is assumed to be defending themselves; that's the
+	// right reading for every caller today, which is NPCs reacting to an attack or a scripted world
+	// effect. When a task starts a fight for its own reasons -- a robber's task confronting someone who
+	// won't hand over their purse -- that's where IntentRob would come in, and the intent belongs on
+	// that task rather than here. See defs.CombatIntent.
+	session := w.StartCombat(charStateID, targetCharStateID, defs.IntentKill, defs.IntentSelfDefense)
 
 	w.EventBus.Publish(pubsub.NPCAssignTask(string(charStateID), taskDef))
+
+	// The target is now a combatant too, and needs to find that out. Without this they stand there as
+	// a participant in a fight they never started until something lands a hit on them. StartCombat
+	// returns nil only when both were already committed elsewhere, so a non-nil result means the
+	// target was actually drawn in. OnAttacked re-runs StartCombat and finds nothing to do, which is
+	// harmless, and its guards keep a second declaration from restarting a fight already in progress.
+	if session != nil && targetCharStateID != id.PlayerStateID {
+		if target := w.getInWorldNPC(targetCharStateID); target != nil {
+			target.OnAttacked(npcRef.Entity)
+		}
+	}
 }
 
 // HasNPCSurrenderOffer returns whether an npc has a surrender offer pending. False if the npc isn't

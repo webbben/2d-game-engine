@@ -145,7 +145,7 @@ func (t *SleepTask) findBed() {
 					logz.Panicln("SleepTask", "Another (non-player) character appears to be sleeping in NPC's bed!")
 				}
 				// the player is using this NPC's bed... we should probably cause something to happen, but let's just cancel the task for now.
-				t.FinishAborted("bed is in use by the player")
+				t.Finish(TaskResult{Status: ResultAborted, Reason: "bed is in use by the player"})
 				return
 			}
 			targetingNPC := obj.GetTargetingNPC()

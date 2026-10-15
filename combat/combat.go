@@ -9,8 +9,11 @@
 package combat
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
 )
@@ -39,21 +42,6 @@ func NewSideID(founder id.CharacterStateID) SideID {
 	return SideID(founder)
 }
 
-// CombatIntent describes what an individual combatant is trying to accomplish by fighting.
-//
-// Per-combatant rather than per-side, on purpose: a victim defending themselves and a bystander who
-// intervened to help them are on the same side of the same fight with genuinely different goals, and
-// should behave differently as a result. A defending peasant has no reason to chase a fleeing
-// attacker; a bandit attempting a robbery has every reason to.
-type CombatIntent string
-
-const (
-	IntentSelfDefense CombatIntent = "self-defense" // defending themselves; has no reason to pursue
-	IntentProtect     CombatIntent = "protect"      // protecting someone else
-	IntentKill        CombatIntent = "kill"         // intends to kill
-	IntentRob         CombatIntent = "rob"          // intends to rob; fights until killed or surrendered
-)
-
 // Combatant is one character's place in a session.
 //
 // It holds only what can't be asked of the character itself. Who their enemies are, whether they're
@@ -62,7 +50,7 @@ const (
 // fall out of sync.
 type Combatant struct {
 	Side   SideID
-	Intent CombatIntent
+	Intent defs.CombatIntent
 }
 
 // Resolver gives a session read-only access to live information about the characters in it.
@@ -101,6 +89,7 @@ type SessionView interface {
 	IsAggressorSide(side SideID) bool
 	Sides() []SideID
 	IsCombatant(charID id.CharacterStateID) bool
+	IntentOf(charID id.CharacterStateID) (defs.CombatIntent, bool)
 	SideOf(charID id.CharacterStateID) (SideID, bool)
 	MembersOf(side SideID) []id.CharacterStateID
 	EnemiesOf(charID id.CharacterStateID) []id.CharacterStateID
@@ -129,12 +118,37 @@ type CombatSession struct {
 	initiator  id.CharacterStateID
 	resolver   Resolver
 	combatants map[id.CharacterStateID]Combatant
+
+	// profiles memoizes resolved combat profiles for this session's combatants, keyed by character.
+	//
+	// It lives here rather than on an NPC because a profile is a property of a combatant *in a fight*,
+	// and several NPCs can be looking at the same character: five bandits fighting one guard would
+	// otherwise each resolve the guard's profile independently, once per observer.
+	//
+	// Deliberately absent from SessionView. Resolving a profile is a mutation, and SessionView exists to
+	// be the thing consumers can't mutate with. World reaches the concrete session to populate this.
+	profiles map[id.CharacterStateID]defs.CombatProfile
+}
+
+func (cs CombatSession) WriteDebugInfo(sb *strings.Builder) {
+	fmt.Fprintf(sb, "Combat Session %s\n", cs.id)
+	sides := cs.Sides()
+	slices.Sort(sides)
+	for _, s := range sides {
+		fmt.Fprintf(sb, "  side %s: ", s)
+		members := cs.LivingMembers(s)
+		slices.Sort(members)
+		for _, charID := range members {
+			fmt.Fprintf(sb, "%s, ", charID)
+		}
+		sb.WriteString("\n")
+	}
 }
 
 // NewCombatSession starts a session begun by initiator, who joins it immediately as the founder of the
 // aggressor side. Starting a fight and being in it aren't separate facts: whoever attacked is part of
 // the fight they started, and making that automatic means a session always has an aggressor side.
-func NewCombatSession(sessionID CombatSessionID, initiator id.CharacterStateID, intent CombatIntent, resolver Resolver) CombatSession {
+func NewCombatSession(sessionID CombatSessionID, initiator id.CharacterStateID, intent defs.CombatIntent, resolver Resolver) CombatSession {
 	return CombatSession{
 		id:        sessionID,
 		initiator: initiator,
@@ -142,6 +156,7 @@ func NewCombatSession(sessionID CombatSessionID, initiator id.CharacterStateID, 
 		combatants: map[id.CharacterStateID]Combatant{
 			initiator: {Side: NewSideID(initiator), Intent: intent},
 		},
+		profiles: make(map[id.CharacterStateID]defs.CombatProfile),
 	}
 }
 
@@ -152,7 +167,7 @@ func NewCombatSession(sessionID CombatSessionID, initiator id.CharacterStateID, 
 // a case the design doesn't support yet.
 //
 // The returned side ID is NewSideID(charID), so callers can name it without tracking a return value.
-func (s CombatSession) FoundSide(charID id.CharacterStateID, intent CombatIntent) SideID {
+func (s CombatSession) FoundSide(charID id.CharacterStateID, intent defs.CombatIntent) SideID {
 	if len(s.Sides()) >= 2 {
 		logz.Panicln("CombatSession", "cannot found a third side; sessions have at most two sides",
 			"session:", s.id, "character:", charID)
@@ -175,7 +190,7 @@ func (s CombatSession) FoundSide(charID id.CharacterStateID, intent CombatIntent
 // catches the within-session case.
 //
 // The receiver is a value, but the map inside is shared with every copy, so this mutates the session.
-func (s CombatSession) Join(charID id.CharacterStateID, side SideID, intent CombatIntent) {
+func (s CombatSession) Join(charID id.CharacterStateID, side SideID, intent defs.CombatIntent) {
 	if _, alreadyHere := s.combatants[charID]; alreadyHere {
 		logz.Panicln("CombatSession", "cannot join: character is already a combatant in this session",
 			"session:", s.id, "character:", charID)
@@ -190,6 +205,10 @@ func (s CombatSession) Leave(charID id.CharacterStateID) bool {
 		return false
 	}
 	delete(s.combatants, charID)
+	// Drop their cached profile too. A character who leaves and rejoins the same fight is rare, but if it
+	// happens their profile would otherwise be served from before they left, and everything except
+	// health and fleeing is fixed for the life of the session.
+	delete(s.profiles, charID)
 	return true
 }
 
@@ -214,10 +233,6 @@ func (s CombatSession) Validate() {
 	}
 	if sides := s.Sides(); len(sides) > 2 {
 		logz.Panicln("CombatSession", "session has more than two sides", "session:", s.id, "sides:", sides)
-	}
-	if !s.HasEnded() && !s.IsCombatant(s.initiator) {
-		logz.Panicln("CombatSession", "ongoing session does not contain its initiator",
-			"session:", s.id, "initiator:", s.initiator)
 	}
 }
 
@@ -246,6 +261,52 @@ func (s CombatSession) Size() int { return len(s.combatants) }
 func (s CombatSession) IsCombatant(charID id.CharacterStateID) bool {
 	_, present := s.combatants[charID]
 	return present
+}
+
+// CachedProfile returns a combat profile this session has already resolved, if any.
+//
+// Not on SessionView, and not safe for consumers to call directly: resolving a profile populates this
+// map, so handing it out through the read-only view would break that view's whole guarantee. World uses
+// it to answer repeated profile lookups without re-resolving.
+func (s CombatSession) CachedProfile(charID id.CharacterStateID) (defs.CombatProfile, bool) {
+	profile, ok := s.profiles[charID]
+	return profile, ok
+}
+
+// StoreProfile records a resolved profile for later reuse. See CachedProfile for why this isn't part of
+// the consumer-facing view.
+func (s *CombatSession) StoreProfile(charID id.CharacterStateID, profile defs.CombatProfile) {
+	s.profiles[charID] = profile
+}
+
+// IntentOf returns what a combatant is trying to accomplish by fighting.
+//
+// The bool reports whether they're in the session at all, matching SideOf, so a caller iterating a
+// character list can tell "not fighting" from "fighting for no particular reason" without a separate
+// lookup. An empty intent with true means a combatant who joined without one being recorded.
+//
+// Intent is snapshotted when someone joins and doesn't change for the rest of the fight. That's the
+// point: it records how the fight started, not how someone currently feels about it.
+func (s CombatSession) IntentOf(charID id.CharacterStateID) (defs.CombatIntent, bool) {
+	c, present := s.combatants[charID]
+	if !present {
+		return "", false
+	}
+	return c.Intent, true
+}
+
+// IntentOrEmpty returns what a combatant is trying to accomplish, or an empty intent if they're not in
+// this session.
+//
+// Convenience over IntentOf for callers that treat "not in the fight" and "fighting for no particular
+// reason" the same way -- which profile resolution does, since an absent combatant has no intent to
+// record either.
+func (s CombatSession) IntentOrEmpty(charID id.CharacterStateID) defs.CombatIntent {
+	c, present := s.combatants[charID]
+	if !present {
+		return ""
+	}
+	return c.Intent
 }
 
 // SideOf returns the side a character is fighting on.

@@ -125,6 +125,11 @@ var (
 	// leave, fight elsewhere, and come back for it later. A day is the floor for that -- bodies vanishing
 	// within a few hours would quietly eat loot the player was entitled to.
 	CorpseExpiryHours int = 24
+
+	EntitySeparationEnabled bool    = true
+	EntitySeparationRadius  float64 = TileSize
+	EntitySeparationGain    float64 = 0.1
+	EntitySeparationMaxPush float64 = 0.5
 )
 
 const (

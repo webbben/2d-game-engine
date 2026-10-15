@@ -160,6 +160,10 @@ func (e *Entity) Kill() {
 	e.eventBus.SysEntityDied(e.ID())
 }
 
+// IsDead reports whether this entity is dead or has taken a killing blow but not yet processed as dead.
+// The reason these two things could diverge on a single tick is, actually being marked as Dead (in character state)
+// could be delayed by a tick depending on when entity.Update actually gets called. So, other logic that wants to check
+// if this entity is dead should check this function, and not just check the Dead property of character state ref.
 func (e Entity) IsDead() bool {
-	return e.characterStateRef.Dead
+	return e.characterStateRef.Health <= 0 || e.characterStateRef.Dead
 }

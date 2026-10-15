@@ -2,10 +2,14 @@ package world
 
 import (
 	"fmt"
+	"maps"
+	"strings"
 
 	"github.com/webbben/2d-game-engine/combat"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/entity"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/utils"
 )
@@ -28,6 +32,58 @@ func (w *World) SessionFor(charID id.CharacterStateID) combat.SessionView {
 		}
 	}
 	return nil
+}
+
+// CombatProfile returns a combatant's resolved profile within a session: their fighting ability, their
+// condition, their personality drives, what they're trying to accomplish, and whether they're running.
+//
+// The cache lives on the session rather than on any one observer, so five NPCs fighting the same guard
+// resolve that guard once between them rather than five times over. Skills, attributes, drives, and
+// intent are fixed for the length of a fight and are resolved once. Health and Fleeing are live and are
+// refreshed on every read, because both change while the fight runs -- and Fleeing in particular flips
+// at exactly the moment a pursuit decision has to be made.
+//
+// A session that isn't found, or a character who isn't in it, yields a zero profile rather than an
+// error. Both are ordinary: sessions are pruned once ended, so a fight can finish between one caller
+// resolving a profile and another using it.
+func (w *World) CombatProfile(sessionID combat.CombatSessionID, charStateID id.CharacterStateID) defs.CombatProfile {
+	session := w.concreteSessionByID(sessionID)
+	if session == nil {
+		return defs.CombatProfile{ID: charStateID}
+	}
+
+	charState := w.Dataman.GetCharacterState(charStateID)
+
+	// Read live before the cache check, so both paths see the same value.
+	fleeing := w.IsFleeing(charStateID)
+
+	if cached, ok := session.CachedProfile(charStateID); ok {
+		cached.Health = charState.Health
+		cached.MaxHealth = charState.MaxHealth
+		cached.Fleeing = fleeing
+		session.StoreProfile(charStateID, cached)
+		return cached
+	}
+
+	skills, attrs := characterstate.GetSkillsAndAttributes(charStateID, w.Dataman)
+
+	// Cloned deliberately. GetSkillsAndAttributes hands back maps held in the DataManager's cache,
+	// shared with every other reader, and a profile outliving this fight would keep them writable after
+	// that cache entry moved on. One clone per combatant per fight is cheap.
+	profile := defs.CombatProfile{
+		ID:              charStateID,
+		SkillLevels:     maps.Clone(skills),
+		AttributeLevels: maps.Clone(attrs),
+		Drives:          maps.Clone(characterstate.GetNetDrives(charState.Traits, w.Dataman)),
+		Health:          charState.Health,
+		MaxHealth:       charState.MaxHealth,
+		Fleeing:         fleeing,
+		// Snapshotted by the session at join, so empty means this character has no recorded reason to
+		// be fighting -- which is the normal case for the player.
+		Intent: session.IntentOrEmpty(charStateID),
+	}
+	session.StoreProfile(charStateID, profile)
+	return profile
 }
 
 // IsInCombat reports whether a character is currently fighting anyone.
@@ -68,7 +124,7 @@ func (w *World) EntityFor(charID id.CharacterStateID) *entity.Entity {
 //   - initiator committed                         -> ignored. The damage still landed; whether the
 //     victim chooses to get involved is their decision, and there is no decision logic yet, so nothing
 //     is recorded. See #190 for why merging two sessions is never the answer here.
-func (w *World) StartCombat(initiator, target id.CharacterStateID, initiatorIntent, targetIntent combat.CombatIntent) combat.SessionView {
+func (w *World) StartCombat(initiator, target id.CharacterStateID, initiatorIntent, targetIntent defs.CombatIntent) combat.SessionView {
 	if initiator == target {
 		logz.Panicln("StartCombat", "character tried to start a fight with themselves", "character:", initiator)
 	}
@@ -170,6 +226,17 @@ func (w *World) concreteSessionFor(charID id.CharacterStateID) *combat.CombatSes
 	return nil
 }
 
+// concreteSessionByID finds a session by its ID, without the read-only interface. Same rule as
+// concreteSessionFor: only this file uses it, for the calls that need to mutate.
+func (w *World) concreteSessionByID(sessionID combat.CombatSessionID) *combat.CombatSession {
+	for _, s := range w.combatSessions {
+		if s.SessionID() == sessionID {
+			return s
+		}
+	}
+	return nil
+}
+
 // nextCombatSessionID mints the next session ID. A plain counter, so IDs sort in the order fights
 // started -- "combat-7 started before combat-8" is readable straight off a log -- without carrying
 // any context that could go stale or leak into saves.
@@ -226,4 +293,11 @@ func (w *World) pruneEndedCombatSessions() {
 		kept = append(kept, s)
 	}
 	w.combatSessions = kept
+}
+
+func (w *World) CombatDebugInfo(sb *strings.Builder) {
+	sb.WriteString("COMBAT SESSIONS:\n")
+	for _, cs := range w.combatSessions {
+		cs.WriteDebugInfo(sb)
+	}
 }

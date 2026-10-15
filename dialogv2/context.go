@@ -315,13 +315,13 @@ func (ctx DialogContext) PlayerHasItem(itemID defs.ItemID) bool {
 }
 
 func (ctx DialogContext) GetPlayerSkillLevel(skillID defs.SkillID) int {
-	skills, _ := characterstate.CalculateSkillsAndAttributes(id.PlayerStateID, ctx.dataman)
+	skills, _ := characterstate.GetSkillsAndAttributes(id.PlayerStateID, ctx.dataman)
 
 	return skills[skillID]
 }
 
 func (ctx DialogContext) GetPlayerAttributeLevel(attrID defs.AttributeID) int {
-	_, attrs := characterstate.CalculateSkillsAndAttributes(id.PlayerStateID, ctx.dataman)
+	_, attrs := characterstate.GetSkillsAndAttributes(id.PlayerStateID, ctx.dataman)
 
 	return attrs[attrID]
 }

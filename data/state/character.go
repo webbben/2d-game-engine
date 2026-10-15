@@ -70,7 +70,10 @@ type CharacterState struct {
 	Stamina    int
 	MaxStamina int
 
-	Dead bool // if set, this character is dead.
+	// if set, this character is formally marked as dead.
+	// Note: if you are dealing with an entity and want to know if its dead, check entity.IsDead instead, since there
+	// could be a single tick window where this is out of sync (health is <= 0, but Dead not set yet).
+	Dead bool
 }
 
 // WalkSpeed returns a walking speed, calculated by character stats (chiefly Agility)

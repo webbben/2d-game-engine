@@ -94,7 +94,7 @@ func (t *GotoTask) Update() {
 		// on. Reachable: we can be interrupted with our path already consumed the moment we step onto the
 		// goal (e.g. the player is standing there, so the next move collides).
 		if t.isComplete() {
-			t.FinishSuccess()
+			t.Finish(TaskResult{Status: ResultSuccess})
 			return
 		}
 		result := t.HandleNPCCollision()
@@ -108,7 +108,7 @@ func (t *GotoTask) Update() {
 		if result.UnknownCollision {
 			t.unknownCollision++
 			if t.unknownCollision > 5 {
-				t.FinishFail("gave up after repeated unknown collisions")
+				t.Finish(TaskResult{Status: ResultFailed, Reason: "gave up after repeated unknown collisions"})
 				return
 			}
 		} else {

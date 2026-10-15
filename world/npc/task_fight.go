@@ -29,6 +29,7 @@ const powerAttackChance = 0.2
 // slashStartWindUpTicks is how long the "slash-start" (wind-up) animation takes to play before charge time begins
 // counting. chargeAttackTicks must exceed this for the attack to build any power-attack charge.
 // (2 frames of slash-start, tick interval of 6 -> 12 ticks.)
+// TODO: should this be used somewhere?
 const slashStartWindUpTicks = 12
 
 func (fs fightStatus) String() string {
@@ -54,6 +55,7 @@ type FightTask struct {
 	// and because holding it keeps us from thrashing between equally-close enemies every tick.
 	//
 	// It can change during a fight: see pickTarget.
+	// Do NOT set directly; use setTarget instead so that relevant flags are reset too.
 	targetEntity *entity.Entity
 
 	// followingTarget is who the active follow child was told to chase, which isn't necessarily
@@ -66,6 +68,11 @@ type FightTask struct {
 
 	// when attacking, this is set and once it hits 0 the NPC should finish the attack
 	chargeAttackTicks int
+
+	// approach step: record closest distance and how long since progress was made
+	// this way we can detect if there is something blocking our approach, and we should switch back to a path-finding step.
+	closestApproachDist float64
+	closestApproachTime time.Time // when the last closestApproachDist was recorded
 }
 
 type FightTaskParams struct {
@@ -76,23 +83,29 @@ type FightTaskParams struct {
 
 var _ Task = (*FightTask)(nil)
 
-func NewFightTask(targetEnt *entity.Entity, owner *NPC, p defs.TaskPriority, nextTask *defs.TaskDef) *FightTask {
+// NewFightTask takes the caller's whole TaskDef rather than rebuilding one from loose arguments.
+//
+// TaskMGMT records a preempted task via GetDef() so it can be replayed later, so anything the def
+// carries that this constructor dropped is lost for good -- replay then fails. Params is the field that
+// matters: dropping it means a resumed fight task hits a failed type assertion in the registry and
+// panics. See issue #182.
+func NewFightTask(targetEnt *entity.Entity, owner *NPC, def defs.TaskDef) *FightTask {
 	if targetEnt == nil {
 		panic("target is nil")
 	}
 	if owner == nil {
 		panic("owner was nil")
 	}
-	t := defs.TaskDef{
-		TaskID:   TaskFight,
-		Priority: p,
-		NextTask: nextTask,
+	if def.TaskID != TaskFight {
+		logz.Panicln("NewFightTask", "task def has wrong ID", string(def.TaskID))
 	}
-	return &FightTask{
-		TaskBase:     NewTaskBase(t, "Fight", "Fight another entity", owner),
-		status:       fightStatusIdle,
-		targetEntity: targetEnt,
+	ft := &FightTask{
+		TaskBase: NewTaskBase(def, "Fight", "Fight another entity", owner),
+		status:   fightStatusIdle,
 	}
+	ft.setTarget(targetEnt)
+
+	return ft
 }
 
 func init() {
@@ -103,7 +116,9 @@ func init() {
 				logz.Println("FightTask", def.Params)
 				logz.Panicln("FightTask", "tried to run a fight task, but the params could not be converted into FightTaskParams. make sure you are using the right struct")
 			}
-			return NewFightTask(fightParams.TargetEntity, owner, def.Priority, def.NextTask)
+			// The def is passed through whole, so the Params that were just parsed here survive into
+			// TaskBase and therefore into any preemption record. Rebuilding it would lose them.
+			return NewFightTask(fightParams.TargetEntity, owner, def)
 		},
 		validateParams: func(def defs.TaskDef) error {
 			params, ok := def.Params.(FightTaskParams)
@@ -140,9 +155,17 @@ func (t *FightTask) Start() {
 	// A fight task means there's someone to fight. The target we're constructed with is only a
 	// starting suggestion -- it may already be dead or gone by the time we get here, and the real
 	// candidate list is whatever the session says.
-	if !t.pickTarget() {
-		logz.Panicln("FightTask", "starting a fight task with no live enemies in the session",
+	//
+	// No session at all is still a caller error: nothing should be running a fight outside a fight.
+	// But a session with nobody worth chasing in it is ordinary -- every enemy broke off and this npc
+	// isn't the sort to follow. Standing down is the answer then, not a crash.
+	if t.currentSession() == nil {
+		logz.Panicln("FightTask", "starting a fight task with no combat session",
 			"npc:", t.Owner.ID(), "suggested target:", t.targetEntity)
+	}
+	if !t.pickTarget() {
+		t.standDown()
+		return
 	}
 
 	t.Status = TaskInProg
@@ -156,6 +179,51 @@ func (t *FightTask) Start() {
 
 	// close enough already; start the combat portion of this task
 	t.startCombat()
+}
+
+// standDown ends this fight task because there is nothing left for this npc to fight -- either every
+// enemy is gone, or they broke off running and this npc won't give chase.
+//
+// It also leaves the combat session. Standing down is not the same as being defeated: the fight only
+// ends for us when we're no longer in it, and leaving is what makes that true. Without this the npc
+// would linger in a session no longer participating in, and the fight would stay findable.
+//
+// Ending the task hands the npc back to the decision loop, which returns them to their hourly schedule.
+// That's the same path a fleeing npc already takes, so a guard who declines a chase resumes patrolling
+// rather than standing in the street refusing to work.
+// shouldYieldCombat answers whether this npc should stop standing their ground and start running.
+//
+// Unarmed is a reason to go no matter how hard someone is: that is a fact about equipment, not a
+// judgment call. Being outmatched is the judgment, and it is the one game data gets to make, so
+// bravery is only consulted once there is actually something to fight with. Trying to arm first also
+// means an npc carrying a weapon fights rather than runs for no reason.
+//
+// This lives here rather than in whoever started the fight so that every way into a fight asks the
+// same question, and so the answer can change partway through one.
+func (t *FightTask) shouldYieldCombat() bool {
+	if !t.Owner.ensureWeaponEquipped() {
+		return true
+	}
+	return t.Owner.shouldFlee()
+}
+
+// yieldToFlee hands this npc off to the flee task.
+//
+// The fight task is deliberately not recorded as the interrupted one: they have decided they don't
+// want this fight, so resuming it when the flee ends would be wrong.
+func (t *FightTask) yieldToFlee() {
+	t.Owner.RunTask(defs.TaskDef{
+		TaskID:   TaskFlee,
+		Priority: Emergency,
+		Params:   FleeTaskParams{TargetEntity: t.targetEntity},
+	}, t.Owner)
+	t.Owner.clearInterruptedTask()
+}
+
+func (t *FightTask) standDown() {
+	t.setTarget(nil)
+	t.Owner.WorldCtx.LeaveCombat(t.Owner.CharacterStateRef.ID)
+	t.Finish(TaskResult{Status: ResultSuccess})
 }
 
 // currentSession returns the fight this npc is part of, or nil once that fight is over.
@@ -175,6 +243,14 @@ type targetCandidate struct {
 	Alive     bool
 	InSession bool
 	InWorld   bool
+
+	// Fleeing reports whether this enemy has broken off and is running. WorthPursuing is the game's
+	// answer to whether this npc would chase them anyway.
+	//
+	// Both default to false, which reads as "standing their ground and therefore always worth
+	// fighting" -- so a candidate that never mentions pursuit is a normal one.
+	Fleeing       bool
+	WorthPursuing bool
 }
 
 // targetIsValid reports whether we're willing to fight this candidate at all.
@@ -187,7 +263,12 @@ type targetCandidate struct {
 // legitimate target, because we're free to refuse them, and we shouldn't wander off mid-duel just
 // because they gave in.
 func targetIsValid(c targetCandidate) bool {
-	return c.Alive && c.InSession && c.InWorld
+	if !c.Alive || !c.InSession || !c.InWorld {
+		return false
+	}
+	// A fleeing enemy is only worth chasing if this npc would pursue them. Someone standing their ground
+	// is always valid -- there's no decision to make about them.
+	return !c.Fleeing || c.WorthPursuing
 }
 
 // selectTargetID decides which enemy to fight, returning "" when there's nothing left to fight --
@@ -227,32 +308,50 @@ func selectTargetID(current id.CharacterStateID, candidates []targetCandidate) i
 	return best
 }
 
+// handles setting flags and other things when a (new) target is set.
+// can pass in nil to clear the target.
+func (t *FightTask) setTarget(e *entity.Entity) {
+	if e == nil {
+		logz.Println("setTarget", "target was cleared", t.Owner.WhoAmI())
+	}
+	t.targetEntity = e
+	t.closestApproachDist = math.MaxFloat64
+	t.closestApproachTime = time.Now()
+}
+
 // pickTarget points this task at an enemy worth attacking, and reports whether there is one.
 //
 // This is just the adapter that gathers candidates out of the session and resolves the winner back to
 // an entity; the policy itself lives in selectTargetID so it can be tested directly.
+//
+// Runs every tick, so it checks the cheap thing first. Most ticks the current target is still perfectly
+// good, and rebuilding the whole candidate list -- an entity lookup and a distance for every enemy in
+// the fight -- only to conclude "keep what I have" is work thrown away. The fast path validates the
+// current target alone and returns.
+//
+// That path also bounds how often the pursuit hook is consulted. A current target who isn't fleeing has
+// no pursuit question, so no hook call happens; the hook fires only when someone actually starts
+// running, which is the moment a target switch is genuinely on the table.
 func (t *FightTask) pickTarget() bool {
 	session := t.currentSession()
 	if session == nil {
 		return false
 	}
+	sessionID := session.SessionID()
 
-	ownerEntity := t.Owner.Entity
+	// Fast path: is what we're already fighting still someone we'll keep fighting?
+	if t.targetEntity != nil {
+		if candidate := t.buildCandidate(session, t.targetEntity.ID()); targetIsValid(t.withPursuit(sessionID, candidate)) {
+			// still targeting the same entity, so no need to change anything
+			return true
+		}
+	}
+
 	ownerID := t.Owner.CharacterStateRef.ID
-
 	var candidates []targetCandidate
 	for _, enemyID := range session.EnemiesOf(ownerID) {
-		candidate := targetCandidate{
-			ID:        enemyID,
-			Alive:     true,
-			InSession: session.IsCombatant(enemyID),
-		}
-		if enemy := t.Owner.WorldCtx.EntityFor(enemyID); enemy != nil {
-			candidate.InWorld = true
-			candidate.Alive = !enemy.IsDead()
-			candidate.Dist = ownerEntity.DistFromEntity(*enemy)
-		}
-		candidates = append(candidates, candidate)
+		candidate := t.buildCandidate(session, enemyID)
+		candidates = append(candidates, t.withPursuit(sessionID, candidate))
 	}
 
 	var currentID id.CharacterStateID
@@ -262,11 +361,57 @@ func (t *FightTask) pickTarget() bool {
 
 	chosen := selectTargetID(currentID, candidates)
 	if chosen == "" {
-		t.targetEntity = nil
+		t.setTarget(nil)
 		return false
 	}
-	t.targetEntity = t.Owner.WorldCtx.EntityFor(chosen)
-	return t.targetEntity != nil
+	if t.targetEntity != nil && chosen == t.targetEntity.ID() {
+		// we chose the same one as the existing target, so nothing to do
+		logz.PanicCtx("pickTarget", "the existing target was chosen, even though it should be invalid according to earlier logic in this function.",
+			t.targetEntity.ID())
+	}
+	targetEntity := t.Owner.WorldCtx.EntityFor(chosen)
+	if targetEntity == nil {
+		logz.Panic("target entity was unexpectedly nil")
+	}
+	t.setTarget(targetEntity)
+	return true
+}
+
+// buildCandidate gathers everything target selection needs to know about one enemy. Pure description of
+// the world -- no policy.
+func (t *FightTask) buildCandidate(session combat.SessionView, enemyID id.CharacterStateID) targetCandidate {
+	candidate := targetCandidate{
+		ID:        enemyID,
+		Alive:     true,
+		InSession: session.IsCombatant(enemyID),
+	}
+	if enemy := t.Owner.WorldCtx.EntityFor(enemyID); enemy != nil {
+		candidate.InWorld = true
+		candidate.Alive = !enemy.IsDead()
+		candidate.Dist = t.Owner.Entity.DistFromEntity(*enemy)
+	}
+	return candidate
+}
+
+// withPursuit fills in the pursuit half of a candidate: whether this enemy is running, and whether this
+// npc would chase them if they are.
+//
+// A standing enemy is left as-is, because the answer for them is always "worth pursuing" and asking the
+// question would mean building two profiles to get a value nobody needs.
+func (t *FightTask) withPursuit(sessionID combat.CombatSessionID, candidate targetCandidate) targetCandidate {
+	if !t.Owner.WorldCtx.CombatProfile(sessionID, candidate.ID).Fleeing {
+		return candidate
+	}
+	candidate.Fleeing = true
+	candidate.WorthPursuing = t.Owner.shouldPursue(sessionID, candidate.ID, t.Owner.countStandingEnemies(sessionID, candidate.ID))
+	return candidate
+}
+
+func (t *FightTask) dropShield() {
+	if t.Owner.Entity.IsUsingShield() {
+		t.Owner.Entity.StopUsingShield()
+		t.shieldEndTime = time.Now()
+	}
 }
 
 func (t *FightTask) startFollowing() {
@@ -277,6 +422,9 @@ func (t *FightTask) startFollowing() {
 		logz.Panicf("follow subtask appears to already be active. It should've ended (or not started yet) before Start was called.")
 	}
 	logz.Println(t.Owner.DisplayName(), "start follow")
+
+	// not allowed to shield while moving
+	t.dropShield()
 
 	t.RunChild(NewFollowTask(t.targetEntity, 0, t.Owner, Emergency, nil))
 	// remember who the follow child was told to chase. The target can change mid-approach (the one we
@@ -305,6 +453,9 @@ func (t *FightTask) startCombat() {
 	logz.Println(t.Owner.DisplayName(), "start combat")
 	// nothing to really do here except flip the switch on combat status
 	t.status = fightStatusCombat
+	// reset approach flags
+	t.closestApproachDist = math.MaxFloat64
+	t.closestApproachTime = time.Now()
 }
 
 func (t *FightTask) Update() {
@@ -316,7 +467,15 @@ func (t *FightTask) Update() {
 	// other enemies still standing. Switching targets is how this task handles all of that, and running
 	// out of targets is how the fight ends.
 	if !t.pickTarget() {
-		t.FinishSuccess()
+		t.standDown()
+		return
+	}
+
+	// Re-check every tick whether this npc still wants to be here at all. This sits above the status
+	// switch, and above Start, so it applies from the very first tick -- which is what lets a coward
+	// break off before landing a swing -- and while following as well as while fighting.
+	if t.shouldYieldCombat() {
+		t.yieldToFlee()
 		return
 	}
 
@@ -327,6 +486,15 @@ func (t *FightTask) Update() {
 	}
 
 	t.Status = TaskInProg
+
+	// Catch bad state: an npc blocking with its shield must not be walking. Scoped to path following,
+	// because a blocked hit legitimately recoils the blocker while the shield animation is still up
+	// (ReceiveAttack -> TryBumpBack). That recoil moves toward TargetX/TargetY directly and never sets
+	// a path, so HasPath is what separates the recoil from task-driven locomotion, which is the
+	// actual bug: an npc that stopped following used to keep walking the follow path.
+	if t.Owner.Entity.IsUsingShield() && t.Owner.Entity.IsMoving() && t.Owner.Entity.HasPath() {
+		logz.PanicCtx("FightTask", "entity is walking a path while blocking with shield", t.Owner.WhoAmI())
+	}
 
 	switch t.status {
 	case fightStatusFollow:
@@ -347,7 +515,10 @@ func (t *FightTask) Update() {
 		// check if we are close enough to end follow stage. note: this uses actual distance rather
 		// than path length, since a freshly-started follow may not have a path yet (it's computed by
 		// background assist), and a path-length check would collapse straight into combat.
-		if t.Owner.Entity.DistFromEntity(*t.targetEntity) <= config.TileSize*3 {
+		pathLength := len(t.Owner.Entity.Movement.TargetPath)
+		if pathLength == 0 {
+			// TODO: (2026-10-15) do we want to do anything here? as of now, it seems to work fine like this.
+		} else if pathLength <= 3 {
 			t.stopFollowing()
 			t.startCombat()
 			return
@@ -363,16 +534,8 @@ func (t *FightTask) handleCombat() {
 		panic("status is not set to combat")
 	}
 
-	if t.Owner.shouldFlee() {
-		t.Owner.RunTask(defs.TaskDef{
-			TaskID:   TaskFlee,
-			Priority: Emergency,
-			Params:   FleeTaskParams{TargetEntity: t.targetEntity},
-		}, t.Owner)
-		// we don't care to preserve the fight task as interrupted, since the NPC is no longer willing to fight
-		t.Owner.clearInterruptedTask()
-		return
-	}
+	// Note: whether this npc wants to be fighting at all is decided in Update, before we get here --
+	// see shouldYieldCombat. An npc that has decided to run has already been handed to the flee task.
 
 	if t.Owner.Entity.Body.IsAttacking() {
 		// handle NPC power attacks, and finish the melee attack if needed
@@ -419,9 +582,11 @@ func (t *FightTask) handleCombat() {
 
 	// in striking range: decide to raise shield or attack
 	if t.Owner.Entity.IsShieldEquiped() && rand.Float32() < 0.4 {
-		t.Owner.Entity.UseShield()
-		t.shieldEndTime = time.Now().Add(time.Duration(1+rand.Intn(3)) * time.Second)
-		return
+		if t.Owner.Entity.UseShield() {
+			t.shieldEndTime = time.Now().Add(time.Duration(1+rand.Intn(3)) * time.Second)
+			return
+		}
+		// if shield failed to be set, then fall through to striking logic
 	}
 
 	// sanity check: we believe we're in striking range, so the swing must land. if not, the
@@ -457,27 +622,43 @@ func (t *FightTask) approachToReach() {
 	}
 
 	e := t.Owner.Entity
-	myCX, myCY := e.CollisionRect().GetCenter()
-	tcX, tcY := t.targetEntity.CollisionRect().GetCenter()
+	myC := e.CollisionRect().GetCenter()
+	tc := t.targetEntity.CollisionRect().GetCenter()
+
+	// record when we last hit the closest distance, for detecting "dead end" positions where
+	// no real progress is possible
+	dist := myC.Dist(tc)
+	if dist < t.closestApproachDist {
+		t.closestApproachDist = dist
+		t.closestApproachTime = time.Now()
+	}
+
+	if time.Since(t.closestApproachTime) > time.Second*3 {
+		// switch back to pathfinding, since we haven't been able to make any real progress
+		logz.Println("approachToReach", "switching back to pathfinding, since current area seems to be a dead end.", t.Owner.WhoAmI())
+		t.status = fightStatusIdle
+		t.startFollowing()
+		return
+	}
 
 	// the attack strikes one tile in the facing direction, so the ideal standing spot is the
 	// target's center, offset by TileSize along the attack (dominant) axis, with the
 	// perpendicular axis centered on the target.
-	dx := tcX - myCX
-	dy := tcY - myCY
+	dx := tc.X - myC.X
+	dy := tc.Y - myC.Y
 	if dx == 0 && dy == 0 {
 		return // on top of the target; shouldn't happen, but avoid the division/panic below
 	}
 
-	desiredX, desiredY := tcX, tcY
+	desiredX, desiredY := tc.X, tc.Y
 	if math.Abs(dx) >= math.Abs(dy) {
 		desiredX -= math.Copysign(config.TileSize, dx) // stand beside the target
 	} else {
 		desiredY -= math.Copysign(config.TileSize, dy) // stand above/below the target
 	}
 
-	moveX := desiredX - myCX
-	moveY := desiredY - myCY
+	moveX := desiredX - myC.X
+	moveY := desiredY - myC.Y
 	if math.Abs(moveX) >= math.Abs(moveY) {
 		moveY = 0
 		moveX = math.Copysign(min(math.Abs(moveX), config.TileSize), moveX)
@@ -486,17 +667,39 @@ func (t *FightTask) approachToReach() {
 		moveY = math.Copysign(min(math.Abs(moveY), config.TileSize), moveY)
 	}
 
+	// try all three directions, and if they all fail then we know there is something truly blocking us from
+	// reaching the target
+	if err := t.approachStep(moveX, moveY); err.Success {
+		return
+	}
+	if err := t.approachStep(-moveY, moveX); err.Success {
+		return
+	}
+	if err := t.approachStep(moveY, -moveX); err.Success {
+		return
+	}
+	logz.Println("approachToReach", "approach blocked in all directions.", t.Owner.WhoAmI())
+	// TODO: should we immediately go back to the follow step if this is reached?
+}
+
+func (t *FightTask) approachStep(dx, dy float64) entity.MoveError {
+	if dx == 0 && dy == 0 {
+		logz.PanicCtx("approachStep", "dx and dy were 0", t.Owner.WhoAmI())
+	}
 	speed := t.Owner.CharacterStateRef.WalkSpeed() / 2
 	tickInterval := t.Owner.Entity.Movement.WalkAnimationTickInterval * 2
-	moveError := t.Owner.Entity.TryMoveMaxPx(moveX, moveY, speed)
+	moveError := t.Owner.Entity.TryMoveMaxPx(dx, dy, speed)
 	if moveError.Success {
-		t.Owner.Entity.SetAnimation(entity.AnimationOptions{
+		animRes := t.Owner.Entity.SetAnimation(entity.AnimationOptions{
 			AnimationName:         body.AnimWalk,
 			AnimationTickInterval: tickInterval,
 		})
-	} else {
-		logz.Println(t.Owner.DisplayName(), "handleCombat: approach move failed:", moveError)
+		if !animRes.Success && !animRes.AlreadySet {
+			// just want to know if this ever happens
+			logz.Panicln("approachStep", "failed to set walk animation.", animRes.String())
+		}
 	}
+	return moveError
 }
 
 // Finish stops the follow child if it's still running (so its path and target cleanup run), then records the result.
@@ -505,6 +708,7 @@ func (t *FightTask) Finish(result TaskResult) {
 	if t.status == fightStatusFollow {
 		t.stopFollowing()
 	}
+	t.dropShield()
 	t.TaskBase.Finish(result)
 }
 

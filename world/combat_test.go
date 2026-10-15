@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/webbben/2d-game-engine/combat"
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 )
 
@@ -21,7 +22,7 @@ func sameIDs(got, want []id.CharacterStateID) bool {
 func TestStartCombatCreatesSession(t *testing.T) {
 	w := &World{}
 
-	session := w.StartCombat("player", "bandit_a", combat.IntentKill, combat.IntentSelfDefense)
+	session := w.StartCombat("player", "bandit_a", defs.IntentKill, defs.IntentSelfDefense)
 	if session == nil {
 		t.Fatal("StartCombat returned nil; want a new session")
 	}
@@ -46,10 +47,10 @@ func TestStartCombatCreatesSession(t *testing.T) {
 
 func TestStartCombatJoinsExistingSession(t *testing.T) {
 	w := &World{}
-	existing := w.StartCombat("player", "bandit_a", combat.IntentKill, combat.IntentSelfDefense)
+	existing := w.StartCombat("player", "bandit_a", defs.IntentKill, defs.IntentSelfDefense)
 
 	// a bystander attacks one of the bandits: pulled into the fight, opposite side from their victim
-	joined := w.StartCombat("guard", "bandit_a", combat.IntentProtect, combat.IntentKill)
+	joined := w.StartCombat("guard", "bandit_a", defs.IntentProtect, defs.IntentKill)
 	if joined == nil {
 		t.Fatal("StartCombat returned nil for an uncommitted attacker; want the existing session")
 	}
@@ -71,12 +72,12 @@ func TestStartCombatJoinsExistingSession(t *testing.T) {
 
 func TestStartCombatDrawsFreeTargetIntoExistingFight(t *testing.T) {
 	w := &World{}
-	w.StartCombat("player", "bandit_a", combat.IntentKill, combat.IntentSelfDefense)
+	w.StartCombat("player", "bandit_a", defs.IntentKill, defs.IntentSelfDefense)
 	before := len(w.combatSessions)
 
 	// The player swings again and hits someone new. The player is already committed, but that must not
 	// stop the new victim joining: they're now an enemy too.
-	got := w.StartCombat("player", "bandit_b", combat.IntentKill, combat.IntentKill)
+	got := w.StartCombat("player", "bandit_b", defs.IntentKill, defs.IntentKill)
 	if got == nil {
 		t.Fatal("a free target hit by an already-fighting character should join that fight")
 	}
@@ -97,13 +98,13 @@ func TestStartCombatDrawsFreeTargetIntoExistingFight(t *testing.T) {
 
 func TestStartCombatIgnoresWhenBothCommitted(t *testing.T) {
 	w := &World{}
-	w.StartCombat("player", "bandit_a", combat.IntentKill, combat.IntentSelfDefense)
-	w.StartCombat("guard", "bandit_a", combat.IntentProtect, combat.IntentKill)
+	w.StartCombat("player", "bandit_a", defs.IntentKill, defs.IntentSelfDefense)
+	w.StartCombat("guard", "bandit_a", defs.IntentProtect, defs.IntentKill)
 
 	// player and bandit_a are both already committed; they're coming to blows, but the session doesn't
 	// change -- the victim decides for themselves whether to get involved, and that logic doesn't exist yet.
 	before := len(w.combatSessions)
-	got := w.StartCombat("bandit_a", "player", combat.IntentSelfDefense, combat.IntentKill)
+	got := w.StartCombat("bandit_a", "player", defs.IntentSelfDefense, defs.IntentKill)
 	if got != nil {
 		t.Error("StartCombat returned a session when both characters were already committed; want nil")
 	}
@@ -119,13 +120,13 @@ func TestStartCombatRejectsSelfCombat(t *testing.T) {
 			t.Error("a character fighting themselves did not panic")
 		}
 	}()
-	w.StartCombat("player", "player", combat.IntentKill, combat.IntentSelfDefense)
+	w.StartCombat("player", "player", defs.IntentKill, defs.IntentSelfDefense)
 }
 
 func TestLeaveCombatEndsSession(t *testing.T) {
 	w := &World{}
-	w.StartCombat("player", "bandit_a", combat.IntentKill, combat.IntentSelfDefense)
-	w.StartCombat("guard", "bandit_a", combat.IntentProtect, combat.IntentKill)
+	w.StartCombat("player", "bandit_a", defs.IntentKill, defs.IntentSelfDefense)
+	w.StartCombat("guard", "bandit_a", defs.IntentProtect, defs.IntentKill)
 
 	// removing a combatant who isn't in a fight is a no-op
 	w.LeaveCombat("nobody")
@@ -147,10 +148,10 @@ func TestLeaveCombatEndsSession(t *testing.T) {
 
 func TestPruneEndedCombatSessions(t *testing.T) {
 	w := &World{}
-	live := w.StartCombat("player", "bandit_a", combat.IntentKill, combat.IntentSelfDefense)
+	live := w.StartCombat("player", "bandit_a", defs.IntentKill, defs.IntentSelfDefense)
 
 	// a session whose second side never got filled has already ended
-	w.StartCombat("guard", "merchant", combat.IntentProtect, combat.IntentKill)
+	w.StartCombat("guard", "merchant", defs.IntentProtect, defs.IntentKill)
 	orphan := w.concreteSessionFor("merchant")
 	orphan.Leave("merchant")
 
@@ -172,10 +173,10 @@ func TestPruneEndedCombatSessions(t *testing.T) {
 
 func TestSessionIDsAreOrdered(t *testing.T) {
 	w := &World{}
-	first := w.StartCombat("player", "bandit_a", combat.IntentKill, combat.IntentSelfDefense)
+	first := w.StartCombat("player", "bandit_a", defs.IntentKill, defs.IntentSelfDefense)
 	w.LeaveCombat("player")
 	w.LeaveCombat("bandit_a")
-	second := w.StartCombat("player", "bandit_b", combat.IntentKill, combat.IntentSelfDefense)
+	second := w.StartCombat("player", "bandit_b", defs.IntentKill, defs.IntentSelfDefense)
 
 	if first.SessionID() == second.SessionID() {
 		t.Error("two fights shared a session ID")
@@ -191,8 +192,8 @@ func TestSessionIDsAreOrdered(t *testing.T) {
 func TestLeaveCombatEndsFightWhenSideWiped(t *testing.T) {
 	w := &World{}
 	// the player hits both bandits in one swing
-	w.StartCombat("player", "bandit_a", combat.IntentKill, combat.IntentSelfDefense)
-	w.StartCombat("player", "bandit_b", combat.IntentKill, combat.IntentSelfDefense)
+	w.StartCombat("player", "bandit_a", defs.IntentKill, defs.IntentSelfDefense)
+	w.StartCombat("player", "bandit_b", defs.IntentKill, defs.IntentSelfDefense)
 
 	session := w.SessionFor("bandit_a")
 	if session == nil {

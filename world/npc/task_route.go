@@ -135,7 +135,7 @@ func (t *RouteTask) SimulationUpdate() {
 			logz.Println("RouteTask", t.worldPathIndex, "len(path):", len(t.worldPath.Path))
 			logz.Panicln("RouteTask", "in destination map, but worldPathIndex hasn't past the last path segment")
 		}
-		t.FinishSuccess()
+		t.Finish(TaskResult{Status: ResultSuccess})
 		return
 	}
 
@@ -209,7 +209,7 @@ func (t *RouteTask) handleAwaitMapChange() {
 			panic("route task finished, but NPC's current map doesn't match destination map!")
 		}
 		t.EndChild()
-		t.FinishSuccess()
+		t.Finish(TaskResult{Status: ResultSuccess})
 		return
 	}
 	if t.inDestinationMap() {
@@ -248,7 +248,7 @@ func (t *RouteTask) Update() {
 	// If the NPC reaches the target map, then this task is considered completed - since we expect a different task to take over and do something afterwards.
 
 	if t.inDestinationMap() {
-		t.FinishSuccess()
+		t.Finish(TaskResult{Status: ResultSuccess})
 		return
 	}
 

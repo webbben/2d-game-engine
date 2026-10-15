@@ -320,25 +320,32 @@ func (m *ActiveMap) drawEntityPositions(screen *ebiten.Image, offsetX, offsetY f
 	}
 }
 
-func (m *ActiveMap) ShowEntityCoords() string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(
-		"Player pos: [%v, %v] (%v, %v)\n",
+func (m *ActiveMap) EntityDebugInfo(sb *strings.Builder) {
+	fmt.Fprintf(sb,
+		"PLAYER: [%v, %v] (%.2f, %.2f)\n",
 		m.PlayerRef.Entity.TilePos().X,
 		m.PlayerRef.Entity.TilePos().Y,
 		m.PlayerRef.Entity.X,
-		m.PlayerRef.Entity.Y))
+		m.PlayerRef.Entity.Y)
 	for _, n := range m.NPCs {
-		sb.WriteString(fmt.Sprintf(
-			"%s: [%v, %v] (%v, %v)\n",
-			n.DisplayName(),
+		currentTask := "no task"
+		if n.Entity.IsDead() {
+			currentTask = "DEAD"
+		}
+		if n.CurrentTask != nil {
+			currentTask = string(n.CurrentTask.GetID())
+		}
+		fmt.Fprintf(sb,
+			"%s: [%v, %v] (%.2f, %.2f) HP=%v %s\n",
+			n.ID(),
 			n.Entity.TilePos().X,
 			n.Entity.TilePos().Y,
 			n.Entity.X,
 			n.Entity.Y,
-		))
+			n.CharacterStateRef.Health,
+			currentTask,
+		)
 	}
-	return sb.String()
 }
 
 func (m *ActiveMap) GetDaylightData(s *strings.Builder) {

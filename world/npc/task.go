@@ -596,18 +596,6 @@ func (tb *TaskBase) Finish(result TaskResult) {
 	logz.Println(tb.Owner.DisplayName(), "task finished:", tb.Name, "result:", result.Status, "reason:", result.Reason)
 }
 
-func (tb *TaskBase) FinishSuccess() {
-	tb.Finish(TaskResult{Status: ResultSuccess})
-}
-
-func (tb *TaskBase) FinishFail(reason string) {
-	tb.Finish(TaskResult{Status: ResultFailed, Reason: reason})
-}
-
-func (tb *TaskBase) FinishAborted(reason string) {
-	tb.Finish(TaskResult{Status: ResultAborted, Reason: reason})
-}
-
 func (tb *TaskBase) GetResult() TaskResult {
 	return tb.Result
 }

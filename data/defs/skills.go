@@ -15,6 +15,7 @@ type (
 	TraitID        string
 	CultureGroupID string
 	CultureID      string
+	DriveID        string
 
 	// BaseDamage represents the base damage value an item has, before any skills, protection or other factors have been processed
 	BaseDamage float64
@@ -134,6 +135,21 @@ type CombatSystemCalc interface {
 	// CharacterDef or ClassDef are a hard override, and the engine short-circuits them before ever
 	// calling this. See characterstate.NeverFlees.
 	ShouldFlee(self CombatProfile, combatInfo CombatInfo) bool
+
+	// ShouldPursue decides whether this character would keep fighting an enemy who has started
+	// running, rather than letting them go.
+	//
+	// It is asked per enemy, and only ever about a fleeing one: a character standing their ground is
+	// never a pursuit question. otherStandingEnemies counts the character's *other* enemies who are
+	// still standing, excluding the one being asked about, so the call reads as "how much else is
+	// there to deal with first?"
+	//
+	// Returning false doesn't mean the fight is over -- only that this character won't extend it by
+	// giving chase. An NPC with nothing left worth pursuing should stop fighting, but the fight itself
+	// ends when its combatants leave, not when they decline to chase.
+	//
+	// As with ShouldFlee, willingness to act is decided by the game project; the engine only asks.
+	ShouldPursue(self CombatProfile, enemy CombatProfile, otherStandingEnemies int) bool
 }
 
 // CombatInfo gives contextual information about the active combat situation that the NPC is involved in
@@ -141,15 +157,58 @@ type CombatInfo struct {
 	Enemies []CombatProfile
 }
 
+// CombatIntent describes what an individual combatant is trying to accomplish by fighting.
+//
+// Per-combatant rather than per-side, on purpose: a victim defending themselves and a bystander who
+// intervened to help them are on the same side of the same fight with genuinely different goals, and
+// should behave differently as a result. A defending peasant has no reason to chase a fleeing
+// attacker; a bandit attempting a robbery has every reason to.
+//
+// Intent is deterministic and set by whatever started the fight -- a robber's task confronting someone
+// who won't hand over their purse joins with IntentRob, being attacked joins with IntentSelfDefense.
+// It is deliberately NOT derived from personality or drives: how someone fights is a fact about the
+// situation, while how they react to an enemy fleeing is a matter of character, and conflating the two
+// would let a timid NPC talk itself out of being attacked.
+//
+// This lives in defs rather than the combat package because CombatProfile carries one for game-side
+// calculations to read. The combat package aliases it, so fight code still says defs.IntentKill.
+type CombatIntent string
+
+const (
+	IntentSelfDefense CombatIntent = "self-defense" // defending themselves; has no reason to pursue
+	IntentProtect     CombatIntent = "protect"      // protecting someone else
+	IntentKill        CombatIntent = "kill"         // intends to kill
+	IntentRob         CombatIntent = "rob"          // intends to rob; fights until killed or surrendered
+)
+
 // CombatProfile is a resolved snapshot of one combatant's fighting ability plus their current
-// condition. Skill and attribute levels don't change during a fight, so the engine resolves them once
-// per engagement and reuses them; only Health moves, and it's refreshed in place.
+// condition. Most of it doesn't change during a fight, so the engine resolves it once per engagement
+// and reuses it; the fields that do move (Health, Fleeing) are refreshed in place.
+//
+// The split matters for game-side calculations: Skills, Attributes, and Drives are settled for the
+// duration of a fight, while Fleeing can flip several times as people break and re-engage. Reading a
+// stale Fleeing would make a pursuit decision based on where the fight was a moment ago.
 type CombatProfile struct {
 	ID              id.CharacterStateID
 	SkillLevels     map[SkillID]int
 	AttributeLevels map[AttributeID]int
-	Health          int
-	MaxHealth       int
+
+	// Drives are the character's net personality drives, as produced by their traits. 0 means average,
+	// and negative reads as the inverse of the drive's name. See characterstate.GetNetDrives for the
+	// exact semantics.
+	Drives map[DriveID]int
+
+	// Health and MaxHealth are current; only MaxHealth is fixed for the engagement.
+	Health    int
+	MaxHealth int
+
+	// Fleeing reports whether this combatant is currently running from the fight. Unlike everything
+	// else here this is live state, so it's refreshed on every read rather than resolved once.
+	Fleeing bool
+
+	// Intent is what this combatant is trying to accomplish. Empty for the player, who isn't bound by
+	// an intent the way an NPC is.
+	Intent CombatIntent
 }
 
 type (
@@ -199,6 +258,7 @@ type Trait struct {
 	ConflictTraitIDs []TraitID // which traits this trait conflicts with (and thus cannot be had together by a single character)
 	SkillChanges     map[SkillID]int
 	AttributeChanges map[AttributeID]int
+	Drives           map[DriveID]int
 
 	// Opinion modifiers: how other characters' opinions are modified by a character that has this trait
 	// (positive = other character likes trait-holder more; negative = other characters like trait-holder less)
@@ -231,6 +291,13 @@ type OpinionFactors struct {
 	CultureID  string
 	Skills     map[SkillID]int
 	Attributes map[AttributeID]int
+}
+
+// DriveDef defines a personality drive: a quality of the character that biases particular decisions.
+type DriveDef struct {
+	ID          DriveID
+	DisplayName string
+	Description string
 }
 
 // CultureGroupDef is the definition of a Culture "Group". A Culture Group is a larger grouping of different cultures that

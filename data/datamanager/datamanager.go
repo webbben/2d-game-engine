@@ -39,9 +39,10 @@ type DataManager struct {
 	BodyPartDefs    map[defs.BodyPartID]defs.SelectedPartDef // only for body "skin" parts (not for equipment, since those are part of item defs)
 	FootstepSFXDefs map[defs.FootstepSFXDefID]defs.FootstepSFXDef
 
-	CharacterDefs       map[id.CharacterDefID]defs.CharacterDef
-	CharacterStates     map[id.CharacterStateID]*state.CharacterState
-	CharacterGenerators map[string]defs.CharacterGenerator
+	CharacterDefs        map[id.CharacterDefID]defs.CharacterDef
+	CharacterStates      map[id.CharacterStateID]*state.CharacterState
+	characterLevelsCache map[id.CharacterStateID]*characterLevelsCache
+	CharacterGenerators  map[string]defs.CharacterGenerator
 
 	AttributeDefs    map[defs.AttributeID]defs.AttributeDef
 	SkillDefs        map[defs.SkillID]defs.SkillDef
@@ -49,38 +50,100 @@ type DataManager struct {
 	ClassDefs        map[defs.ClassDefID]defs.ClassDef
 	CultureDefs      map[defs.CultureID]defs.CultureDef
 	CultureGroupDefs map[defs.CultureGroupID]defs.CultureGroupDef
+
+	DriveDefs map[defs.DriveID]defs.DriveDef
+}
+
+type characterLevelsCache struct {
+	skills map[defs.SkillID]int
+	attrs  map[defs.AttributeID]int
+	dirty  bool
 }
 
 func NewDataManager() *DataManager {
 	dataman := DataManager{
-		ItemDefs:            make(map[defs.ItemID]defs.ItemDef),
-		BookDefs:            make(map[defs.BookID]defs.BookDef),
-		MapDefs:             make(map[defs.MapID]defs.MapDef),
-		MapStates:           make(map[defs.MapID]*state.MapState),
-		MapGenerators:       make(map[string]defs.MapGenerator),
-		Emitters:            make(map[string]defs.EmitterParams),
-		ContainerDefs:       make(map[string]defs.ContainerDef),
-		ContainerGenerators: make(map[string]defs.ContainerGenerator),
-		ScenarioDef:         make(map[defs.ScenarioID]defs.ScenarioDef),
-		ShopkeeperDefs:      make(map[defs.ShopID]*defs.ShopkeeperDef),
-		ShopkeeperStates:    make(map[defs.ShopID]*state.ShopkeeperState),
-		BodyPartDefs:        make(map[defs.BodyPartID]defs.SelectedPartDef),
-		FootstepSFXDefs:     make(map[defs.FootstepSFXDefID]defs.FootstepSFXDef),
-		AttributeDefs:       make(map[defs.AttributeID]defs.AttributeDef),
-		SkillDefs:           make(map[defs.SkillID]defs.SkillDef),
-		TraitDefs:           make(map[defs.TraitID]defs.Trait),
-		DialogProfiles:      make(map[defs.DialogProfileID]*defs.DialogProfileDef),
-		DialogTopics:        make(map[defs.TopicID]*defs.DialogTopic),
-		DialogProfileStates: make(map[defs.DialogProfileID]*state.DialogProfileState),
-		CharacterDefs:       make(map[id.CharacterDefID]defs.CharacterDef),
-		CharacterStates:     make(map[id.CharacterStateID]*state.CharacterState),
-		CharacterGenerators: make(map[string]defs.CharacterGenerator),
-		NPCSchedules:        make(map[defs.ScheduleID]defs.ScheduleDef),
-		CultureDefs:         make(map[defs.CultureID]defs.CultureDef),
-		CultureGroupDefs:    make(map[defs.CultureGroupID]defs.CultureGroupDef),
-		ClassDefs:           make(map[defs.ClassDefID]defs.ClassDef),
+		ItemDefs:             make(map[defs.ItemID]defs.ItemDef),
+		BookDefs:             make(map[defs.BookID]defs.BookDef),
+		MapDefs:              make(map[defs.MapID]defs.MapDef),
+		MapStates:            make(map[defs.MapID]*state.MapState),
+		MapGenerators:        make(map[string]defs.MapGenerator),
+		Emitters:             make(map[string]defs.EmitterParams),
+		ContainerDefs:        make(map[string]defs.ContainerDef),
+		ContainerGenerators:  make(map[string]defs.ContainerGenerator),
+		ScenarioDef:          make(map[defs.ScenarioID]defs.ScenarioDef),
+		ShopkeeperDefs:       make(map[defs.ShopID]*defs.ShopkeeperDef),
+		ShopkeeperStates:     make(map[defs.ShopID]*state.ShopkeeperState),
+		BodyPartDefs:         make(map[defs.BodyPartID]defs.SelectedPartDef),
+		FootstepSFXDefs:      make(map[defs.FootstepSFXDefID]defs.FootstepSFXDef),
+		AttributeDefs:        make(map[defs.AttributeID]defs.AttributeDef),
+		SkillDefs:            make(map[defs.SkillID]defs.SkillDef),
+		TraitDefs:            make(map[defs.TraitID]defs.Trait),
+		DialogProfiles:       make(map[defs.DialogProfileID]*defs.DialogProfileDef),
+		DialogTopics:         make(map[defs.TopicID]*defs.DialogTopic),
+		DialogProfileStates:  make(map[defs.DialogProfileID]*state.DialogProfileState),
+		CharacterDefs:        make(map[id.CharacterDefID]defs.CharacterDef),
+		CharacterStates:      make(map[id.CharacterStateID]*state.CharacterState),
+		characterLevelsCache: make(map[id.CharacterStateID]*characterLevelsCache),
+		CharacterGenerators:  make(map[string]defs.CharacterGenerator),
+		NPCSchedules:         make(map[defs.ScheduleID]defs.ScheduleDef),
+		CultureDefs:          make(map[defs.CultureID]defs.CultureDef),
+		CultureGroupDefs:     make(map[defs.CultureGroupID]defs.CultureGroupDef),
+		ClassDefs:            make(map[defs.ClassDefID]defs.ClassDef),
+		DriveDefs:            make(map[defs.DriveID]defs.DriveDef),
 	}
 	return &dataman
+}
+
+// ResolveCharacterLevels returns the character's resolved skill and attribute levels, computing them
+// only when there's no cached copy or the cached copy is marked dirty. recalculate is never called on
+// a hit, so a caller can't accidentally bypass the cache or forget to store the result.
+//
+// The returned maps are shared: they're the very maps held in the cache, handed to every caller until
+// something marks them dirty. Callers -- including game-side code like CombatSystemCalc -- must treat
+// them as read-only. Writing through them would corrupt the cache for every other reader, and the
+// failure would look like wrong combat numbers rather than a crash. Anything that genuinely needs a
+// private copy should call CalculateSkillsAndAttributes instead.
+func (dataman *DataManager) ResolveCharacterLevels(
+	charID id.CharacterStateID,
+	recalculate func() (map[defs.SkillID]int, map[defs.AttributeID]int),
+) (skills map[defs.SkillID]int, attrs map[defs.AttributeID]int) {
+	if charID == "" {
+		logz.Panicln("Dataman", "tried to resolve character levels, but charID was empty")
+	}
+	entry, exists := dataman.characterLevelsCache[charID]
+	if !exists || entry.dirty {
+		newSkills, newAttrs := recalculate()
+		dataman.characterLevelsCache[charID] = &characterLevelsCache{
+			skills: newSkills,
+			attrs:  newAttrs,
+		}
+		return newSkills, newAttrs
+	}
+
+	return entry.skills, entry.attrs
+}
+
+// MarkCharacterLevelsDirty flags a character's cached levels as stale, so the next read recomputes them.
+// Anything that changes a character's base skills, attributes, or traits must call this, or the change
+// won't be reflected until something else forces a recompute.
+//
+// Deliberately a no-op when there's no cached entry. Marking a cache that's empty stale is meaningless
+// rather than an error, because a miss recomputes anyway -- and it's very reachable: a character can
+// change before anything has read their levels. Sneak XP is the clearest case, since the player earns
+// it from moving alone, but nothing in the player's own update reads their levels, so a player can level
+// up before any NPC has ever looked at them.
+//
+// Takes no lock. This is main-loop-only state: character mutation and level-up both happen on the main
+// loop, and the background NPC manager reads levels only through its own per-engagement profile cache.
+func (dataman *DataManager) MarkCharacterLevelsDirty(charID id.CharacterStateID) {
+	if charID == "" {
+		logz.Panicln("Dataman", "tried to mark character levels as dirty, but charID was empty")
+	}
+	entry, exists := dataman.characterLevelsCache[charID]
+	if !exists {
+		return
+	}
+	entry.dirty = true
 }
 
 func (dataman *DataManager) LoadEmitter(params defs.EmitterParams) {
@@ -431,6 +494,10 @@ func (dataman *DataManager) RemoveCharacterState(id id.CharacterStateID) {
 		logz.Panicln("DataManager", "tried to remove character state, but ID was not found:", id)
 	}
 	delete(dataman.CharacterStates, id)
+	// Drop any cached resolved levels too. Generated NPCs are deleted at corpse expiry and can be
+	// recreated with the same ID, and without this the new character would inherit the old one's skills
+	// and attributes.
+	delete(dataman.characterLevelsCache, id)
 }
 
 // GetNewCharStateID generates a new and unique CharacterStateID that is guaranteed to not be defined in definitionMgr yet.
@@ -571,6 +638,37 @@ func (dataman DataManager) GetSkillDef(id defs.SkillID) defs.SkillDef {
 		logz.Panicln("DataManager", "tried to get skill by ID that doesn't exist:", id)
 	}
 	return skillDef
+}
+
+// LoadDriveDef registers a personality drive's catalog entry.
+//
+// Drives are authored by the game project as a closed list, so a duplicate ID here means two catalog
+// entries claiming the same drive and every lookup by that ID would be ambiguous. That's a data bug, so
+// it panics rather than overwriting, matching the other def loaders.
+func (dataman *DataManager) LoadDriveDef(drive defs.DriveDef) {
+	if drive.ID == "" {
+		logz.Panicln("DataManager", "tried to load drive, but ID was empty")
+	}
+	if _, exists := dataman.DriveDefs[drive.ID]; exists {
+		logz.Panicln("DataManager", "tried to load in a new drive, but an existing drive of the same ID already exists:", drive.ID)
+	}
+	dataman.DriveDefs[drive.ID] = drive
+}
+
+// GetDriveDef returns a drive's catalog entry.
+//
+// Note this panics on an unknown ID, but nothing writes to Drives for a drive that was never loaded, so
+// a trait referencing a drive with no DriveDef is a data bug worth catching loudly rather than a
+// legitimate lookup miss.
+func (dataman DataManager) GetDriveDef(id defs.DriveID) defs.DriveDef {
+	if id == "" {
+		panic("id was empty")
+	}
+	driveDef, exists := dataman.DriveDefs[id]
+	if !exists {
+		logz.Panicln("DataManager", "tried to get drive by ID that doesn't exist:", id)
+	}
+	return driveDef
 }
 
 func (dataman *DataManager) LoadBodyPartDef(partDef defs.SelectedPartDef) {

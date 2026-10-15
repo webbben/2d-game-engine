@@ -214,7 +214,7 @@ func (e *Entity) FinishMeleeAttack() {
 	weaponID := e.equipedWeapon.ID
 	condition := e.characterStateRef.EquipedWeapon.Durability
 	weaponType := e.equipedWeapon.GoverningSkill
-	skills, attrs := characterstate.CalculateSkillsAndAttributes(e.characterStateRef.ID, e.dataman)
+	skills, attrs := characterstate.GetSkillsAndAttributes(e.characterStateRef.ID, e.dataman)
 	dmg := e.dataman.CombatSystemCalc.MeleeWeaponDamage(weaponID, condition, mult, weaponType, attrs, skills)
 	e.queuedAttack.Damage = dmg
 
@@ -263,7 +263,7 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	}
 	txt := fmt.Sprintf("-%v", damageDealt)
 
-	if e.IsUsingShield() {
+	if e.IsUsingShield() && e.IsFacingTowards(attack.Origin.X-e.X, attack.Origin.Y-e.Y) {
 		if !e.IsShieldEquiped() {
 			logz.Panicln("ReceiveAttack", "entity is using shield, but no shield is equipped")
 		}
@@ -414,24 +414,27 @@ func (e Entity) IsShieldEquiped() bool {
 	return false
 }
 
-func (e *Entity) UseShield() {
+// UseShield attempts to get the entity to use his shield. panics if no shield item is equipped, and fails if entity is stunned, moving, or not idle.
+func (e *Entity) UseShield() bool {
 	if !e.IsShieldEquiped() {
 		logz.Println(e.DisplayName(), "tried to use shield, but shield is not equipped")
 		logz.Panicln("Combat", "tried to use shield, but shield is not equipped")
 	}
-	if e.IsUsingShield() {
-		return
-	}
 	if e.IsStunned() {
-		return
+		return false
+	}
+	if e.IsMoving() {
+		// can't use shield while moving because moving is a different animation; would look like the entity is gliding across the map
+		return false
+	}
+	if !e.IsIdle() {
+		// cannot use shield unless currently Idle
+		// don't allow attacks to be interrupted, and movement is supposed to disallow blocking anyway
+		return false
 	}
 
-	res := e.Body.SetAnimation(body.AnimShield, body.SetAnimationOps{QueueNext: true})
-	if !res.Success {
-		// probably fails because shield is already set (or a different action like attack is ongoing).
-		// not adding checks unless I find weird behavior in the future
-		return
-	}
+	res := e.Body.SetAnimation(body.AnimShield, body.SetAnimationOps{Force: true})
+	return res.Success
 }
 
 func (e *Entity) StopUsingShield() {
@@ -449,6 +452,10 @@ func (e *Entity) StopUsingShield() {
 
 func (e Entity) IsUsingShield() bool {
 	return e.Body.GetCurrentAnimation() == body.AnimShield
+}
+
+func (e Entity) IsIdle() bool {
+	return e.Body.GetCurrentAnimation() == body.AnimIdle
 }
 
 // IsAttacking returns true if the entity is currently carrying out an attack.

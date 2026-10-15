@@ -16,6 +16,14 @@ Types related to world layouts and navigating maps, etc.
 
 */
 
+// TODO: let's switch to using these consts rather than the directions struct below
+const (
+	Left  byte = 'L'
+	Right byte = 'R'
+	Up    byte = 'U'
+	Down  byte = 'D'
+)
+
 type directions struct {
 	Left  byte
 	Right byte
@@ -144,6 +152,7 @@ func (v Vec2) Sub(o Vec2) Vec2      { return Vec2{v.X - o.X, v.Y - o.Y} }
 func (v Vec2) Scale(s float64) Vec2 { return Vec2{v.X * s, v.Y * s} }
 func (v Vec2) Len() float64         { return math.Hypot(v.X, v.Y) }
 func (v Vec2) Equals(o Vec2) bool   { return v.X == o.X && v.Y == o.Y }
+func (v Vec2) Dot(o Vec2) float64   { return v.X*o.X + v.Y*o.Y }
 
 func (v Vec2) IsNaN() bool {
 	return math.IsNaN(v.X) || math.IsNaN(v.Y)
@@ -190,6 +199,13 @@ func (pos Vec2) MoveAway(target Vec2, speed float64) Vec2 {
 	return pos.Sub(step)
 }
 
+func (v Vec2) ClampLength(maxLen float64) Vec2 {
+	if l := v.Len(); l > maxLen && l > 0 {
+		return v.Scale(maxLen / l)
+	}
+	return v
+}
+
 type Rect struct {
 	X, Y, W, H float64
 }
@@ -215,8 +231,8 @@ func NewRect(x, y, w, h float64) Rect {
 	return Rect{X: x, Y: y, W: w, H: h}
 }
 
-func (r Rect) GetCenter() (x, y float64) {
-	return r.X + (r.W / 2), r.Y + (r.H / 2)
+func (r Rect) GetCenter() Vec2 {
+	return Vec2{X: r.X + r.W/2, Y: r.Y + r.H/2}
 }
 
 func (r Rect) String() string {

@@ -4,6 +4,12 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// NOTE: All draw coordinates passed to the rendering helpers are **screen pixels**.
+// The helpers perform the world -> screen conversion internally.
+//
+// "screen pixels" are the position directly on the screen where something should be drawn, post-scaling.
+// "world pixels" are the "logical" where something exists in the world, not factoring in game scale.
+
 func DrawImage(screen *ebiten.Image, img *ebiten.Image, x, y, scale float64) {
 	if screen == nil {
 		panic("DrawImage: screen is nil!")
@@ -22,12 +28,6 @@ func DrawImage(screen *ebiten.Image, img *ebiten.Image, x, y, scale float64) {
 		op.GeoM.Translate(x, y)
 	}
 	drawImage(screen, img, op)
-}
-
-// DrawImageOnlyOps allows you to draw an image only providing the ops data - just a wrapper around the core drawImage function.
-// TODO: should we delete this? Only made this for one use case in map.go which we need to investigate more.
-func DrawImageOnlyOps(screen *ebiten.Image, img *ebiten.Image, ops *ebiten.DrawImageOptions) {
-	drawImage(screen, img, ops)
 }
 
 func DrawImageWithOps(screen *ebiten.Image, img *ebiten.Image, x, y, scale float64, op *ebiten.DrawImageOptions) {

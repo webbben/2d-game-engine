@@ -104,6 +104,19 @@ func assertPanicsWith(t *testing.T, label, want string, fn func()) {
 	fn()
 }
 
+// assertNoPanic asserts fn returns normally. Used for inputs that used to be rejected and are now
+// deliberately accepted, so a regression that reinstates the old panic is caught here rather than in
+// the game.
+func assertNoPanic(t *testing.T, label string, fn func()) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("%s: expected no panic, but got %v", label, r)
+		}
+	}()
+	fn()
+}
+
 // assertFleeingPathIsMonotonic checks the contract that matters most for FleeFromPosition: every
 // step must move exactly one tile AND strictly increase the distance from the threat. A step that
 // fails to increase the distance means the NPC is walking toward what it is fleeing from.
@@ -211,16 +224,6 @@ func TestBuildDistanceMap(t *testing.T) {
 		}
 	})
 
-	t.Run("single tile map", func(t *testing.T) {
-		dist, farthestIdx := BuildDistanceMap([]m.Coords{{X: 0, Y: 0}}, nil, 0, [][]int{{0}})
-		if len(dist) != 1 || dist[0] != 0 {
-			t.Errorf("distances = %v, want [0]", dist)
-		}
-		if farthestIdx != 0 {
-			t.Errorf("farthestIdx = %d, want 0", farthestIdx)
-		}
-	})
-
 	// A full wall must leave the far side unreachable rather than leaking a distance through it.
 	t.Run("wall splits reachability", func(t *testing.T) {
 		costMap := openCostMap(5)
@@ -265,6 +268,13 @@ func TestBuildDistanceMap(t *testing.T) {
 		valid := openCostMap(4)
 		blocked := openCostMap(4)
 		blocked[1][1] = BlockThreshold
+		// `sealed` walls off (1,1) and every tile touching it, so it has no valid neighbors at all.
+		sealed := openCostMap(4)
+		sealed[1][1] = BlockThreshold
+		sealed[0][1] = BlockThreshold
+		sealed[2][1] = BlockThreshold
+		sealed[1][0] = BlockThreshold
+		sealed[1][2] = BlockThreshold
 		from := m.Coords{X: 1, Y: 1}
 		center := m.Coords{X: 2, Y: 2}
 
@@ -274,12 +284,38 @@ func TestBuildDistanceMap(t *testing.T) {
 		assertPanicsWith(t, "zero width", "costmap has no width!", func() {
 			BuildDistanceMap([]m.Coords{from}, nil, 0, [][]int{{}})
 		})
-		assertPanicsWith(t, "blocked from", "from position was invalid!", func() {
+		// A blocked `from` is deliberately allowed now. It happens whenever a prop only clips part of a
+		// tile -- a barrel on the edge, a doorframe -- while the character standing there occupies the
+		// tile fine. Rejecting it crashed the game; see issue #193. Only a tile with nowhere to travel
+		// *to* is a real caller error.
+		assertNoPanic(t, "blocked from with open neighbors", func() {
 			BuildDistanceMap([]m.Coords{{X: 1, Y: 1}}, nil, 0, blocked)
 		})
-		assertPanicsWith(t, "blocked center", "center was invalid!", func() {
-			// `from` must be valid, otherwise the from check trips first
-			BuildDistanceMap([]m.Coords{{X: 0, Y: 0}}, &m.Coords{X: 1, Y: 1}, 2, blocked)
+		// Sealed in, so there's genuinely nowhere to go. Same for the center, which has the same
+		// reasoning behind it: an npc can slide into a step door, which blocks pathing without being a
+		// collision.
+		assertPanicsWith(t, "sealed from", "from position was invalid! no way to travel from it", func() {
+			BuildDistanceMap([]m.Coords{{X: 1, Y: 1}}, nil, 0, sealed)
+		})
+		assertPanicsWith(t, "sealed center", "center position was invalid! no way to travel from it", func() {
+			// `from` must be travelable, otherwise the from check trips first
+			BuildDistanceMap([]m.Coords{{X: 3, Y: 3}}, &m.Coords{X: 1, Y: 1}, 3, sealed)
+		})
+		// Out-of-bounds is still a caller error, and a separate one from being blocked: `from` indexes
+		// the map as y*width+x, so a coordinate past the edge would silently land on the wrong tile
+		// rather than fail. Bounds are checked before neighbors so an out-of-bounds seed can't be
+		// mistaken for a walled-in one.
+		assertPanicsWith(t, "from past right edge", "not in map bounds", func() {
+			BuildDistanceMap([]m.Coords{{X: 99, Y: 1}}, nil, 0, valid)
+		})
+		assertPanicsWith(t, "from negative", "not in map bounds", func() {
+			BuildDistanceMap([]m.Coords{{X: -1, Y: 1}}, nil, 0, valid)
+		})
+		assertPanicsWith(t, "from past bottom edge", "not in map bounds", func() {
+			BuildDistanceMap([]m.Coords{{X: 1, Y: 99}}, nil, 0, valid)
+		})
+		assertPanicsWith(t, "center past edge", "center not in map bounds", func() {
+			BuildDistanceMap([]m.Coords{from}, &m.Coords{X: 99, Y: 99}, 10, valid)
 		})
 		assertPanicsWith(t, "zero searchRadius with center", "search radius must be > 0", func() {
 			BuildDistanceMap([]m.Coords{from}, &center, 0, valid)

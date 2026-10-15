@@ -596,14 +596,6 @@ func (eb *EntityBodySet) SetWeapon(weaponDef, weaponFxDef defs.SelectedPartDef) 
 		logz.Panicln("SetWeapon", "weapon and weaponFx should have the same None value (so they always equip or unequip together)")
 	}
 
-	// as of now, we are assuming that weaponFx will never have an idle animation, so setting it to skip here.
-	// this is to prevent the weaponFx frames from showing while idle is active.
-	if !weaponDef.None {
-		fxIdle := weaponFxDef.Animations[AnimIdle]
-		fxIdle.Skip = true
-		weaponFxDef.Animations[AnimIdle] = fxIdle
-	}
-
 	eb.WeaponSet.setImageSource(weaponDef, 0, 0, eb.IsAuxEquipped())
 	eb.WeaponFxSet.setImageSource(weaponFxDef, 0, 0, eb.IsAuxEquipped())
 }
@@ -803,9 +795,9 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y float64, params DrawBod
 		case "equip_weapon":
 			if eb.WeaponSet.img != nil {
 				rendering.DrawImage(eb.stagingImg, eb.WeaponSet.img, weaponX, weaponY, 0)
-				if eb.WeaponFxSet.img != nil {
-					rendering.DrawImage(eb.stagingImg, eb.WeaponFxSet.img, weaponX, weaponY, 0)
-				}
+			}
+			if eb.WeaponFxSet.img != nil {
+				rendering.DrawImage(eb.stagingImg, eb.WeaponFxSet.img, weaponX, weaponY, 0)
 			}
 		case "aux":
 			if eb.AuxItemSet.img != nil {

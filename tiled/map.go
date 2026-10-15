@@ -366,7 +366,7 @@ func (m Map) drawTileLayer(screen *ebiten.Image, offsetX, offsetY float64, layer
 		if rendering.RowBelowCameraView(float64(y), offsetY) {
 			break
 		}
-		drawY := float64(y*config.TileSize) - offsetY
+		drawY := (float64(y*config.TileSize) - offsetY) * config.GameScale
 
 		for x := 0; x < layer.Width; x++ {
 			if rendering.ColBeforeCameraView(float64(x), offsetX) {
@@ -379,14 +379,14 @@ func (m Map) drawTileLayer(screen *ebiten.Image, offsetX, offsetY float64, layer
 				break
 			}
 
-			drawX := float64(x*config.TileSize) - offsetX
-
 			tileGID := layer.Data[i]
 			if tileGID == 0 {
 				// 0 means no tile is placed here
 				i++
 				continue
 			}
+
+			drawX := (float64(x*config.TileSize) - offsetX) * config.GameScale
 
 			tileData, exists := m.TileImageMap[tileGID]
 			if !exists {
@@ -399,12 +399,7 @@ func (m Map) drawTileLayer(screen *ebiten.Image, offsetX, offsetY float64, layer
 			}
 
 			if tileData.CurrentFrame != nil {
-				// TODO: investigate why we do translate before scale... in rendering.DrawImage, we've apparently run into issues when doing that before.
-				// would be good to figure out why we do it here, and if we can do it the same as rendering.DrawImage. But scared to touch this while refactoring other things rn.
-				op := &ebiten.DrawImageOptions{}
-				op.GeoM.Translate(drawX, drawY)
-				op.GeoM.Scale(config.GameScale, config.GameScale)
-				rendering.DrawImageOnlyOps(screen, tileData.CurrentFrame, op)
+				rendering.DrawImage(screen, tileData.CurrentFrame, drawX, drawY, config.GameScale)
 			}
 
 			i++

@@ -114,7 +114,7 @@ func (t *ActivateObjectTask) Update() {
 		} else {
 			logz.Println("ActivateObjectTask", "failed to reach object; didn't get close enough. distance to object:", dist, "objPos:", objPos, "objID:", t.targetObj.ID, "whoami:", t.Owner.WhoAmI())
 			t.targetObj.ClearTargetingNPC()
-			t.FinishFail("failed to reach object")
+			t.Finish(TaskResult{Status: ResultFailed, Reason: "failed to reach object"})
 			return
 		}
 	}
@@ -128,10 +128,10 @@ func (t *ActivateObjectTask) Update() {
 	})
 	if res.UpdateOccurred {
 		t.Owner.handleObjectUpdate(t.targetObj, res)
-		t.FinishSuccess()
+		t.Finish(TaskResult{Status: ResultSuccess})
 		return
 	}
-	t.FinishFail("activation failed")
+	t.Finish(TaskResult{Status: ResultFailed, Reason: "activation failed"})
 }
 
 func (t *ActivateObjectTask) BackgroundAssist() {

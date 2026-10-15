@@ -68,7 +68,15 @@ func NewFollowTask(target *entity.Entity, distance int, owner *NPC, p defs.TaskP
 	}
 }
 
-func (t *FollowTask) End() {
+// Finish is where a follow actually ends. This used to live in an End() method, which is not part of
+// the Task interface and so was never called: EndChild ends the child through the interface, which
+// resolved to TaskBase.Finish and left the entity walking the follow path under whatever task
+// replaced it. In a fight that meant an npc that had stopped following still glided across the map
+// while it took part in the melee, which in turn let it raise its shield on top of that movement.
+//
+// Cancelling the path matters for that reason and not just tidiness. It also releases the request and
+// result slots, so a path computed for this run can't be handed to the next one.
+func (t *FollowTask) Finish(result TaskResult) {
 	if t.Owner.Entity.HasPath() {
 		t.Owner.Entity.CancelCurrentPath()
 	}
@@ -76,7 +84,7 @@ func (t *FollowTask) End() {
 	t.pathRequest.Store(nil)
 	t.pathResult.Swap(nil)
 
-	t.FinishAborted("follow ended by parent")
+	t.TaskBase.Finish(result)
 }
 
 func (t *FollowTask) Start() {

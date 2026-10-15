@@ -115,7 +115,7 @@ func (n *NPC) updateTargetVisibility(observer, target entity.EntityInfo) {
 		if n.dataman.StealthSystemCalc == nil {
 			logz.Panic("stealth system calc isn't defined")
 		}
-		skills, attrs := characterstate.CalculateSkillsAndAttributes(target.ID, n.dataman)
+		skills, attrs := characterstate.GetSkillsAndAttributes(target.ID, n.dataman)
 		sneakMult = n.dataman.StealthSystemCalc.SneakVisibilityMultiplier(target.ID, attrs, skills)
 	}
 	sightBlocked := n.ActiveMapCtx.IsLineOfSightBlocked(observer.TilePos, target.TilePos)

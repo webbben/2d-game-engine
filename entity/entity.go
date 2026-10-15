@@ -149,7 +149,7 @@ func (e *Entity) calculateArmorProtection() defs.RealProtection {
 		e.characterStateRef.EquipedAuxiliary,
 	}
 
-	skills, attrs := characterstate.CalculateSkillsAndAttributes(e.characterStateRef.ID, e.dataman)
+	skills, attrs := characterstate.GetSkillsAndAttributes(e.characterStateRef.ID, e.dataman)
 
 	for _, armorItem := range armor {
 		if armorItem == nil {

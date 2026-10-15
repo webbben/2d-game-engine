@@ -36,9 +36,10 @@ func (g *Game) showGameDebugInfo(screen *ebiten.Image) {
 
 	if g.World != nil && g.World.ActiveMap != nil {
 		if config.ShowPlayerCoords {
-			s.WriteString("ENTITY POSITIONS\n")
-			s.WriteString(g.World.ActiveMap.ShowEntityCoords())
+			s.WriteString("ENTITIES\n")
+			g.World.ActiveMap.EntityDebugInfo(&s)
 		}
+		g.World.CombatDebugInfo(&s)
 
 		s.WriteString(fmt.Sprintf("TIME: %s\n", g.World.Clock))
 		g.World.ActiveMap.GetDaylightData(&s)

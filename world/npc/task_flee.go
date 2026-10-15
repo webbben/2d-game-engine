@@ -296,8 +296,12 @@ func (t *FleeTask) Update() {
 	if t.IsDone() {
 		return
 	}
+	if t.Owner.CharacterStateRef.Health <= 0 {
+		t.Finish(TaskResult{Status: ResultAborted, Reason: "dead"})
+		return
+	}
 	if !t.stillWorthFleeing() {
-		t.FinishSuccess()
+		t.Finish(TaskResult{Status: ResultSuccess})
 		return
 	}
 
@@ -444,10 +448,6 @@ func (t *FleeTask) SetupActiveState() {
 }
 
 func (t *FleeTask) Finish(result TaskResult) {
-	// NOTE: this is the cleanup hook that actually runs. FollowTask has an End() method, but End() is
-	// not part of the Task interface and nothing calls it -- TaskBase.Finish is what switchTask invokes
-	// on preemption and what the decision loop runs on. See issue #182.
-	//
 	// It still isn't sufficient alone: RunScheduleTask -> clearTask drops a task without finishing it,
 	// so cancelFleePath is also called from the branches that stop fleeing.
 	t.cancelFleePath()

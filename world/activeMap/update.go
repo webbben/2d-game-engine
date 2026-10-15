@@ -1,11 +1,15 @@
 package activemap
 
 import (
+	"math"
 	"sort"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/model"
 )
 
 func (m *ActiveMap) Update(blockPlayerChanges bool) {
@@ -126,11 +130,12 @@ func (m *ActiveMap) Update(blockPlayerChanges bool) {
 
 	for _, n := range m.NPCs {
 		n.Update()
-		if n.IsHovering(mouseX, mouseY) {
+		if m.hoveredNPC == nil && n.IsHovering(mouseX, mouseY) {
 			m.hoveredNPC = n
-			break
 		}
 	}
+
+	m.entitySeparation()
 
 	// sort all sortable renderable things on the map
 	// do this after all entities have updated, so that in case they've moved, we've properly sorted them for drawing next
@@ -158,4 +163,110 @@ func (m *ActiveMap) updateSortedRenderables() {
 	sort.Slice(m.sortedRenderables, func(i, j int) bool {
 		return m.sortedRenderables[i].Y() < m.sortedRenderables[j].Y()
 	})
+}
+
+func (m *ActiveMap) entitySeparation() {
+	if !config.EntitySeparationEnabled {
+		return
+	}
+
+	entities := make([]*entity.Entity, 0, len(m.NPCs)+1)
+	if m.PlayerRef != nil {
+		if !m.PlayerRef.Entity.DisableCollisions && !m.PlayerRef.Entity.IsDead() {
+			entities = append(entities, m.PlayerRef.Entity)
+		}
+	}
+	for _, n := range m.NPCs {
+		if !n.Entity.DisableCollisions && !n.Entity.IsDead() {
+			entities = append(entities, n.Entity)
+		}
+	}
+	if len(entities) < 2 {
+		return
+	}
+
+	deltas := make([]model.Vec2, len(entities))
+
+	// pre-compute each entity's heading
+	headings := make([]model.Vec2, len(entities))
+	for i, e := range entities {
+		headings[i] = separationHeading(e)
+	}
+
+	// compute deltas for how much each entity should be nudged
+	for i := range entities {
+		entA := entities[i]
+		centerA := entA.CollisionRect().GetCenter()
+		for j := i + 1; j < len(entities); j++ {
+			// if the two entities are walking directly into each other, don't apply any separation push
+			// this is to allow them to move through each other and not get stuck, e.g. in a narrow doorway
+			// or a position in a path they both need to walk through.
+			if headings[i].Dot(headings[j]) < 0 {
+				continue
+			}
+
+			entB := entities[j]
+			centerB := entB.CollisionRect().GetCenter()
+
+			if centerA.Equals(centerB) {
+				// centers are exactly the same, so we need to adjust one of them so that a push direction can be resolved.
+				// let's just arbitrarily change one of them for now. realistically, this should almost never happen since
+				// entities should be getting pushed away from each other when starting to get close anyway
+				centerB.X += 1
+				centerB.Y += 1
+			}
+
+			// use radius rather than collision rect overlap
+			// this way, it's actually based on distance and not based on if two square corners happen to be overlapping
+			away := centerA.Sub(centerB)
+			dist := away.Len()
+			if dist >= config.EntitySeparationRadius {
+				continue
+			}
+			// sanity check: make sure dist never ends up as 0
+			if dist == 0 {
+				logz.PanicCtx(
+					"entitySeparation",
+					"dist was 0, which can only happen if two entities are in the exact same position. did we fail to handle this edge case?",
+					entA.ID(), entB.ID(), centerA, centerB)
+			}
+			dir := away.Scale(1 / dist)
+
+			// strength scales with how far inside the radius they are
+			penetration := config.EntitySeparationRadius - dist
+			push := math.Min(penetration*config.EntitySeparationGain, config.EntitySeparationMaxPush)
+
+			// equal and opposite, and accumulated
+			step := dir.Scale(push)
+			deltas[i] = deltas[i].Add(step)
+			deltas[j] = deltas[j].Sub(step)
+		}
+	}
+
+	// apply deltas to each entity
+	for i, e := range entities {
+		d := deltas[i]
+		if d.X == 0 && d.Y == 0 {
+			continue
+		}
+
+		// some entities could be getting pushed by multiple other entities, so make sure their accumulated
+		// push is still clamped to max push
+		d = d.ClampLength(config.EntitySeparationMaxPush)
+		e.NudgeBy(d.X, d.Y)
+	}
+}
+
+// returns the unit vector an entity is currently trying to move along, or a zero vector if not moving.
+// i.e. the direction the entity is "heading" towards.
+func separationHeading(e *entity.Entity) model.Vec2 {
+	if !e.Movement.IsMoving {
+		return model.Vec2{}
+	}
+	toTarget := model.Vec2{X: e.TargetX - e.X, Y: e.TargetY - e.Y}
+	l := toTarget.Len()
+	if l > 0 {
+		return toTarget.Scale(1 / l)
+	}
+	return model.Vec2{}
 }

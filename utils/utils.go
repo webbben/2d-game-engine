@@ -178,3 +178,27 @@ func GetFrameRects(outer, inner model.Rect) []model.Rect {
 
 	return rects
 }
+
+// GetRelativeDirection returns a direction relative to the change in position given.
+func GetRelativeDirection(dx, dy float64) byte {
+	if dx == 0 && dy == 0 {
+		// defaults to down if same position
+		return 'D'
+	}
+	// since we can't "face" diagonally, first find out which value (dx or dy) is of greater magnitude.
+	horizontal := math.Abs(dx) >= math.Abs(dy)
+
+	if horizontal {
+		if dx < 0 {
+			return 'L'
+		} else {
+			return 'R'
+		}
+	} else {
+		if dy < 0 {
+			return 'U'
+		} else {
+			return 'D'
+		}
+	}
+}

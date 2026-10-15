@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 )
 
@@ -26,11 +27,11 @@ var (
 
 func newTestSession(t *testing.T) CombatSession {
 	t.Helper()
-	s := NewCombatSession("s1", "player", IntentSelfDefense, stubResolver{})
+	s := NewCombatSession("s1", "player", defs.IntentSelfDefense, stubResolver{})
 	// the initiator already joined as the founder of side0 in NewCombatSession
-	s.FoundSide("bandit_a", IntentRob)
-	s.Join("bandit_b", side1, IntentKill)
-	s.Join("guard", side0, IntentProtect)
+	s.FoundSide("bandit_a", defs.IntentRob)
+	s.Join("bandit_b", side1, defs.IntentKill)
+	s.Join("guard", side0, defs.IntentProtect)
 	return s
 }
 
@@ -44,7 +45,7 @@ func sameIDs(got, want []id.CharacterStateID) bool {
 }
 
 func TestNewSessionAutoJoinsInitiator(t *testing.T) {
-	s := NewCombatSession("s1", "player", IntentSelfDefense, stubResolver{})
+	s := NewCombatSession("s1", "player", defs.IntentSelfDefense, stubResolver{})
 
 	if !s.IsCombatant("player") {
 		t.Error("initiator did not join the session they started")
@@ -65,8 +66,8 @@ func TestNewSessionAutoJoinsInitiator(t *testing.T) {
 }
 
 func TestFoundSide(t *testing.T) {
-	s := NewCombatSession("s1", "player", IntentSelfDefense, stubResolver{})
-	got := s.FoundSide("bandit_a", IntentRob)
+	s := NewCombatSession("s1", "player", defs.IntentSelfDefense, stubResolver{})
+	got := s.FoundSide("bandit_a", defs.IntentRob)
 
 	if got != side1 {
 		t.Errorf("FoundSide returned %v, want %v (named for its founder)", got, side1)
@@ -89,7 +90,7 @@ func TestFoundSideRejectsThird(t *testing.T) {
 			t.Error("founding a third side did not panic")
 		}
 	}()
-	s.FoundSide("bandit_c", IntentRob)
+	s.FoundSide("bandit_c", defs.IntentRob)
 }
 
 func TestJoinAndQueries(t *testing.T) {
@@ -155,7 +156,7 @@ func TestJoinRejectsDuplicate(t *testing.T) {
 			t.Errorf("Size() = %d after a rejected join, want 4 (session must be unchanged)", s.Size())
 		}
 	}()
-	s.Join("bandit_a", side0, IntentKill) // already a combatant, on side1
+	s.Join("bandit_a", side0, defs.IntentKill) // already a combatant, on side1
 }
 
 func TestLeaveAndEnd(t *testing.T) {
@@ -182,10 +183,10 @@ func TestLeaveAndEnd(t *testing.T) {
 
 func TestLivingMembersUsesResolver(t *testing.T) {
 	r := stubResolver{dead: map[id.CharacterStateID]bool{"bandit_a": true}}
-	s := NewCombatSession("s1", "player", IntentSelfDefense, r)
-	s.FoundSide("bandit_a", IntentRob)
-	s.Join("bandit_b", side1, IntentKill)
-	s.Join("guard", side0, IntentProtect)
+	s := NewCombatSession("s1", "player", defs.IntentSelfDefense, r)
+	s.FoundSide("bandit_a", defs.IntentRob)
+	s.Join("bandit_b", side1, defs.IntentKill)
+	s.Join("guard", side0, defs.IntentProtect)
 
 	if got, want := s.LivingMembers(side1), []id.CharacterStateID{"bandit_b"}; !sameIDs(got, want) {
 		t.Errorf("LivingMembers(bandit side) = %v, want %v", got, want)
@@ -204,9 +205,9 @@ func TestOfferingSurrenderIsStillFighting(t *testing.T) {
 		offering: map[id.CharacterStateID]bool{"bandit_a": true},
 		fleeing:  map[id.CharacterStateID]bool{"bandit_b": true},
 	}
-	s := NewCombatSession("s1", "player", IntentSelfDefense, r)
-	s.FoundSide("bandit_a", IntentRob)
-	s.Join("bandit_b", side1, IntentKill)
+	s := NewCombatSession("s1", "player", defs.IntentSelfDefense, r)
+	s.FoundSide("bandit_a", defs.IntentRob)
+	s.Join("bandit_b", side1, defs.IntentKill)
 
 	if !s.IsCombatant("bandit_a") {
 		t.Error("offering surrenderee is no longer a combatant; they should still be fighting")
@@ -227,7 +228,7 @@ func TestValidate(t *testing.T) {
 		newTestSession(t).Validate()
 	})
 	t.Run("ended session without initiator is legal", func(t *testing.T) {
-		s := NewCombatSession("s1", "player", IntentSelfDefense, stubResolver{})
+		s := NewCombatSession("s1", "player", defs.IntentSelfDefense, stubResolver{})
 		s.Leave("player")
 		s.Validate()
 	})
@@ -237,21 +238,34 @@ func TestValidate(t *testing.T) {
 				t.Error("Validate accepted a session with no resolver")
 			}
 		}()
-		NewCombatSession("s1", "player", IntentSelfDefense, nil).Validate()
+		NewCombatSession("s1", "player", defs.IntentSelfDefense, nil).Validate()
 	})
-	t.Run("initiator missing from an ongoing session", func(t *testing.T) {
-		defer func() {
-			if recover() == nil {
-				t.Error("Validate accepted an ongoing session missing its initiator")
-			}
-		}()
-		// guard shares the initiator's side, so removing the initiator leaves the fight ongoing
-		// with no aggressor side -- which should be caught rather than silently tolerated.
+	t.Run("initiator may leave an ongoing session", func(t *testing.T) {
+		// An initiator who dies or walks away does not end the fight -- their side-mates carry on
+		// without them. The aggressor side survives that, because a SideID is just the founder's char
+		// id and the side-mates are still standing on it. Validate must not read a departed initiator
+		// as a broken session.
 		s := newTestSession(t)
 		s.Leave("player")
 		if s.HasEnded() {
 			t.Fatal("test setup: expected the session to still be ongoing")
 		}
+
+		// The guard shares the initiator's side, so the fight's aggressor is still recoverable from
+		// them. This is what makes it safe for the initiator to be gone.
+		guardSide, ok := s.SideOf("guard")
+		if !ok {
+			t.Fatal("expected the guard to still be a combatant after the initiator left")
+		}
+		if !s.IsAggressorSide(guardSide) {
+			t.Error("the initiator's side stopped being the aggressor side once the initiator left")
+		}
+
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("Validate rejected an ongoing session whose initiator had left: %v", r)
+			}
+		}()
 		s.Validate()
 	})
 }

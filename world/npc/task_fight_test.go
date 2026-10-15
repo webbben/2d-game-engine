@@ -59,10 +59,32 @@ func TestTargetIsValid(t *testing.T) {
 		{
 			// Deliberate: yielding is not disqualifying. An enemy who offers surrender is still a
 			// legitimate target, because we're free to refuse them. If this ever becomes false, an npc
-			// would abandon a duel the instant the loser yielded, which we do not want.
+			// would abandon a duel the instant the loser yielded, which we don't want.
 			name:      "an enemy offering to surrender is still valid (no surrender flag exists yet)",
 			candidate: valid("bandit", 10),
 			want:      true,
+		},
+		{
+			// Someone who broke off and is running is only worth following if this npc would pursue
+			// them. Both fields must be set together: WorthPursuing on its own is meaningless, because a
+			// standing enemy never has the question asked.
+			name:      "a fleeing enemy we're willing to pursue is still valid",
+			candidate: targetCandidate{ID: "bandit", Dist: 10, Alive: true, InSession: true, InWorld: true, Fleeing: true, WorthPursuing: true},
+			want:      true,
+		},
+		{
+			// The whole point of pursuit. When nobody wants to chase a runner, that runner stops being
+			// a target -- and once this npc has no other enemy, the fight is over for them.
+			name:      "a fleeing enemy we're unwilling to pursue is not valid",
+			candidate: targetCandidate{ID: "bandit", Dist: 10, Alive: true, InSession: true, InWorld: true, Fleeing: true, WorthPursuing: false},
+			want:      false,
+		},
+		{
+			// Pursuit can't resurrect someone already gone. Deciding not to chase a fleeing enemy adds a
+			// second reason to drop them, not a replacement for the first.
+			name:      "a dead fleeing enemy is not valid regardless of willingness to pursue",
+			candidate: targetCandidate{ID: "bandit", Dist: 10, Alive: false, InSession: true, InWorld: true, Fleeing: true, WorthPursuing: true},
+			want:      false,
 		},
 	}
 
@@ -130,6 +152,40 @@ func TestSelectTargetIDKeepsCurrentTarget(t *testing.T) {
 			current:    "bandit_a",
 			candidates: []targetCandidate{targetCandidate{ID: "bandit_a", Alive: false, InSession: true, InWorld: true}, valid("bandit_b", 80), valid("bandit_c", 45)},
 			want:       "bandit_c",
+		},
+		{
+			// The moment a target breaks off, the npc reconsiders rather than finishing the duel. This
+			// is the pursuit decision arriving as a mid-fight switch, and it's the reason eligibility
+			// isn't just a starting condition.
+			name:    "current target starts fleeing and we won't pursue, switches to a standing enemy",
+			current: "bandit_a",
+			candidates: []targetCandidate{
+				{ID: "bandit_a", Dist: 5, Alive: true, InSession: true, InWorld: true, Fleeing: true, WorthPursuing: false},
+				valid("bandit_b", 80),
+			},
+			want: "bandit_b",
+		},
+		{
+			// Same situation, opposite answer. Someone who'll give chase keeps hitting the person who's
+			// running, even with a closer alternative available.
+			name:    "current target starts fleeing but we will pursue, keeps hitting them",
+			current: "bandit_a",
+			candidates: []targetCandidate{
+				{ID: "bandit_a", Dist: 5, Alive: true, InSession: true, InWorld: true, Fleeing: true, WorthPursuing: true},
+				valid("bandit_b", 80),
+			},
+			want: "bandit_a",
+		},
+		{
+			// Everyone left is running and none of them are worth chasing. Returning empty is how the
+			// task learns to stand down rather than chase someone out of the map.
+			name:    "every enemy is fleeing and none are worth pursuing",
+			current: "bandit_a",
+			candidates: []targetCandidate{
+				{ID: "bandit_a", Dist: 5, Alive: true, InSession: true, InWorld: true, Fleeing: true, WorthPursuing: false},
+				{ID: "bandit_b", Dist: 7, Alive: true, InSession: true, InWorld: true, Fleeing: true, WorthPursuing: false},
+			},
+			want: "",
 		},
 		{
 			// A closer corpse must never win just for being closest -- that's how an npc ends up swinging

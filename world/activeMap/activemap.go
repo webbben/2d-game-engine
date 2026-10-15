@@ -589,7 +589,6 @@ func (m *ActiveMap) AddDroppedItem(st state.MapItemState) {
 
 // CollidesWithEntity checks if the rect collides with an entity. This is meant for detecting if an entity
 // collides with another entity, and should therefore move slower or not. For "hard" collisions, use Collides instead.
-// TODO: at some point, when combat is more developed, we will want to make combatant entities not able to be walked through.
 func (m *ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) (collides bool, dist float64) {
 	if m.PlayerRef != nil {
 		if string(m.PlayerRef.Entity.ID()) != excludeEntID && !m.PlayerRef.Entity.DisableCollisions {
@@ -619,6 +618,27 @@ func (m *ActiveMap) CollidesWithEntity(r model.Rect, excludeEntID string) (colli
 		}
 	}
 	return false, -1
+}
+
+// OverlappingEntities returns a slice of entities that overlap/collide with the given rect.
+func (m *ActiveMap) OverlappingEntities(r model.Rect, excludeEntID id.CharacterStateID) []*entity.Entity {
+	var out []*entity.Entity
+
+	if m.PlayerRef != nil && m.PlayerRef.Entity != nil && id.PlayerStateID != excludeEntID {
+		if m.PlayerRef.Entity.Collides(r).Collides() {
+			out = append(out, m.PlayerRef.Entity)
+		}
+	}
+
+	for _, n := range m.NPCs {
+		if n.Entity != nil && n.CharacterStateRef.ID != excludeEntID {
+			if n.Entity.Collides(r).Collides() {
+				out = append(out, n.Entity)
+			}
+		}
+	}
+
+	return out
 }
 
 // Collides detects if the given rect collides in the map.

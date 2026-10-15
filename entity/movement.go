@@ -154,29 +154,13 @@ type AnimationOptions struct {
 // Ex: dx=-1 and dy=0 corresponds to facing left, and dx=0 dy=-1 corresponds to facing up.
 func (e *Entity) FaceTowards(dx, dy float64) {
 	if dx == 0 && dy == 0 {
-		// no direction to face towards; just stay as is.
 		return
 	}
-	// since we can't "face" diagonally, first find out which value (dx or dy) is of greater magnitude.
-	horizontal := math.Abs(dx) >= math.Abs(dy)
+	e.SetDirection(utils.GetRelativeDirection(dx, dy))
+}
 
-	var newDir byte
-
-	if horizontal {
-		if dx < 0 {
-			newDir = model.Directions.Left
-		} else {
-			newDir = model.Directions.Right
-		}
-	} else {
-		if dy < 0 {
-			newDir = model.Directions.Up
-		} else {
-			newDir = model.Directions.Down
-		}
-	}
-
-	e.SetDirection(newDir)
+func (e *Entity) IsFacingTowards(dx, dy float64) bool {
+	return e.Movement.Direction == utils.GetRelativeDirection(dx, dy)
 }
 
 func (e *Entity) SetDirection(dir byte) {
@@ -239,8 +223,9 @@ func (e *Entity) TryMoveMaxPx(dx, dy, speed float64) MoveError {
 		cx, cy := calculateCollisionAdjustment(dx, dy, cr)
 
 		if cx == 0 && cy == 0 {
-			// no changes suggested? this seems wrong
-			logz.Panicln("TryMoveMaxPx", "no target adjustment occurred (cx and cy calculated to 0). this probably shouldn't be happening...")
+			// if neither axis can offer an adjustment to allow movement, then that seems to mean there is absolutely no space to budge in this direction.
+			moveError.Info += "; cx and cy were 0"
+			return moveError
 		}
 
 		dx += cx
@@ -495,6 +480,13 @@ func (e *Entity) TryMovePx(dx, dy, speed float64) MoveError {
 }
 
 func (e *Entity) TryBumpBack(px int, speed float64, forceOrigin model.Vec2, anim string, animTickInterval int) MoveError {
+	// settle any in-flight movement before computing the bump
+	// when knocking back a movement entity, things get messy with target x/y and current x/y, which can lead to some problems.
+	// so, it's better to just interrupt the existing movement and settle target x/y and current x/y to be the same.
+	if e.Movement.IsMoving {
+		e.StopMovement()
+	}
+
 	// calculate dx dy values
 	origin := model.Vec2{X: e.X, Y: e.Y}
 	dest := origin.MoveAway(forceOrigin, float64(px))
@@ -668,7 +660,6 @@ func (e *Entity) updateMovement() updateMovementResult {
 }
 
 func (e *Entity) StopMovement() {
-	logz.Println(e.DisplayName(), "Stopping movement")
 	e.TargetX = e.X
 	e.TargetY = e.Y
 	e.Movement.IsMoving = false
@@ -816,5 +807,45 @@ func (e *Entity) tryMergeSuggestedPath(newPath []model.Coords) bool {
 		}
 	}
 	logz.Println("tryMergeSuggestedPath", "failed to merge suggested path", "suggested path:", newPath, "current path:", e.Movement.TargetPath)
+	return false
+}
+
+// NudgeBy slides the entity by the given delta, without disturbing its movement state.
+func (e *Entity) NudgeBy(dx, dy float64) bool {
+	if dx == 0 && dy == 0 {
+		return false
+	}
+
+	// these are the possible directions that we could move in overall
+	// test each one, and the first that doesn't collide will be used.
+	steps := [][2]float64{
+		{dx, dy},
+		{dx, 0},
+		{0, dy},
+	}
+
+	for _, s := range steps {
+		if s[0] == 0 && s[1] == 0 {
+			continue
+		}
+		newX := e.X + s[0]
+		newY := e.Y + s[1]
+
+		// collisionRect is offset from X/Y, so ask the map about the rect the entity would occupy,
+		// not about the raw coordinates
+		probe := e.CollisionRect()
+		probe.X += s[0]
+		probe.Y += s[1]
+		if e.Collides(probe).Collides() {
+			continue
+		}
+
+		e.X = newX
+		e.Y = newY
+		e.TargetX += s[0]
+		e.TargetY += s[1]
+		return true
+	}
+
 	return false
 }

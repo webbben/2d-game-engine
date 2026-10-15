@@ -132,6 +132,7 @@ func BuildDistanceMap(from []model.Coords, center *model.Coords, searchRadius in
 	utils.PanicAssert(width > 0, "costmap has no width!")
 
 	if center != nil {
+		utils.PanicAssert(inMapBounds(*center, costMap), "center not in map bounds")
 		// we don't check isValidPosition here since it's possible for an NPC to slide into a step door object - which, while not technically a collision,
 		// is a pathfinding block, and so isValidPosition returns false. instead, we will do the same as what we do for `from` positions and just
 		// ensure there are positions to travel to from here
@@ -143,6 +144,7 @@ func BuildDistanceMap(from []model.Coords, center *model.Coords, searchRadius in
 	}
 
 	for _, c := range from {
+		utils.PanicAssert(inMapBounds(c, costMap), "c not in map bounds")
 		// ensure there is a possible path from the start position
 		// note that we don't care if the position itself is invalid/a collision, because the search won't directly check that position.
 		// we only care that it's possible to travel from that position somewhere else.

@@ -218,11 +218,12 @@ func isValidCoords(p m.Coords, costMap [][]int) bool {
 	if len(costMap) == 0 || len(costMap[0]) == 0 {
 		logz.Panicln("PATH_FINDING", "costmap was empty!")
 	}
-	if p.X < 0 || p.X >= len(costMap[0]) {
-		return false
-	}
-	if p.Y < 0 || p.Y >= len(costMap) {
+	if !inMapBounds(p, costMap) {
 		return false
 	}
 	return costMap[p.Y][p.X] < BlockThreshold
+}
+
+func inMapBounds(p m.Coords, costMap [][]int) bool {
+	return p.X >= 0 && p.X < len(costMap[0]) && p.Y >= 0 && p.Y < len(costMap)
 }

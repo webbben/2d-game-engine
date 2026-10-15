@@ -42,31 +42,27 @@ func ValidateUniquePlayerID(uniquePlayerID defs.UniquePlayerID) {
 	}
 }
 
-// GetNetTraitModifiers returns all of the net modifiers on skills produced by the given traits
-func GetNetTraitModifiers(traits []defs.TraitID, dataman *datamanager.DataManager) (skillMods map[defs.SkillID]int, attrMods map[defs.AttributeID]int) {
+// GetNetDrives returns the character's net personality drives, as produced by the given traits.
+//
+// This allocates on every call. That's fine for the intended uses -- a decision made at a moment, like
+// whether to offer a surrender -- but a caller needing this every tick should cache the result
+func GetNetDrives(traits []defs.TraitID, dataman *datamanager.DataManager) map[defs.DriveID]int {
 	if dataman == nil {
 		panic("dataman was nil")
 	}
-	skillMods = make(map[defs.SkillID]int)
-	attrMods = make(map[defs.AttributeID]int)
+	drives := make(map[defs.DriveID]int)
 
 	for _, traitID := range traits {
 		trait := dataman.GetTraitDef(traitID)
-		for id, change := range trait.SkillChanges {
-			if _, exists := skillMods[id]; !exists {
-				skillMods[id] = 0
+		for id, change := range trait.Drives {
+			if _, exists := drives[id]; !exists {
+				drives[id] = 0
 			}
-			skillMods[id] += change
-		}
-		for id, change := range trait.AttributeChanges {
-			if _, exists := attrMods[id]; !exists {
-				attrMods[id] = 0
-			}
-			attrMods[id] += change
+			drives[id] += change
 		}
 	}
 
-	return skillMods, attrMods
+	return drives
 }
 
 func AddItemToInventory(cs *state.CharacterState, invItem state.ItemState, dataman *datamanager.DataManager) (bool, state.ItemState) {
@@ -556,6 +552,15 @@ func GetCultureMods(cultureDef defs.CultureDef, cultureGroup defs.CultureGroupDe
 	return skillMods, attrMods
 }
 
+// GetSkillsAndAttributes returns the net skills and attributes of a character. Utilizes caching, so its safe to call on hot paths.
+func GetSkillsAndAttributes(charStateID id.CharacterStateID, dataman *datamanager.DataManager) (skills map[defs.SkillID]int, attrs map[defs.AttributeID]int) {
+	return dataman.ResolveCharacterLevels(charStateID, func() (map[defs.SkillID]int, map[defs.AttributeID]int) {
+		return CalculateSkillsAndAttributes(charStateID, dataman)
+	})
+}
+
+// CalculateSkillsAndAttributes calculates net skills and attributes for a character, factoring everything in.
+// WARNING: This should not be called on a hot path; You should generally call GetSkillsAndAttributes instead, which incorporates caching.
 func CalculateSkillsAndAttributes(charStateID id.CharacterStateID, dataman *datamanager.DataManager) (skills map[defs.SkillID]int, attrs map[defs.AttributeID]int) {
 	// get base skill levels
 	characterState := dataman.GetCharacterState(charStateID)
@@ -651,6 +656,10 @@ func AddSkillXP(charStateID id.CharacterStateID, skillID defs.SkillID, xp int, d
 	// skill level up! leftover XP carries into next level
 	charState.SkillXP[skillID] -= nextLevelXP
 	charState.BaseSkills[skillID] += 1
+	// The resolved levels cache derives from BaseSkills, so it now holds a value that no longer matches
+	// the character. Without this the character's combat skills would be frozen at whatever they were
+	// the first time anything read them. See dataman.ResolveCharacterLevels.
+	dataman.MarkCharacterLevelsDirty(charStateID)
 
 	// weighted progress towards a character level up
 	weight := lvlSys.MiscWeight
