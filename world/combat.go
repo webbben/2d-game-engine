@@ -46,10 +46,23 @@ func (w *World) SessionFor(charID id.CharacterStateID) combat.SessionView {
 // A session that isn't found, or a character who isn't in it, yields a zero profile rather than an
 // error. Both are ordinary: sessions are pruned once ended, so a fight can finish between one caller
 // resolving a profile and another using it.
+//
+// A corpse is a third case of the same thing -- a character who is present in the session but no longer
+// participating -- and it is handled differently on purpose. Every caller here is asking a combat
+// decision question (should this npc break off, would it chase that one), which has no meaningful
+// answer for someone already dead, so this panics rather than answering. Returning a zero profile
+// instead would be worse than an error: combatConfidence would score it 0 and fleeThreat would compute
+// nonsense, and a real flee decision would be made from that garbage, silently. Callers must filter
+// dead characters out first, with characterstate.IsDeadOrDying -- which is the predicate this assert
+// itself uses, so the two cannot disagree about what "dead" means.
 func (w *World) CombatProfile(sessionID combat.CombatSessionID, charStateID id.CharacterStateID) defs.CombatProfile {
 	session := w.concreteSessionByID(sessionID)
 	if session == nil {
 		return defs.CombatProfile{ID: charStateID}
+	}
+
+	if characterstate.IsDeadOrDying(charStateID, w.Dataman) {
+		logz.PanicCtx("CombatProfile", "a dead character was passed in; callers must filter dead characters out first.", charStateID, "sessionID:", sessionID)
 	}
 
 	charState := w.Dataman.GetCharacterState(charStateID)
@@ -256,6 +269,14 @@ func (w *World) nextCombatSessionID() combat.CombatSessionID {
 var _ combat.Resolver = (*World)(nil)
 
 // IsDead reports whether a character has died.
+//
+// Deliberately narrower than characterstate.IsDeadOrDying and Entity.IsDead, both of which also treat
+// "health already at zero" as dead. This one asks the settled question, because its only consumer is
+// CombatSession.LivingMembers, where the answer is about who has actually been removed from the fight
+// -- a character at zero health whose corpse has not been processed yet is still a combatant.
+//
+// So this is the wrong check for "can this character still act" or "should this be a candidate
+// target". Use IsDeadOrDying for that; combat does, and so should anything else walking that line.
 func (w *World) IsDead(charID id.CharacterStateID) bool {
 	utils.PanicAssert(charID != "", "id was empty")
 	return w.Dataman.GetCharacterState(charID).Dead

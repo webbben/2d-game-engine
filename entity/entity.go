@@ -704,22 +704,22 @@ func (e Entity) validateEquipment() {
 	validateEquipment := func(equipedItem *state.ItemState, bodyPart body.BodyPartSet) {
 		if equipedItem == nil {
 			if !bodyPart.PartSrc.None {
-				logz.Println(e.DisplayName(), "equipment is nil, but body part is not set to None")
+				logz.Println(string(e.ID()), "equipment is nil, but body part is not set to None")
 				logz.Panicln("Entity", "equipment is nil, but body part is not set to None")
 			}
 		} else {
 			if bodyPart.PartSrc.None {
-				logz.Println(e.DisplayName(), "equipment is not nil, but body part is set to none")
+				logz.Println(string(e.ID()), "equipment is not nil, but body part is set to none")
 				logz.Panicln("Entity", "equipment is not nil, but body part is set to none")
 			}
 			itemDef := e.dataman.GetItemDef(equipedItem.DefID)
 			equiped := itemDef.BodyPartDef
 			if equiped == nil {
-				logz.Println(e.DisplayName(), "equipment body part def was found to be nil")
+				logz.Println(string(e.ID()), "equipment body part def was found to be nil")
 				logz.Panicln("Entity", "equipment body part def was found to be nil")
 			}
 			if !equiped.IsEqual(bodyPart.PartSrc) {
-				logz.Println(e.DisplayName(), "equipment item def does not appear to match body's equiped part")
+				logz.Println(string(e.ID()), "equipment item def does not appear to match body's equiped part")
 				logz.Panicln("Entity", "equipment item def does not appear to match body's equiped part")
 			}
 		}
@@ -729,17 +729,17 @@ func (e Entity) validateEquipment() {
 	validateEquipment(e.characterStateRef.EquipedBodywear, e.Body.EquipBodySet)
 	if e.characterStateRef.EquipedBodywear == nil {
 		if !e.Body.EquipArmsSet.PartSrc.None {
-			logz.Println(e.DisplayName(), "equiped bodywear is nil, but equiped arms part is not none")
+			logz.Println(string(e.ID()), "equiped bodywear is nil, but equiped arms part is not none")
 			logz.Panicln("Entity", "equiped bodywear is nil, but equiped arms part is not none")
 		}
 	} else {
 		equipedArmsPart := e.equipedBodywear.ArmsPartDef
 		if equipedArmsPart == nil {
-			logz.Println(e.DisplayName(), "bodywear set, but equiped arms part seems to be nil")
+			logz.Println(string(e.ID()), "bodywear set, but equiped arms part seems to be nil")
 			logz.Panicln("Entity", "bodywear set, but equiped arms part seems to be nil")
 		}
 		if !equipedArmsPart.IsEqual(e.Body.EquipArmsSet.PartSrc) {
-			logz.Println(e.DisplayName(), "equiped arms dont appear to match actual item arms equipment")
+			logz.Println(string(e.ID()), "equiped arms dont appear to match actual item arms equipment")
 			logz.Panicln("Entity", "equiped arms dont appear to match actual item arms equipment")
 		}
 	}
@@ -748,13 +748,13 @@ func (e Entity) validateEquipment() {
 	// handle weapon fx separately since we get that part with a specific function
 	if e.characterStateRef.EquipedWeapon == nil {
 		if !e.Body.WeaponFxSet.PartSrc.None {
-			logz.Println(e.DisplayName(), "equiped weapon is nil, but weapon fx part is not none")
+			logz.Println(string(e.ID()), "equiped weapon is nil, but weapon fx part is not none")
 			logz.Panicln("Entity", "equiped weapon is nil, but weapon fx part is not none")
 		}
 	} else {
 		_, fxPart := item.GetWeaponParts(e.equipedWeapon)
 		if !fxPart.IsEqual(e.Body.WeaponFxSet.PartSrc) {
-			logz.Println(e.DisplayName(), "equiped weapon fx doesn't appear to match actual fx part")
+			logz.Println(string(e.ID()), "equiped weapon fx doesn't appear to match actual fx part")
 			logz.Panicln("Entity", "equiped weapon fx doesn't appear to match actual fx part")
 		}
 	}
@@ -827,6 +827,8 @@ type Movement struct {
 	Speed                     float64 `json:"-"` // actual speed the entity is moving at
 	WalkAnimationTickInterval int
 	RunAnimationTickInterval  int
+	LastMoveError             MoveError
+	LastNudgedTick            int64 // records the tick when this entity was last nudged by another entity
 
 	TargetPath          []model.Coords `json:"-"` // path the entity is currently trying to travel on
 	SuggestedTargetPath []model.Coords `json:"-"` // a suggested path for this entity to consider merging into the target path

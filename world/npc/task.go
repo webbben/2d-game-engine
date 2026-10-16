@@ -39,6 +39,7 @@ const (
 	TaskShopkeeper  defs.TaskID = "SHOPKEEPER"
 	TaskGoToTavern  defs.TaskID = "GO_TO_TAVERN"
 	TaskPatrol      defs.TaskID = "PATROL"
+	TaskLoop        defs.TaskID = "LOOP"
 )
 
 const (
@@ -593,7 +594,7 @@ func (tb *TaskBase) Finish(result TaskResult) {
 	tb.EndChild()
 	tb.Result = result
 	tb.Status = TaskEnded
-	logz.Println(tb.Owner.DisplayName(), "task finished:", tb.Name, "result:", result.Status, "reason:", result.Reason)
+	logz.Println(tb.Owner.ID(), "task finished:", tb.Name, "result:", result.Status, "reason:", result.Reason)
 }
 
 func (tb *TaskBase) GetResult() TaskResult {
@@ -632,7 +633,7 @@ func (t *TaskBase) HandleNPCCollision() NPCCollisionResult {
 	if !t.Owner.Entity.HasStoppedUnexpectedly() {
 		return NPCCollisionResult{NoneDetected: true}
 	}
-	logz.Println(t.Owner.DisplayName(), "NPC interrupted; handling collision")
+	logz.Println(t.Owner.ID(), "NPC interrupted; handling collision")
 	nextTarget, ok := t.Owner.Entity.PathAhead(0)
 	if !ok {
 		// Interrupted with no path left isn't an obstacle, so there's nothing here to resolve. This

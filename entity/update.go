@@ -96,11 +96,11 @@ func (e *Entity) Update() {
 		}
 		// some validation and sanity checks
 		if e.TargetX != e.X || e.TargetY != e.Y {
-			logz.Println(e.DisplayName(), "x:", e.X, "y:", e.Y, "targetX:", e.TargetX, "targetY:", e.TargetY)
+			logz.Println(string(e.ID()), "x:", e.X, "y:", e.Y, "targetX:", e.TargetX, "targetY:", e.TargetY)
 			panic("entity is not moving but hasn't met its goal yet. hint: if you are setting the entity position, use the SetPosition function to ensure Target is updated too.")
 		}
 		if e.Body.IsMoving() {
-			logz.Println(e.DisplayName(), "entity is not moving, but body is still doing movement animations")
+			logz.Println(string(e.ID()), "entity is not moving, but body is still doing movement animations")
 			logz.Panicln("Entity", "entity is not moving, but body is still doing movement animations")
 		}
 	}
@@ -121,9 +121,9 @@ func (e *Entity) Update() {
 				}
 			} else {
 				// failed to set next path
-				logz.Println(e.DisplayName(), "failed to set next target path:", res)
+				logz.Println(string(e.ID()), "failed to set next target path:", res)
 				if res.AlreadyMoving {
-					logz.Println(e.DisplayName(), "movement failed; already moving. res:", res)
+					logz.Println(string(e.ID()), "movement failed; already moving. res:", res)
 					logz.Panicf("movement failed because we are already moving... but IsMoving is false")
 				}
 				e.markInterrupted()

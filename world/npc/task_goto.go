@@ -7,6 +7,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type GotoTask struct {
@@ -15,7 +16,12 @@ type GotoTask struct {
 	goalPos          model.Coords
 	isGoingTo        bool
 	unknownCollision int // counter for repeated unknown collisions; used for triggering failure.
+
+	shortArrivals int // counter for times this task ran out of path without reaching its goal.
 }
+
+// maxShortArrivals is how many consecutive "ran out of path, never arrived" events end this task.
+const maxShortArrivals = 3
 
 type GotoTaskParams struct {
 	// TODO: should we just make these model.Coords?
@@ -69,14 +75,17 @@ func (t *GotoTask) Start() {
 	}
 	actualGoal, me := t.Owner.Entity.GoToPos(t.goalPos, true)
 	if !me.Success {
-		logz.Println(t.Owner.DisplayName(), "goto task: failed to call GoToPos:", me)
+		logz.Println(t.Owner.ID(), "goto task: failed to call GoToPos:", me)
 		t.Owner.Wait(time.Second)
 		return
 	}
 	// since the goal position could've been changed (due to path being blocked), update it here
 	t.goalPos = actualGoal
 	t.Status = TaskInProg
-	if !t.Owner.Entity.HasPath() {
+	minDist := utils.ManhattanDistCoords(t.Owner.Entity.TilePos(), t.goalPos)
+	if minDist > 1 && !t.Owner.Entity.HasPath() {
+		// if the goalPos is only one tile away, then GoToPos would end up leaving the target path empty.
+		// so only panic here if we know for sure the path shouldn't be empty
 		panic("started goto, but target path is empty")
 	}
 	t.unknownCollision = 0
@@ -116,8 +125,28 @@ func (t *GotoTask) Update() {
 		}
 		if !t.Owner.Entity.IsMoving() {
 			if !t.Owner.Entity.HasPath() {
-				// not moving and has no target; shouldn't we have reached our goal then?
-				logz.PanicCtx("GotoTask", "supposed to be going towards a goal, but entity has no target path", t.Owner.WhoAmI())
+				// out of path, standing still, and not at the goal - should this happen?
+				//
+				// trySetNextTargetPath pops the next (and last, when on the last segment of a path) position from TargetPath after setting it as the next movement target,
+				// But there is a case where separation can shift the entity (and its target with it) so it now thinks it's done, but still not at the expected target.
+				//
+				// re-path, bounded, so a goto that genuinely can't reach its target gives up eventually
+				t.shortArrivals++
+
+				ent := t.Owner.Entity
+				logz.Println(t.Owner.ID(), "goto task: out of path short of goal.",
+					"cur pos:", ent.TilePos(), "goal:", t.goalPos, "lastMoveErr:", ent.Movement.LastMoveError.String(), "lastNudge:", ent.Movement.LastNudgedTick)
+
+				if t.shortArrivals >= maxShortArrivals {
+					t.Finish(TaskResult{
+						Status: ResultFailed,
+						Reason: fmt.Sprintf("ran out of path %d times without reaching the goal (goal %s, stopped at %s)",
+							t.shortArrivals, t.goalPos.String(), ent.TilePos().String()),
+					})
+					return
+				}
+				t.Start()
+				return
 			}
 			// entity is not moving, but also is not being blocked (and has a path to follow still).
 			// jump start its path again.

@@ -28,6 +28,10 @@ type DialogProfileDef struct {
 
 	PlayerNoticeReactions []SpeechBubbleReaction
 	SpeechBubbles         []SpeechBubbleDef
+
+	// combat surrender
+
+	SurrenderResponses []DialogResponse // the responses that are chosen from when starting dialog with a surrendering NPC
 }
 
 // SpeechBubbleReaction is an interface meant for producing speech bubble text to show (if any)

@@ -118,6 +118,19 @@ func (w *World) CreateNewMapState(mapID defs.MapID, customMapStateID string) {
 					logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapID)
 					logz.Panicln("CreateNewMapState", "found item object, but no item_id property was found")
 				}
+				// An item draws from its embedded tile, so a tile is required rather than optional.
+				//
+				// Without one this item would occupy map state while rendering nothing: still counted by
+				// anything enumerating map items, still activatable once #171 lands, just invisible. The
+				// engine has the matching check in loadItemObject, but that only runs when the map is
+				// actually loaded -- and map state is built long before that, at new-game init and when a
+				// map generator spawns a map. Without this, a broken map would start a game just fine and
+				// only panic much later, if the player ever walked somewhere to trigger the object load.
+				// Failing here means the problem surfaces at the point the map is authored.
+				if !objectInfo.HasEmbeddedTile {
+					logz.Println("CreateNewMapState", obj.Name, obj.ID, "mapID:", mapID)
+					logz.Panicln("CreateNewMapState", "found item object with no embedded tile; it would be invisible in-game")
+				}
 				// confirm item exists
 				defID := defs.ItemID(itemID)
 				itemDef := w.Dataman.GetItemDef(defID)

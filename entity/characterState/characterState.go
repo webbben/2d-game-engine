@@ -726,3 +726,26 @@ func NeverFlees(charStateID id.CharacterStateID, dataman *datamanager.DataManage
 
 	return charDef.NeverFlee || classDef.NeverFlee
 }
+
+// IsDeadOrDying reports whether a character is dead, or has taken a killing blow that has not been
+// processed as a death yet.
+//
+// Both halves are load-bearing, and checking only one is a bug that hides for a tick. Dead is set by
+// Kill(), which runs on the entity's own update; health goes to zero the moment damage lands. An
+// entity can therefore sit at zero health with Dead still false, and anything that asks "is this
+// character alive?" in that window gets the wrong answer from a Dead-only check.
+//
+// This is the same question Entity.IsDead() answers, from the character-state side rather than the
+// entity side. The two are deliberately equivalent, so a caller can use whichever it can reach: this
+// one works from a character ID alone (which is what combat deals in, and what survives an NPC being
+// unloaded from the map), while Entity.IsDead() needs the entity.
+//
+// Note World.IsDead does NOT match these -- it checks Dead alone. See its doc comment.
+func IsDeadOrDying(charStateID id.CharacterStateID, dataman *datamanager.DataManager) bool {
+	if dataman == nil {
+		panic("dataman was nil")
+	}
+
+	charState := dataman.GetCharacterState(charStateID)
+	return charState.Dead || charState.Health <= 0
+}

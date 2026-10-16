@@ -7,6 +7,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
+	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/model"
 )
 
@@ -43,6 +44,15 @@ type FollowTask struct {
 	// lastPathRequest throttles how often the main loop re-requests a path when the goal is
 	// unreachable (i.e. background assist keeps failing to find a path). Written only by the main loop.
 	lastPathRequest time.Time
+
+	// Progress tracking for stall detection. lastProgressTile is the tile the owner was standing on at
+	// the last path request; if a request comes and the owner is still on that same tile, nothing is
+	// moving, however many paths we ask for. progressTracked distinguishes "hasn't moved" from
+	// "we haven't asked yet" -- without it, an NPC legitimately at the zero tile would look stuck on
+	// its very first request. All written only by the main loop.
+	lastProgressTile            model.Coords
+	progressTracked             bool
+	pathRequestsWithoutProgress int
 }
 
 var _ Task = (*FollowTask)(nil)
@@ -97,6 +107,9 @@ func (t *FollowTask) Start() {
 	// reset per-run request state so a reused task requests a fresh path immediately.
 	t.lastPathRequest = time.Time{}
 	t.lastGoal = model.Coords{}
+	t.lastProgressTile = model.Coords{}
+	t.progressTracked = false
+	t.pathRequestsWithoutProgress = 0
 }
 
 func _followGetTargetPosition(e *entity.Entity, dist int) model.Coords {
@@ -183,7 +196,45 @@ func (t *FollowTask) requestPath(goal model.Coords, throttle bool) {
 
 	t.lastPathRequest = time.Now()
 	t.lastGoal = goal
+	t.notePathRequestProgress()
 	t.pathRequest.Store(&followPathRequest{goal: goal, start: start, BlockedTiles: unopenableGateTiles(t.Owner)})
+}
+
+// noProgressThreshold is how many path requests must pass without the owner moving off its tile
+// before we call this npc stuck. Requests are throttled to once a second, so this is roughly three
+// seconds -- comfortably longer than a normal detour or a wait for a gate.
+const noProgressThreshold = 3
+
+// notePathRequestProgress counts consecutive path requests that the owner did not answer by actually
+// moving. Requesting a path over and over while standing on the same tile means the loop isn't making
+// progress, and the interesting question is which of the several reasons it might be.
+//
+// This is observation only for now -- it reports, it doesn't react. Unlike the contended-waypoint
+// check, it isn't specific to competing NPCs: it catches any way an NPC can fail to advance, which is
+// why it's worth keeping even once contention is handled. Worth watching for cases where it fires and
+// the contention check doesn't, since those would be causes we haven't identified yet.
+func (t *FollowTask) notePathRequestProgress() {
+	tilePos := t.Owner.Entity.TilePos()
+
+	if !t.progressTracked {
+		t.progressTracked = true
+		t.lastProgressTile = tilePos
+		return
+	}
+
+	if !tilePos.Equals(t.lastProgressTile) {
+		t.lastProgressTile = tilePos
+		t.pathRequestsWithoutProgress = 0
+		return
+	}
+
+	t.pathRequestsWithoutProgress++
+	// Log only on the crossing, so one line per stall onset rather than one per second for as long as
+	// the stall lasts. A later stall reports again, because the counter resets in between.
+	if t.pathRequestsWithoutProgress == noProgressThreshold {
+		logz.Println("FollowTask: requested", t.pathRequestsWithoutProgress,
+			"paths without advancing off tile", t.lastProgressTile, t.Owner.WhoAmI())
+	}
 }
 
 // BackgroundAssist runs on the background jobs goroutine and performs the A* search for a requested

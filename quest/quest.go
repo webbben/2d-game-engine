@@ -94,7 +94,7 @@ func (qm *QuestManager) OnEvent(event defs.Event) {
 		logz.Panicln("QuestManager", "OnEvent: event indices were nil. are you sure you created event indices/loaded quest data yet?")
 	}
 
-	logz.Println("QuestManager:OnEvent", "event incoming:", event.Type)
+	// logz.Println("QuestManager:OnEvent", "event incoming:", event.Type)
 
 	// check for quest start triggers
 	notStartedQuests, exists := qm.startTriggersByEvent[event.Type]

@@ -96,6 +96,11 @@ type NPC struct {
 	hasSeenPlayerYet              bool                                      // if true, this NPC has seen the player at some point already (in the current map)
 	lastPlayerSightingTime        time.Time                                 // the last time the player was seen
 
+	// lastContestedLog rate-limits waypoint contention reporting (see contention.go). The check runs
+	// every frame for every active NPC, and a standoff persists for as long as it takes to resolve, so
+	// an unthrottled log would bury everything else. Main-loop only.
+	lastContestedLog time.Time
+
 	// === World related things ===
 
 	// The character state gives the NPC access to get data about the character's current state, as well as make changes to it.
@@ -745,6 +750,11 @@ func (n *NPC) shouldPursue(sessionID combat.CombatSessionID, enemyID id.Characte
 // countStandingEnemies returns how many of this npc's enemies are still on their feet, excluding
 // excludeID. Used as the "is there something better to deal with first" input to pursuit: an enemy
 // who's run doesn't pull an npc away from someone they're already fighting.
+//
+// Dead enemies are skipped rather than profiled, matching shouldFlee. A corpse is still a session member
+// for as long as it lies on the map, and profiling one is both meaningless and rejected by CombatProfile.
+// Skipping it here also keeps the tally honest: a body that was fleeing when it dropped is not standing,
+// but it is also not a live enemy worth diverting attention away from.
 func (n *NPC) countStandingEnemies(sessionID combat.CombatSessionID, excludeID id.CharacterStateID) int {
 	selfID := n.CharacterStateRef.ID
 	session := n.WorldCtx.SessionFor(selfID)
@@ -755,6 +765,9 @@ func (n *NPC) countStandingEnemies(sessionID combat.CombatSessionID, excludeID i
 	count := 0
 	for _, enemyID := range session.EnemiesOf(selfID) {
 		if enemyID == excludeID {
+			continue
+		}
+		if characterstate.IsDeadOrDying(enemyID, n.dataman) {
 			continue
 		}
 		if !n.WorldCtx.CombatProfile(sessionID, enemyID).Fleeing {

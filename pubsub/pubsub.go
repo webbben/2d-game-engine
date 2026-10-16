@@ -112,7 +112,7 @@ func (eb *EventBus) Publish(e defs.Event) {
 
 // dispatches a single event.
 func (eb *EventBus) dispatch(e defs.Event) {
-	e.Log()
+	// e.Log()
 	if e.Type == EventScheduleFutureEvent {
 		// queuing future events will not be broadcast to anyone; it's a special event type that is recorded to be fired later on.
 		// useful for doing things like causing an event to happen a day later after talking to an NPC, for example.

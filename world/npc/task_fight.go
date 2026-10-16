@@ -12,6 +12,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
+	"github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
@@ -398,7 +399,18 @@ func (t *FightTask) buildCandidate(session combat.SessionView, enemyID id.Charac
 //
 // A standing enemy is left as-is, because the answer for them is always "worth pursuing" and asking the
 // question would mean building two profiles to get a value nobody needs.
+//
+// Dead candidates return early and unmarked. This runs before liveness is known to the caller -- on both
+// pickTarget paths, since here it is either an argument to targetIsValid or applied straight to a list of
+// session members -- so this is the one place that can stop a corpse being profiled. Alive is set false as
+// well as short-circuiting, so targetIsValid rejects them on the merits rather than by luck of what the
+// entity lookup happened to find.
 func (t *FightTask) withPursuit(sessionID combat.CombatSessionID, candidate targetCandidate) targetCandidate {
+	if characterstate.IsDeadOrDying(candidate.ID, t.Owner.dataman) {
+		candidate.Alive = false
+		return candidate
+	}
+
 	if !t.Owner.WorldCtx.CombatProfile(sessionID, candidate.ID).Fleeing {
 		return candidate
 	}
@@ -421,7 +433,7 @@ func (t *FightTask) startFollowing() {
 	if !t.ChildDone() {
 		logz.Panicf("follow subtask appears to already be active. It should've ended (or not started yet) before Start was called.")
 	}
-	logz.Println(t.Owner.DisplayName(), "start follow")
+	logz.Println(t.Owner.ID(), "start follow")
 
 	// not allowed to shield while moving
 	t.dropShield()
@@ -441,7 +453,7 @@ func (t *FightTask) stopFollowing() {
 	if !t.HasChild() || t.ChildDone() {
 		logz.Panic("trying to stop following, but the follow child is not active")
 	}
-	logz.Println(t.Owner.DisplayName(), "stop follow")
+	logz.Println(t.Owner.ID(), "stop follow")
 	t.EndChild()
 	t.status = fightStatusIdle
 }
@@ -450,7 +462,7 @@ func (t *FightTask) startCombat() {
 	if t.status != fightStatusIdle {
 		panic("fight status should be idle before trying to start combat")
 	}
-	logz.Println(t.Owner.DisplayName(), "start combat")
+	logz.Println(t.Owner.ID(), "start combat")
 	// nothing to really do here except flip the switch on combat status
 	t.status = fightStatusCombat
 	// reset approach flags
@@ -593,7 +605,7 @@ func (t *FightTask) handleCombat() {
 	// approach logic lined us up wrong (or something else moved us out of range). surface it
 	// instead of whiffing silently.
 	if !t.Owner.Entity.TargetInMeleeReach(t.targetEntity) {
-		logz.PanicCtx(t.Owner.DisplayName(), "handleCombat: believed in striking range, but attack would miss",
+		logz.PanicCtx(t.Owner.ID(), "handleCombat: believed in striking range, but attack would miss",
 			"myPos:", t.Owner.Entity.TilePos(), "targetPos:", t.targetEntity.TilePos(), "target rect:", t.targetEntity.CollisionRect())
 	}
 

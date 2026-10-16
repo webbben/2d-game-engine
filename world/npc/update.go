@@ -279,5 +279,8 @@ func (n *NPC) npcUpdates() {
 
 		n.HandleTaskUpdate()
 
+		// Watch for NPCs competing for the same next waypoint. Detection only -- nothing acts on it
+		// yet. Runs after the task update so the entity's movement reflects this tick's decisions.
+		n.logContestedClaim()
 	}
 }

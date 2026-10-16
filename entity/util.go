@@ -18,7 +18,11 @@ func (e Entity) GetPathToEntity(otherEnt Entity) (path []model.Coords, found boo
 	return e.World.FindPath(e.TilePos(), otherEnt.TilePos())
 }
 
-func (e *Entity) TryMoveTowardsEntity(otherEnt Entity, dist, speed float64) MoveError {
+func (e *Entity) TryMoveTowardsEntity(otherEnt Entity, dist, speed float64) (err MoveError) {
+	defer func() {
+		e.logMoveError(&err)
+	}()
+
 	if e.IsStunned() {
 		return MoveError{Cancelled: true, Info: "stunned"}
 	}
