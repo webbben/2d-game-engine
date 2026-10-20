@@ -54,11 +54,15 @@ func NewSurrenderTask(targetEnt *entity.Entity, owner *NPC, def defs.TaskDef) *S
 
 // Start announces the offer and starts listening for the dialog to close.
 //
+// What the announcement says is the NPC's dialog profile's business, not the engine's -- see
+// showSurrenderSpeechBubble. Every NPC that surrenders can hit this path, since any of them may break
+// off and give up rather than keep running.
+//
 // How acceptance and rejection are told apart: accepting is handled by AcceptSurrenderEffect, which
 // ends this task before the dialog ever closes. So reaching OnDialogEnd at all means the offer was
 // refused or the player just walked away -- there is no outcome payload on the event to check.
 func (t *SurrenderTask) Start() {
-	t.Owner.Entity.ShowSpeechBubble("I yield! I have had enough!", t.Owner.defaultSpeechBubbleParams())
+	t.Owner.showSurrenderSpeechBubble()
 	t.subID = t.Owner.ID() + "_" + string(TaskSurrender) + "_sub"
 	t.Owner.subscribeToEvent(t.subID, pubsub.EventDialogEnded, t.OnDialogEnd)
 	t.TaskBase.Start()

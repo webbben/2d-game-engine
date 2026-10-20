@@ -936,6 +936,16 @@ func (mi *ActiveMap) GetGroundMaterial(tileX, tileY int) string {
 	return mi.Map.GroundMaterial[tileY][tileX]
 }
 
+// AttackArea resolves who an attack lands on and applies it.
+//
+// With no designated target it damages everything whose collision box overlaps TargetRect, which is
+// how the player attacks. With one, it damages that character and nothing else -- see
+// AttackInfo.IntendedTarget.
+//
+// The two paths are kept as separate loops rather than sharing one with an extra condition, because
+// they don't quite do the same things to a victim: an NPC being hit reacts to it (OnAttacked, which
+// can start a fight), while the player doesn't. Folding them together would mean either giving the
+// player an OnAttacked call she has never had, or making NPCs skip theirs.
 func (mi *ActiveMap) AttackArea(attackInfo entity.AttackInfo) {
 	// find all entities in the area of the rect
 
@@ -947,6 +957,35 @@ func (mi *ActiveMap) AttackArea(attackInfo entity.AttackInfo) {
 
 	attacker := mi.findEntityByID(attackInfo.Attacker)
 
+	if attackInfo.IntendedTarget != "" {
+		for _, n := range mi.NPCs {
+			if n.Entity.ID() != attackInfo.IntendedTarget {
+				continue
+			}
+			// Same three gates as the area loop below. The designated target can die or be pushed out
+			// of the (frozen) attack rect between aim and impact, and then the swing simply misses:
+			// naming a target must not turn into "hits them anyway".
+			if n.Entity.IsDead() || slices.Contains(attackInfo.ExcludeEntIds, string(n.Entity.ID())) {
+				return
+			}
+			if !attackInfo.TargetRect.Intersects(n.Entity.CollisionRect()) {
+				return
+			}
+			mi.landAttackOnNPC(n, attackInfo, attacker)
+			return
+		}
+		if mi.PlayerRef != nil && mi.PlayerRef.Entity.ID() == attackInfo.IntendedTarget {
+			if mi.PlayerRef.Entity.IsDead() || slices.Contains(attackInfo.ExcludeEntIds, string(mi.PlayerRef.Entity.ID())) {
+				return
+			}
+			if !attackInfo.TargetRect.Intersects(mi.PlayerRef.Entity.CollisionRect()) {
+				return
+			}
+			mi.landAttackOnPlayer(attackInfo, attacker)
+		}
+		return
+	}
+
 	for _, n := range mi.NPCs {
 		if n.Entity.IsDead() {
 			continue
@@ -955,20 +994,31 @@ func (mi *ActiveMap) AttackArea(attackInfo entity.AttackInfo) {
 			continue
 		}
 		if attackInfo.TargetRect.Intersects(n.Entity.CollisionRect()) {
-			n.Entity.ReceiveAttack(attackInfo)
-			if attacker != nil {
-				n.OnAttacked(attacker)
-				attacker.HandleWeaponHit(n.Entity) // wear down the attacker's weapon
-			}
+			mi.landAttackOnNPC(n, attackInfo, attacker)
 		}
 	}
 	if mi.PlayerRef != nil && !slices.Contains(attackInfo.ExcludeEntIds, string(mi.PlayerRef.Entity.ID())) {
 		if attackInfo.TargetRect.Intersects(mi.PlayerRef.Entity.CollisionRect()) {
-			mi.PlayerRef.Entity.ReceiveAttack(attackInfo)
-			if attacker != nil {
-				attacker.HandleWeaponHit(mi.PlayerRef.Entity) // wear down the attacker's weapon
-			}
+			mi.landAttackOnPlayer(attackInfo, attacker)
 		}
+	}
+}
+
+// landAttackOnNPC applies an attack to an NPC, doing the NPC-specific part: reacting to being hit.
+// Both dead and self checks, plus the attack-area overlap, are the caller's job -- whoever called
+// this has already decided this entity is actually being hit.
+func (mi *ActiveMap) landAttackOnNPC(n *npc.NPC, attackInfo entity.AttackInfo, attacker *entity.Entity) {
+	n.Entity.ReceiveAttack(attackInfo)
+	if attacker != nil {
+		n.OnAttacked(attacker)
+		attacker.HandleWeaponHit(n.Entity) // wear down the attacker's weapon
+	}
+}
+
+func (mi *ActiveMap) landAttackOnPlayer(attackInfo entity.AttackInfo, attacker *entity.Entity) {
+	mi.PlayerRef.Entity.ReceiveAttack(attackInfo)
+	if attacker != nil {
+		attacker.HandleWeaponHit(mi.PlayerRef.Entity) // wear down the attacker's weapon
 	}
 }
 

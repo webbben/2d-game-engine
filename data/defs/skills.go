@@ -155,6 +155,17 @@ type CombatSystemCalc interface {
 // CombatInfo gives contextual information about the active combat situation that the NPC is involved in
 type CombatInfo struct {
 	Enemies []CombatProfile
+
+	// Allies is this character's own side, minus themselves, that are still standing.
+	//
+	// Profiles rather than a count, symmetric with Enemies: what an ally is *like* -- a healer, a
+	// shield-bearer, the strongest fighter present -- is something a game project may reasonably want
+	// when deciding whether to keep fighting, and the engine shouldn't decide for them that a bare
+	// count is enough. It costs more to assemble than an int would, but the session's profile cache
+	// means each ally resolves once per fight rather than once per observer asking.
+	//
+	// Dead and unloaded allies are excluded, so len(Allies) == 0 means genuinely alone.
+	Allies []CombatProfile
 }
 
 // CombatIntent describes what an individual combatant is trying to accomplish by fighting.

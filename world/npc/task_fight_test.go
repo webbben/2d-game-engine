@@ -236,6 +236,76 @@ func TestSelectTargetIDKeepsCurrentTarget(t *testing.T) {
 			candidates: []targetCandidate{valid("bandit_b", 25), valid("bandit_a", 25)},
 			want:       "bandit_b",
 		},
+		{
+			// Being hit has to outrank "closest". The previous rule kept any valid target, so an npc
+			// would walk past a bandit swinging at it to keep chasing the nearest stranger. Being struck
+			// is a settled fact; distance is only where someone happens to be in their approach.
+			name:    "an attacker outranks a nearer enemy we haven't been hit by",
+			current: "",
+			candidates: []targetCandidate{
+				{ID: "bandit_a", Dist: 120, Alive: true, InSession: true, InWorld: true, AttackedMe: true},
+				valid("bandit_b", 12),
+			},
+			want: "bandit_a",
+		},
+		{
+			// The reported bug: hit from behind while chasing a runaway. Chasing someone who is leaving
+			// is discretionary, and ignoring a landed hit to keep doing it is the behaviour that made no
+			// sense in testing.
+			name:    "hit while chasing a fleeing target, turns on the attacker",
+			current: "bandit_a",
+			candidates: []targetCandidate{
+				{ID: "bandit_a", Dist: 40, Alive: true, InSession: true, InWorld: true, Fleeing: true, WorthPursuing: true},
+				{ID: "bandit_b", Dist: 200, Alive: true, InSession: true, InWorld: true, AttackedMe: true},
+			},
+			want: "bandit_b",
+		},
+		{
+			// The same interruption while dueling someone who is actually fighting back. We stop ignoring
+			// the hits entirely, not just when the current target happens to be running.
+			name:    "hit while fighting a standing enemy, turns on the attacker",
+			current: "bandit_a",
+			candidates: []targetCandidate{
+				valid("bandit_a", 16),
+				{ID: "bandit_b", Dist: 30, Alive: true, InSession: true, InWorld: true, AttackedMe: true},
+			},
+			want: "bandit_b",
+		},
+		{
+			// The anti-thrash rule, and the whole reason stickiness is scoped to the top tier rather than
+			// dropped. Outnumbered and being hit from two sides, the npc switches to the first attacker
+			// and then holds them: the second attacker joins the tier but doesn't displace a target
+			// already in it. Without this, alternating hits would ping-pong the target every swing.
+			name:    "a second attacker joining the tier does not displace our current attacker",
+			current: "bandit_b",
+			candidates: []targetCandidate{
+				{ID: "bandit_a", Dist: 16, Alive: true, InSession: true, InWorld: true, AttackedMe: true},
+				{ID: "bandit_b", Dist: 90, Alive: true, InSession: true, InWorld: true, AttackedMe: true},
+			},
+			want: "bandit_b",
+		},
+		{
+			// Validity is decided before tiering, so a corpse that hit us a moment ago can't form a tier
+			// by itself and leave us with nobody to fight while someone alive is standing right there.
+			name:    "a dead attacker does not form an empty tier over a living enemy",
+			current: "",
+			candidates: []targetCandidate{
+				{ID: "bandit_a", Dist: 10, Alive: false, InSession: true, InWorld: true, AttackedMe: true},
+				valid("bandit_b", 40),
+			},
+			want: "bandit_b",
+		},
+		{
+			// Tiering must not resurrect targets we already refuse to chase. A fleeing enemy we won't
+			// pursue is invalid regardless of whether they're also the one hitting us.
+			name:    "a fleeing attacker we won't pursue is still not a target",
+			current: "",
+			candidates: []targetCandidate{
+				{ID: "bandit_a", Dist: 10, Alive: true, InSession: true, InWorld: true, Fleeing: true, WorthPursuing: false, AttackedMe: true},
+				valid("bandit_b", 90),
+			},
+			want: "bandit_b",
+		},
 	}
 
 	for _, tt := range tests {

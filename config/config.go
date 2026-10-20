@@ -119,6 +119,8 @@ var (
 
 	NearDeathHealthPercent float64 = 0.1
 
+	DisableFleeing bool = false // if true, NPCs in combat will never flee
+
 	// CorpseExpiryHours is how many in-game hours a dead NPC's body sticks around before it's cleaned up.
 	//
 	// This isn't just about tidiness: the corpse is lootable, and a player with a full inventory may well
@@ -130,6 +132,36 @@ var (
 	EntitySeparationRadius  float64 = TileSize
 	EntitySeparationGain    float64 = 0.1
 	EntitySeparationMaxPush float64 = 0.5
+
+	// MinCelebrationSideSize is how many combatants a side has to have reached, at its peak, for the
+	// fight it was in to earn a victory celebration. Both sides have to clear it, so winning a
+	// one-sided ambush isn't a victory lap.
+	//
+	// Measured at the peak rather than the finish: a three-on-three that ends one-on-one was still a
+	// battle, and the survivors are the right ones to be celebrating.
+	MinCelebrationSideSize int = 3
+
+	// CelebrationDelay is how long the winners of a big-enough fight wait before starting to celebrate.
+	// A beat of standing still reads as "the fight is over"; starting the instant the last enemy drops
+	// reads as a glitch.
+	CelebrationDelay time.Duration = time.Second
+
+	// CelebrationDelayJitter is the extra random delay layered on top of CelebrationDelay.
+	//
+	// This is what stops a crowd celebrating on the same tick. Without it every survivor is on the same
+	// frame, all switching to the victory animation in lockstep, which looks like a bug rather than a
+	// crowd. Each winner rolls their own delay once, when the fight ends.
+	CelebrationDelayJitter time.Duration = 1500 * time.Millisecond
+
+	// CelebrationTimeout is how long a queued celebration waits before being abandoned.
+	//
+	// The queue holds up the task loop, so an npc that somehow never becomes free would be stuck
+	// standing still indefinitely. Past this point the fight is old news and celebrating it is wrong
+	// anyway.
+	CelebrationTimeout time.Duration = 10 * time.Second
+
+	// CelebrationDuration is how long the victory animation runs before the npc gets back on with it.
+	CelebrationDuration time.Duration = 5 * time.Second
 )
 
 const (

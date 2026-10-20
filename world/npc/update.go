@@ -46,19 +46,48 @@ func (mgmt *TaskMGMT) Update(n *NPC) {
 	// NOTE: as of now, this function doesn't really do anything besides check for next tasks and/or run the next scheduled task.
 
 	current := mgmt.getCurrentTask()
-	if current == nil || !current.IsDone() {
+
+	// A live task outranks a queued celebration. That is usually the swing that felled the last enemy
+	// still resolving itself, and cutting across it would strand the attack -- so waiting is all this
+	// does. The celebration gets picked up on a later tick, once the task reports done.
+	if current != nil && !current.IsDone() {
 		return
 	}
 
-	owner := current.GetOwner()
+	var owner *NPC
+	if current != nil {
+		owner = current.GetOwner()
 
-	// 1. an explicitly chained task (e.g. from a quest) runs before anything else.
-	if nextTask := current.GetNextTaskDef(); nextTask != nil {
-		mgmt.RunTask(*nextTask, owner)
+		// 1. an explicitly chained task (e.g. from a quest) runs before anything else.
+		if nextTask := current.GetNextTaskDef(); nextTask != nil {
+			mgmt.RunTask(*nextTask, owner)
+			return
+		}
+	}
+
+	// 2. a victory celebration earned by the fight that just ended. This sits below the chained task
+	// above, so quest scripting still wins over it, and above the schedule below, so the fight's
+	// winners don't walk off to work before they've had their moment.
+	if n.hasPendingVictoryCelebration() {
+		if !n.victoryCelebrationReady() {
+			// Waiting out this npc's stagger. It stands where it is until the celebration is due.
+			return
+		}
+		n.clearVictoryCelebration()
+		mgmt.RunTask(defs.TaskDef{
+			TaskID:   TaskCelebrate,
+			Priority: Emergency,
+		}, n)
 		return
 	}
 
-	// 2. otherwise, decide if the NPC should return to a scheduled task for the current hour, or resume a
+	if current == nil {
+		// Nothing to chain into, no celebration owed, and no task that just finished. A taskless npc
+		// stays taskless until something assigns one.
+		return
+	}
+
+	// 3. otherwise, decide if the NPC should return to a scheduled task for the current hour, or resume a
 	//    task that was preempted earlier. The hourly schedule wins; a preempted task is only resumed for
 	//    NPCs that have no scheduled task for this hour.
 	hour := n.WorldCtx.GetCurrentGameTime().Hour
@@ -72,7 +101,7 @@ func (mgmt *TaskMGMT) Update(n *NPC) {
 		return
 	}
 
-	// 3. nothing to chain, schedule, or resume: just clear the task (do nothing).
+	// 4. nothing to chain, schedule, or resume: just clear the task (do nothing).
 	mgmt.clearTask()
 }
 
@@ -157,6 +186,14 @@ func (mgmt *TaskMGMT) buildTask(taskDef defs.TaskDef, n *NPC) Task {
 //     set-once or single-header reads that don't tear in practice; proper hardening of character-state
 //     access belongs to a follow-up pass.
 //
+// Lock discipline for task callbacks:
+//   - The Finish() and Start() calls below run while taskStateMu is write-locked, so neither may call
+//     anything that acquires taskStateMu. StartDialogTask.Start() once did, via
+//     GetGreeting -> IsNPCOfferingSurrender -> getCurrentTask, and deadlocked the whole game loop.
+//   - Main-loop task introspection therefore goes through getCurrentTask(), which is unlocked.
+//   - The single exception is GetCurrentTaskForBgAssist(), the only accessor that takes the read lock.
+//     It exists for the background jobs goroutine, and no task's Start()/Finish() may call it.
+//
 // Returns true if the switch happened; false if the current task has a higher priority and the
 // new task was rejected.
 func (mgmt *TaskMGMT) switchTask(t Task) bool {
@@ -181,11 +218,19 @@ func (mgmt *TaskMGMT) switchTask(t Task) bool {
 	return true
 }
 
-// getCurrentTask returns the current task pointer, or nil. Safe for concurrent use; the background
-// jobs goroutine uses this to peek at the task before calling BackgroundAssist.
+// getCurrentTask returns the current task pointer, or nil.
+//
+// Deliberately unlocked. The main game loop is the only writer of CurrentTask, and it writes under the
+// write lock, so a main-loop read needs no lock of its own. That is not just an optimisation: switchTask
+// holds taskStateMu write-locked while it calls Start() and Finish() on tasks, and StartDialogTask.Start()
+// reaches this accessor through GetGreeting -> IsNPCOfferingSurrender. sync.RWMutex is not reentrant, so
+// taking RLock here from a task callback would be a re-entrant acquire on a mutex the same goroutine
+// already write-locks, which deadlocks the whole game loop with no panic (other goroutines stay alive,
+// so the runtime deadlock detector never fires).
+//
+// MAIN-LOOP ONLY. The background jobs goroutine must use GetCurrentTaskForBgAssist instead, which is the
+// one accessor that does take the read lock.
 func (mgmt *TaskMGMT) getCurrentTask() Task {
-	mgmt.taskStateMu.RLock()
-	defer mgmt.taskStateMu.RUnlock()
 	return mgmt.CurrentTask
 }
 
@@ -207,6 +252,9 @@ func (mgmt *TaskMGMT) TryGetCurrentTaskForDump() (Task, bool) {
 }
 
 // clearTask nils out the current task. Main-loop only.
+//
+// Like switchTask, the Finish() call below runs while taskStateMu is write-locked, so a task's Finish()
+// must not acquire taskStateMu (see the lock discipline note on switchTask).
 func (mgmt *TaskMGMT) clearTask() {
 	mgmt.taskStateMu.Lock()
 	defer mgmt.taskStateMu.Unlock()

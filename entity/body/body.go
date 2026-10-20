@@ -929,6 +929,7 @@ func (eb *EntityBodySet) Update() {
 		eb.WeaponSet.nextFrame(eb.animation)
 		eb.WeaponFxSet.nextFrame(eb.animation)
 		eb.AuxItemSet.nextFrame(eb.animation)
+		eb.EyesSet.nextFrame(eb.animation)
 	}
 	// check for a queued animation; and if we are idle, switch to that
 	if eb.animation == AnimIdle && eb.nextAnimation != "" {

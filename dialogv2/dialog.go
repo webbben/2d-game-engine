@@ -792,7 +792,18 @@ func GetNPCResponse(dt defs.DialogTopic, ctx DialogContext) defs.DialogResponse 
 	return chooseResponse(dt.Responses, ctx)
 }
 
+// GetGreeting returns the first line an NPC opens a conversation with.
+//
+// An outstanding surrender offer replaces the greeting outright. The player isn't having a conversation
+// with someone who just gave up, they're being asked to accept that, so offering the small talk as an
+// alternative would be the wrong read of the scene.
+//
+// Falls back to Greeting when the profile has no surrender responses. An NPC that can flee without ever
+// offering should still be talkable, and so should one whose data simply hasn't been written yet.
 func GetGreeting(def defs.DialogProfileDef, ctx DialogContext) defs.DialogResponse {
+	if ctx.IsNPCOfferingSurrender() && len(def.SurrenderResponses) > 0 {
+		return chooseResponse(def.SurrenderResponses, ctx)
+	}
 	return chooseResponse(def.Greeting, ctx)
 }
 

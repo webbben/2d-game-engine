@@ -207,7 +207,15 @@ func (e *Entity) SitInChair(chairObj *object.Object) {
 
 	e.SetPositionPx(x, y)
 	e.SetDirection(chairObj.Chair.Direction)
-	// TODO: once sitting mode is implemented for body, need to call that here.
+	// Force is needed because the character may still be finishing a walk/attack cycle; without it
+	// SetAnimation refuses to leave a non-idle animation.
+	e.SetAnimation(AnimationOptions{
+		AnimationName:         body.AnimSit,
+		AnimationTickInterval: defaultIdleAnimationTickInterval,
+		SetAnimationOps: body.SetAnimationOps{
+			Force: true,
+		},
+	})
 	// TODO: probably need to set a customY to ensure that the entity draws on top of the chair
 }
 
@@ -223,6 +231,13 @@ func (e *Entity) LeaveChair() {
 	}
 
 	e.SetPositionPx(e.positionBeforeSitting.X, e.positionBeforeSitting.Y)
+
+	// put the seated pose away. scoped to the sit animation so that if something legitimately took
+	// over in the meantime (e.g. an attack that pulled the character out of the chair) we don't
+	// stomp on it.
+	if e.Body.GetCurrentAnimation() == body.AnimSit {
+		e.Body.StopAnimation()
+	}
 
 	e.IsSitting = false
 	e.DisableCollisions = false

@@ -163,11 +163,13 @@ func (w *World) InitiateCombat(charStateID, targetCharStateID id.CharacterStateI
 	// The target is now a combatant too, and needs to find that out. Without this they stand there as
 	// a participant in a fight they never started until something lands a hit on them. StartCombat
 	// returns nil only when both were already committed elsewhere, so a non-nil result means the
-	// target was actually drawn in. OnAttacked re-runs StartCombat and finds nothing to do, which is
-	// harmless, and its guards keep a second declaration from restarting a fight already in progress.
+	// target was actually drawn in. OnDrawnIntoCombat re-runs StartCombat and finds nothing to do,
+	// which is harmless, and its guards keep a second declaration from restarting a fight already
+	// in progress. Note it deliberately goes through OnDrawnIntoCombat rather than OnAttacked:
+	// nothing struck the target here, so they must not record the initiator as an attacker.
 	if session != nil && targetCharStateID != id.PlayerStateID {
 		if target := w.getInWorldNPC(targetCharStateID); target != nil {
-			target.OnAttacked(npcRef.Entity)
+			target.OnDrawnIntoCombat(npcRef.Entity)
 		}
 	}
 }

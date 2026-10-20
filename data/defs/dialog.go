@@ -29,9 +29,35 @@ type DialogProfileDef struct {
 	PlayerNoticeReactions []SpeechBubbleReaction
 	SpeechBubbles         []SpeechBubbleDef
 
+	// CelebrationSpeechBubbles are said when this NPC wins a fight big enough to earn a celebration.
+	//
+	// A slot of its own rather than another entry in SpeechBubbles because it isn't triggered by a world
+	// event: it's asked for by the celebration task, which knows it won. Going through the event bus
+	// would mean publishing an event nobody else can meaningfully subscribe to.
+	//
+	// Tried in order and the first one that produces text wins, the same as the other bubble slots.
+	CelebrationSpeechBubbles []SpeechBubbleReaction
+
 	// combat surrender
 
-	SurrenderResponses []DialogResponse // the responses that are chosen from when starting dialog with a surrendering NPC
+	// SurrenderSpeechBubbles are said when this NPC offers to surrender, before the player has answered.
+	//
+	// A slot of its own like the celebration one, and for the same reason: the engine knows when an npc
+	// gives up, but what it says about it is the game's to decide. A reaction that returns nothing simply
+	// means this npc gives up quietly.
+	SurrenderSpeechBubbles []SpeechBubbleReaction
+
+	// SurrenderResponses are the player's side of an offer: what they see when they talk to an NPC while
+	// it has one on the table.
+	//
+	// Chosen *instead of* Greeting while an offer is outstanding, so the conversation is the offer rather
+	// than small talk about beds. An empty list falls back to Greeting, which is right for an npc that
+	// never offers -- and leaves the player able to walk away from an offer without answering it, which
+	// the surrender task reads as a refusal.
+	//
+	// Same first-passing-conditions rules as every other response list: entries are tried in order, so a
+	// list of more than one needs an unconditional entry or chooseResponse panics when none match.
+	SurrenderResponses []DialogResponse
 }
 
 // SpeechBubbleReaction is an interface meant for producing speech bubble text to show (if any)

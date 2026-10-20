@@ -3,9 +3,11 @@ package world
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 
 	"github.com/webbben/2d-game-engine/combat"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/entity"
@@ -216,16 +218,80 @@ func (w *World) LeaveCombat(charID id.CharacterStateID) {
 	if !session.HasEnded() {
 		return
 	}
+	w.endSession(session)
+}
+
+// endSession retires a finished fight: it drops the session so nothing can find it again.
+//
+// This is the one place a session leaves the world. Both ways out of a fight come through here, because
+// HasEnded is judged by membership and callers leave for different reasons -- dying, walking off the
+// map, accepting a surrender, or standing down. A fight that could be retired by only one of those
+// paths would be a bug waiting to be found, so nothing gets to retire a session on its own.
+//
+// Note what this deliberately does NOT do: work out who won. It can't, by the time it runs. See
+// WonCelebratableFight.
+func (w *World) endSession(session *combat.CombatSession) {
 	// fight is over: drop the session so nothing can find it again
 	for i, s := range w.combatSessions {
 		if s == session {
 			w.combatSessions = append(w.combatSessions[:i], w.combatSessions[i+1:]...)
-			logz.Println("LeaveCombat", "fight ended:", session.SessionID())
+			logz.Println("endSession", "fight ended:", session.SessionID())
 			return
 		}
 	}
-	logz.Panicln("LeaveCombat", "session reported ended but wasn't in the world's session list",
-		"session:", session.SessionID(), "character:", charID)
+	logz.Panicln("endSession", "session reported ended but wasn't in the world's session list",
+		"session:", session.SessionID())
+}
+
+// fightQualifiesForCelebration reports whether charID won a fight big enough to earn a victory lap.
+//
+// The winner is established by the caller standing down with nothing left to fight, which has to be
+// asked *before* it leaves: a combatant that gives up its seat in the session is how a fight ends, so
+// by the time the session retires the winning side has emptied itself and the only side left standing
+// is the losing one. Asking "which side survived?" too late picks the wrong side.
+//
+// Three conditions, all required:
+//
+//   - charID is still in the fight and able to stand there, which is what rules out a corpse or a
+//     mutual annihilation asking to celebrate.
+//   - Every enemy is dead or dying. Running isn't losing to them, so a rout where the other side
+//     fled or surrendered earns nothing.
+//   - Both sides reached the size threshold at their peak. Judged on the peak rather than the finish, so
+//     a fight that ground down to a last survivor still counts as a battle -- see MaxSizeOf.
+//
+// Free function rather than a method so the rule can be tested without standing up a World or a
+// DataManager; it needs nothing but the session.
+func fightQualifiesForCelebration(session *combat.CombatSession, charID id.CharacterStateID, minSideSize int) bool {
+	if !session.IsCombatant(charID) || session.IsDeadOrDying(charID) {
+		return false
+	}
+	if len(session.FightingEnemiesOf(charID)) != 0 {
+		return false
+	}
+	// AllSides rather than Sides: the defeated side may already be empty, so it can be missing from
+	// Sides and still be one whose size has to be checked.
+	for _, side := range session.AllSides() {
+		if session.MaxSizeOf(side) < minSideSize {
+			return false
+		}
+	}
+	return true
+}
+
+// WonCelebratableFight reports whether charID has just won a fight worth celebrating.
+//
+// Asked by a combatant as it stands down, so this has to be answered while the fight is still on record.
+func (w *World) WonCelebratableFight(charID id.CharacterStateID) bool {
+	session := w.concreteSessionFor(charID)
+	if session == nil {
+		// The fight is already over and gone -- someone else's departure retired it.
+		return false
+	}
+	if !fightQualifiesForCelebration(session, charID, config.MinCelebrationSideSize) {
+		return false
+	}
+	logz.Println("WonCelebratableFight", charID, "won a fight worth celebrating. session:", session.SessionID())
+	return true
 }
 
 // concreteSessionFor is SessionFor without the read-only interface, for the internal calls that
@@ -282,6 +348,19 @@ func (w *World) IsDead(charID id.CharacterStateID) bool {
 	return w.Dataman.GetCharacterState(charID).Dead
 }
 
+// IsDeadOrDying reports whether a character is past being able to fight.
+//
+// The question World.IsDead is documented as being the wrong one for. IsDead is settled: it goes true
+// once a corpse has actually been processed. This one goes true the moment health hits zero, which is
+// the tick or so earlier.
+//
+// That gap is small and easy to dismiss, and it is exactly what makes the difference when asking whether
+// anyone's left in a fight: a body still sitting in the session isn't someone who can still hit you.
+func (w *World) IsDeadOrDying(charID id.CharacterStateID) bool {
+	utils.PanicAssert(charID != "", "id was empty")
+	return characterstate.IsDeadOrDying(charID, w.Dataman)
+}
+
 // IsOfferingSurrender reports whether an NPC has an unaccepted offer on the table. The player never
 // does -- they don't surrender to anyone -- and neither does anyone who isn't in the world.
 func (w *World) IsOfferingSurrender(charID id.CharacterStateID) bool {
@@ -305,15 +384,15 @@ func (w *World) IsFleeing(charID id.CharacterStateID) bool {
 // the world update loop so a fight ends even if the character who ended it never went through
 // LeaveCombat -- a dead NPC, for instance.
 func (w *World) pruneEndedCombatSessions() {
-	kept := w.combatSessions[:0]
-	for _, s := range w.combatSessions {
+	// Cloned because endSession removes from w.combatSessions, and doing that while walking it would
+	// both skip sessions and read past the end of the slice. Ending fights is its job; this only decides
+	// which ones are ready for it.
+	for _, s := range slices.Clone(w.combatSessions) {
 		if s.HasEnded() {
 			logz.Println("pruneEndedCombatSessions", "dropping ended fight:", s.SessionID())
-			continue
+			w.endSession(s)
 		}
-		kept = append(kept, s)
 	}
-	w.combatSessions = kept
 }
 
 func (w *World) CombatDebugInfo(sb *strings.Builder) {

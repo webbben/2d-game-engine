@@ -217,7 +217,9 @@ func (p *Player) handleActions() bool {
 			if p.Entity.IsUsingShield() {
 				p.Entity.StopUsingShield()
 			}
-			res := p.Entity.StartMeleeAttack()
+			// nil: the player has no chosen target, so their swing damages everything in the
+			// attack area. Cross-fire and friendly fire are possible and consequential by design.
+			res := p.Entity.StartMeleeAttack(nil)
 			if !res.Success {
 				logz.Warnln("handleActions", "failed to start melee attack:", res.Info)
 			}

@@ -26,6 +26,12 @@ type attackManager struct {
 	queuedAttack          AttackInfo
 	waitingToAttack       bool // set when entity should trigger attack once movement or other things are done
 
+	// intendedAttackTarget is who the most recent StartMeleeAttack call was aimed at, remembered so
+	// the waitingToAttack retry can re-supply it. That retry runs from generic entity code with no
+	// caller to ask again, and losing the target there would silently turn a targeted NPC swing back
+	// into area damage -- reintroducing the friendly fire this whole mechanism exists to prevent.
+	intendedAttackTarget *Entity
+
 	chargeStartTick int64 // tick at which the attack began charging (when the wind-up/start animation finished)
 }
 
@@ -33,6 +39,7 @@ func (am *attackManager) clearAttack() {
 	am.attackQueued = false
 	am.queuedAttack = AttackInfo{}
 	am.chargeStartTick = 0
+	am.intendedAttackTarget = nil
 }
 
 func (am *attackManager) queueAttack(attackInfo AttackInfo) bool {
@@ -53,7 +60,7 @@ func (e *Entity) updateAttackManager() {
 
 	if e.waitingToAttack {
 		if !e.Movement.IsMoving && e.Body.GetCurrentAnimation() == body.AnimIdle {
-			e.StartMeleeAttack()
+			e.StartMeleeAttack(e.intendedAttackTarget)
 			e.waitingToAttack = false
 		}
 		return
@@ -79,6 +86,20 @@ type AttackInfo struct {
 	TargetRect    model.Rect
 	ExcludeEntIds []string
 	Origin        model.Vec2
+
+	// IntendedTarget is the character this swing is aimed at, or empty when the attack has no
+	// designated target.
+	//
+	// Set, the attack lands on that character and nothing else -- see ActiveMap.AttackArea. Empty,
+	// it damages everything overlapping TargetRect, which is how the player attacks: they have no
+	// chosen target, so cross-fire and friendly fire are possible and consequential by design.
+	//
+	// This is what stops NPCs hitting their own side. TargetRect alone can't, because it is a 12x12
+	// box one tile in front of the attacker and a cluster of fighters puts allies inside it. An NPC
+	// already knows which opponent it is engaging (FightTask picks one every tick and won't swing
+	// unless that opponent is in reach), so recording the choice here costs nothing and makes the
+	// swing unable to land on anyone else.
+	IntendedTarget id.CharacterStateID
 }
 
 // GetFrontRect returns the tile rect that is right in front of the entity
@@ -121,7 +142,15 @@ type StartAttackResult struct {
 // StartMeleeAttack begins a melee attack. Once started, we await "FinishMeleeAttack" to actually perform the attack and do damage.
 // Until that function is called, it just holds the "start melee attack" pose.
 // This is split into two functions to allow "charge ups" for power attacks.
-func (e *Entity) StartMeleeAttack() StartAttackResult {
+//
+// target is the entity this swing is aimed at, or nil for an attack with no designated target. See
+// AttackInfo.IntendedTarget for what that changes: an attack with a target lands on it and nothing
+// else, one without damages everything in the attack area. NPCs pass their chosen opponent; the
+// player passes nil.
+func (e *Entity) StartMeleeAttack(target *Entity) StartAttackResult {
+	// Remembered before anything can fail, so the waitingToAttack retry below can re-supply it.
+	e.intendedAttackTarget = target
+
 	if !e.IsWeaponEquiped() {
 		logz.PanicCtx("Combat", "tried to swing weapon, but no weapon is equiped", e.DisplayName())
 	}
@@ -135,6 +164,11 @@ func (e *Entity) StartMeleeAttack() StartAttackResult {
 		logz.PanicCtx("Combat", "tried to start melee attack, but entity is already attacking", e.DisplayName())
 	}
 	e.chargeStartTick = 0
+
+	intendedTargetID := id.CharacterStateID("")
+	if target != nil {
+		intendedTargetID = target.ID()
+	}
 
 	// TODO: why are we directly calling Body.SetAnimation instead of the Entity.SetAnimation function?
 	// 2026-10-02: verified - Entity.SetAnimation can't be used here, because it panics on exactly the
@@ -162,12 +196,13 @@ func (e *Entity) StartMeleeAttack() StartAttackResult {
 	}
 
 	if !e.queueAttack(AttackInfo{
-		StartTick:     ebiten.Tick(),
-		Attacker:      e.ID(),
-		StunTicks:     20,
-		TargetRect:    e.GetFrontRect(),
-		ExcludeEntIds: []string{string(e.ID())},
-		Origin:        model.Vec2{X: e.X, Y: e.Y},
+		StartTick:      ebiten.Tick(),
+		Attacker:       e.ID(),
+		StunTicks:      20,
+		TargetRect:     e.GetFrontRect(),
+		ExcludeEntIds:  []string{string(e.ID())},
+		Origin:         model.Vec2{X: e.X, Y: e.Y},
+		IntendedTarget: intendedTargetID,
 	}) {
 		return StartAttackResult{
 			Success: false,
@@ -236,6 +271,35 @@ func (e *Entity) FinishMeleeAttack() {
 			Force:  true, // TODO: is force needed?
 		},
 	})
+}
+
+// CancelMeleeAttack drops an attack that has been started but not yet released, putting the body back
+// to idle. It is a no-op when there is nothing to drop.
+//
+// The line it draws is released vs still waiting. FinishMeleeAttack clears the queued attack before it
+// sets the slash-finish animation, so an attack that has already gone out has attackQueued false and is
+// left entirely alone -- a finish animation already playing runs to its end untouched. What this cleans
+// up is the wind-up: an attack sitting in the queue, waiting for someone to call FinishMeleeAttack.
+//
+// That waiting state has no timeout of its own, which is why cancelling has to be explicit. A charged
+// attack's countdown is owned by the fight task, and the retry that releases an uncharged one runs from
+// generic entity code -- so if a fight ends while one is in flight, nothing is left driving it and the
+// entity stays frozen in its wind-up pose with an attack that never resolves.
+func (e *Entity) CancelMeleeAttack() {
+	if e.waitingToAttack {
+		e.waitingToAttack = false
+		e.intendedAttackTarget = nil
+	}
+	if !e.attackQueued {
+		return
+	}
+	e.waitingToFinishAttack = false
+	e.clearAttack()
+	// Only reachable while holding the wind-up pose: an attack that got as far as the finish animation
+	// has already cleared itself, so this can't cut one short.
+	if e.Body.IsAttacking() {
+		e.Body.StopAnimation()
+	}
 }
 
 func (e *Entity) ReceiveAttack(attack AttackInfo) {

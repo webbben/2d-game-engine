@@ -221,8 +221,28 @@ func (t *FightTask) yieldToFlee() {
 	t.Owner.clearInterruptedTask()
 }
 
+// standDown ends the fight because there's nothing left to fight.
+//
+// Anything still in flight is dropped first. This task is the only thing driving a charged attack's
+// countdown, and Update reaches here from its target check without ever running the code that would
+// release one -- so an attack caught mid-wind-up by the last enemy falling would otherwise be left
+// queued with nobody to finish it.
+//
+// The victory question is asked here, before leaving the fight, for the same reason: standing down means
+// giving up your seat in the session, so an NPC that left first has erased the evidence of which side it
+// was on. Asking afterwards reliably picks the losing side, because the winners are the ones who
+// emptied out first.
+//
+// No other filters are needed on the winners. Reaching here at all means this npc is alive and not
+// running -- shouldYieldCombat diverts anyone who breaks off, and an npc who yielded is in a FleeTask
+// instead of this one. Anyone sitting on an unaccepted surrender offer is likewise in a SurrenderTask,
+// and an npc off the player's map never ticks at all.
 func (t *FightTask) standDown() {
 	t.setTarget(nil)
+	t.Owner.Entity.CancelMeleeAttack()
+	if t.Owner.WorldCtx.WonCelebratableFight(t.Owner.CharacterStateRef.ID) {
+		t.Owner.QueueVictoryCelebration()
+	}
 	t.Owner.WorldCtx.LeaveCombat(t.Owner.CharacterStateRef.ID)
 	t.Finish(TaskResult{Status: ResultSuccess})
 }
@@ -252,6 +272,11 @@ type targetCandidate struct {
 	// fighting" -- so a candidate that never mentions pursuit is a normal one.
 	Fleeing       bool
 	WorthPursuing bool
+
+	// AttackedMe reports that this enemy landed a hit on us recently (see recentAttackers.go). It
+	// outranks distance: being struck is a settled fact, while how far away someone is just reflects
+	// where they happen to be in their approach, which is why distance alone makes npcs dither.
+	AttackedMe bool
 }
 
 // targetIsValid reports whether we're willing to fight this candidate at all.
@@ -277,19 +302,49 @@ func targetIsValid(c targetCandidate) bool {
 //
 // The rules, in priority order:
 //
-//  1. Stick with the current target while it's still valid. Re-picking every tick would make npcs
-//     dither back and forth between equally-close enemies, which reads as broken.
-//  2. Otherwise take the nearest valid candidate. Invalid candidates are skipped rather than chosen,
-//     so a closer-but-dead enemy never wins just by being closest.
+//  1. Enemies who have been hitting us recently outrank everyone else. Being struck is a settled fact
+//     over the last couple of seconds, whereas distance only reflects where an enemy is in their
+//     approach -- so prioritising on distance is what makes npcs dither between two similar enemies.
+//  2. Stick with the current target while it's still valid *and still in the top tier*. That second
+//     half is what stops thrashing: in a fight with several enemies landing hits, we switch once to
+//     someone hitting us and then hold them, because whoever else joins the tier doesn't displace a
+//     target already in it.
+//  3. Otherwise take the nearest valid candidate in that tier. Invalid candidates are skipped rather
+//     than chosen, so a closer-but-dead enemy never wins just by being closest, and a dead attacker
+//     can't form a tier of its own.
+//
+// Validity is decided before tiering, so a corpse that hit us a moment ago doesn't leave the top tier
+// empty and hand the decision back to "nearest".
 //
 // Traits and other game data are expected to layer on top of this later -- a character with a
 // particular trait might be expected to chase a fleeing opponent instead of switching away from it.
-// That policy belongs here in the engine, but it has to keep building on these two rules rather than
+// That policy belongs here in the engine, but it has to keep building on these rules rather than
 // replacing them, since "don't thrash" and "never swing at a corpse" should survive it.
 func selectTargetID(current id.CharacterStateID, candidates []targetCandidate) id.CharacterStateID {
+	valid := make([]targetCandidate, 0, len(candidates))
+	for _, c := range candidates {
+		if targetIsValid(c) {
+			valid = append(valid, c)
+		}
+	}
+	if len(valid) == 0 {
+		return ""
+	}
+
+	top := make([]targetCandidate, 0, len(valid))
+	for _, c := range valid {
+		if c.AttackedMe {
+			top = append(top, c)
+		}
+	}
+	if len(top) == 0 {
+		// Nobody has hit us, so there's no tier to prefer and everyone is equally due.
+		top = valid
+	}
+
 	if current != "" {
-		for _, c := range candidates {
-			if c.ID == current && targetIsValid(c) {
+		for _, c := range top {
+			if c.ID == current {
 				return current
 			}
 		}
@@ -297,10 +352,7 @@ func selectTargetID(current id.CharacterStateID, candidates []targetCandidate) i
 
 	best := id.CharacterStateID("")
 	bestDist := math.MaxFloat64
-	for _, c := range candidates {
-		if !targetIsValid(c) {
-			continue
-		}
+	for _, c := range top {
 		if c.Dist < bestDist {
 			bestDist = c.Dist
 			best = c.ID
@@ -341,7 +393,12 @@ func (t *FightTask) pickTarget() bool {
 	sessionID := session.SessionID()
 
 	// Fast path: is what we're already fighting still someone we'll keep fighting?
-	if t.targetEntity != nil {
+	//
+	// Skipped while anyone has hit us recently. In that window the candidate list can put us in a
+	// different priority tier, so "is my current target still valid" is no longer the whole question.
+	// When nobody has been hit every candidate is in the same tier, which makes this provably reach the
+	// same answer selectTargetID would -- so the cheap path stays safe for the common tick.
+	if t.targetEntity != nil && !t.Owner.hasRecentAttacker() {
 		if candidate := t.buildCandidate(session, t.targetEntity.ID()); targetIsValid(t.withPursuit(sessionID, candidate)) {
 			// still targeting the same entity, so no need to change anything
 			return true
@@ -366,9 +423,15 @@ func (t *FightTask) pickTarget() bool {
 		return false
 	}
 	if t.targetEntity != nil && chosen == t.targetEntity.ID() {
-		// we chose the same one as the existing target, so nothing to do
-		logz.PanicCtx("pickTarget", "the existing target was chosen, even though it should be invalid according to earlier logic in this function.",
-			t.targetEntity.ID())
+		// Selection kept whoever we were already fighting, so there's nothing to change.
+		//
+		// This used to panic, on the grounds that reaching the full evaluation meant the fast path had
+		// already rejected the current target. That stopped being true once the fast path started
+		// deferring to selection: it is skipped while someone has hit us recently, precisely so
+		// selection gets to decide. Keeping our target is then the ordinary, correct answer -- most
+		// visibly right after being hit while not already in a fight task, where we're handed a fight
+		// aimed at the person who struck us.
+		return true
 	}
 	targetEntity := t.Owner.WorldCtx.EntityFor(chosen)
 	if targetEntity == nil {
@@ -382,9 +445,10 @@ func (t *FightTask) pickTarget() bool {
 // the world -- no policy.
 func (t *FightTask) buildCandidate(session combat.SessionView, enemyID id.CharacterStateID) targetCandidate {
 	candidate := targetCandidate{
-		ID:        enemyID,
-		Alive:     true,
-		InSession: session.IsCombatant(enemyID),
+		ID:         enemyID,
+		Alive:      true,
+		InSession:  session.IsCombatant(enemyID),
+		AttackedMe: t.Owner.recentlyAttackedBy(enemyID),
 	}
 	if enemy := t.Owner.WorldCtx.EntityFor(enemyID); enemy != nil {
 		candidate.InWorld = true
@@ -609,8 +673,9 @@ func (t *FightTask) handleCombat() {
 			"myPos:", t.Owner.Entity.TilePos(), "targetPos:", t.targetEntity.TilePos(), "target rect:", t.targetEntity.CollisionRect())
 	}
 
-	// attack
-	t.Owner.Entity.StartMeleeAttack()
+	// attack, aimed at the opponent we picked. Naming the target means the swing can't land on
+	// anyone else -- see AttackInfo.IntendedTarget.
+	t.Owner.Entity.StartMeleeAttack(t.targetEntity)
 	if rand.Float64() < powerAttackChance {
 		// power attack: hold the wind-up long enough to build actual charge. charge only starts counting
 		// after the "slash-start" wind-up finishes (slashStartWindUpTicks of overhead), and the multiplier

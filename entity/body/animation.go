@@ -15,6 +15,7 @@ import (
 const (
 	AnimDead        = "dead"
 	AnimIdle        = "idle"
+	AnimSit        = "sit"
 	AnimWalk        = "walk"
 	AnimRun         = "run"
 	AnimSlash       = "slash"
@@ -22,6 +23,8 @@ const (
 	AnimSlashFinish = "slash-finish"
 	AnimBackslash   = "backslash"
 	AnimShield      = "shield"
+
+	AnimCelebrate = "celebrate"
 )
 
 // AllAnimations returns the list of all registered animation names.
@@ -29,7 +32,7 @@ const (
 // adding a const and adding it to this list. All iteration over animations
 // should use this function.
 func AllAnimations() []string {
-	return []string{AnimIdle, AnimWalk, AnimRun, AnimSlash, AnimSlashStart, AnimSlashFinish, AnimBackslash, AnimShield, AnimDead}
+	return []string{AnimIdle, AnimSit, AnimWalk, AnimRun, AnimSlash, AnimSlashStart, AnimSlashFinish, AnimBackslash, AnimShield, AnimDead, AnimCelebrate}
 }
 
 func validateAnimation(anim string) {

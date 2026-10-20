@@ -3,6 +3,7 @@ package npc
 
 import (
 	"fmt"
+	"math/rand"
 	"slices"
 	"sync"
 	"time"
@@ -50,7 +51,11 @@ type WorldContext interface {
 	// IsFleeing asks whether a character is currently running from their enemies. Stance isn't
 	// recorded anywhere in a session -- it's live state that changes tick to tick -- so anything that
 	// needs it asks the World, which is also where the sessions get it from.
-	IsFleeing(charStateID id.CharacterStateID) bool
+	IsFleeing(charID id.CharacterStateID) bool
+	// WonCelebratableFight asks whether a fight this character just finished was theirs to celebrate.
+	// Asked as they stand down, because that is the last moment the answer can be had: they are leaving
+	// the session on their way out, and once they're gone nothing can say which side they were on.
+	WonCelebratableFight(charID id.CharacterStateID) bool
 }
 
 type ActiveMapContext interface {
@@ -101,6 +106,16 @@ type NPC struct {
 	// an unthrottled log would bury everything else. Main-loop only.
 	lastContestedLog time.Time
 
+	// recentAttackers is who has hit this NPC lately, most recent first. FightTask reads it to decide
+	// who to turn on -- see targetCandidate.AttackedMe.
+	//
+	// This lives on the NPC rather than on the task because a hit usually arrives before any FightTask
+	// exists: OnAttacked runs whatever task the NPC happened to be doing (a schedule task, nothing), and
+	// StartCombat only opens the session. The FightTask that responds to the hit is built afterwards.
+	// Task-scoped state would be discarded at exactly the moment it matters, and the responding task
+	// would never learn who struck first -- which is the bug this data exists to fix. Main-loop only.
+	recentAttackers []recentAttacker
+
 	// === World related things ===
 
 	// The character state gives the NPC access to get data about the character's current state, as well as make changes to it.
@@ -131,6 +146,79 @@ type NPC struct {
 	surrenderOfferSpent bool
 	// set when the player accepts, and means this npc will no longer fight
 	surrendered bool
+
+	// victoryCelebration is a celebration this npc has earned and not yet got round to, or nil.
+	//
+	// Queued rather than started, because the fight it belongs to has only just ended and this npc may
+	// still be finishing the swing that ended it. Starting a task over the top of that would leave the
+	// attack queued with nothing to release it -- the same hazard FightTask.standDown cancels for. The
+	// task loop starts it instead, once this npc is free. See TaskMGMT.Update.
+	victoryCelebration *pendingCelebration
+}
+
+// pendingCelebration is a queued victory celebration and the deadlines around it.
+type pendingCelebration struct {
+	// notBefore is when this npc is allowed to start celebrating. Rolled at queue time and different
+	// for every winner, so a crowd doesn't switch to the victory animation in lockstep.
+	notBefore time.Time
+	// queuedAt is when the fight ended. Used only to give up: see CelebrationTimeout.
+	queuedAt time.Time
+}
+
+// QueueVictoryCelebration notes that this npc won a fight worth celebrating.
+//
+// It starts nothing; see victoryCelebration for why. Called by the world when a fight ends, which is a
+// point where this npc is by definition still in the middle of something.
+func (n *NPC) QueueVictoryCelebration() {
+	notBefore := time.Now().Add(config.CelebrationDelay)
+	if config.CelebrationDelayJitter > 0 {
+		notBefore = notBefore.Add(time.Duration(rand.Int63n(int64(config.CelebrationDelayJitter))))
+	}
+
+	if n.victoryCelebration != nil {
+		// Already owed one that hasn't happened. Keep whichever is due sooner rather than pushing this
+		// one out behind it; two fights ending back to back shouldn't push the second celebration late.
+		if notBefore.Before(n.victoryCelebration.notBefore) {
+			n.victoryCelebration.notBefore = notBefore
+		}
+		return
+	}
+
+	n.victoryCelebration = &pendingCelebration{notBefore: notBefore, queuedAt: time.Now()}
+	logz.Println(n.WhoAmI(), "queued a victory celebration, starting at", notBefore.Sub(time.Now()))
+}
+
+// hasPendingVictoryCelebration reports whether this npc is owed a celebration it hasn't started yet.
+func (n *NPC) hasPendingVictoryCelebration() bool {
+	return n.victoryCelebration != nil
+}
+
+// victoryCelebrationReady reports whether a queued celebration can start on this tick.
+//
+// False while waiting out this npc's stagger, so winners don't celebrate in unison. Also false mid-swing:
+// a charged attack is released by the fight task rather than on a timer of its own, and a finish
+// animation outlives the task that threw it, so an npc can be free while still finishing an attack.
+//
+// Drops the queue if it's gone stale, since it holds up the task loop.
+func (n *NPC) victoryCelebrationReady() bool {
+	if n.victoryCelebration == nil {
+		return false
+	}
+	now := time.Now()
+	if now.Sub(n.victoryCelebration.queuedAt) > config.CelebrationTimeout {
+		logz.Println(n.WhoAmI(), "dropping a stale queued victory celebration")
+		n.victoryCelebration = nil
+		return false
+	}
+	if now.Before(n.victoryCelebration.notBefore) {
+		return false
+	}
+	return !n.Entity.Body.IsAttacking()
+}
+
+// clearVictoryCelebration forgets a queued celebration, called once one has been started (or dropped).
+func (n *NPC) clearVictoryCelebration() {
+	n.victoryCelebration = nil
 }
 
 // HasSurrendered reports whether the player accepted this npc's surrender, meaning it won't fight again.
@@ -208,8 +296,13 @@ func (n *NPC) inActiveMap() bool {
 // Deliberately does NOT check completion status: task.Status is written by the main loop without
 // synchronization, so reading it here would just create another race. The caller must only invoke
 // BackgroundAssist on the returned task (never its other methods, which are main-loop-owned).
+//
+// This is the only task accessor that takes taskStateMu. Main-loop code uses getCurrentTask(), which
+// is unlocked and is safe to call from inside a task's Start()/Finish() -- see the note there.
 func (n *NPC) GetCurrentTaskForBgAssist() Task {
-	return n.getCurrentTask()
+	n.TaskMGMT.taskStateMu.RLock()
+	defer n.TaskMGMT.taskStateMu.RUnlock()
+	return n.TaskMGMT.CurrentTask
 }
 
 // PrepareLeaveActiveMap does all things necessary to prepare an NPC to leave the active map; undoes entity active state, unsubscribes
@@ -606,22 +699,42 @@ func (n *NPC) OnSpeechBubbleEvent(e defs.Event) {
 	}
 }
 
+// OnAttacked is called when an attack actually lands on this npc.
+//
+// It notes who struck before anything else decides what to do about the hit, because the fight task
+// that responds reads that record while starting up. See recentAttackers.go for why the record lives
+// on the NPC rather than on the task.
 func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
 	if attackedBy == nil {
 		return
 	}
 
-	// Being hit is what pulls this npc into the fight, whichever way they end up responding -- the
-	// branches below pick fighting or fleeing, and both leave them a combatant. Recording it up front
-	// means the fight is findable before any task is assigned. It can legitimately do nothing: an npc
-	// already fighting someone else is in that other fight, and switching targets doesn't make a second
-	// one. See combat.StartCombat.
-	//
-	// Being attacked is the one situation with a settled answer, so the intents aren't a placeholder
-	// here: the attacker means it, and this npc is defending themselves. The attacker's IntentKill is a
-	// guess -- they hit someone, which is all we know -- but it never has a reason to be anything else,
-	// since the only thing that currently starts a fight is an attack.
-	n.WorldCtx.StartCombat(attackedBy.ID(), n.CharacterStateRef.ID, defs.IntentKill, defs.IntentSelfDefense)
+	n.recordAttacker(attackedBy.ID())
+
+	n.respondToCombatant(attackedBy)
+}
+
+// OnDrawnIntoCombat tells the npc they've been pulled into a fight without anything having landed on
+// them -- a scripted world effect, or a quest starting one.
+//
+// The response is identical to being attacked, minus recording an attacker: nobody swung, so there is
+// nobody to prioritise. Without that distinction an npc dragged into a fight would treat the other
+// combatant as someone who had just struck them, and favour them over whoever it was actually fighting.
+func (n *NPC) OnDrawnIntoCombat(into *entity.Entity) {
+	if into == nil {
+		return
+	}
+
+	n.respondToCombatant(into)
+}
+
+// respondToCombatant is the shared reaction to finding yourself in a fight, however it happened:
+// record the session, then pick between fighting, fleeing, and doing neither.
+//
+// The param is the other combatant, who may or may not be an attacker -- OnAttacked and
+// OnDrawnIntoCombat are the two callers, and only the first means somebody hit us.
+func (n *NPC) respondToCombatant(opponent *entity.Entity) {
+	n.WorldCtx.StartCombat(opponent.ID(), n.CharacterStateRef.ID, defs.IntentKill, defs.IntentSelfDefense)
 
 	// attacking an NPC mid-surrender backs out of the offer, and they go to fleeing.
 	// surrender cannot be offered a second time
@@ -631,7 +744,7 @@ func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
 		n.RunTask(defs.TaskDef{
 			TaskID:   TaskFlee,
 			Priority: Emergency,
-			Params:   FleeTaskParams{TargetEntity: attackedBy},
+			Params:   FleeTaskParams{TargetEntity: opponent},
 		}, n)
 		return
 	}
@@ -646,7 +759,7 @@ func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
 		n.RunTask(defs.TaskDef{
 			TaskID:   TaskFlee,
 			Priority: Emergency,
-			Params:   FleeTaskParams{TargetEntity: attackedBy},
+			Params:   FleeTaskParams{TargetEntity: opponent},
 		}, n)
 		return
 	}
@@ -671,8 +784,8 @@ func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
 	if ft, ok := n.getCurrentTask().(*FightTask); ok {
 		if ft.targetEntity == nil {
 			logz.PanicCtx("OnAttacked", "fight task has no target entity", n.ID())
-		} else if ft.targetEntity.ID() != attackedBy.ID() {
-			logz.Println("OnAttacked", "already fighting; new attacker noted.", n.ID(), attackedBy.ID())
+		} else if ft.targetEntity.ID() != opponent.ID() {
+			logz.Println("OnAttacked", "already fighting; new attacker noted.", n.ID(), opponent.ID())
 		}
 		return
 	}
@@ -680,7 +793,7 @@ func (n *NPC) OnAttacked(attackedBy *entity.Entity) {
 	n.RunTask(defs.TaskDef{
 		TaskID:   TaskFight,
 		Priority: Emergency,
-		Params:   FightTaskParams{TargetEntity: attackedBy},
+		Params:   FightTaskParams{TargetEntity: opponent},
 	}, n)
 }
 
@@ -791,6 +904,9 @@ func (n *NPC) shouldFlee() bool {
 	if characterstate.NeverFlees(n.CharacterStateRef.ID, n.dataman) {
 		return false
 	}
+	if config.DisableFleeing {
+		return false
+	}
 
 	session := n.WorldCtx.SessionFor(n.CharacterStateRef.ID)
 	if session == nil {
@@ -812,5 +928,18 @@ func (n *NPC) shouldFlee() bool {
 	}
 
 	selfProfile := n.WorldCtx.CombatProfile(session.SessionID(), selfID)
-	return n.dataman.CombatSystemCalc.ShouldFlee(selfProfile, defs.CombatInfo{Enemies: enemies})
+
+	allies := make([]defs.CombatProfile, 0, len(session.Sides()))
+	for _, allyID := range session.AlliesOf(selfID) {
+		// Filter before building a profile, never after: CombatProfile panics on a corpse, and a
+		// group fight's whole point is that allies die. The enemy loop above does the same in the same
+		// order.
+		ally := n.WorldCtx.EntityFor(allyID)
+		if ally == nil || ally.IsDead() {
+			continue
+		}
+		allies = append(allies, n.WorldCtx.CombatProfile(session.SessionID(), allyID))
+	}
+
+	return n.dataman.CombatSystemCalc.ShouldFlee(selfProfile, defs.CombatInfo{Enemies: enemies, Allies: allies})
 }

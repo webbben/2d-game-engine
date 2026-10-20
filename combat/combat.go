@@ -64,6 +64,12 @@ type Combatant struct {
 // other parts of surrender are here, and they mean opposite things -- see IsOfferingSurrender.
 type Resolver interface {
 	IsDead(charID id.CharacterStateID) bool
+	// IsDeadOrDying is the broader liveness question: is this character past the point of still being
+	// able to swing at anything. IsDead answers the narrower one of having actually been removed from
+	// the fight, so it reports false for someone whose health has hit zero but whose corpse hasn't been
+	// processed yet -- which is a gap of a tick, and a gap is exactly the sort of thing that turns a
+	// "nobody is left standing" check into a wrong answer.
+	IsDeadOrDying(charID id.CharacterStateID) bool
 	// IsOfferingSurrender reports a live offer awaiting the player's answer. Such a character has NOT
 	// given up: the player can still refuse and kill them, so they remain a valid target and are not
 	// fleeing. This is deliberately not the same question as "has this character's surrender been
@@ -95,6 +101,16 @@ type SessionView interface {
 	EnemiesOf(charID id.CharacterStateID) []id.CharacterStateID
 	AlliesOf(charID id.CharacterStateID) []id.CharacterStateID
 	LivingMembers(side SideID) []id.CharacterStateID
+	// IsDeadOrDying reports whether a character is past being able to fight, forwarded to the Resolver.
+	IsDeadOrDying(charID id.CharacterStateID) bool
+	// FightingEnemiesOf returns the enemies of charID who could still swing at them: their side-mates
+	// minus anyone dead or dying.
+	//
+	// A character can be in the session and be past fighting -- a body whose corpse hasn't been cleaned
+	// up is still a combatant -- so membership alone overstates who is left in it. Compare with
+	// LivingMembers, which keys off the narrower settled-dead question and so can disagree with this by
+	// a tick for someone who just died.
+	FightingEnemiesOf(charID id.CharacterStateID) []id.CharacterStateID
 	HasEnded() bool
 }
 
@@ -118,6 +134,18 @@ type CombatSession struct {
 	initiator  id.CharacterStateID
 	resolver   Resolver
 	combatants map[id.CharacterStateID]Combatant
+
+	// maxSizeBySide records the largest each side has ever been, keyed by side.
+	//
+	// A fight's strength isn't its size at any one moment: combatants die, flee, and surrender, so by
+	// the time a fight ends the numbers that mattered are history. This keeps the high-water mark so a
+	// caller can ask what a fight was, not what it looks like now.
+	//
+	// Updated as people join rather than sampled each tick, so it costs nothing to keep exact. It counts
+	// combatants who later ran: someone who was part of the fight at the time still was.
+	//
+	// Deliberately absent from SessionView, alongside Size: nothing holding only a view needs this.
+	maxSizeBySide map[SideID]int
 
 	// profiles memoizes resolved combat profiles for this session's combatants, keyed by character.
 	//
@@ -156,7 +184,10 @@ func NewCombatSession(sessionID CombatSessionID, initiator id.CharacterStateID, 
 		combatants: map[id.CharacterStateID]Combatant{
 			initiator: {Side: NewSideID(initiator), Intent: intent},
 		},
-		profiles: make(map[id.CharacterStateID]defs.CombatProfile),
+		// The initiator joins straight through the literal above rather than through Join, so the
+		// aggressor side's mark has to be seeded here or it reads 0 until someone else joins it.
+		maxSizeBySide: map[SideID]int{NewSideID(initiator): 1},
+		profiles:      make(map[id.CharacterStateID]defs.CombatProfile),
 	}
 }
 
@@ -178,6 +209,7 @@ func (s CombatSession) FoundSide(charID id.CharacterStateID, intent defs.CombatI
 			"session:", s.id, "character:", charID)
 	}
 	s.combatants[charID] = Combatant{Side: side, Intent: intent}
+	s.noteSideSize(side)
 	return side
 }
 
@@ -196,6 +228,17 @@ func (s CombatSession) Join(charID id.CharacterStateID, side SideID, intent defs
 			"session:", s.id, "character:", charID)
 	}
 	s.combatants[charID] = Combatant{Side: side, Intent: intent}
+	s.noteSideSize(side)
+}
+
+// noteSideSize records side's membership count if it beats the high-water mark already stored.
+//
+// Called from the two places membership grows. Leave deliberately doesn't call it: sides only shrink from
+// there, so a count that isn't a new high needs no update.
+func (s CombatSession) noteSideSize(side SideID) {
+	if size := len(s.MembersOf(side)); size > s.maxSizeBySide[side] {
+		s.maxSizeBySide[side] = size
+	}
 }
 
 // Leave removes a combatant, reporting whether they were in the session. Callers should check
@@ -340,6 +383,27 @@ func (s CombatSession) MembersOf(side SideID) []id.CharacterStateID {
 	return members
 }
 
+// MaxSizeOf returns the largest number of combatants side has had at any point in the session.
+//
+// A high-water mark rather than a current count, so it survives combatants leaving: a fight that peaked
+// at four and is down to its last survivor still reports 4. Reads 0 for a side that never had anyone.
+func (s CombatSession) MaxSizeOf(side SideID) int {
+	return s.maxSizeBySide[side]
+}
+
+// AllSides returns every side that has ever had a combatant in this session, including any that have
+// since been emptied. Sides come and go as their last member leaves, so a finished fight reports
+// nothing here while still remembering both of its sides -- which is what a caller needs in order to
+// look at the whole fight after it ended. Sorted, so callers get a stable order.
+func (s CombatSession) AllSides() []SideID {
+	sides := make([]SideID, 0, len(s.maxSizeBySide))
+	for side := range s.maxSizeBySide {
+		sides = append(sides, side)
+	}
+	slices.Sort(sides)
+	return sides
+}
+
 // EnemiesOf returns everyone on the other side. Returns nil if the character isn't in
 // the session -- a non-combatant has no enemies as far as this fight is concerned.
 func (s CombatSession) EnemiesOf(charID id.CharacterStateID) []id.CharacterStateID {
@@ -393,4 +457,21 @@ func (s CombatSession) LivingMembers(side SideID) []id.CharacterStateID {
 		}
 	}
 	return living
+}
+
+// IsDeadOrDying reports whether a character is past being able to fight. Forwarded to the Resolver,
+// which is the only thing that knows the answer -- see Resolver.IsDeadOrDying.
+func (s CombatSession) IsDeadOrDying(charID id.CharacterStateID) bool {
+	return s.resolver.IsDeadOrDying(charID)
+}
+
+// FightingEnemiesOf returns the enemies of charID who could still swing at them.
+func (s CombatSession) FightingEnemiesOf(charID id.CharacterStateID) []id.CharacterStateID {
+	var fighting []id.CharacterStateID
+	for _, enemyID := range s.EnemiesOf(charID) {
+		if !s.resolver.IsDeadOrDying(enemyID) {
+			fighting = append(fighting, enemyID)
+		}
+	}
+	return fighting
 }

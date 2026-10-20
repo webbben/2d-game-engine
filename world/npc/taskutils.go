@@ -102,3 +102,47 @@ func (n *NPC) initialPlayerSightingSpeechBubble() {
 		}
 	}
 }
+
+// showCelebrationSpeechBubble says whatever this NPC's dialog profile has for winning a fight.
+//
+// Like the other bubble slots, the profile is a list and the first entry that produces text wins, which
+// is how a profile offers a celebration line to some NPCs and stays silent for others. A profile with
+// nothing to say here just doesn't celebrate out loud -- the animation still happens.
+//
+// The empty event is deliberate and shared with initialPlayerSightingSpeechBubble: this is asked for by
+// the celebration task rather than fired by anything, so there's no event to inspect. Reactions used
+// here must not read it.
+func (n *NPC) showCelebrationSpeechBubble() {
+	dialogProfile := n.dataman.GetDialogProfile(n.dialogProfileID)
+	for _, reaction := range dialogProfile.CelebrationSpeechBubbles {
+		msg := reaction.Reaction(defs.Event{}, n.speechBubbleCtx)
+		if msg == "" {
+			continue
+		}
+		n.Entity.ShowSpeechBubble(msg, n.defaultSpeechBubbleParams())
+		logz.Println(n.ID(), "showing celebration speech bubble:", msg)
+		return
+	}
+}
+
+// showSurrenderSpeechBubble says whatever this NPC's dialog profile has for giving up.
+//
+// Third instance of the same slot-picking shape, alongside initialPlayerSightingSpeechBubble and
+// showCelebrationSpeechBubble: the profile is a list and the first entry that produces text wins, which is
+// how a profile stays silent on purpose. An NPC with no surrender lines here just gives up without
+// saying anything.
+//
+// The empty event is deliberate and shared with the other two: this is asked for by the surrender task
+// rather than fired by anything. Reactions used here must not read it.
+func (n *NPC) showSurrenderSpeechBubble() {
+	dialogProfile := n.dataman.GetDialogProfile(n.dialogProfileID)
+	for _, reaction := range dialogProfile.SurrenderSpeechBubbles {
+		msg := reaction.Reaction(defs.Event{}, n.speechBubbleCtx)
+		if msg == "" {
+			continue
+		}
+		n.Entity.ShowSpeechBubble(msg, n.defaultSpeechBubbleParams())
+		logz.Println(n.ID(), "showing surrender speech bubble:", msg)
+		return
+	}
+}
