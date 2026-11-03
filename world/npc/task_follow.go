@@ -45,6 +45,11 @@ type FollowTask struct {
 	// unreachable (i.e. background assist keeps failing to find a path). Written only by the main loop.
 	lastPathRequest time.Time
 
+	// yielder handles waypoint contention (see contention.go): standing down when another NPC is
+	// closer to the tile this one is committed to entering, holding, and resuming along the same
+	// path once the tile clears. Written only by the main loop.
+	yielder waypointYielder
+
 	// Progress tracking for stall detection. lastProgressTile is the tile the owner was standing on at
 	// the last path request; if a request comes and the owner is still on that same tile, nothing is
 	// moving, however many paths we ask for. progressTracked distinguishes "hasn't moved" from
@@ -110,6 +115,7 @@ func (t *FollowTask) Start() {
 	t.lastProgressTile = model.Coords{}
 	t.progressTracked = false
 	t.pathRequestsWithoutProgress = 0
+	t.yielder = waypointYielder{}
 }
 
 func _followGetTargetPosition(e *entity.Entity, dist int) model.Coords {
@@ -132,9 +138,27 @@ func _followGetTargetPosition(e *entity.Entity, dist int) model.Coords {
 func (t *FollowTask) Update() {
 	t.Status = TaskInProg
 
+	// Waypoint contention (see contention.go). Checked first: a hold must outlast everything else
+	// in this update, including adopting a freshly computed path (which would walk right back into
+	// the contested tile).
+	switch t.yielder.maybeYield(t.Owner) {
+	case yieldHold:
+		return
+	case yieldResume:
+		// the contested tile cleared while holding; the path was kept through the hold for this.
+		if t.Owner.Entity.HasPath() {
+			t.Owner.Entity.ResumePath()
+		}
+		return
+	case yieldProceed:
+		// no standoff; continue below
+	}
+
 	// claim any path the background goroutine computed and hand it to the entity. this is the only
-	// place SuggestedTargetPath gets written (main loop only).
-	if p := t.pathResult.Swap(nil); p != nil {
+	// place SuggestedTargetPath gets written (main loop only). While a hold is/was active, any
+	// result in the slot was computed before the standoff began and would walk right back into it,
+	// so it is discarded instead.
+	if p := t.pathResult.Swap(nil); p != nil && !t.yielder.holding {
 		t.Owner.Entity.SuggestPath(*p)
 	}
 
@@ -197,7 +221,15 @@ func (t *FollowTask) requestPath(goal model.Coords, throttle bool) {
 	t.lastPathRequest = time.Now()
 	t.lastGoal = goal
 	t.notePathRequestProgress()
-	t.pathRequest.Store(&followPathRequest{goal: goal, start: start, BlockedTiles: unopenableGateTiles(t.Owner)})
+
+	// deadlocked-standoff escalation (see waypointYielder): this tile has outlasted repeated yields,
+	// so treat it as a wall for this one search and go around.
+	blockedTiles := unopenableGateTiles(t.Owner)
+	if block, ok := t.yielder.takeBlock(); ok {
+		blockedTiles = append(blockedTiles, block)
+	}
+
+	t.pathRequest.Store(&followPathRequest{goal: goal, start: start, BlockedTiles: blockedTiles})
 }
 
 // noProgressThreshold is how many path requests must pass without the owner moving off its tile

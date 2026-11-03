@@ -12,8 +12,9 @@ import (
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
-	"github.com/webbben/2d-game-engine/entity/characterState"
+	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type fightStatus int
@@ -26,6 +27,20 @@ const (
 
 // powerAttackChance is the probability that an NPC swings a charged power attack instead of a quick regular attack.
 const powerAttackChance = 0.2
+
+// targetSwitchRatio is how much closer (as a fraction of the current target's distance) another enemy
+// must be before it displaces a standing current target. A ratio rather than an absolute margin so the
+// rule scales with distance: at 0.5 an enemy must be at most half as far away to steal the target.
+// Separation keeps enemies at least about a tile apart, so this never degenerates into switching over
+// a few pixels. Beyond this margin the current target is kept, which is what stops npcs dithering
+// between enemies of similar range.
+const targetSwitchRatio = 0.5
+
+// targetKeepCloseDist is the distance under which the current target is kept without evaluating the
+// rest of the fight. An enemy this close is effectively in melee range, so comparing distances to other
+// enemies buys nothing and only costs a candidate list rebuild every tick. Guarded by the recent-attacker
+// check as well (see pickTarget), so a landed hit still forces a reconsideration.
+const targetKeepCloseDist = config.TileSize * 3 / 2
 
 // slashStartWindUpTicks is how long the "slash-start" (wind-up) animation takes to play before charge time begins
 // counting. chargeAttackTicks must exceed this for the attack to build any power-attack charge.
@@ -305,10 +320,14 @@ func targetIsValid(c targetCandidate) bool {
 //  1. Enemies who have been hitting us recently outrank everyone else. Being struck is a settled fact
 //     over the last couple of seconds, whereas distance only reflects where an enemy is in their
 //     approach -- so prioritising on distance is what makes npcs dither between two similar enemies.
-//  2. Stick with the current target while it's still valid *and still in the top tier*. That second
-//     half is what stops thrashing: in a fight with several enemies landing hits, we switch once to
-//     someone hitting us and then hold them, because whoever else joins the tier doesn't displace a
-//     target already in it.
+//  2. Stick with the current target while it's still valid *and still in the top tier*, unless another
+//     enemy in that tier is clearly closer (see targetSwitchRatio). That second half is what stops
+//     thrashing: in a fight with several enemies landing hits, we switch once to someone hitting us and
+//     then hold them, because whoever else joins the tier doesn't displace a target already in it. The
+//     "clearly closer" exception applies only to a plain standing target -- a current attacker or a
+//     fleeing target we've chosen to pursue is held regardless. The exception exists because stickiness
+//     otherwise makes an npc walk past an enemy standing right in front of it to reach a distant one it
+//     happened to pick first.
 //  3. Otherwise take the nearest valid candidate in that tier. Invalid candidates are skipped rather
 //     than chosen, so a closer-but-dead enemy never wins just by being closest, and a dead attacker
 //     can't form a tier of its own.
@@ -342,23 +361,40 @@ func selectTargetID(current id.CharacterStateID, candidates []targetCandidate) i
 		top = valid
 	}
 
-	if current != "" {
-		for _, c := range top {
-			if c.ID == current {
-				return current
-			}
+	// The nearest candidate in the tier, used both to pick a fresh target and to decide whether
+	// someone is clearly closer than the one we're fighting now.
+	nearest := id.CharacterStateID("")
+	nearestDist := math.MaxFloat64
+	for _, c := range top {
+		if c.Dist < nearestDist {
+			nearestDist = c.Dist
+			nearest = c.ID
 		}
 	}
 
-	best := id.CharacterStateID("")
-	bestDist := math.MaxFloat64
-	for _, c := range top {
-		if c.Dist < bestDist {
-			bestDist = c.Dist
-			best = c.ID
+	if current != "" {
+		for _, c := range top {
+			if c.ID != current {
+				continue
+			}
+			// Keep the current target unless another enemy in the same tier is clearly closer.
+			//
+			// Two history-based reasons stay absolute and outrank distance:
+			//   - a current target that has been *hitting us* (AttackedMe) is never displaced. The
+			//     attacker tier exists precisely to stop ping-ponging between several enemies landing
+			//     hits, so among attackers the target is fully sticky.
+			//   - a fleeing target we've committed to pursuing is never displaced either; pursuit is an
+			//     explicit choice from the traits, and letting distance silently undo it would contradict
+			//     the very logic that picked it.
+			// Everything else (a plain standing target) yields to an enemy that is clearly closer, which
+			// is what stops an npc walking past an enemy in front of it to reach a distant initial pick.
+			if !c.Fleeing && !c.AttackedMe && nearest != current && nearestDist < c.Dist*targetSwitchRatio {
+				return nearest
+			}
+			return current
 		}
 	}
-	return best
+	return nearest
 }
 
 // handles setting flags and other things when a (new) target is set.
@@ -377,13 +413,12 @@ func (t *FightTask) setTarget(e *entity.Entity) {
 // This is just the adapter that gathers candidates out of the session and resolves the winner back to
 // an entity; the policy itself lives in selectTargetID so it can be tested directly.
 //
-// Runs every tick, so it checks the cheap thing first. Most ticks the current target is still perfectly
-// good, and rebuilding the whole candidate list -- an entity lookup and a distance for every enemy in
-// the fight -- only to conclude "keep what I have" is work thrown away. The fast path validates the
-// current target alone and returns.
+// Runs every tick, so it checks the cheap thing first: a current target already in melee range is kept
+// without rebuilding the candidate list (see the fast path below). Anything else runs the full
+// evaluation, which is what lets a clearly-closer enemy take over from a distant current target.
 //
-// That path also bounds how often the pursuit hook is consulted. A current target who isn't fleeing has
-// no pursuit question, so no hook call happens; the hook fires only when someone actually starts
+// The fast path also bounds how often the pursuit hook is consulted. A current target who isn't fleeing
+// has no pursuit question, so no hook call happens; the hook fires only when someone actually starts
 // running, which is the moment a target switch is genuinely on the table.
 func (t *FightTask) pickTarget() bool {
 	session := t.currentSession()
@@ -392,17 +427,22 @@ func (t *FightTask) pickTarget() bool {
 	}
 	sessionID := session.SessionID()
 
-	// Fast path: is what we're already fighting still someone we'll keep fighting?
+	// Fast path: if we're already on top of our target, keep it without evaluating the rest of the
+	// fight. An enemy within targetKeepCloseDist is effectively in melee range, so comparing distances
+	// to the other enemies could not change the answer, and rebuilding the whole candidate list every
+	// tick to conclude "keep what I have" is wasted work.
 	//
-	// Skipped while anyone has hit us recently. In that window the candidate list can put us in a
-	// different priority tier, so "is my current target still valid" is no longer the whole question.
-	// When nobody has been hit every candidate is in the same tier, which makes this provably reach the
-	// same answer selectTargetID would -- so the cheap path stays safe for the common tick.
-	if t.targetEntity != nil && !t.Owner.hasRecentAttacker() {
-		if candidate := t.buildCandidate(session, t.targetEntity.ID()); targetIsValid(t.withPursuit(sessionID, candidate)) {
-			// still targeting the same entity, so no need to change anything
-			return true
-		}
+	// The old fast path kept any still-valid target at any distance, which is what let npcs walk past a
+	// closer enemy to reach a distant one -- distance was never consulted. Gating on proximity instead
+	// means the cheap path only applies where distance genuinely can't matter. The recent-attacker check
+	// is kept so a landed hit still forces the full evaluation, and IsDead covers the corpse-at-my-feet
+	// case (the one validity failure that would otherwise panic in Update). A target that left the
+	// session or the world while adjacent is simply switched away from a tick later, when the distance
+	// opens or selection runs.
+	if t.targetEntity != nil && !t.Owner.hasRecentAttacker() &&
+		!t.targetEntity.IsDead() &&
+		t.Owner.Entity.DistFromEntity(*t.targetEntity) <= targetKeepCloseDist {
+		return true
 	}
 
 	ownerID := t.Owner.CharacterStateRef.ID
@@ -547,6 +587,9 @@ func (t *FightTask) Update() {
 		return
 	}
 
+	utils.PanicAssert(t.targetEntity != nil, "target is nil")
+	utils.PanicAssert(!t.targetEntity.IsDead(), "target is dead")
+
 	// Re-check every tick whether this npc still wants to be here at all. This sits above the status
 	// switch, and above Start, so it applies from the very first tick -- which is what lets a coward
 	// break off before landing a swing -- and while following as well as while fighting.
@@ -616,6 +659,12 @@ func (t *FightTask) handleCombat() {
 	if t.Owner.Entity.Body.IsAttacking() {
 		// handle NPC power attacks, and finish the melee attack if needed
 		if t.chargeAttackTicks > 0 {
+			// make sure we're facing the target still, in case they've snuck around to the other side of us
+			if !t.Owner.Entity.IsFacingEntity(t.targetEntity) {
+				t.Owner.Entity.CancelMeleeAttack()
+				t.chargeAttackTicks = 0
+				return
+			}
 			t.chargeAttackTicks--
 			if t.chargeAttackTicks == 0 {
 				// now that attack charging is done, trigger the attack finish and set a 1-2 second cooldown
@@ -673,6 +722,10 @@ func (t *FightTask) handleCombat() {
 			"myPos:", t.Owner.Entity.TilePos(), "targetPos:", t.targetEntity.TilePos(), "target rect:", t.targetEntity.CollisionRect())
 	}
 
+	// wait until not moving before starting the attack (prevents log spawm from failing to set animation)
+	if t.Owner.Entity.IsMoving() {
+		return
+	}
 	// attack, aimed at the opponent we picked. Naming the target means the swing can't land on
 	// anyone else -- see AttackInfo.IntendedTarget.
 	t.Owner.Entity.StartMeleeAttack(t.targetEntity)

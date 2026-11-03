@@ -18,6 +18,13 @@ type GotoTask struct {
 	unknownCollision int // counter for repeated unknown collisions; used for triggering failure.
 
 	shortArrivals int // counter for times this task ran out of path without reaching its goal.
+
+	// yielder handles waypoint contention (see contention.go): standing down when another NPC is
+	// closer to the tile this one is committed to entering, holding, and resuming along the same
+	// path once the tile clears. Escalation extends the hold rather than re-routing, because GotoTask
+	// paths synchronously via GoToPos, which has no blocked-tile support; its existing shortArrival
+	// and unknown-collision bounds still catch a genuinely unreachable goal.
+	yielder waypointYielder
 }
 
 // maxShortArrivals is how many consecutive "ran out of path, never arrived" events end this task.
@@ -36,6 +43,7 @@ func NewGotoTask(params GotoTaskParams, owner *NPC, def defs.TaskDef) *GotoTask 
 	return &GotoTask{
 		TaskBase: NewTaskBase(def, "Goto", "Goto a position", owner),
 		goalPos:  model.Coords{X: params.TileX, Y: params.TileY},
+		yielder:  waypointYielder{extendHoldOnEscalate: true},
 	}
 }
 
@@ -105,6 +113,20 @@ func (t *GotoTask) Update() {
 		if t.isComplete() {
 			t.Finish(TaskResult{Status: ResultSuccess})
 			return
+		}
+		// Waypoint contention (see contention.go). Held NPCs stand still with their path kept, so
+		// this must run before the jumpstart below (which would otherwise resume them straight into
+		// the contested tile) and before collision handling (a standing NPC has nothing to resolve).
+		switch t.yielder.maybeYield(t.Owner) {
+		case yieldHold:
+			return
+		case yieldResume:
+			if t.Owner.Entity.HasPath() {
+				t.Owner.Entity.ResumePath()
+			}
+			return
+		case yieldProceed:
+			// no standoff; continue below
 		}
 		result := t.HandleNPCCollision()
 		if result.Wait {

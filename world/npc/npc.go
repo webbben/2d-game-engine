@@ -340,7 +340,11 @@ func (n NPC) IsHovering(x, y int) bool {
 }
 
 func (n NPC) WhoAmI() string {
-	return fmt.Sprintf("%s [%s] (currentMap: %s)", n.DisplayName(), n.ID(), n.CharacterStateRef.CurrentMap)
+	taskID := "none"
+	if n.CurrentTask != nil {
+		taskID = string(n.CurrentTask.GetID())
+	}
+	return fmt.Sprintf("{[%s] '%s' map=%s, taskID=%s}", n.ID(), n.DisplayName(), n.CharacterStateRef.CurrentMap, taskID)
 }
 
 func (n NPC) ID() string {

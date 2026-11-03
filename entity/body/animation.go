@@ -15,7 +15,7 @@ import (
 const (
 	AnimDead        = "dead"
 	AnimIdle        = "idle"
-	AnimSit        = "sit"
+	AnimSit         = "sit"
 	AnimWalk        = "walk"
 	AnimRun         = "run"
 	AnimSlash       = "slash"

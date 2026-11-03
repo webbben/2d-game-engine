@@ -41,3 +41,7 @@ func (e *Entity) FaceTowardsEntity(otherEnt Entity) {
 	v := targetPosition.Sub(currentPosition)
 	e.FaceTowards(v.X, v.Y)
 }
+
+func (e Entity) IsFacingEntity(otherEnt *Entity) bool {
+	return e.IsFacingTowards(otherEnt.X-e.X, otherEnt.Y-e.Y)
+}

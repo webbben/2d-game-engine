@@ -105,20 +105,38 @@ func TestSelectTargetIDKeepsCurrentTarget(t *testing.T) {
 		want       id.CharacterStateID
 	}{
 		{
-			// The core anti-thrash rule. An enemy stepping a little closer is not a reason to walk away
-			// mid-swing; without this, npcs dither between two similar enemies and read as broken.
-			name:       "keeps the current target even when a nearer enemy exists",
+			// The core anti-thrash rule. An enemy stepping only a little closer is not a reason to walk
+			// away mid-swing; without this, npcs dither between two similar enemies and read as broken.
+			// 30 is more than half of 40, so it stays within the "not clearly closer" margin.
+			name:       "keeps the current target when a nearer enemy is only slightly nearer",
 			current:    "bandit_a",
-			candidates: []targetCandidate{valid("bandit_a", 40), valid("bandit_b", 5)},
+			candidates: []targetCandidate{valid("bandit_a", 40), valid("bandit_b", 30)},
 			want:       "bandit_a",
 		},
 		{
-			// Same rule, even when the current target is the farthest thing around. Distance is only
-			// consulted when we have no target, never as a reason to abandon a valid one.
-			name:       "keeps the current target even when it is the farthest enemy",
+			// The reported group-combat bug: an npc sticks to a distant target it picked first and walks
+			// past an enemy standing right in front of it. An enemy at most half the distance away is
+			// "clearly closer" and takes over.
+			name:       "switches to another enemy when it is clearly closer",
 			current:    "bandit_a",
-			candidates: []targetCandidate{valid("bandit_a", 500), valid("bandit_b", 5)},
+			candidates: []targetCandidate{valid("bandit_a", 40), valid("bandit_b", 10)},
+			want:       "bandit_b",
+		},
+		{
+			// The boundary of the switch rule. At exactly half the distance the enemy is not yet
+			// "clearly closer" (the comparison is strict), so the target is kept -- documenting which
+			// side of the line the threshold falls on.
+			name:       "keeps the current target when the other is exactly at the switch ratio",
+			current:    "bandit_a",
+			candidates: []targetCandidate{valid("bandit_a", 40), valid("bandit_b", 20)},
 			want:       "bandit_a",
+		},
+		{
+			// Just past the ratio, the switch happens. Paired with the case above to pin the boundary.
+			name:       "switches when the other is just inside the switch ratio",
+			current:    "bandit_a",
+			candidates: []targetCandidate{valid("bandit_a", 40), valid("bandit_b", 19)},
+			want:       "bandit_b",
 		},
 		{
 			// Nothing was being fought yet (fresh task, or the target pointer is empty), so the nearest
@@ -283,6 +301,30 @@ func TestSelectTargetIDKeepsCurrentTarget(t *testing.T) {
 				{ID: "bandit_b", Dist: 90, Alive: true, InSession: true, InWorld: true, AttackedMe: true},
 			},
 			want: "bandit_b",
+		},
+		{
+			// A current target that is hitting us is fully sticky: even a *much* closer enemy in the
+			// same (attacker) tier does not take over. The attacker tier exists to stop ping-ponging
+			// between enemies landing hits, so among attackers distance never decides.
+			name:    "a clearly closer attacker does not displace our current attacker either",
+			current: "bandit_b",
+			candidates: []targetCandidate{
+				{ID: "bandit_a", Dist: 5, Alive: true, InSession: true, InWorld: true, AttackedMe: true},
+				{ID: "bandit_b", Dist: 90, Alive: true, InSession: true, InWorld: true, AttackedMe: true},
+			},
+			want: "bandit_b",
+		},
+		{
+			// Pursuit is an explicit commitment. A fleeing target we've chosen to chase is not
+			// abandoned for a standing enemy standing much closer -- distance doesn't silently undo
+			// the trait-driven decision to give chase.
+			name:    "does not abandon a fleeing target we're pursuing for a closer standing enemy",
+			current: "bandit_a",
+			candidates: []targetCandidate{
+				{ID: "bandit_a", Dist: 100, Alive: true, InSession: true, InWorld: true, Fleeing: true, WorthPursuing: true},
+				valid("bandit_b", 5),
+			},
+			want: "bandit_a",
 		},
 		{
 			// Validity is decided before tiering, so a corpse that hit us a moment ago can't form a tier
