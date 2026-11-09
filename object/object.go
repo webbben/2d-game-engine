@@ -12,8 +12,8 @@ import (
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/particle"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/tiled"
@@ -340,7 +340,7 @@ func (obj Object) Pos() (x, y float64) {
 // TilePos gets the coordinates of the actual tile this object primarily lies in.
 // Gets the tile position of the center of the collision rect; so this is a good representation of where the object "really is".
 func (obj Object) TilePos() model.Coords {
-	return model.GetTilePosOfRectCenter(obj.GetRect())
+	return utils.GetTilePosOfRectCenter(obj.GetRect())
 }
 
 type WorldContext interface {
@@ -746,13 +746,13 @@ func parseSpawnFaceDirection(dir string) byte {
 	case "":
 		return 0
 	case "L":
-		return model.Directions.Left
+		return model.Left
 	case "R":
-		return model.Directions.Right
+		return model.Right
 	case "U":
-		return model.Directions.Up
+		return model.Up
 	case "D":
-		return model.Directions.Down
+		return model.Down
 	default:
 		logz.Panicln("loadSpawnObject", "invalid face_direction value:", dir)
 		return 0

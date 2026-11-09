@@ -15,13 +15,13 @@ import (
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/screen"
@@ -336,7 +336,7 @@ func (n NPC) InCombat() bool {
 }
 
 func (n NPC) IsHovering(x, y int) bool {
-	return n.Entity.GetDrawRect().Within(x, y)
+	return n.Entity.GetScreenBodyRect().Within(x, y)
 }
 
 func (n NPC) WhoAmI() string {

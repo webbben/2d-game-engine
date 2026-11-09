@@ -16,7 +16,7 @@ import (
 	"github.com/webbben/2d-game-engine/display"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/screen"

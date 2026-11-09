@@ -2,7 +2,7 @@ package path_finding
 
 import (
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/utils"
 )
 

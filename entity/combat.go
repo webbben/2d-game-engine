@@ -9,11 +9,11 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity/body"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/utils"
 )
@@ -106,24 +106,24 @@ type AttackInfo struct {
 func (e Entity) GetFrontRect() model.Rect {
 	// we want to make a rect that's a little smaller, so that we can't reach things that are too far away.
 	// It seems like a rect that is a full tilesize is a little too big
-	targetRectSize := config.TileSize * 3 / 4
+	targetRectSize := float64(config.TileSize * 3 / 4)
 	collisionRect := e.CollisionRect()
-	offsetX := (collisionRect.W - float64(targetRectSize)) / 2
-	offsetY := (collisionRect.H - float64(targetRectSize)) / 2
+	offsetX := (collisionRect.W - targetRectSize) / 2
+	offsetY := (collisionRect.H - targetRectSize) / 2
 	targetRect := model.Rect{
-		W: float64(targetRectSize),
-		H: float64(targetRectSize),
-		X: e.X + offsetX,
-		Y: e.Y + offsetY,
+		X: collisionRect.X + offsetX,
+		Y: collisionRect.Y + offsetY,
+		W: targetRectSize,
+		H: targetRectSize,
 	}
 	switch e.Movement.Direction {
-	case model.Directions.Left:
+	case model.Left:
 		targetRect.X -= config.TileSize
-	case model.Directions.Right:
+	case model.Right:
 		targetRect.X += config.TileSize
-	case model.Directions.Up:
+	case model.Up:
 		targetRect.Y -= config.TileSize
-	case model.Directions.Down:
+	case model.Down:
 		targetRect.Y += config.TileSize
 	}
 	return targetRect
@@ -314,10 +314,9 @@ func (e *Entity) ReceiveAttack(attack AttackInfo) {
 	damageDealt := int(finalDamage)
 
 	eventInfo := map[string]any{
-		"attacker":    attack.Attacker,
-		"receiver":    e.ID(),
-		"receiverPos": model.Vec2{X: e.drawX, Y: e.drawY},
-		"damage":      damageDealt,
+		"attacker": attack.Attacker,
+		"receiver": e.ID(),
+		"damage":   damageDealt,
 	}
 
 	params := FloatTextParams{

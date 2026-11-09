@@ -9,7 +9,7 @@ import (
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/ui/button"
 	"github.com/webbben/2d-game-engine/ui/text"
 	"github.com/webbben/2d-game-engine/utils"

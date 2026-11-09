@@ -122,6 +122,12 @@ type EventContext interface {
 	BroadcastEvent(event Event)
 }
 
+type GetEntityAvatarParams struct {
+	Direction byte // defaults to Down
+
+	// TODO: at some point we should add support for customizing the animation, animation frame, etc
+}
+
 // GameScreenContext isn't actually directly used anywhere; we just have it here to keep these functions organized by intended use,
 // and to prevent the other contexts from using them. Screens just have direct access to GameContext.
 type GameScreenContext interface {
@@ -141,7 +147,7 @@ type GameScreenContext interface {
 	SetGameStage(stage GameStage)
 
 	// Gets the image of an entity. Each time this is called, a new ebiten image is created, so don't call this repeatedly in a loop.
-	GetEntityAvatar(charStateID id.CharacterStateID, direction byte) *ebiten.Image
+	GetEntityAvatar(charStateID id.CharacterStateID, params GetEntityAvatarParams) *ebiten.Image
 
 	TransitionContext
 

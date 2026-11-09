@@ -8,9 +8,9 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/utils"
 )
 
@@ -458,10 +458,9 @@ func (e *Entity) TryMovePx(dx, dy, speed float64) (err MoveError) {
 	// The reason we use TargetX/Y (instead of x/y) is because we add onto the existing target when we use TryMovePx
 	x := e.TargetX + dx
 	y := e.TargetY + dy
-	w, h := e.CollisionRect().W, e.CollisionRect().H
 
 	// actual targets
-	targetRect := model.Rect{X: x, Y: y, W: w, H: h}
+	targetRect := e.CollisionRectAt(x, y)
 	target := model.Vec2{X: x, Y: y}
 
 	// check if first movement towards target (at given speed) collides
@@ -469,7 +468,7 @@ func (e *Entity) TryMovePx(dx, dy, speed float64) (err MoveError) {
 	// one instance where this happens is when you are trying to turn around a corner.
 	pos := model.Vec2{X: e.X, Y: e.Y}
 	newPos := pos.MoveTowards(target, speed)
-	nextStepRect := model.NewRect(newPos.X, newPos.Y, w, h)
+	nextStepRect := e.CollisionRectAt(newPos.X, newPos.Y)
 	res := e.Collides(nextStepRect)
 	if res.Collides() {
 		// a collision happened on the first step towards the target (but not the target itself)
@@ -637,8 +636,7 @@ func (e *Entity) updateMovement() updateMovementResult {
 	target := model.Vec2{X: e.TargetX, Y: e.TargetY}
 
 	newPos := pos.MoveTowards(target, actualSpeed)
-	w, h := e.CollisionRect().W, e.CollisionRect().H
-	res = e.Collides(model.NewRect(newPos.X, newPos.Y, w, h))
+	res = e.Collides(e.CollisionRectAt(newPos.X, newPos.Y))
 	if res.Collides() {
 		logz.Println(string(e.ID()), "updateMovement: next position is colliding! cancelling movement")
 		return updateMovementResult{UnexpectedCollision: true}
@@ -875,9 +873,7 @@ func (e *Entity) NudgeBy(dx, dy float64) bool {
 
 		// collisionRect is offset from X/Y, so ask the map about the rect the entity would occupy,
 		// not about the raw coordinates
-		probe := e.CollisionRect()
-		probe.X += s[0]
-		probe.Y += s[1]
+		probe := e.CollisionRectAt(newX, newY)
 		if e.Collides(probe).Collides() {
 			continue
 		}

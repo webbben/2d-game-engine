@@ -9,14 +9,21 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 var Default defs.HSV = defs.HSV{H: 0.5, S: 0.5, V: 0.5}
+
+const (
+	stagingImageTileWidth  int = 5 // this should be an odd number, because there needs to be a single center tile
+	stagingImageTileHeight int = 5
+)
 
 type EntityBodySet struct {
 	Name string
@@ -37,11 +44,20 @@ type EntityBodySet struct {
 
 	stretchX, stretchY int `json:"-"` // amount to stretch certain body parts - set by body set
 
-	// actual body definition - not including equiped items
+	// just for putting everything together before drawing to screen (which allows for things like adding flicker fx)
+	// staging image is 5 x 5 tiles in size
+	stagingImg *ebiten.Image `json:"-"`
 
-	stagingImg *ebiten.Image `json:"-"` // just for putting everything together before drawing to screen (for adding flicker fx)
+	width, height int // the actual dimensions of the body (unscaled)
+
+	// where in the art frames the actual "anchor" is.
+	// the "anchor" is the position where body actual directly contacts the ground.
+	// this is used when calculating the "origin" for drawing the body image, since it's possible for canvas sizes to differ
+	anchorPos model.Vec2
 
 	// body parts
+
+	BodyOnly bool // if true, only the BodySet is defined, and others are expected to be empty and unused
 
 	BodyHSV defs.HSV
 	BodySet BodyPartSet
@@ -64,6 +80,20 @@ type EntityBodySet struct {
 
 	globalOffsetY  float64 `json:"-"` // amount to offset placement of (non-body) parts by, when body is taller or shorter
 	nonBodyYOffset int     `json:"-"` // amount to offset placement of (non-body) parts by, simply dictated by the body's movements
+}
+
+func (eb *EntityBodySet) AnchorPos() model.Vec2 {
+	return eb.anchorPos
+}
+
+// CanvasDimensions differ from Dimensions in that it represents the entire canvas, including possible extra transparency space
+// in the entire canvas.
+func (eb *EntityBodySet) CanvasDimensions() (dx, dy int) {
+	if eb.BodySet.img == nil {
+		panic("body img is nil")
+	}
+	bounds := eb.BodySet.img.Bounds()
+	return bounds.Dx(), bounds.Dy()
 }
 
 func (eb EntityBodySet) shouldCropHair() bool {
@@ -105,7 +135,7 @@ func (eb *EntityBodySet) Load() {
 
 	// set an initial direction and ensure img is set
 	eb.animation = AnimIdle
-	eb._initializeDirection(model.Directions.Down)
+	eb._initializeDirection(model.Down)
 	if eb.BodySet.img == nil {
 		panic("body image is nil!")
 	}
@@ -114,23 +144,31 @@ func (eb *EntityBodySet) Load() {
 	eb.validate()
 
 	tilesize := config.TileSize
-	eb.stagingImg = ebiten.NewImage(tilesize*5, tilesize*5)
+	eb.stagingImg = ebiten.NewImage(tilesize*stagingImageTileWidth, tilesize*stagingImageTileHeight)
 }
 
 func (eb EntityBodySet) validate() {
 	if eb.BodySet.PartSrc.None {
 		panic("body cannot be None")
 	}
-	if eb.ArmsSet.PartSrc.None {
-		panic("arms cannot be None")
-	}
-	// NOTE: we don't validate legs anymore, since legs are combined with body (but we still allow a legs set to exist, it's just not really used anymore.)
-	if eb.EyesSet.PartSrc.None {
-		panic("eyes cannot be None")
-	}
-	if eb.HairSet.PartSrc.None {
-		// TODO should we allow no hair to be set?
-		panic("hair cannot be None")
+	if eb.BodyOnly {
+		// ensure all the other parts are set to None
+		utils.PanicAssert(eb.HairSet.PartSrc.None, "hair set should be None")
+		utils.PanicAssert(eb.EyesSet.PartSrc.None, "eyes set should be None")
+		utils.PanicAssert(eb.ArmsSet.PartSrc.None, "arms set should be None")
+		utils.PanicAssert(eb.LegsSet.PartSrc.None, "legs set should be None")
+	} else {
+		if eb.ArmsSet.PartSrc.None {
+			panic("arms cannot be None")
+		}
+		// NOTE: we don't validate legs anymore, since legs are combined with body (but we still allow a legs set to exist, it's just not really used anymore.)
+		if eb.EyesSet.PartSrc.None {
+			panic("eyes cannot be None")
+		}
+		if eb.HairSet.PartSrc.None {
+			// TODO should we allow no hair to be set?
+			panic("hair cannot be None")
+		}
 	}
 
 	eb.HairSet.validate()
@@ -188,6 +226,7 @@ func (eb EntityBodySet) GetHairHSV() (h, s, v float64) {
 }
 
 // NewHumanBodyFramework returns an empty baseline for a human body; mostly for use in places like character builder
+// TODO: (2026-11-04) we should rename this to just NewBodyFramework since it's shared between human and non-human entities
 func NewHumanBodyFramework() EntityBodySet {
 	bodySet := NewBodyPartSet(BodyPartSetParams{
 		Name:   "bodySet",
@@ -240,12 +279,87 @@ func NewHumanBodyFramework() EntityBodySet {
 		IsRemovable: true,
 	})
 
-	entBody := NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipArmsSet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
+	entBody := newEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipArmsSet, weaponSet, weaponFxSet, auxSet, nil, nil, nil)
 	return entBody
 }
 
-// NewEntityBodySet creates a base body set, without anything equiped
-func NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipArmsSet, weaponSet, weaponFxSet, auxSet BodyPartSet, bodyHSV, eyesHSV, hairHSV *defs.HSV) EntityBodySet {
+// CreateBody creates an EntityBodySet given a BodyDef
+func CreateBody(bodyDef defs.BodyDef, dataman *datamanager.DataManager) EntityBodySet {
+	if dataman == nil {
+		panic("dataman was nil")
+	}
+
+	skin := NewHumanBodyFramework()
+	skin.BodyOnly = bodyDef.BodyOnly
+
+	if bodyDef.BodyID == "" {
+		logz.Panicln("CreateBody", "failed to load body set; id is empty")
+	}
+	skin.BodySet.PartSrc = dataman.GetBodyPartDef(bodyDef.BodyID)
+
+	// if a body def is "BodyOnly", that means it's defined entirely with just one set, which is the BodySet.
+	// no other sets such as eyes, hair, arms, etc are defined. Used for creature bodies that just have a simple set
+	// of animations, and don't need to make use of dynamic things like overlaying equipped items, variations of body sets, etc.
+	if bodyDef.BodyOnly {
+		skin.LegsSet.PartSrc.None = true
+		skin.ArmsSet.PartSrc.None = true
+		skin.EyesSet.PartSrc.None = true
+		skin.HairSet.PartSrc.None = true
+	} else {
+		if bodyDef.ArmsID == "" {
+			logz.Panicln("CreateBody", "failed to load arms set; id is empty")
+		}
+		skin.ArmsSet.PartSrc = dataman.GetBodyPartDef(bodyDef.ArmsID)
+
+		if bodyDef.EyesID == "" {
+			logz.Panicln("CreateBody", "failed to load eyes set; id is empty")
+		}
+		skin.EyesSet.PartSrc = dataman.GetBodyPartDef(bodyDef.EyesID)
+
+		if bodyDef.HairID == "" {
+			logz.Panicln("CreateBody", "failed to load hair set; id is empty")
+		}
+		skin.HairSet.PartSrc = dataman.GetBodyPartDef(bodyDef.HairID)
+
+		// NOTE: we don't use leg sets anymore. we keep legs sets in the code just in case we'd want it later,
+		// but as of now legs are coupled with the body set, and so leg sets are unused.
+		//
+		// 2026-11-03: should we just delete the Legs part then?
+		if bodyDef.LegsID == "" {
+			skin.LegsSet.PartSrc.None = true
+		} else {
+			skin.LegsSet.PartSrc = dataman.GetBodyPartDef(bodyDef.LegsID)
+		}
+	}
+
+	skin.BodyHSV = bodyDef.BodyHSV
+	skin.HairHSV = bodyDef.HairHSV
+	skin.EyesHSV = bodyDef.EyesHSV
+
+	width := bodyDef.Width
+	height := bodyDef.Height
+	if (width == 0) != (height == 0) {
+		// you cannot define only one of these; if both are left at 0, then we infer a default, but otherwise 0 would be invalid.
+		logz.Panicln("Entity", "width and height must both be 0, or both be non-zero")
+	}
+	if width != 0 || height != 0 {
+		// override defaults if non-zero values set in body def
+		skin.width = width
+		skin.height = height
+	}
+
+	if bodyDef.AnchorOrigin != nil {
+		skin.anchorPos = *bodyDef.AnchorOrigin
+	}
+
+	return skin
+}
+
+// newEntityBodySet creates a base EntityBodySet, without anything equiped. simply puts the input pieces together in the correct way, as the most basic form of a constructor.
+func newEntityBodySet(
+	bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet, equipFeetSet, equipBodySet, equipArmsSet, weaponSet, weaponFxSet, auxSet BodyPartSet,
+	bodyHSV, eyesHSV, hairHSV *defs.HSV,
+) EntityBodySet {
 	if bodyHSV == nil {
 		bodyHSV = &Default
 	}
@@ -259,7 +373,7 @@ func NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet,
 	eb := EntityBodySet{
 		animation:          AnimIdle,
 		animationTickCount: 15,
-		currentDirection:   'D',
+		currentDirection:   model.Down,
 		BodySet:            bodySet,
 		BodyHSV:            *bodyHSV,
 		ArmsSet:            armsSet,
@@ -275,7 +389,12 @@ func NewEntityBodySet(bodySet, armsSet, legsSet, hairSet, eyesSet, equipHeadSet,
 		WeaponSet:          weaponSet,
 		WeaponFxSet:        weaponFxSet,
 		AuxItemSet:         auxSet,
-		stagingImg:         ebiten.NewImage(config.TileSize*5, config.TileSize*5),
+		stagingImg:         ebiten.NewImage(config.TileSize*stagingImageTileWidth, config.TileSize*stagingImageTileHeight),
+
+		// defaults - a standard 16x32 px human shape
+		width:     16,
+		height:    32,
+		anchorPos: model.Vec2{X: 0, Y: config.TileSize},
 	}
 
 	return eb
@@ -369,19 +488,24 @@ func (eb *EntityBodySet) ResetNormalHeight() {
 	}
 }
 
+// Dimensions returns the logical size (unscaled) of this body.
+// it represents "how much actual space" this body takes up, not including any extra canvas space.
+//
+// 2026-11-04: we stopped basing it on the image dimensions of the BodySet because
+// now we support having larger canvas sizes with the "real" image content being in the center of the canvas
+// (i.e. we can no longer assume the size of the image represents the "actual size" of the body)
 func (eb *EntityBodySet) Dimensions() (dx, dy int) {
 	if eb.BodySet.img == nil {
 		panic("body image is nil")
 	}
-	bounds := eb.BodySet.img.Bounds()
-	return bounds.Dx(), bounds.Dy()
+	return eb.width, eb.height
 }
 
 func (eb *EntityBodySet) SetBody(bodyDef, armDef, legDef defs.SelectedPartDef) {
 	if bodyDef.None {
 		panic("body must be defined")
 	}
-	if armDef.None {
+	if !eb.BodyOnly && armDef.None {
 		panic("arms must be defined")
 	}
 
@@ -420,7 +544,7 @@ func (eb *EntityBodySet) SetBody(bodyDef, armDef, legDef defs.SelectedPartDef) {
 }
 
 func (eb *EntityBodySet) SetEyes(def defs.SelectedPartDef) {
-	if def.None {
+	if !eb.BodyOnly && def.None {
 		panic("eyes must be defined")
 	}
 	eb.EyesSet.setImageSource(def, 0, 0, eb.IsAuxEquipped())
@@ -471,6 +595,9 @@ func (eb *EntityBodySet) SetEquipFeet(def defs.SelectedPartDef) {
 }
 
 func (eb *EntityBodySet) ReloadArms() {
+	if eb.ArmsSet.PartSrc.None {
+		return
+	}
 	if !eb.ArmsSet.HasLoaded() {
 		logz.Println(eb.Name, "trying to reload arms, but they haven't been loaded yet")
 		logz.Panicln("Body", "trying to reload arms, but they haven't been loaded yet")
@@ -712,6 +839,11 @@ type DrawBodyParams struct {
 	Opacity float64
 }
 
+// Draw the entity's body.
+//
+// x and y are screen pixels. The body is drawn with it's anchor aligned to this position.
+//
+// Note: we don't pass x and y as "logical" positions because entity bodies can be drawn in non-world contexts too, like in UI screens.
 func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y float64, params DrawBodyParams) {
 	// Warning: Do not use characterScale anywhere except the bottom - where we draw stagingImg onto screen!
 	// we first make a "staging image" which is drawn without scale, and then we draw that image into screen using characterScale.
@@ -722,18 +854,27 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y float64, params DrawBod
 	// - Arms: after equip body, equip head, hair so that hands show when doing U slash
 	renderOrder := []string{"body", "legs", "equip_feet", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_arms", "equip_weapon", "aux"}
 	switch eb.currentDirection {
-	case model.Directions.Up:
+	case model.Up:
 		// aux first: since facing up, aux items (e.g. torches) will generally be covered by everything
 		renderOrder = []string{"aux", "body", "legs", "equip_feet", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_arms", "equip_weapon"}
-	case model.Directions.Right:
+	case model.Right:
 		// aux after arms: shield may cover part of hands, so aux should render after arms
 		renderOrder = []string{"body", "legs", "equip_feet", "equip_body", "eyes", "hair", "equip_head", "arms", "equip_arms", "aux", "equip_weapon"}
 	}
 
 	yOff := eb.globalOffsetY
 
-	bodyX := float64(config.TileSize * 2)
-	bodyY := float64(config.TileSize)
+	// determine body X and Y:
+	// this is done by aligning the body's anchor with the central anchor tile of the staging image
+	// (int division on odd number works for us here; 5 / 2 = 2)
+	stagingAnchorX := float64((stagingImageTileWidth / 2) * config.TileSize)
+	stagingAnchorY := float64((stagingImageTileHeight / 2) * config.TileSize)
+	// now, subtract the anchor offsets of the body to get the actual draw position for the body image
+	bodyX := stagingAnchorX - eb.anchorPos.X
+	bodyY := stagingAnchorY - eb.anchorPos.Y
+	// TODO: (2026-11-04) do other parts of this need anchor positions defined? I think a lot of things base their positions on bodyX/Y,
+	// but as of now human characters don't have larger canvas size images, so I don't think we need to worry about adjusting those as long as it stays at 16x32.
+	// as of now, only the wolf entity has a larger canvas for its body (and it only has a body anyway, no other parts)
 
 	equipBodyY := bodyY + yOff + eb.getEquipBodyOffsetY()
 	// equipFeetY := bodyY + config.TileSize // equip feet tiles are only 16x16
@@ -818,9 +959,10 @@ func (eb *EntityBodySet) Draw(screen *ebiten.Image, x, y float64, params DrawBod
 	if params.Opacity < 1 {
 		ops.ColorScale.ScaleAlpha(float32(params.Opacity))
 	}
-	scaledTilesize := config.TileSize * params.Scale
-	drawX := x - (scaledTilesize * 2)
-	drawY := y - scaledTilesize
+
+	// adjust draw position since we are drawing the larger staging image
+	drawX := x - (stagingAnchorX * params.Scale)
+	drawY := y - (stagingAnchorY * params.Scale)
 	rendering.DrawImageWithOps(screen, eb.stagingImg, drawX, drawY, params.Scale, &ops)
 }
 
@@ -836,6 +978,10 @@ func (eb EntityBodySet) getEquipBodyOffsetY() float64 {
 // AnimationFinished returns true if all body parts have finished their animation sequences.
 // Not really meant to be used unless HoldLastFrame is true and the outside needs to know if it's on the last frame yet.
 func (eb *EntityBodySet) AnimationFinished() bool {
+	if eb.BodyOnly {
+		return eb.BodySet.reachedLastFrame
+	}
+
 	if !eb.BodySet.reachedLastFrame {
 		return false
 	}

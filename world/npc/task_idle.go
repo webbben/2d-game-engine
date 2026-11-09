@@ -6,7 +6,7 @@ import (
 
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/data/model"
 )
 
 // IdleTask is a default task where the NPC doesn't really do anything besides turn a different direction here and there, take a step forward or backwards, etc.

@@ -4,7 +4,7 @@ import (
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/data/model"
 )
 
 // Fader is a utility for fading an image as an animation

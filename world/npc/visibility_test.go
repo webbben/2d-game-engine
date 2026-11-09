@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/webbben/2d-game-engine/entity"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/data/model"
 )
 
 const epsilon = 1e-9

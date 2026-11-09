@@ -11,12 +11,13 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/tiled/properties"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 var (
@@ -224,8 +225,8 @@ func (m *Map) findCollisionBlockObjects() {
 			seeThrough, found := properties.GetBoolProperty(properties.PropSeeThrough, objProps.AllProps)
 			blockVision := !found || !seeThrough
 
-			tl := model.ConvertPxToTilePos(obj.X, obj.Y)
-			br := model.ConvertPxToTilePos(obj.X+obj.Width-1, obj.Y+obj.Height-1)
+			tl := utils.ConvertPxToTilePos(obj.X, obj.Y)
+			br := utils.ConvertPxToTilePos(obj.X+obj.Width-1, obj.Y+obj.Height-1)
 
 			for y := tl.Y; y <= br.Y; y++ {
 				for x := tl.X; x <= br.X; x++ {
@@ -542,7 +543,7 @@ func (m Map) LineOfSightBlocked(from, to model.Coords, blockingObjects []model.R
 		x := startX + stepX*d
 		y := startY + stepY*d
 
-		t := model.ConvertPxToTilePos(x, y)
+		t := utils.ConvertPxToTilePos(x, y)
 		if t.Equals(from) || t.Equals(to) {
 			continue
 		}

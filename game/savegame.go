@@ -5,7 +5,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/savegame"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 func (g *Game) SaveGame() (saveFilePath string) {
@@ -13,7 +13,7 @@ func (g *Game) SaveGame() (saveFilePath string) {
 	if g.World.Player.Entity.IsSleeping {
 		// if the player is in a bed, get the position they'd be standing in if they left the bed
 		_, vec, _ := g.World.Player.Entity.GetSleepInfo()
-		mapCoords = model.ConvertPxToTilePos(vec.X, vec.Y)
+		mapCoords = utils.ConvertPxToTilePos(vec.X, vec.Y)
 	}
 
 	if g.World.ActiveMap.IsTileCollision(mapCoords) {

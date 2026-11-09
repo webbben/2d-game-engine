@@ -4,9 +4,10 @@ import (
 	"math/rand"
 
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type BartenderTask struct {
@@ -114,7 +115,7 @@ func (t *BartenderTask) Update() {
 	}
 
 	// find a tile in the task area and move to it
-	tiles := t.taskAreaObj.GetRect().GetOverlappingTiles()
+	tiles := utils.GetOverlappingTiles(t.taskAreaObj.GetRect())
 	targetTile := tiles[rand.Intn(len(tiles))]
 	t.Owner.Entity.GoToPos(targetTile, true)
 	t.isIdlyWalking = true
@@ -133,7 +134,7 @@ func (t *BartenderTask) SetupActiveState() {
 	}
 
 	// find a tile in the task area and move to it
-	tiles := t.taskAreaObj.GetRect().GetOverlappingTiles()
+	tiles := utils.GetOverlappingTiles(t.taskAreaObj.GetRect())
 	targetTile := tiles[rand.Intn(len(tiles))]
 	t.Owner.Entity.SetPosition(targetTile)
 	t.Owner.Entity.SetDirection(t.taskAreaObj.TaskArea.Dir)

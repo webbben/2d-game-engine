@@ -5,10 +5,10 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/imgutil/imgcache"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/tiled"
 )
 
@@ -271,13 +271,13 @@ func (a Animation) GetOffsetY(direction byte, animIndex int) int {
 	var vals []int
 
 	switch direction {
-	case model.Directions.Left:
+	case model.Left:
 		vals = a.StepsOffsetYLeft
-	case model.Directions.Right:
+	case model.Right:
 		vals = a.StepsOffsetYRight
-	case model.Directions.Up:
+	case model.Up:
 		vals = a.StepsOffsetYUp
-	case model.Directions.Down:
+	case model.Down:
 		vals = a.StepsOffsetYDown
 	default:
 		logz.Panicln(a.Name, "invalid direction passed to GetOffsetY:", direction)

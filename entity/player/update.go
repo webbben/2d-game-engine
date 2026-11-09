@@ -10,11 +10,11 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/body"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/utils"
 	"github.com/webbben/2d-game-engine/world/npc"
@@ -181,7 +181,7 @@ func (p *Player) handleMovement() bool {
 			if p.ticksSinceLastMouseDirect > 5 {
 				p.ticksSinceLastMouseDirect = 0
 				mouseX, mouseY := ebiten.CursorPosition()
-				r := p.Entity.GetDrawRect()
+				r := p.Entity.GetScreenBodyRect()
 				p.Entity.FaceTowards(float64(mouseX)-r.X, float64(mouseY)-r.Y)
 				tryingToMove = true
 			}

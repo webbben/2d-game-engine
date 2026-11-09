@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
-	m "github.com/webbben/2d-game-engine/model"
+	m "github.com/webbben/2d-game-engine/data/model"
 )
 
 // FindPathTestCase is a hand-built fixture asserting a specific routing outcome.

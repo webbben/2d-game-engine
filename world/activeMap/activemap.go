@@ -15,6 +15,7 @@ import (
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/display"
@@ -26,7 +27,6 @@ import (
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
@@ -647,10 +647,10 @@ func (mi *ActiveMap) Collides(r model.Rect, isPlayer bool) model.CollisionResult
 	// this is because an individual pixel position represents an actual pixel.
 	// so, the space within a tile at tile position 0,0 is:
 	// x: [0, tilesize-1] y: [0, tilesize-1]
-	tl := model.ConvertPxToTilePos(r.X, r.Y)
-	tr := model.ConvertPxToTilePos(r.X+r.W, r.Y)
-	bl := model.ConvertPxToTilePos(r.X, r.Y+r.H)
-	br := model.ConvertPxToTilePos(r.X+r.W, r.Y+r.H)
+	tl := utils.ConvertPxToTilePos(r.X, r.Y)
+	tr := utils.ConvertPxToTilePos(r.X+r.W, r.Y)
+	bl := utils.ConvertPxToTilePos(r.X, r.Y+r.H)
+	br := utils.ConvertPxToTilePos(r.X+r.W, r.Y+r.H)
 	// check if any part of the target is outside the map
 	maxTileX := len(mi.Map.CostMap[0]) - 1
 	maxTileY := len(mi.Map.CostMap) - 1
@@ -835,7 +835,7 @@ func (mi *ActiveMap) buildCostMap() [][]int {
 		playerRect := mi.PlayerRef.Entity.CollisionRect()
 		playerX := playerRect.X + (playerRect.W / 2)
 		playerY := playerRect.Y + (playerRect.H / 2)
-		playerPos := model.ConvertPxToTilePos((playerX), (playerY))
+		playerPos := utils.ConvertPxToTilePos((playerX), (playerY))
 		costMap[playerPos.Y][playerPos.X] += path_finding.EntityCollision
 	}
 
@@ -857,7 +857,7 @@ func (mi *ActiveMap) buildCostMap() [][]int {
 		// ex: sometimes an object is larger than a single tile, or is not placed exactly in the center of a tile.
 		// so, we need to make sure any tile it overlaps with is marked as blocked.
 		r := obj.GetRect()
-		overlapTiles := r.GetOverlappingTiles()
+		overlapTiles := utils.GetOverlappingTiles(r)
 		for _, c := range overlapTiles {
 			costMap[c.Y][c.X] += path_finding.BlockThreshold
 		}

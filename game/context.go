@@ -6,6 +6,7 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity/body"
 	"github.com/webbben/2d-game-engine/logz"
@@ -117,36 +118,38 @@ func (g *Game) GetItemDef(itemID defs.ItemID) defs.ItemDef {
 	return g.Dataman.GetItemDef(itemID)
 }
 
-func (g *Game) GetEntityAvatar(charStateID id.CharacterStateID, direction byte) *ebiten.Image {
+func (g *Game) GetEntityAvatar(charStateID id.CharacterStateID, params defs.GetEntityAvatarParams) *ebiten.Image {
 	g.requireWorld()
 
-	tilesize := config.TileSize
-	entityAvatar := ebiten.NewImage(tilesize, tilesize*2)
+	if params.Direction == 0 {
+		// not set; default to Down
+		params.Direction = model.Down
+	}
+
+	var entBody body.EntityBodySet
+
 	if charStateID == id.PlayerStateID {
 		// in case the game is in an inventory menu and entity updates aren't processing, sync the body to state
 		g.World.Player.Entity.SyncBodyToState()
-		entBody := g.World.Player.Entity.Body
-		entBody.SetDirection(direction)
-		entBody.SetAnimation(body.AnimIdle, body.SetAnimationOps{Force: true})
-		entBody.Update()
-		entBody.Draw(entityAvatar, 0, 0, body.DrawBodyParams{
-			Scale:   1.0,
-			Opacity: 1.0,
-		})
+		entBody = g.World.Player.Entity.Body
 	} else {
 		npcRef := g.World.NPCs[charStateID]
 		if npcRef == nil {
 			logz.Panicln("GetEntityAvatar", "NPC didn't exist:", charStateID)
 		}
-		entBody := npcRef.Entity.Body
-		entBody.SetDirection(direction)
-		entBody.SetAnimation(body.AnimIdle, body.SetAnimationOps{Force: true})
-		entBody.Update()
-		entBody.Draw(entityAvatar, 0, 0, body.DrawBodyParams{
-			Scale:   1.0,
-			Opacity: 1.0,
-		})
+		entBody = npcRef.Entity.Body
 	}
+
+	canvasDx, canvasDy := entBody.CanvasDimensions()
+	entityAvatar := ebiten.NewImage(canvasDx, canvasDy)
+
+	entBody.SetDirection(params.Direction)
+	entBody.SetAnimation(body.AnimIdle, body.SetAnimationOps{Force: true})
+	entBody.Update()
+	entBody.Draw(entityAvatar, 0, 0, body.DrawBodyParams{
+		Scale:   1.0,
+		Opacity: 1.0,
+	})
 
 	return entityAvatar
 }

@@ -9,15 +9,16 @@ import (
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity/body"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/lights"
 	"github.com/webbben/2d-game-engine/item"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 var (
@@ -95,7 +96,7 @@ type Entity struct {
 	Movement Movement `json:"movement"`
 	Position
 
-	width float64 // used for collision rect
+	collisionSize float64
 
 	footstepSFX audio.FootstepSFX // currently set footstep SFX. However, a default footstepSFX ID should be in entity def
 
@@ -343,7 +344,7 @@ func LoadCharacterStateIntoEntity(charStateID id.CharacterStateID, dataman *data
 
 	// load body def from charDef
 	charDef := dataman.GetCharacterDef(charState.DefID)
-	skin := LoadBodySkin(charDef.BodyDef, dataman)
+	skin := body.CreateBody(charDef.BodyDef, dataman)
 
 	// load footstep SFX
 	sfxDef := dataman.GetFootstepSFXDef(charDef.FootstepSFXDefID)
@@ -390,16 +391,14 @@ func LoadCharacterStateIntoEntity(charStateID id.CharacterStateID, dataman *data
 	ent.Body.Name = charState.DisplayName
 	ent.Movement.IsMoving = false
 
-	// confirm that body image exists
-	dx, dy := ent.Body.Dimensions()
-	if dx == 0 || dy == 0 {
-		panic("body image has no size?")
+	collisionSize := charDef.BodyDef.CollisionSize
+	utils.PanicAssert(collisionSize >= 0, "collisionSize must not be negative")
+
+	if collisionSize == 0 {
+		collisionSize = config.TileSize
 	}
 
-	ent.width = float64(dx)
-	if ent.width == 0 {
-		panic("ent width is 0?")
-	}
+	ent.collisionSize = float64(collisionSize)
 
 	// initialize body to match equiped items (this function is normally just done during update though)
 	ent.SyncBodyToState()
@@ -570,50 +569,6 @@ func CreateNewCharacterState(charDefID id.CharacterDefID, params NewCharacterSta
 	return charStateID
 }
 
-// LoadBodySkin loads up a bodyDef into an EntityBodySet. Does not handle loading any equipment.
-func LoadBodySkin(bodyDef defs.BodyDef, dataman *datamanager.DataManager) body.EntityBodySet {
-	if dataman == nil {
-		panic("dataman was nil")
-	}
-
-	skin := body.NewHumanBodyFramework()
-
-	// Load body "skin" parts
-	if bodyDef.BodyID == "" {
-		logz.Panicln("LoadBodySkin", "failed to load body set; id is empty")
-	}
-	skin.BodySet.PartSrc = dataman.GetBodyPartDef(bodyDef.BodyID)
-
-	if bodyDef.ArmsID == "" {
-		logz.Panicln("LoadBodySkin", "failed to load arms set; id is empty")
-	}
-	skin.ArmsSet.PartSrc = dataman.GetBodyPartDef(bodyDef.ArmsID)
-
-	// NOTE: we don't use leg sets anymore. we keep legs sets in the code just in case we'd want it later,
-	// but as of now legs are coupled with the body set, and so leg sets are unused.
-	if bodyDef.LegsID == "" {
-		skin.LegsSet.PartSrc.None = true
-	} else {
-		skin.LegsSet.PartSrc = dataman.GetBodyPartDef(bodyDef.LegsID)
-	}
-
-	if bodyDef.EyesID == "" {
-		logz.Panicln("LoadBodySkin", "failed to load eyes set; id is empty")
-	}
-	skin.EyesSet.PartSrc = dataman.GetBodyPartDef(bodyDef.EyesID)
-
-	if bodyDef.HairID == "" {
-		logz.Panicln("LoadBodySkin", "failed to load hair set; id is empty")
-	}
-	skin.HairSet.PartSrc = dataman.GetBodyPartDef(bodyDef.HairID)
-
-	skin.BodyHSV = bodyDef.BodyHSV
-	skin.HairHSV = bodyDef.HairHSV
-	skin.EyesHSV = bodyDef.EyesHSV
-
-	return skin
-}
-
 // SyncBodyToState detects changes to equiped items in character state, and applies those changes to the body
 func (e *Entity) SyncBodyToState() {
 	if e.characterStateRef == nil {
@@ -776,15 +731,20 @@ func (e Entity) validateEquipment() {
 }
 
 func (e Entity) CollisionRect() model.Rect {
-	if e.width == 0 {
-		panic("entity width is unset or unexpectedly 0!")
+	return e.CollisionRectAt(e.X, e.Y)
+}
+
+// CollisionRectAt gives you the collision rect if this entity were at the given position
+func (e Entity) CollisionRectAt(x, y float64) model.Rect {
+	if e.collisionSize == 0 {
+		panic("entity collisionSize is unset or unexpectedly 0!")
 	}
-	offsetX := (config.TileSize - e.width) / 2
+	offset := (config.TileSize - e.collisionSize) / 2 // to ensure it's centered on the entity
 	return model.Rect{
-		X: e.X + offsetX,
-		Y: e.Y,
-		W: e.width - 1,
-		H: e.width - 1,
+		X: x + offset,
+		Y: y + offset,
+		W: e.collisionSize - 1,
+		H: e.collisionSize - 1,
 	}
 }
 
@@ -818,19 +778,19 @@ type GeneralProps struct {
 }
 
 type Position struct {
-	X, Y             float64 `json:"-"` // the exact position the entity is at on the map
-	drawX, drawY     float64 `json:"-"` // the actual position on the screen where the entity would be drawn
-	TargetX, TargetY float64 `json:"-"` // the target position the entity is moving to
+	X, Y                     float64 `json:"-"` // the exact logical position the entity is at on the map, aka the "anchor position"
+	anchorDrawX, anchorDrawY float64 `json:"-"` // the screen position of the entity's anchor
+	TargetX, TargetY         float64 `json:"-"` // the target position the entity is moving to
 }
 
 // TilePos converts the current X/Y position to an absolute tile position
 func (e Entity) TilePos() model.Coords {
-	return model.ConvertPxToTilePos((e.X), (e.Y))
+	return utils.ConvertPxToTilePos((e.X), (e.Y))
 }
 
 // TargetTilePos converts the current target X/Y position to an absolute tile position
 func (e Entity) TargetTilePos() model.Coords {
-	return model.ConvertPxToTilePos((e.TargetX), (e.TargetY))
+	return utils.ConvertPxToTilePos((e.TargetX), (e.TargetY))
 }
 
 // Movement is Runtime logic for movement

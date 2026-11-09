@@ -7,9 +7,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/data/model"
 	"golang.org/x/text/message"
 )
 
@@ -201,4 +202,36 @@ func GetRelativeDirection(dx, dy float64) byte {
 			return 'D'
 		}
 	}
+}
+
+func ConvertPxToTilePos(x, y float64) model.Coords {
+	return model.Coords{
+		X: int(x) / config.TileSize,
+		Y: int(y) / config.TileSize,
+	}
+}
+
+// GetTilePosOfRectCenter gets the Tile coordinates position for a rect (wherever the rect lies in its center)
+func GetTilePosOfRectCenter(r model.Rect) model.Coords {
+	x := r.X + (r.W / 2)
+	y := r.Y + (r.H / 2)
+	return ConvertPxToTilePos(x, y)
+}
+
+// GetOverlappingTiles returns a slice of all tile positions that this rect overlaps with.
+func GetOverlappingTiles(r model.Rect) []model.Coords {
+	result := []model.Coords{}
+
+	minC := ConvertPxToTilePos(r.X, r.Y)
+	// subtract width and height by 1, to ensure that we don't spill over into the next tile
+	maxC := ConvertPxToTilePos(r.X+r.W-1, r.Y+r.H-1)
+
+	// add 1 to the max position, so that those end positions will actually be reached
+	for x := minC.X; x < maxC.X+1; x++ {
+		for y := minC.Y; y < maxC.Y+1; y++ {
+			result = append(result, model.Coords{X: x, Y: y})
+		}
+	}
+
+	return result
 }

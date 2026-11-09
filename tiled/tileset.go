@@ -16,7 +16,7 @@ import (
 	"github.com/webbben/2d-game-engine/imgutil/imgcache"
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/tiled/properties"
 )
 

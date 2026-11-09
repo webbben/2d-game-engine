@@ -1,6 +1,10 @@
 package defs
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/webbben/2d-game-engine/data/model"
+)
 
 // BodyPartID is only for "skin" body parts (not for equiped items)
 type BodyPartID string
@@ -74,14 +78,31 @@ func (def SelectedPartDef) IsEqual(other SelectedPartDef) bool {
 
 // BodyDef defines the body of the entity; excluding things like equiped items.
 type BodyDef struct {
-	BodyHSV HSV
-	BodyID  BodyPartID
+	BodyHSV  HSV
+	BodyID   BodyPartID
+	BodyOnly bool // if set, this body def only has a single part - the body. if not set, IDs are required for all the other parts too.
+
 	EyesHSV HSV
 	EyesID  BodyPartID
+
 	HairHSV HSV
 	HairID  BodyPartID
-	ArmsID  BodyPartID
-	LegsID  BodyPartID
+
+	ArmsID BodyPartID
+	LegsID BodyPartID
+
+	// size of the collision rect, in pixels.
+	// if left empty, a default collision rect is assumed of 1 tile
+	CollisionSize int
+
+	// actual size of the body (unscaled, in px).
+	// this enables using canvases that are larger than the actual body size (e.g. for allowing extra space for animations).
+	// If left at 0, we use the default dimensions of 1 tile width and 2 tiles height
+	Width, Height int
+
+	// the position in the body frames where the "anchor" is - in other words, the position where the body touches the ground.
+	// this should normally point to a specific, likely central tile, and its used for calculating the draw origin of the body.
+	AnchorOrigin *model.Vec2
 }
 
 type AnimationParams struct {

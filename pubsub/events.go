@@ -66,7 +66,6 @@ const (
 	// data:
 	// 	- "attacker" (string/charStateID)
 	// 	- "receiver" (string/charStateID)
-	// 	- "receiverPos" (model.vec2?)
 	// 	- "damage" (int)
 	// 	- "blocked" (bool)
 	EventAttackEntity defs.EventType = "attack_entity"

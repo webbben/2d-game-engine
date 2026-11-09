@@ -1,35 +1,36 @@
-package model
+package utils
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/model"
 )
 
 func TestConvertPxToTilePos(t *testing.T) {
 	type testcase struct {
 		x, y     float64
-		expected Coords
+		expected model.Coords
 	}
 
 	testCases := []testcase{
 		{
 			x:        0,
 			y:        0,
-			expected: Coords{0, 0},
+			expected: model.Coords{0, 0},
 		},
 		// adding a whole tilesize to 0,0 should produce the next tile over, not the same one.
 		// to get the last position within a tile, you add tilesize-1 to x or y.
 		{
 			x:        config.TileSize,
 			y:        config.TileSize,
-			expected: Coords{1, 1},
+			expected: model.Coords{1, 1},
 		},
 		{
 			x:        config.TileSize - 1,
 			y:        config.TileSize - 1,
-			expected: Coords{0, 0},
+			expected: model.Coords{0, 0},
 		},
 	}
 
@@ -48,20 +49,20 @@ func TestConvertPxToTilePos(t *testing.T) {
 
 func TestGetOverlappingTiles(t *testing.T) {
 	type getOverlapTilesTestcase struct {
-		r        Rect
-		expected []Coords
+		r        model.Rect
+		expected []model.Coords
 	}
 
 	testCases := []getOverlapTilesTestcase{
 		{
-			r: Rect{X: 0, Y: 0, W: config.TileSize, H: config.TileSize},
-			expected: []Coords{
+			r: model.Rect{X: 0, Y: 0, W: config.TileSize, H: config.TileSize},
+			expected: []model.Coords{
 				{X: 0, Y: 0},
 			},
 		},
 		{
-			r: Rect{X: 0, Y: 0, W: config.TileSize + 1, H: config.TileSize + 1},
-			expected: []Coords{
+			r: model.Rect{X: 0, Y: 0, W: config.TileSize + 1, H: config.TileSize + 1},
+			expected: []model.Coords{
 				{X: 0, Y: 0},
 				{X: 0, Y: 1},
 				{X: 1, Y: 0},
@@ -72,7 +73,7 @@ func TestGetOverlappingTiles(t *testing.T) {
 
 	for i, testCase := range testCases {
 		t.Run(fmt.Sprintf("Test GetOverlappingTiles: Case %v", i), func(t *testing.T) {
-			res := testCase.r.GetOverlappingTiles()
+			res := GetOverlappingTiles(testCase.r)
 			exp := testCase.expected
 
 			t.Log("res:", res)

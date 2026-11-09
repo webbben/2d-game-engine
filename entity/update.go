@@ -3,10 +3,9 @@ package entity
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/entity/body"
-	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 )
 
@@ -15,47 +14,60 @@ func (e *Entity) Draw(screen *ebiten.Image, om *overlay.OverlayManager, offsetX 
 		return
 	}
 
-	drawX, drawY := e.drawPos(offsetX, offsetY)
+	anchorDrawX, anchorDrawY := e.anchorDrawPos(offsetX, offsetY)
 	opacity := 1.0
 	if e.IsSneaking {
 		opacity = 0.5
 	}
-	e.Body.Draw(screen, drawX, drawY, body.DrawBodyParams{
+	e.Body.Draw(screen, anchorDrawX, anchorDrawY, body.DrawBodyParams{
 		Scale:   config.GameScale,
 		Opacity: opacity,
 	})
-	e.drawX = drawX
-	e.drawY = drawY
+	e.anchorDrawX = anchorDrawX
+	e.anchorDrawY = anchorDrawY
+
+	screenBodyRect := e.GetScreenBodyRect()
 
 	if e.speechBubble != nil {
 		if om == nil {
 			logz.Panic("overlay manager was empty")
 		}
 		// make it appear to the top right of the NPC's head
-		sbX := drawX + config.TileSize*config.GameScale*0.7
-		sbY := drawY - config.TileSize*config.GameScale*2.5
+		sbX := screenBodyRect.X + config.TileSize*config.GameScale
+		sbY := screenBodyRect.Y - config.TileSize*config.GameScale*2.5
 		e.speechBubble.DrawOverlay(om, sbX, sbY)
 	}
 
-	e.FloatMGMT.Draw(screen, e.drawX, e.drawY)
+	e.FloatMGMT.Draw(screen, screenBodyRect.X, screenBodyRect.Y)
 }
 
-// DrawPos returns the actual absolute position where the entity will be drawn
-func (e Entity) drawPos(offsetX, offsetY float64) (drawX, drawY float64) {
-	dx, dy := e.Body.Dimensions()
-	rect := model.NewRect(0, 0, float64(dx), float64(dy))
-	drawX, drawY = rendering.GetRectDrawPos(rect, e.X, e.Y, offsetX, offsetY)
-	drawY -= 6 // move up a little, since we want the entity to look like its standing in the middle of the tile
-	drawX *= config.GameScale
-	drawY *= config.GameScale
-	return drawX, drawY
+func (e Entity) anchorDrawPos(offsetX, offsetY float64) (anchorX, anchorY float64) {
+	anchorX = (e.X - offsetX) * config.GameScale
+	anchorY = (e.Y - offsetY) * config.GameScale
+	return anchorX, anchorY
 }
 
-func (e Entity) GetDrawRect() model.Rect {
-	dx, dy := e.Body.Dimensions()
-	dx = int(float64(dx) * config.GameScale)
-	dy = int(float64(dy) * config.GameScale)
-	return model.NewRect(e.drawX, e.drawY, float64(dx), float64(dy))
+// GetScreenBodyRect gives a rect that represents the screen position and space that an entity's body is in on the screen.
+// Can be used for things, such as detecting if the mouse is hovering over an entity. This purposely excludes any canvas space beyond the body.
+func (e Entity) GetScreenBodyRect() model.Rect {
+	bodyDx, bodyDy := e.Body.Dimensions()
+
+	// the anchor tile represents the bottom center tile of the entity's body, so we can derive the actual effective "body" area from it:
+	// - subtract height from the bottom of the anchor tile
+	// - center the width across the anchor tile (to handle for bodies that are wider than 1 tile)
+
+	widthOverflow := bodyDx - config.TileSize
+
+	// we have to use the anchor draw position since we don't have access to the camera's current offset. that's why all the math below
+	// is scaling all the values by game scale.
+	r := model.Rect{
+		X: e.anchorDrawX - float64(widthOverflow/2)*config.GameScale,
+		Y: e.anchorDrawY + config.TileSize*config.GameScale - float64(bodyDy)*config.GameScale,
+		W: float64(bodyDx) * config.GameScale,
+		H: float64(bodyDy) * config.GameScale,
+	}
+
+	return r
 }
 
 func (e *Entity) Update() {

@@ -1,4 +1,4 @@
-// Package model defines a general model to base the geometry of the world around
+// Package model stores types that are commonly used in the game engine, especially in representing data that is used in the game's world physics
 package model
 
 import (
@@ -6,17 +6,10 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/logz"
 )
 
-/*
-
-Types related to world layouts and navigating maps, etc.
-
-*/
-
-// TODO: let's switch to using these consts rather than the directions struct below
+// TODO: let's make a type for direction (aliased byte) and make all references to directions use that type
 const (
 	Left  byte = 'L'
 	Right byte = 'R'
@@ -24,30 +17,16 @@ const (
 	Down  byte = 'D'
 )
 
-type directions struct {
-	Left  byte
-	Right byte
-	Up    byte
-	Down  byte
-}
-
-var Directions directions = directions{
-	Left:  'L',
-	Right: 'R',
-	Up:    'U',
-	Down:  'D',
-}
-
 func GetOppositeDirection(dir byte) byte {
 	switch dir {
-	case Directions.Left:
-		return Directions.Right
-	case Directions.Right:
-		return Directions.Left
-	case Directions.Up:
-		return Directions.Down
-	case Directions.Down:
-		return Directions.Up
+	case Left:
+		return Right
+	case Right:
+		return Left
+	case Up:
+		return Down
+	case Down:
+		return Up
 	default:
 		panic("invalid direction given!")
 	}
@@ -59,15 +38,15 @@ func GetRelativeDirection(a, b Coords) byte {
 	dy := b.Y - a.Y
 	if math.Abs(float64(dx)) > math.Abs(float64(dy)) {
 		if dx < 0 {
-			return Directions.Left
+			return Left
 		} else {
-			return Directions.Right
+			return Right
 		}
 	} else {
 		if dy < 0 {
-			return Directions.Up
+			return Up
 		} else {
-			return Directions.Down
+			return Down
 		}
 	}
 }
@@ -115,20 +94,6 @@ func (c Coords) IsAdjacent(otherPos Coords) bool {
 	dx := math.Abs(float64(c.X) - float64(otherPos.X))
 	dy := math.Abs(float64(c.Y) - float64(otherPos.Y))
 	return dx+dy == 1
-}
-
-func ConvertPxToTilePos(x, y float64) Coords {
-	return Coords{
-		X: int(x) / config.TileSize,
-		Y: int(y) / config.TileSize,
-	}
-}
-
-// GetTilePosOfRectCenter gets the Tile coordinates position for a rect (wherever the rect lies in its center)
-func GetTilePosOfRectCenter(r Rect) Coords {
-	x := r.X + (r.W / 2)
-	y := r.Y + (r.H / 2)
-	return ConvertPxToTilePos(x, y)
 }
 
 func (c Coords) WithinBounds(x1, x2, y1, y2 int) bool {
@@ -257,24 +222,6 @@ func (r Rect) VecWithin(v Vec2) bool {
 func (r Rect) Contains(other Rect) bool {
 	return r.Within(int(other.X), int(other.Y)) &&
 		r.Within(int(other.X+other.W), int(other.Y+other.H))
-}
-
-// GetOverlappingTiles returns a slice of all tile positions that this rect overlaps with.
-func (r Rect) GetOverlappingTiles() []Coords {
-	result := []Coords{}
-
-	minC := ConvertPxToTilePos(r.X, r.Y)
-	// subtract width and height by 1, to ensure that we don't spill over into the next tile
-	maxC := ConvertPxToTilePos(r.X+r.W-1, r.Y+r.H-1)
-
-	// add 1 to the max position, so that those end positions will actually be reached
-	for x := minC.X; x < maxC.X+1; x++ {
-		for y := minC.Y; y < maxC.Y+1; y++ {
-			result = append(result, Coords{X: x, Y: y})
-		}
-	}
-
-	return result
 }
 
 type IntersectionResult struct {

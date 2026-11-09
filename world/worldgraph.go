@@ -3,10 +3,10 @@ package world
 import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/tiled"
 	"github.com/webbben/2d-game-engine/tiled/properties"
@@ -108,7 +108,7 @@ func (w *World) buildGraphNode(wg *worldgraph.WorldGraph, mapStateID defs.MapID)
 			if spawnID == 0 {
 				foundSpawn0 = true
 			}
-			spawnCoords := model.ConvertPxToTilePos((obj.X), (obj.Y))
+			spawnCoords := utils.ConvertPxToTilePos((obj.X), (obj.Y))
 			node.SpawnPoints[spawnID] = spawnCoords
 			continue
 		}
@@ -189,7 +189,7 @@ func (w *World) buildGraphNode(wg *worldgraph.WorldGraph, mapStateID defs.MapID)
 			// doors are usually 2 tiles tall, so make sure we have the bottom tile
 			y = (y + obj.Height) - config.TileSize
 		}
-		edgeCoords := model.ConvertPxToTilePos(x, y)
+		edgeCoords := utils.ConvertPxToTilePos(x, y)
 		// TODO: should we go through the trouble here of actually finding the "right" position to go to in order to access the door?
 		// lots of doors will be on buildings, and therefore their positions will be blocked.
 		// I also wonder if path finding when the goal tile is blocked takes a performance hit at all, since it probably leads to excess searching (even if a little)

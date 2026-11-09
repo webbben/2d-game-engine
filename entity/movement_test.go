@@ -3,7 +3,7 @@ package entity
 import (
 	"testing"
 
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/data/model"
 )
 
 // createIntersectionResult is a helper to create an IntersectionResult for testing

@@ -8,7 +8,7 @@ import (
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
+	"github.com/webbben/2d-game-engine/data/model"
 )
 
 // followPathRequest carries the inputs for one background path computation. It is populated by the
@@ -121,13 +121,13 @@ func (t *FollowTask) Start() {
 func _followGetTargetPosition(e *entity.Entity, dist int) model.Coords {
 	target := e.TilePos()
 	switch e.Direction() {
-	case model.Directions.Left:
+	case model.Left:
 		target.X += dist + 1
-	case model.Directions.Right:
+	case model.Right:
 		target.X -= dist + 1
-	case model.Directions.Up:
+	case model.Up:
 		target.Y += dist + 1
-	case model.Directions.Down:
+	case model.Down:
 		target.Y -= dist + 1
 	default:
 		panic("entity has invalid direction!")

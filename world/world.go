@@ -13,12 +13,12 @@ import (
 	"github.com/webbben/2d-game-engine/data/datamanager"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/data/state"
 	"github.com/webbben/2d-game-engine/entity"
 	"github.com/webbben/2d-game-engine/entity/player"
 	"github.com/webbben/2d-game-engine/internal/debug"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/pubsub"
 	"github.com/webbben/2d-game-engine/quest"
 	"github.com/webbben/2d-game-engine/screen"
@@ -314,7 +314,7 @@ func (w *World) loadRegularMapNPCs() {
 	if !found {
 		logz.Panicln("loadRegularMapNPCs", "failed to find spawn point 0. all maps must have this spawn point index!")
 	}
-	spawnPoint0 := model.ConvertPxToTilePos(x0, y0)
+	spawnPoint0 := utils.ConvertPxToTilePos(x0, y0)
 
 	for _, id := range w.MapOccupancy[w.ActiveMap.MapID] {
 		// add an NPC to the map for this character, and then call its initial task state setter.
@@ -598,7 +598,7 @@ func (w *World) ChangeMapOccupancy(charStateID id.CharacterStateID, from, to def
 			logz.Println("ChangeMapOccupancy", toSpawn)
 			logz.Panicln("ChangeMapOccupancy", "spawn point not found")
 		}
-		startPos := model.ConvertPxToTilePos(x, y)
+		startPos := utils.ConvertPxToTilePos(x, y)
 		w.ActiveMap.AddNPCToMap(n, startPos)
 		if faceDir != 0 {
 			n.Entity.SetDirection(faceDir)
@@ -641,7 +641,7 @@ func (w *World) AddNPCToActiveMap(charStateID id.CharacterStateID, spawnIndex in
 		logz.Println("AddNPCToActiveMap", spawnIndex, "mapID:", w.ActiveMap.MapID)
 		logz.Panicln("AddNPCToActiveMap", "given spawn index doesn't exist in active map")
 	}
-	spawnPos := model.ConvertPxToTilePos(x, y)
+	spawnPos := utils.ConvertPxToTilePos(x, y)
 
 	w.ActiveMap.AddNPCToMap(n, spawnPos)
 	if faceDir != 0 {

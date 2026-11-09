@@ -2,11 +2,12 @@ package npc
 
 import (
 	"github.com/webbben/2d-game-engine/data/defs"
+	"github.com/webbben/2d-game-engine/data/model"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 // SatisfiesObjectOwnership checks if the NPC can use this object without violating ownership rules (roles or owner IDs)
@@ -56,7 +57,7 @@ func unopenableGateTiles(n *NPC) []model.Coords {
 		if obj.CanBeOpenedBy(lockIDs) {
 			continue
 		}
-		tiles = append(tiles, obj.GetRect().GetOverlappingTiles()...)
+		tiles = append(tiles, utils.GetOverlappingTiles(obj.GetRect())...)
 	}
 	return tiles
 }

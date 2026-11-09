@@ -8,12 +8,12 @@ import (
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/dialogv2"
 	"github.com/webbben/2d-game-engine/entity"
 	characterstate "github.com/webbben/2d-game-engine/entity/characterState"
 	"github.com/webbben/2d-game-engine/internal/path_finding"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/model"
 	"github.com/webbben/2d-game-engine/object"
 	"github.com/webbben/2d-game-engine/ui/overlay"
 	"github.com/webbben/2d-game-engine/utils"
@@ -38,14 +38,14 @@ func (m *ActiveMap) GetValidMapPosition(n npc.NPC) model.Coords {
 			lockID := obj.GetLockID()
 			if lockID != "" && !slices.Contains(lockIDs, lockID) {
 				// gate is locked and NPC doesn't have the right key for it. add a collision where this gate stands.
-				for _, c := range obj.GetRect().GetOverlappingTiles() {
+				for _, c := range utils.GetOverlappingTiles(obj.GetRect()) {
 					costmap[c.Y][c.X] += path_finding.BlockThreshold
 				}
 			}
 		case object.TypeSpawnPoint:
 			// also, block spawn points since we wouldn't want NPCs to spawn on top of those.
 			x, y := obj.Pos()
-			c := model.ConvertPxToTilePos(x, y)
+			c := utils.ConvertPxToTilePos(x, y)
 			costmap[c.Y][c.X] += path_finding.BlockThreshold
 			// TODO: should we block spots that are immediately adjacent to a spawn point too? don't think we want NPCs sitting right in front of the door.
 		}
@@ -57,7 +57,7 @@ func (m *ActiveMap) GetValidMapPosition(n npc.NPC) model.Coords {
 		logz.Println("GetValidMapPosition", m.MapID)
 		logz.Panicln("GetValidMapPosition", "no spawn point (index=0) found in map")
 	}
-	startPos := model.ConvertPxToTilePos(x, y)
+	startPos := utils.ConvertPxToTilePos(x, y)
 
 	reachable := path_finding.GetAllReachablePositions(startPos, costmap)
 	if len(reachable) == 0 {

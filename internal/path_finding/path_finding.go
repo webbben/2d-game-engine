@@ -1,7 +1,7 @@
 // Package path_finding has logic and functions for finding paths in a map
 package path_finding
 
-import "github.com/webbben/2d-game-engine/model"
+import "github.com/webbben/2d-game-engine/data/model"
 
 const (
 	// if cost at a given tile reaches this level, then the tile is considered blocked and can't be used in a path.
