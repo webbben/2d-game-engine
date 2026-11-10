@@ -1,6 +1,7 @@
 package object
 
 import (
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/tiled/properties"
@@ -72,7 +73,7 @@ func (obj *Object) activateGate() ObjectUpdateResult {
 	if obj.Gate.openSFXID == "" {
 		panic("gate has no open SFX set. make sure the 'SFX' property is set for this object in Tiled.")
 	}
-	obj.AudioMgr.PlaySFX(obj.Gate.openSFXID, 0.5)
+	obj.AudioMgr.PlaySound(obj.Gate.openSFXID, 0.5, audio.PlaySoundParams{})
 
 	return ObjectUpdateResult{
 		UpdateOccurred: true,

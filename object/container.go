@@ -3,6 +3,7 @@ package object
 import (
 	"fmt"
 
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/logz"
@@ -32,11 +33,11 @@ func (obj *Object) activateContainer() ObjectUpdateResult {
 
 	if obj.Container.open {
 		if obj.Container.openSFXID != "" {
-			obj.AudioMgr.PlaySFX(obj.Container.openSFXID, 0.5)
+			obj.AudioMgr.PlaySound(obj.Container.openSFXID, 0.5, audio.PlaySoundParams{})
 		}
 	} else {
 		if obj.Container.closeSFXID != "" {
-			obj.AudioMgr.PlaySFX(obj.Container.closeSFXID, 0.5)
+			obj.AudioMgr.PlaySound(obj.Container.closeSFXID, 0.5, audio.PlaySoundParams{})
 		}
 	}
 
@@ -102,7 +103,7 @@ func (obj *Object) closeContainerCmd(e defs.Event) {
 		obj.Container.open = false
 		obj.Container.changingState = true
 		if obj.Container.closeSFXID != "" {
-			obj.AudioMgr.PlaySFX(obj.Container.closeSFXID, 0.5)
+			obj.AudioMgr.PlaySound(obj.Container.closeSFXID, 0.5, audio.PlaySoundParams{})
 		}
 	}
 }

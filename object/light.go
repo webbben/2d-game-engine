@@ -9,8 +9,9 @@ import (
 )
 
 type Light struct {
-	Light *lights.Light
-	On    bool
+	Light      *lights.Light
+	On         bool
+	CanTurnOff bool
 }
 
 func (obj *Object) loadLightObject(props []properties.Property) {
@@ -21,14 +22,18 @@ func (obj *Object) loadLightObject(props []properties.Property) {
 	l.DebugInfo = fmt.Sprintf("obj %v", obj.ID)
 
 	obj.Light = Light{
-		Light: &l,
-		On:    true,
+		Light:      &l,
+		On:         true,
+		CanTurnOff: lightProps.CanTurnOff,
 	}
 }
 
 func (obj *Object) activateLight() ObjectUpdateResult {
 	if obj.Type != TypeLight {
 		panic("tried to activate light, but object is not a light")
+	}
+	if !obj.Light.CanTurnOff {
+		return ObjectUpdateResult{}
 	}
 	logz.Println("OBJECT", "light activated")
 	obj.Light.On = !obj.Light.On

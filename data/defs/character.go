@@ -72,6 +72,9 @@ type CharacterDef struct {
 	// Optional: absent from JSON means false, so existing character defs are unaffected.
 	NeverFlee bool
 
+	CanFightUnarmed bool // if true, this character can perform melee attacks without an equipped weapon
+	UnarmedDamage   RealDamage
+
 	DialogProfileID  DialogProfileID
 	FootstepSFXDefID FootstepSFXDefID
 	ScheduleID       ScheduleID

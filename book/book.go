@@ -173,7 +173,7 @@ func NewBookSession(
 	}
 
 	if sesh.bookDef.OpenSFX != "" {
-		audioman.PlaySFX(sesh.bookDef.OpenSFX, 0.5)
+		audioman.PlaySound(sesh.bookDef.OpenSFX, 0.5, audio.PlaySoundParams{})
 	}
 
 	return sesh
@@ -195,7 +195,7 @@ func (bs *BookSession) Update() {
 	if bs.closeBtn.Update().Clicked {
 		bs.exit = true
 		if bs.bookDef.CloseSFX != "" {
-			bs.audioman.PlaySFX(bs.bookDef.CloseSFX, 0.5)
+			bs.audioman.PlaySound(bs.bookDef.CloseSFX, 0.5, audio.PlaySoundParams{})
 		}
 	}
 }

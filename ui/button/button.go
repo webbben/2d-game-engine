@@ -161,7 +161,7 @@ func (b *Button) Update() ButtonUpdateResult {
 
 	if b.mouseBehavior.LeftClick.ClickReleased {
 		if b.clickSfx != "" {
-			b.audioman.PlaySFX(b.clickSfx, 0.5)
+			b.audioman.PlaySound(b.clickSfx, 0.5, audio.PlaySoundParams{})
 		}
 		result.Clicked = true
 	}

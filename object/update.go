@@ -5,12 +5,14 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/pubsub"
+	"github.com/webbben/2d-game-engine/utils"
 )
 
 type ObjectUpdateResult struct {
@@ -71,7 +73,47 @@ func (obj *Object) Update(blockChanges bool, hovering bool) ObjectUpdateResult {
 		obj.Emitter.Update(emitX, emitY)
 	}
 
+	// ambient sound
+	if obj.ambientSoundID != "" {
+		if obj.ambientSoundPlaybackID == 0 {
+			params := audio.PlaySoundParams{
+				Loop:           true,
+				FadeInDuration: time.Second,
+			}
+			obj.ambientSoundPlaybackID = obj.AudioMgr.PlaySound(obj.ambientSoundID, 0.3, params)
+			if obj.ambientSoundPlaybackID == 0 {
+				logz.Warnln("Object", "failed to play ambient sound:", obj.ambientSoundID, obj.ID, obj.mapID)
+			}
+		} else {
+			volFactor := obj.getVolumeDistFactor(0.3, config.TileSize*10)
+			if obj.Type == TypeLight && !obj.Light.On {
+				volFactor = 0
+			}
+			obj.AudioMgr.SetVolumeFactor(obj.ambientSoundPlaybackID, volFactor)
+		}
+	}
+
 	return ObjectUpdateResult{}
+}
+
+func (obj Object) distToPlayer() float64 {
+	r1 := obj.World.GetPlayerRect()
+	r2 := obj.GetRect()
+	return utils.EuclideanDistCenter(r1, r2)
+}
+
+func (obj Object) getVolumeDistFactor(maxVol float64, maxDist float64) float64 {
+	if maxVol == 0 {
+		maxVol = 0.5
+	}
+	if maxDist == 0 {
+		maxDist = float64(config.TileSize * 10)
+	}
+	distToPlayer := obj.distToPlayer()
+	distToPlayer = min(distToPlayer, maxDist)
+	distToPlayer = distToPlayer / maxDist
+	volFactor := 1 - distToPlayer
+	return maxVol * volFactor
 }
 
 // ObjectActivationParams provides contextual information needed for the logic that handles activating an object.
@@ -98,7 +140,7 @@ func (obj *Object) Activate(fromX, fromY float64, params ObjectActivationParams)
 				// door is locked; cannot enter
 				// only play it if the player is locked out, not NPCs
 				if config.LockedSfx != "" && params.ActivatorID == id.PlayerStateID {
-					obj.AudioMgr.PlaySFX(config.LockedSfx, 0.5)
+					obj.AudioMgr.PlaySound(config.LockedSfx, 0.5, audio.PlaySoundParams{})
 				}
 				return ObjectUpdateResult{}
 			}

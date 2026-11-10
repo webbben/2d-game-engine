@@ -4,6 +4,7 @@ package audio
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,7 +13,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
 	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/logz"
 )
 
 // Note: If audio is playing faster or higher pitched than expected, most likely the file you're playing
@@ -21,51 +21,41 @@ const sampleRate = 44100
 
 var audioContext = audio.NewContext(sampleRate)
 
+// A Sound represents an individual audio file that can be played in the game engine.
+// There should only be one single Sound for each individual source of audio data.
 type Sound struct {
 	srcPath    string
-	player     *audio.Player
 	baseVolume float64
-	// data   []byte
+	data       []byte
 }
 
-func (s *Sound) SetVolume(v float64) {
-	if s.player == nil {
-		panic("no sound player found when setting volume")
+// creates a new player, but does not actually start playing the sound
+func (s *Sound) newPlayer(loop bool) (*audio.Player, error) {
+	var player *audio.Player
+
+	if loop {
+		stream := audio.NewInfiniteLoopF32(bytes.NewReader(s.data), int64(len(s.data)))
+		var err error
+		player, err = audioContext.NewPlayerF32(stream)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		player = audioContext.NewPlayerF32FromBytes(s.data)
 	}
-	s.player.SetVolume(v)
+
+	return player, nil
 }
 
-func (s *Sound) ResetVolume() {
-	s.SetVolume(s.baseVolume)
-}
-
-func (s *Sound) PlayVolumeAdjusted(volFactor float64) {
-	if volFactor < 0 || volFactor > 1 {
-		panic("volume factor must be between 0 and 1")
-	}
-	if volFactor == 0 {
-		return
-	}
-	s.SetVolume(s.baseVolume * volFactor)
-	s.Play()
-}
-
-func (s *Sound) Play() {
-	if s.player == nil {
-		panic("no sound player found")
-	}
-	err := s.player.Rewind()
-	if err != nil {
-		panic("failed to rewind sound: " + err.Error())
-	}
-	s.player.Play()
-}
-
-// NewSound is for loading mp3
+// NewSound loads and decodes an audio file
 func NewSound(relAudioPath string, volume float64) (Sound, error) {
 	if relAudioPath == "" {
 		return Sound{}, errors.New("no relative audio path given")
 	}
+	if volume < 0 || volume > 1 {
+		return Sound{}, errors.New("volume must be between 0 and 1")
+	}
+
 	srcPath := config.ResolveAudioPath(relAudioPath)
 
 	data, err := os.ReadFile(srcPath)
@@ -83,24 +73,22 @@ func NewSound(relAudioPath string, volume float64) (Sound, error) {
 	case ".wav":
 		stream, err = wav.DecodeF32(bytes.NewReader(data))
 	default:
-		logz.Panicln("NewSound", "unsupported audio format:", ext)
+		return Sound{}, fmt.Errorf("unsupported audio format: %s", ext)
 	}
 
 	if err != nil {
 		return Sound{}, err
 	}
 
-	player, err := audioContext.NewPlayerF32(stream)
+	audioData, err := io.ReadAll(stream)
 	if err != nil {
 		return Sound{}, err
 	}
-
-	player.SetVolume(volume)
 
 	sound := Sound{
 		baseVolume: volume,
 		srcPath:    srcPath,
-		player:     player,
+		data:       audioData,
 	}
 
 	return sound, nil

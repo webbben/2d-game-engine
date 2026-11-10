@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
@@ -151,8 +152,10 @@ func (e *Entity) StartMeleeAttack(target *Entity) StartAttackResult {
 	// Remembered before anything can fail, so the waitingToAttack retry below can re-supply it.
 	e.intendedAttackTarget = target
 
-	if !e.IsWeaponEquiped() {
-		logz.PanicCtx("Combat", "tried to swing weapon, but no weapon is equiped", e.DisplayName())
+	charDef := e.dataman.GetCharacterDef(e.characterStateRef.DefID)
+
+	if !e.IsWeaponEquiped() && !charDef.CanFightUnarmed {
+		logz.PanicCtx("Combat", "tried to swing weapon, but no weapon is equiped", e.DisplayName(), "canFightUnarmed:", charDef.CanFightUnarmed)
 	}
 	if e.IsStunned() {
 		return StartAttackResult{
@@ -227,6 +230,9 @@ func (e *Entity) FinishMeleeAttack() {
 		return
 	}
 
+	charDef := e.dataman.GetCharacterDef(e.characterStateRef.DefID)
+	isUnarmedAttack := !e.IsWeaponEquiped() && charDef.CanFightUnarmed
+
 	// power attacks: the longer the attack was charged (held in the wind-up pose after the start
 	// animation finished), the higher the damage multiplier. this is computed outside of the engine
 	// via CombatSystemCalc since different games may want different balance.
@@ -245,18 +251,38 @@ func (e *Entity) FinishMeleeAttack() {
 	chargeDuration := time.Duration(chargeTicks) * time.Second / ticksPerSecond
 	mult := e.dataman.CombatSystemCalc.PowerAttackMultiplier(chargeDuration)
 
+	// determine weapon info
+	var weaponInfo defs.WeaponInfo
+
+	if isUnarmedAttack {
+		utils.PanicAssert(charDef.UnarmedDamage > 0, "charDef unarmed damage must be greater than 0")
+		weaponInfo = defs.WeaponInfo{
+			UnarmedAttack:       true,
+			UnarmedAttackDamage: charDef.UnarmedDamage,
+		}
+	} else {
+		weaponInfo = defs.WeaponInfo{
+			ID:         e.equipedWeapon.ID,
+			Condition:  e.characterStateRef.EquipedWeapon.Durability,
+			WeaponType: e.equipedWeapon.GoverningSkill,
+		}
+	}
+
 	// calculate damage and multiplier now that melee attack charging is done
-	weaponID := e.equipedWeapon.ID
-	condition := e.characterStateRef.EquipedWeapon.Durability
-	weaponType := e.equipedWeapon.GoverningSkill
 	skills, attrs := characterstate.GetSkillsAndAttributes(e.characterStateRef.ID, e.dataman)
-	dmg := e.dataman.CombatSystemCalc.MeleeWeaponDamage(weaponID, condition, mult, weaponType, attrs, skills)
+
+	attackerInfo := defs.AttackerInfo{
+		Attrs:  attrs,
+		Skills: skills,
+	}
+	dmg := e.dataman.CombatSystemCalc.MeleeWeaponDamage(mult, weaponInfo, attackerInfo)
 	e.queuedAttack.Damage = dmg
 
 	if e.characterStateRef.EquipedWeapon != nil {
 		weaponDef := e.dataman.GetItemDef(e.characterStateRef.EquipedWeapon.DefID)
 		if weaponDef.SwingSFX != "" {
-			e.footstepSFX.AudioMgr.PlaySFX(weaponDef.SwingSFX, 0.5)
+			volFactor := e.distanceVolumeFactor(1, config.TileSize*10)
+			e.footstepSFX.AudioMgr.PlaySound(weaponDef.SwingSFX, volFactor, audio.PlaySoundParams{})
 		}
 	}
 
@@ -533,22 +559,26 @@ func (e Entity) AttackQueued() bool {
 }
 
 func (e *Entity) playHitSFX(equipedItem *state.ItemState) {
+	volFactor := e.distanceVolumeFactor(0.5, config.TileSize*10)
 	if equipedItem != nil {
 		itemDef := e.dataman.GetItemDef(equipedItem.DefID)
 		if itemDef.HitSFX != "" {
-			e.footstepSFX.AudioMgr.PlaySFX(itemDef.HitSFX, 0.5)
+			e.footstepSFX.AudioMgr.PlaySound(itemDef.HitSFX, volFactor, audio.PlaySoundParams{})
 			return
 		}
 	}
 	if config.DefaultHitSfx != "" {
-		e.footstepSFX.AudioMgr.PlaySFX(config.DefaultHitSfx, 0.5)
+		e.footstepSFX.AudioMgr.PlaySound(config.DefaultHitSfx, volFactor, audio.PlaySoundParams{})
 	}
 }
 
 func (e *Entity) HandleWeaponHit(target *Entity) {
 	if e.characterStateRef.EquipedWeapon == nil {
-		logz.Println(string(e.ID()))
-		logz.Panicln("HandleWeaponHit", "no weapon was equipped")
+		charDef := e.dataman.GetCharacterDef(e.characterStateRef.DefID)
+		if charDef.CanFightUnarmed {
+			return
+		}
+		logz.PanicCtx("HandleWeaponHit", "no weapon was equipped", e.ID())
 	}
 	wear := e.dataman.CombatSystemCalc.WeaponDurabilityLoss(target.equippedArmorProtection)
 	e.characterStateRef.EquipedWeapon.Durability = max(0, e.characterStateRef.EquipedWeapon.Durability-wear)

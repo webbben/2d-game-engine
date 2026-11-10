@@ -12,6 +12,8 @@ func (g *Game) Update() error {
 	// in the update logic (UI components, etc) decide if it should be something else.
 	mouse.SetCursorShape(mouse.DefaultShape)
 
+	g.AudioManager.Update()
+
 	if g.GlobalKeyBindings != nil {
 		g.handleGlobalKeyBindings()
 	}

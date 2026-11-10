@@ -803,12 +803,19 @@ func (n *NPC) respondToCombatant(opponent *entity.Entity) {
 
 // ensureWeaponEquipped moves the first weapon found in this npc's inventory into its equipped slot.
 // Returns true if the npc is holding a weapon when it finishes, whether it already was or not.
+// Also returns true if the character def supports unarmed combat.
 func (n *NPC) ensureWeaponEquipped() bool {
 	cs := n.CharacterStateRef
 	if cs == nil {
 		return false
 	}
 	if cs.EquipedWeapon != nil && cs.EquipedWeapon.DefID != "" {
+		return true
+	}
+
+	// check if this character fights unarmed
+	charDef := n.dataman.GetCharacterDef(cs.DefID)
+	if charDef.CanFightUnarmed {
 		return true
 	}
 
@@ -833,6 +840,7 @@ func (n *NPC) ensureWeaponEquipped() bool {
 		n.Entity.SyncBodyToState()
 		return true
 	}
+
 	return false
 }
 

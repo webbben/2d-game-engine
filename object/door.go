@@ -3,6 +3,7 @@ package object
 import (
 	"fmt"
 
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/data/defs"
 	"github.com/webbben/2d-game-engine/data/id"
 	"github.com/webbben/2d-game-engine/logz"
@@ -79,7 +80,7 @@ func (obj *Object) activateDoor(params ObjectActivationParams) ObjectUpdateResul
 	}
 
 	// TODO: should we define volume somewhere?
-	obj.AudioMgr.PlaySFX(obj.Door.openSoundID, 0.5)
+	obj.AudioMgr.PlaySound(obj.Door.openSoundID, 0.5, audio.PlaySoundParams{})
 
 	// check if this is the player, or an NPC
 	// It doesn't actually change the logic here, since the calling code will handle it, but good to know.

@@ -5,11 +5,12 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/webbben/2d-game-engine/audio"
 	"github.com/webbben/2d-game-engine/config"
+	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/display"
 	"github.com/webbben/2d-game-engine/imgutil/rendering"
 	"github.com/webbben/2d-game-engine/logz"
-	"github.com/webbben/2d-game-engine/data/model"
 	"github.com/webbben/2d-game-engine/ui/button"
 	"github.com/webbben/2d-game-engine/ui/text"
 	"github.com/webbben/2d-game-engine/utils"
@@ -86,7 +87,7 @@ func (ds *DialogSession) updateDialogResponse() {
 			// wait for the player to click to continue though, in case they are still reading.
 			if ds.flashUntilContinue() {
 				if config.ButtonClickSfx != "" {
-					ds.audioman.PlaySFX(config.ButtonClickSfx, 0.3)
+					ds.audioman.PlaySound(config.ButtonClickSfx, 0.3, audio.PlaySoundParams{})
 				}
 				ds.ApplyResponse(*ds.currentResponse.NextResponse)
 			}
@@ -224,7 +225,7 @@ func (ds *DialogSession) flashUntilContinue() bool {
 func (ds *DialogSession) awaitContinue() {
 	if ds.flashUntilContinue() {
 		if config.ButtonClickSfx != "" {
-			ds.audioman.PlaySFX(config.ButtonClickSfx, 0.3)
+			ds.audioman.PlaySound(config.ButtonClickSfx, 0.3, audio.PlaySoundParams{})
 		}
 		ds.LineWriter.NextPage()
 	}

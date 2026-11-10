@@ -94,5 +94,5 @@ func (sfx *FootstepSFX) Step(stepType StepType, volumeFactor float64) {
 	sfx.TicksUntilNextPlay = sfx.TickDelay
 	sfx.index = (sfx.index + 1) % len(soundIDs)
 	soundID := soundIDs[sfx.index]
-	sfx.AudioMgr.PlaySFX(soundID, volumeFactor)
+	sfx.AudioMgr.PlaySound(soundID, volumeFactor, PlaySoundParams{})
 }

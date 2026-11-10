@@ -30,6 +30,8 @@ var slowDownChars = map[rune]bool{
 	'!': true,
 	'?': true,
 	'-': true,
+	':': true,
+	';': true,
 }
 
 func isSlowdownChar(r rune) bool {
@@ -398,7 +400,7 @@ func (lw *LineWriter) Update() {
 								}
 								lw.ticksTilBlip--
 								if lw.ticksTilBlip <= 0 {
-									lw.audioman.PlaySFX(lw.textBlipSfx, 0.2)
+									lw.audioman.PlaySound(lw.textBlipSfx, 0.2, audio.PlaySoundParams{})
 									lw.ticksTilBlip = lw.blipTickInterval
 								}
 							}

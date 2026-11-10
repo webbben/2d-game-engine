@@ -64,7 +64,8 @@ const (
 	PropDoorSpawnIndex     = "door_spawn_index"
 	PropDoorActivate       = "door_activate"
 	PropDoorMapGeneratorID = "map_generator_id"
-	PropSFX                = "SFX" // open/close sound effect (doors and gates)
+	PropSFX                = "SFX"           // open/close sound effect (doors and gates)
+	PropSoundAmbient       = "sound_ambient" // for ambient sound on objects
 )
 
 // Chair properties
@@ -109,7 +110,7 @@ const (
 	PropLightFlickerInterval   = "light_flicker_interval"
 	PropLightMaxBrightness     = "light_max_brightness"
 	PropLightCoreRadius        = "light_core_radius"
-	PropLightPreset            = "light_preset" // deprecated; use PropLightColorR/G/B instead
+	PropLightCanTurnOff        = "light_can_turn_off"
 )
 
 // Window properties

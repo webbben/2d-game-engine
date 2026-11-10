@@ -349,7 +349,7 @@ func (w *World) CloseMap() {
 		n.PrepareLeaveActiveMap()
 	}
 	for _, obj := range w.ActiveMap.Objects {
-		obj.OnMapClose()
+		obj.Destroy()
 	}
 	w.ActiveMap.StopBackgroundNPCManager()
 	w.ActiveMap = nil

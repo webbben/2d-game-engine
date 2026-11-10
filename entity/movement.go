@@ -662,16 +662,9 @@ func (e *Entity) updateMovement() updateMovementResult {
 	if e.footstepSFX.TicksUntilNextPlay <= 0 {
 		tilePos := e.TilePos()
 		groundMaterial := e.World.GetGroundMaterial(tilePos.X, tilePos.Y)
-		var distToPlayer float64
-		if e.IsPlayer() {
-			distToPlayer = 0
-		} else {
-			distToPlayer = e.World.GetDistToPlayer(e.X, e.Y)
-			maxDist := float64(config.TileSize * 10)
-			distToPlayer = min(distToPlayer, maxDist)
-			distToPlayer = distToPlayer / maxDist
-		}
-		volFactor := 1 - distToPlayer
+
+		volFactor := e.distanceVolumeFactor(0.5, config.TileSize*10)
+
 		switch groundMaterial {
 		case "wood":
 			e.footstepSFX.Step(audio.StepWood, volFactor)
@@ -691,6 +684,24 @@ func (e *Entity) updateMovement() updateMovementResult {
 		}
 	}
 	return result
+}
+
+// calculates the volume factor for sound effects (how loud it should be, based on how distant from the player)
+func (e *Entity) distanceVolumeFactor(maxVol float64, maxDist float64) float64 {
+	if maxVol == 0 {
+		maxVol = 0.5
+	}
+	if maxDist == 0 {
+		maxDist = float64(config.TileSize * 10)
+	}
+	if e.IsPlayer() {
+		return 1
+	}
+	distToPlayer := e.World.GetDistToPlayer(e.X, e.Y)
+	distToPlayer = min(distToPlayer, maxDist)
+	distToPlayer = distToPlayer / maxDist
+	volFactor := 1 - distToPlayer
+	return maxVol * volFactor
 }
 
 func (e *Entity) StopMovement() {

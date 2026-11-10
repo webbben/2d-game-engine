@@ -161,8 +161,6 @@ func UpdateCursorShape() {
 		return
 	}
 
-	logz.Println("UpdateCursorShape", NextShape)
-
 	CurrentShape = NextShape
 	ebiten.SetCursorMode(ebiten.CursorModeVisible)
 

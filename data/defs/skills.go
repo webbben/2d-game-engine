@@ -88,6 +88,22 @@ type LevelSystemParameters struct {
 	SkillLevelCap int
 }
 
+type WeaponInfo struct {
+	ID         ItemID
+	Condition  float64
+	WeaponType SkillID
+
+	// Unarmed attack fields
+
+	UnarmedAttack       bool
+	UnarmedAttackDamage RealDamage
+}
+
+type AttackerInfo struct {
+	Attrs  map[AttributeID]int
+	Skills map[SkillID]int
+}
+
 // CombatSystemCalc includes all necessary functions to handle combat related calculation.
 type CombatSystemCalc interface {
 	// Functions for calculating damage. Includes:
@@ -95,7 +111,7 @@ type CombatSystemCalc interface {
 	// 	- weaponType: in case specific weapon types behave differently in the calculation
 
 	// Calculates how much damage a melee weapon does, before armor mitigation.
-	MeleeWeaponDamage(weaponID ItemID, condition float64, mult float64, weaponType SkillID, attrs map[AttributeID]int, skills map[SkillID]int) RealDamage
+	MeleeWeaponDamage(mult float64, weaponInfo WeaponInfo, attackerInfo AttackerInfo) RealDamage
 	// Determines the damage multiplier of a power attack based on how long the attack was charged.
 	// chargeDuration is the length of time the attack was held in its wind-up; a minimal (uncharged)
 	// attack should return the base multiplier of 1.0.

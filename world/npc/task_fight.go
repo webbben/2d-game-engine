@@ -197,25 +197,9 @@ func (t *FightTask) Start() {
 	t.startCombat()
 }
 
-// standDown ends this fight task because there is nothing left for this npc to fight -- either every
-// enemy is gone, or they broke off running and this npc won't give chase.
-//
-// It also leaves the combat session. Standing down is not the same as being defeated: the fight only
-// ends for us when we're no longer in it, and leaving is what makes that true. Without this the npc
-// would linger in a session no longer participating in, and the fight would stay findable.
-//
-// Ending the task hands the npc back to the decision loop, which returns them to their hourly schedule.
-// That's the same path a fleeing npc already takes, so a guard who declines a chase resumes patrolling
-// rather than standing in the street refusing to work.
 // shouldYieldCombat answers whether this npc should stop standing their ground and start running.
-//
-// Unarmed is a reason to go no matter how hard someone is: that is a fact about equipment, not a
-// judgment call. Being outmatched is the judgment, and it is the one game data gets to make, so
-// bravery is only consulted once there is actually something to fight with. Trying to arm first also
-// means an npc carrying a weapon fights rather than runs for no reason.
-//
-// This lives here rather than in whoever started the fight so that every way into a fight asks the
-// same question, and so the answer can change partway through one.
+// Generally, an NPC should give up the fight if they don't have a weapon or way to fight back.
+// Otherwise, it depends on shouldFlee.
 func (t *FightTask) shouldYieldCombat() bool {
 	if !t.Owner.ensureWeaponEquipped() {
 		return true

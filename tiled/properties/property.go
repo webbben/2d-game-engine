@@ -2,8 +2,6 @@ package properties
 
 import (
 	"encoding/json"
-
-	"github.com/webbben/2d-game-engine/logz"
 )
 
 // Property represents a custom property from a Tiled map/tileset JSON file.
@@ -130,6 +128,7 @@ type LightProps struct {
 	FlickerInterval   int
 	MaxBrightness     float64
 	CoreRadiusFactor  float64
+	CanTurnOff        bool
 }
 
 type WindowProps struct {
@@ -165,8 +164,8 @@ func GetLightProps(p []Property) LightProps {
 			props.MaxBrightness = prop.GetFloatValue()
 		case PropLightCoreRadius:
 			props.CoreRadiusFactor = prop.GetFloatValue()
-		case PropLightPreset:
-			logz.Panicln("GetLightProps", "light_preset prop is deprecated; use light_color_r/g/b props instead.")
+		case PropLightCanTurnOff:
+			props.CanTurnOff = prop.GetBoolValue()
 		}
 	}
 
@@ -194,4 +193,3 @@ func GetWindowProps(p []Property) WindowProps {
 
 	return props
 }
-

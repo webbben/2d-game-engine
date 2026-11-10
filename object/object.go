@@ -107,12 +107,18 @@ type Object struct {
 
 	AudioMgr *audio.AudioManager
 	dataman  *datamanager.DataManager
+
+	ambientSoundID         defs.SoundID
+	ambientSoundPlaybackID audio.PlaybackID
 }
 
-func (obj Object) OnMapClose() {
+// Destroy handles cleanup when a map closes
+func (obj Object) Destroy() {
 	for _, subID := range obj.subIDs {
 		obj.eventBus.Unsubscribe(subID)
 	}
+
+	obj.AudioMgr.Stop(obj.ambientSoundPlaybackID)
 }
 
 func (obj Object) GetDisplayName() string {
@@ -569,6 +575,13 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 		if found {
 			o.emitterOffsetY = float64(emitterOffsetY)
 		}
+	}
+
+	// ambient sound
+	ambientSoundID, found := properties.GetStringProperty(properties.PropSoundAmbient, allProps)
+	if found {
+		o.ambientSoundID = defs.SoundID(ambientSoundID)
+		// Note: don't play the sound here, because LoadObject may be called asynchronously/outside of the main update thread
 	}
 
 	// load data for specific object type
