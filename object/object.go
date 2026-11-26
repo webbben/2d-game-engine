@@ -72,6 +72,7 @@ type Object struct {
 	collisionRect   model.Rect // rect used for collision (e.g. for gates, only covers bottom tiles)
 	collidable      bool       // if set, game will check for collisions with this object
 	collisionHeight int        // number of tiles in height the collision should be. must not be 0 or bigger than object.
+	collisionWidth  int        // number of tiles in width the collision should be.
 	seeThrough      bool       // if true, this object never blocks line of sight, even if collidable
 
 	tileData tiled.TileData // data of a tile embedded in this object
@@ -424,6 +425,9 @@ func (o *Object) SetImageFrames(frames []*ebiten.Image) {
 	if len(frames) == 0 {
 		logz.Panic("no frames!")
 	}
+	if frames[0] == nil {
+		logz.Panic("frame was nil! Hint: do you need to regen tile images?")
+	}
 	// we assume that all frames are the same dimensions. Note: if this ever changes for a particular use case, we can change this validation.
 	w, h := frames[0].Bounds().Dx(), frames[0].Bounds().Dy()
 	for _, img := range frames {
@@ -551,6 +555,19 @@ func LoadObject(obj tiled.Object, m tiled.Map, audioMgr *audio.AudioManager, dat
 			logz.Panicln("Object", "collision_height property set, but it was <= 1 (shouldn't set to 1, since that's default...):", collisionHeight, "objID:", obj.ID)
 		}
 		o.collisionHeight = collisionHeight
+	}
+	collisionWidth, found := properties.GetIntProperty(properties.PropCollisionWidth, allProps)
+	if found {
+		if collisionWidth*config.TileSize > o.Width {
+			logz.Panicln("Object", "collision width is too wide for object. collision_width:", collisionWidth, "objID:", o.ID)
+		}
+		if collisionWidth*config.TileSize == o.Width {
+			logz.Panicln("Object", "collision_width became the same as regular object width, which is unnecessary.", o.ID, o.mapID)
+		}
+		if collisionWidth <= 0 {
+			logz.Panicln("Object", "collision_width property set, but it was <= 0:", collisionWidth, "objID:", o.ID)
+		}
+		o.collisionWidth = collisionWidth
 	}
 
 	// check ownership and roles
@@ -728,16 +745,28 @@ func (obj Object) validateGateObject() {
 }
 
 func (obj *Object) addDefaultCollision() {
+	xPos := obj.xPos
+
 	tileHeight := 1
 	if obj.collisionHeight > 0 {
 		tileHeight = obj.collisionHeight
 	}
 	collisionHeight := float64(config.TileSize * tileHeight)
 
+	yPos := obj.yPos + float64(obj.Height) - collisionHeight
+
+	collisionWidth := float64(obj.Width)
+	if obj.collisionWidth > 0 {
+		collisionWidth = float64(obj.collisionWidth * config.TileSize)
+
+		// if collision width is less than object width, then we need to center the collision rect horizontally
+		xPos += (float64(obj.Width) - collisionWidth) / 2
+	}
+
 	obj.collisionRect = model.Rect{
-		X: obj.xPos,
-		Y: obj.yPos + float64(obj.Height) - collisionHeight, // only TileSize height, from the bottom of the object
-		W: float64(obj.Width),
+		X: xPos,
+		Y: yPos,
+		W: collisionWidth,
 		H: collisionHeight,
 	}
 	obj.collidable = true

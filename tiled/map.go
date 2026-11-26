@@ -165,10 +165,18 @@ func (m *Map) findTilePropertiesInLayer(layer Layer) {
 	switch layer.Type {
 	case LayerTypeTile:
 		for i, d := range layer.Data {
-			tile, _, found := m.GetTileByGID(d)
-			if !found {
+			if d == 0 {
+				// 0 is for empty positions in a layer; skip processing
 				continue
 			}
+			tile, _, found := m.GetTileByGID(d)
+			if !found {
+				// 2026-11-26: I considered removing collisions if no tile was found (i.e. no properties set on tile), but it seems like
+				// this causes collisions to disappear for things like cliffs and riverbanks. so, decided not to eliminate existing collisions here.
+				// m.CollisionRects[y][x] = CollisionRect{IsCollision: false}
+				continue
+			}
+
 			x := i % layer.Width
 			y := i / layer.Width
 

@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/webbben/2d-game-engine/config"
-	"github.com/webbben/2d-game-engine/logz"
 	"github.com/webbben/2d-game-engine/data/model"
+	"github.com/webbben/2d-game-engine/logz"
 )
 
 // Waypoint contention.
@@ -256,6 +256,9 @@ func (n *NPC) contestedClaim() (model.Coords, []*NPC) {
 	}
 
 	var claimants []*NPC
+	if n.ActiveMapCtx == nil {
+		logz.PanicCtx("contestedClaim", "NPC involved in contested claim, but has no active map context. this is supposed to only happen for NPCs in the active map, right?", n.WhoAmI())
+	}
 	for _, other := range n.ActiveMapCtx.GetAllNPCs() {
 		if other.ID() == n.ID() {
 			continue

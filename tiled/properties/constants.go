@@ -42,6 +42,7 @@ const (
 	PropDisplayName      = "displayName"
 	PropNoCollision      = "no_collision"     // if true, object has no collision
 	PropCollisionHeight  = "collision_height" // height of the object's collision rect, in tiles
+	PropCollisionWidth   = "collision_width"  // width of the object's collision rect, in tiles
 	PropOnObjID          = "on_obj_id"        // if set, render this object on top of another object
 	PropOwnerCharID      = "owner_id"         // a unique character of the given ID owns this object
 	PropRoleID           = "role_id"          // characters with this role can use this object
